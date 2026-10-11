@@ -48,9 +48,28 @@ struct QMKGeneratorTests {
         ) {
             try QMKGenerator().generate(layout, identity: identity)
         }
-        layout.updateKey(layer: 1, index: 3) { $0 = Key(tap: .momentary(7)) }
-        #expect(throws: GeneratorError.unsupported("a layer key for a layer that doesn't exist", KeyRef(layer: 1, index: 3))) {
+        // A layer-tap to a missing layer is refused like a plain layer key.
+        layout.updateKey(layer: 1, index: 3) { $0 = Key(tap: .code("KC_A"), hold: .momentary(7)) }
+        #expect(throws: GeneratorError.unsupported("a layer key for a layer that doesn't exist", KeyRef(layer: 1, index: 3, slot: .hold))) {
             try QMKGenerator().generate(layout, identity: identity)
         }
+    }
+
+    /// Imported layouts are untrusted: their text is pasted into C, and their numbers feed arithmetic.
+    @Test func refusesInputThatWouldInjectCOrOverflow() throws {
+        let clean = try userLayout()
+        var layout = clean
+        layout.updateKey(layer: 0, index: 1) { $0 = Key("KC_A\n#include \"/etc/passwd\"") }
+        #expect(throws: GeneratorError.self) { try QMKGenerator().generate(layout, identity: identity) }
+        layout = clean
+        layout.updateKey(layer: 0, index: 1) { $0 = Key(tap: KeyAction(code: "KC_NO", macro: Macro(steps: [MacroStep(code: "A);x(")]))) }
+        #expect(throws: GeneratorError.self) { try QMKGenerator().generate(layout, identity: identity) }
+        #expect(throws: GeneratorError.self) { try QMKGenerator().generate(clean, identity: FirmwareIdentity(serial: "a\"\n#include")) }
+        layout = clean
+        layout.settings["rgbTimeout"] = .number(1e15)
+        #expect(throws: GeneratorError.self) { try QMKGenerator().generate(layout, identity: identity) }
+        layout = clean
+        layout.updateKey(layer: 0, index: 24) { $0.tappingTerm = .min }
+        #expect(throws: GeneratorError.self) { try QMKGenerator().generate(layout, identity: identity) }
     }
 }

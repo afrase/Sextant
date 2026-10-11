@@ -10,10 +10,9 @@ import Synchronization
 /// Everything lives in one folder that the setup step fills, with the user's consent: the VM kernel, the init and root
 /// filesystems, and the firmware checkout. ``status()`` only looks at it and never downloads anything.
 public struct ContainerToolchain: Toolchain {
-    /// What the setup step installs, pinned (research 02 §6–7).
+    /// What the setup step installs, pinned (research 02 §6–7): a `debian:bookworm` root filesystem with
+    /// `gcc-arm-none-eabi 15:12.2.rel1-1` (ZSA's compiler), `qmk`, GNU make and `dfu-suffix`, plus these checkouts.
     public enum Pins {
-        public static let baseImage = "debian:bookworm"
-        public static let compiler = "gcc-arm-none-eabi 15:12.2.rel1-1"
         /// `zsa/qmk_firmware`, branch `firmware25`.
         public static let firmwareCommit = "93b2b9ec3368f86c5eb5a2e3f934049f8daef885"
         /// `zsa/qmk_modules` (submodule `modules/zsa`).
@@ -114,11 +113,17 @@ struct VirtualMachineRunner: CommandRunner {
                     let output = LineWriter { continuation.yield(.line($0)) }
                     let container = try makeContainer(command, output: output)
                     try await container.create()
-                    try await container.start()
-                    let status = try await withTaskCancellationHandler {
-                        try await container.wait()
-                    } onCancel: {
-                        Task { try? await container.kill(.kill) }
+                    let status: ExitStatus
+                    do {
+                        try await container.start()
+                        status = try await withTaskCancellationHandler {
+                            try await container.wait()
+                        } onCancel: {
+                            Task { try? await container.kill(.kill) }
+                        }
+                    } catch {
+                        try? await container.stop()  // never leave a VM running
+                        throw error
                     }
                     try? await container.stop()
                     output.flush()

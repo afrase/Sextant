@@ -35,7 +35,11 @@ struct ToolchainTests {
         sourceMap: [21: KeyRef(layer: 1, index: 4, slot: .tap)])
     var imageURL: URL { home.appending(path: "zsa_voyager_sextant.bin") }
 
-    func events(_ runner: FakeRunner) async -> [BuildEvent] {
+    /// Runs a build against `runner`, in a QMK home that has the Voyager's keyboard folder unless `checkout` is false.
+    func events(_ runner: FakeRunner, checkout: Bool = true) async -> [BuildEvent] {
+        if checkout {
+            try? FileManager.default.createDirectory(at: home.appending(path: "keyboards/zsa/voyager"), withIntermediateDirectories: true)
+        }
         var out: [BuildEvent] = []
         for await e in QMKBuild(hostHome: home, commandHome: "/qmk", runner: runner).run(source, board: board) { out.append(e) }
         return out
@@ -116,10 +120,16 @@ struct ToolchainTests {
         #expect(big.last == .failed(.tooLarge(overBy: 5)))
     }
 
-    @Test func aMissingToolOrImageFails() async {
+    @Test func aMissingCheckoutToolOrImageFails() async {
         defer { try? FileManager.default.removeItem(at: home) }
-        guard case .failed(.notInstalled)? = await events(FakeRunner(output: [], fails: true)).last else {
-            Issue.record("expected notInstalled")
+        let runner = FakeRunner(output: [.exit(0)])
+        guard case .failed(.notInstalled)? = await events(runner, checkout: false).last else {
+            Issue.record("expected notInstalled without a checkout")
+            return
+        }
+        #expect(runner.commands.all.isEmpty && !FileManager.default.fileExists(atPath: home.path), "nothing runs or is created")
+        guard case .failed(.failed)? = await events(FakeRunner(output: [], fails: true)).last else {
+            Issue.record("expected a failure when the command can't run")
             return
         }
         guard case .failed(.failed)? = await events(FakeRunner(output: [.exit(0)])).last else {

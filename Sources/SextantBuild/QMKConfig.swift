@@ -65,8 +65,7 @@ struct Features {
         if let interval = number("mouseInterval") { redefine("MOUSEKEY_INTERVAL", interval) }
         if let delay = number("mouseDelay") { redefine("MOUSEKEY_DELAY", delay) }
         if capsLockStatus { out.append("#define CAPS_LOCK_STATUS") }
-        let escaped = serial.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-        out.append("#define SERIAL_NUMBER \"\(escaped)\"")
+        out.append("#define SERIAL_NUMBER \"\(serial)\"")  // the generator admits only [A-Za-z0-9/._-]
         let layers = plan.layout.layers.count
         out.append("#define LAYER_STATE_\(layers < 8 ? 8 : layers < 16 ? 16 : 32)BIT")
         if !plan.combos.isEmpty { out += ["#define COMBO_COUNT \(plan.combos.count)", ""] }
@@ -159,15 +158,17 @@ struct Features {
         "dancesTapAction",
     ]
 
-    /// A changed firmware setting the generator can't write fails the build rather than being dropped. Locale toggles
-    /// only change Oryx's picker; the codes a layout uses carry the locale.
+    /// A changed firmware setting the generator can't write fails the build rather than being dropped, and so does a
+    /// number outside the setting's range (imported values feed C defines and arithmetic). Locale toggles only change
+    /// Oryx's picker; the codes a layout uses carry the locale.
     private static func refuseUnsupportedSettings(_ settings: [String: SettingValue]) throws(GeneratorError) {
         let catalog = SettingsCatalog.voyager
-        for (id, value) in settings.sorted(by: { $0.key < $1.key }) where !understood.contains(id) {
-            guard let setting = catalog.setting(id: id), value != setting.defaultValue,
-                catalog.section(containing: id)?.id != "international"
-            else { continue }
-            throw .unsupported(String(localized: "the “\(setting.title)” setting"), nil)
+        for (id, value) in settings.sorted(by: { $0.key < $1.key }) {
+            guard let setting = catalog.setting(id: id) else { continue }
+            let outOfRange = value.doubleValue.map { v in setting.range.map { !$0.contains(v) } ?? false } ?? false
+            let unwritten =
+                !understood.contains(id) && value != setting.defaultValue && catalog.section(containing: id)?.id != "international"
+            if outOfRange || unwritten { throw .unsupported(String(localized: "the “\(setting.title)” setting"), nil) }
         }
     }
 

@@ -52,8 +52,13 @@ struct QMKBuild: Sendable {
     private func build(_ source: GeneratedSource, board: BoardDefinition, emit: (BuildEvent) -> Void) async -> BuildEvent {
         let keyboard = "zsa/\(board.name)"
         let image = hostHome.appending(path: "zsa_\(board.name)_\(Self.keymapName).bin")
+        let keyboardFolder = hostHome.appending(path: "keyboards/\(keyboard)", directoryHint: .isDirectory)
+        // Without the checkout, creating folders here would block setup's clone into the same place.
+        guard FileManager.default.fileExists(atPath: keyboardFolder.path) else {
+            return .failed(.notInstalled(String(localized: "The QMK firmware checkout is missing.")))
+        }
         do {
-            let folder = hostHome.appending(path: "keyboards/\(keyboard)/keymaps/\(Self.keymapName)", directoryHint: .isDirectory)
+            let folder = keyboardFolder.appending(path: "keymaps/\(Self.keymapName)", directoryHint: .isDirectory)
             try? FileManager.default.removeItem(at: folder)
             try? FileManager.default.removeItem(at: image)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -79,7 +84,7 @@ struct QMKBuild: Sendable {
         } catch {
             if Task.isCancelled { return .failed(.cancelled) }
             log.error("The build command failed to run: \(error.localizedDescription, privacy: .public)")
-            return .failed(.notInstalled(error.localizedDescription))
+            return .failed(.failed(error.localizedDescription))
         }
         if Task.isCancelled { return .failed(.cancelled) }
         return finish(status: status, output: output, image: image, board: board)

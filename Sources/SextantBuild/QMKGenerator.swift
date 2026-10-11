@@ -14,7 +14,13 @@ public struct QMKGenerator: FirmwareGenerator {
 
     public func generate(_ layout: KeyboardLayout, identity: FirmwareIdentity) throws(GeneratorError) -> GeneratedSource {
         guard let board = layout.board, board == .voyager else { throw .unsupportedBoard(layout.geometry) }
-        guard layout.layers.count <= 32 else { throw .unsupported(String(localized: "more than 32 layers"), nil) }
+        guard (1...32).contains(layout.layers.count), layout.layers.allSatisfy({ $0.keys.count == board.keyCount }) else {
+            throw .unsupported(String(localized: "this number of layers or keys"), nil)
+        }
+        // The serial lands in a C string literal; Oryx's are `layout/revision` ids.
+        guard identity.serial.wholeMatch(of: /[A-Za-z0-9\/._-]+/) != nil else {
+            throw .unsupported(String(localized: "the firmware serial “\(identity.serial)”"), nil)
+        }
         let plan = try KeymapPlan(layout)
         let features = try Features(plan)
         let keymap = KeymapSource(plan: plan, features: features, board: board).render()
@@ -99,13 +105,16 @@ struct KeymapPlan {
                 }
                 keys.append(tokens[layer][index])
             }
-            note(combo.output)
+            try note(combo.output, at: nil)
             combos.append(ComboKeys(keys: keys, output: try expression(combo.output, at: nil)))
         }
     }
 
     private mutating func token(for key: Key, at ref: KeyRef) throws(GeneratorError) -> String {
-        for (_, action) in key.actions { note(action) }
+        for (slot, action) in key.actions { try note(action, at: KeyRef(layer: ref.layer, index: ref.index, slot: slot)) }
+        if let term = key.tappingTerm, !(0...1000).contains(term) {
+            throw .unsupported(String(localized: "a tapping term of \(term) ms"), ref)
+        }
         if key.isTransparent { return "KC_TRANSPARENT" }
         if key.doubleTap != nil || key.tapHold != nil {
             for (slot, action) in key.actions where QMKCodes.statements(action) == nil {
@@ -140,9 +149,7 @@ struct KeymapPlan {
         }
         switch action.canonicalCode {
         case "MO", "TG", "TO", "TT", "OSL", "DF", "LM":
-            guard let layer = action.layer, layout.layers.indices.contains(layer) else {
-                throw .unsupported(String(localized: "a layer key for a layer that doesn't exist"), ref)
-            }
+            let layer = action.layer ?? 0  // note(_:at:) refused layer keys without a layer
             return action.canonicalCode == "LM"
                 ? "LM(\(layer),\(QMKCodes.mask(action.modifiers)))" : "\(action.code)(\(layer))"
         case "OSM": return "OSM(\(QMKCodes.mask(action.modifiers)))"
@@ -156,7 +163,14 @@ struct KeymapPlan {
         }
     }
 
-    private mutating func note(_ action: KeyAction) {
+    /// Checks an action from the layout (imported JSON is untrusted: its codes are pasted into C) and records its code.
+    private mutating func note(_ action: KeyAction, at ref: KeyRef?) throws(GeneratorError) {
+        for code in [action.code] + (action.macro?.steps.map(\.code) ?? []) where code.wholeMatch(of: /[A-Za-z_][A-Za-z0-9_]*/) == nil {
+            throw .unsupported(String(localized: "“\(code)”, which isn't a keycode"), ref)
+        }
+        if KeycodeCatalog.layerFunctions.contains(action.canonicalCode), !layout.layers.indices.contains(action.layer ?? -1) {
+            throw .unsupported(String(localized: "a layer key for a layer that doesn't exist"), ref)
+        }
         codes.insert(action.canonicalCode)
         if QMKCodes.locale[action.code] != nil, !localeCodes.contains(action.code) { localeCodes.append(action.code) }
     }
