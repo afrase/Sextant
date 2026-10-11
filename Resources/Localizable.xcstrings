@@ -817,7 +817,7 @@
     "Flashing is off" : {
 
     },
-    "Flashing is off until you approve hardware access." : {
+    "Flashing is turned off in this version of Sextant, so the firmware was built but not written. Nothing on the keyboard changed." : {
 
     },
     "Flashing, %lld percent" : {

@@ -157,6 +157,9 @@ public struct BuildFlashSheet: View {
                     ))
         case .done:
             Button("Done", action: stop).keyboardShortcut(.defaultAction)
+        case .failed(.flash(.hardwareAccessOff)):
+            // Trying again can't help: flashing is switched off.
+            Button("Close", action: hide).keyboardShortcut(.defaultAction)
         case .failed:
             Button("Close", action: hide).keyboardShortcut(.cancelAction)
             Button("Try Again") { build.retry() }.keyboardShortcut(.defaultAction).disabled(!model.canBuild)

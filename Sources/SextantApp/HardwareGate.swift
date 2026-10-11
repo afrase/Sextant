@@ -16,6 +16,7 @@ struct RefusingKeyboardLink: KeyboardLink {
 
 /// A flasher that refuses every image: flashing is off.
 struct RefusingFlasher: Flasher {
+    var isEnabled: Bool { false }
     func flash(
         _ image: FirmwareImage, md5: String, to device: BootloaderDevice, board: BoardDefinition,
         progress: @escaping @Sendable (FlashProgress) -> Void

@@ -70,13 +70,15 @@ final class FakeFlasher: Flasher {
     }
     private let error: FlashError?
     private let holds: Bool
+    let isEnabled: Bool
     private let gate: AsyncStream<Void>
     private let opener: AsyncStream<Void>.Continuation
     private let recorded = Mutex<[Call]>([])
 
-    init(error: FlashError? = nil, holds: Bool = false) {
+    init(error: FlashError? = nil, holds: Bool = false, isEnabled: Bool = true) {
         self.error = error
         self.holds = holds
+        self.isEnabled = isEnabled
         (gate, opener) = AsyncStream.makeStream(of: Void.self)
     }
 

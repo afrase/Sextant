@@ -125,6 +125,14 @@ struct BuildFlashSessionTests {
         #expect(toolchain.buildCount == 0)
     }
 
+    /// With flashing switched off, Build & Flash builds and stops before asking for flash mode.
+    @Test func neverAsksForFlashModeWhenFlashingIsOff() async throws {
+        let (session, _) = try await make(flasher: FakeFlasher(isEnabled: false))
+        session.buildAndFlash(connectedKeyboard: nil)
+        #expect(await eventually { session.phase == .failed(.flash(.hardwareAccessOff)) })
+        #expect(session.artifact != nil && watcher.subscriberCount == 0, "built, and never waited for a bootloader")
+    }
+
     @Test func asksForSetupBeforeTheFirstBuild() async throws {
         let toolchain = FakeToolchain(readiness: .needsSetup("About 190 MB"))
         let (session, _) = try await make(toolchain: toolchain)

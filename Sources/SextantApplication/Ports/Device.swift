@@ -125,7 +125,12 @@ public enum FlashError: Error, Equatable, Sendable, LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .hardwareAccessOff: String(localized: "Flashing is off until you approve hardware access.")
+        case .hardwareAccessOff:
+            String(
+                localized: """
+                    Flashing is turned off in this version of Sextant, so the firmware was built but not written. \
+                    Nothing on the keyboard changed.
+                    """)
         case let .imageRejected(reason): String(localized: "Sextant won't flash this image: \(reason.localizedDescription)")
         case .checksumMismatch: String(localized: "Sextant won't flash this image: its checksum doesn't match the build.")
         case .deviceNotFound, .deviceBusy, .dfuError, .timeout, .transfer:
@@ -136,8 +141,14 @@ public enum FlashError: Error, Equatable, Sendable, LocalizedError {
 
 /// Writes an image to a bootloader. Implementations enforce the flasher guards (CLAUDE.md, ADR 0013).
 public protocol Flasher: Sendable {
+    /// False when flashing is switched off (ADR 0012): Build & Flash then stops before asking for flash mode.
+    var isEnabled: Bool { get }
     func flash(
         _ image: FirmwareImage, md5: String, to device: BootloaderDevice, board: BoardDefinition,
         progress: @escaping @Sendable (FlashProgress) -> Void
     ) async throws(FlashError)
+}
+
+extension Flasher {
+    public var isEnabled: Bool { true }
 }

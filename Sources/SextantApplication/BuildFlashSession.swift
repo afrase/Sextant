@@ -251,6 +251,8 @@ public final class BuildFlashSession {
             guard await build(layout, as: expected) else { return }
         }
         if request == .build { return show(.built) }
+        // Never ask for flash mode when the write would be refused: the keyboard would sit in its bootloader for nothing.
+        guard flasher.isEnabled else { return fail(.flash(.hardwareAccessOff)) }
         await flashAndVerify()
     }
 
