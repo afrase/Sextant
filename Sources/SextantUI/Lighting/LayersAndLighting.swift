@@ -112,13 +112,7 @@ struct LayerColourMenu: View {
     }
 }
 
-extension View {
-    /// The layer confirmations and the Custom… colour sheet, and the brush the board paints with.
-    func layerPresentations(_ model: LayoutWindowModel) -> some View {
-        modifier(LayerPresentations(model: model))
-    }
-}
-
+/// The layer confirmations and the Custom… colour sheet, and the brush the board paints with.
 struct LayerPresentations: ViewModifier {
     var model: LayoutWindowModel
 

@@ -28,18 +28,23 @@ enum KeyLight: Equatable {
 }
 
 /// A cap in the Lighting lens: a backlit face (tint, rim, and a glow in dark mode), an unlit face with "off", and
-/// the legend in ink picked by luminance (spec §6.2). Hovering shows a dashed ring in the brush colour.
+/// the legend in ink picked by luminance (spec §6.2). Hovering shows a dashed ring in the brush colour; a live press
+/// shrinks the cap and rings it in the live colour.
 struct LitKeyCap: View {
     var model: KeyCapModel
     var light: KeyLight
     var u: CGFloat
+    /// Live presses light in every lens (spec §2.2); read here so a press redraws only this cap.
+    var press: PressedKeys.KeyState?
     @State private var isHovered = false
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.brush) private var brush
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 0.16 * u, style: .continuous)
         let tint = light.tint
+        let isDown = press?.isDown ?? false
         ZStack {
             shape.fill(tint == nil ? Tokens.capUnlit.color : Tokens.capTop.color)
             if let tint { shape.fill(tint.color.color.opacity(0.4 * tint.strength)) }
@@ -69,6 +74,11 @@ struct LitKeyCap: View {
                     brush.color?.color ?? Tokens.ghostStroke.color, style: StrokeStyle(lineWidth: 1.5, dash: [3, 2.5]))
             }
         }
+        .overlay {
+            if isDown { shape.inset(by: -2).stroke((model.layerTones?.display ?? Tokens.success).color, lineWidth: 3) }
+        }
+        .scaleEffect(isDown && !reduceMotion ? 0.96 : 1)
+        .animation(isDown ? nil : SextantMotion.keyRelease, value: isDown)
         .onHover { isHovered = $0 }
         .contentShape(shape)
         .accessibilityElement(children: .ignore)

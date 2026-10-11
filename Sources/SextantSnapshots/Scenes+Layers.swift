@@ -18,6 +18,8 @@ extension Scenes {
             m.lens = .lighting
             m.session?.paint(brush, keys: [14, 15, 16, 20], layer: 2)
         }
+        // Live presses light in every lens (spec §2.2).
+        lightingMin.pressedKeys.update([15, 31])
 
         func window(_ name: String, _ model: LayoutWindowModel, size: CGSize = full, overlays: [SnapshotOverlay] = []) -> [SnapshotScene] {
             SnapshotScene.pair(name, size: size, overlays: overlays) { LayoutWindow(model: model, layoutID: .constant(f.entry.id)) }

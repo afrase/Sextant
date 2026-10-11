@@ -4,7 +4,7 @@ extension View {
     /// The window's sheets, alerts and popovers, one modifier each.
     func windowPresentations(_ model: LayoutWindowModel) -> some View {
         modifier(DeleteLayerAlert(model: model))
-            .layerPresentations(model)
+            .modifier(LayerPresentations(model: model))
     }
 }
 

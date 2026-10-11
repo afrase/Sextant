@@ -127,10 +127,13 @@ public struct BoardView: View {
             BoardCanvas(layout: board) { frame in
                 if let model = models[safe: frame.index], let brush {
                     let own = stroke.contains(frame.index) ? brush.color : layout.key(layer: layer, index: frame.index)?.glowColor
-                    LitKeyCap(model: model, light: KeyLight(own: own, layer: layout.layers[safe: layer]?.color), u: cap)
-                        .accessibilityHint(Text("Paints with the brush."))
-                        .accessibilityAction { session.paint(brush.color, keys: [frame.index]) }
-                        .accessibilitySortPriority(order[safe: frame.index] ?? 0)
+                    LitKeyCap(
+                        model: model, light: KeyLight(own: own, layer: layout.layers[safe: layer]?.color), u: cap,
+                        press: pressed?.state(frame.index)
+                    )
+                    .accessibilityHint(Text("Paints with the brush."))
+                    .accessibilityAction { session.paint(brush.color, keys: [frame.index]) }
+                    .accessibilitySortPriority(order[safe: frame.index] ?? 0)
                 } else if let model = models[safe: frame.index] {
                     let value = KeyText.value(model.legend, layout: layout, layer: layer, index: frame.index, geometry: session.geometry)
                     BoardKey(model: model, u: cap, height: frame.size.height, press: pressed?.state(frame.index))
@@ -151,6 +154,8 @@ public struct BoardView: View {
             selectionRing(board, cap: cap)
         }
         .gesture(paintStroke(board), isEnabled: brush != nil)
+        // Leaving the lens mid-stroke cancels the gesture without `onEnded`; drop its preview.
+        .onChange(of: brush) { stroke = [] }
         .animation(SextantMotion.layerChange, value: layer)
     }
 
