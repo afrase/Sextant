@@ -1,8 +1,8 @@
 #!/bin/sh
 # Renders the app icon (AppIconArtwork, spec §10.7) offscreen and writes Resources/AppIcon.icns. Run it after changing
-# the artwork and commit the .icns. The 16 and 32 px images come from the simplified artwork (app-icon-small).
-# Each size is drawn at its own pixel scale: shrinking the 1024 px image with sips leaves light fringes in the soft
-# shadow. The rendered PNGs stay in .build/icon/<pixels>/ for review.
+# the artwork and commit the .icns. The 16, 32 and 64 px images come from their own simplified scenes (app-icon-16,
+# -32, -64); app-icon serves 128 px and up. Each size is drawn at its own pixel scale: shrinking the 1024 px image with
+# sips leaves light fringes in the soft shadow. The rendered PNGs stay in .build/icon/<pixels>/ for review.
 set -eu
 cd "$(dirname "$0")/.."
 out=.build/icon
@@ -11,13 +11,12 @@ rm -rf "$out"
 mkdir -p "$set"
 render() { swift run -q SextantSnapshots "$out/$2" --only "$1" --scale "$(awk "BEGIN { print $2 / 1024 }")" >/dev/null; }
 put() { cp "$out/$2/$1.png" "$set/$3.png"; }
-render app-icon-small 16
-render app-icon-small 32
-for px in 64 128 256 512 1024; do render app-icon "$px"; done
-put app-icon-small 16 icon_16x16
-put app-icon-small 32 icon_16x16@2x
-put app-icon-small 32 icon_32x32
-put app-icon 64 icon_32x32@2x
+for px in 16 32 64; do render "app-icon-$px" "$px"; done
+for px in 128 256 512 1024; do render app-icon "$px"; done
+put app-icon-16 16 icon_16x16
+put app-icon-32 32 icon_16x16@2x
+put app-icon-32 32 icon_32x32
+put app-icon-64 64 icon_32x32@2x
 for s in 128 256 512; do
     put app-icon "$s" "icon_${s}x${s}"
     put app-icon $((s * 2)) "icon_${s}x${s}@2x"

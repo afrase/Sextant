@@ -1,221 +1,362 @@
 import SwiftUI
 
-/// Sextant's app icon (spec §10.7): a graphite squircle with the porcelain sextant mark resting on two tilted generic
-/// keycaps (no Voyager outline). Drawn on the macOS icon grid: a 1024 pt canvas, transparent outside an 824 pt body at
-/// (100, 100). Three clear values (graphite, slate keys, porcelain mark) keep the arc and both keys legible at 16 px.
-/// `scripts/icon` renders it through the `app-icon` snapshot scenes into `Resources/AppIcon.icns`.
-///
-/// The mark is SextantMark's geometry (pivot on top, a 60° sector, the index arm at 78°) built from filled shapes,
-/// because an icon needs heavy bands and cut-in ticks rather than a hairline stroke.
+/// Sextant's app icon (spec §10.7): a marine sextant in profile, porcelain on a graphite squircle, with a brass index arm
+/// as the one accent; the mirrors and telescope are smoky graphite. Drawn on the macOS icon grid: a 1024 pt canvas,
+/// transparent outside an 824 pt body at (100, 100). `scripts/icon` renders it through the `app-icon` snapshot scenes
+/// into `Resources/AppIcon.icns`.
 public struct AppIconArtwork: View {
-    /// The 16 and 32 px artwork: no ticks or hub hole, and a heavier index arm.
-    var small: Bool
+    /// The pixel size being rendered. Each size has its own tier of detail (128 px and up, 64, 32, 16), with widths in
+    /// whole pixels at the small ones, so render it at a scale of `pixels / 1024`.
+    var pixels: CGFloat
 
-    public init(small: Bool = false) { self.small = small }
+    public init(pixels: CGFloat = 1024) { self.pixels = pixels }
 
     public var body: some View {
         ZStack {
             IconBody()
-            IconKeys()  // with a graphite gap cut where the arc lies over them
-                .overlay { MarkSilhouette(part: .all, grow: IconGeo.halo * 2, small: small).blendMode(.destinationOut) }
-                .compositingGroup()
-                .shadow(color: .black.opacity(0.25), radius: 8, y: 6)
-            // Stacked like the instrument: frame and scale, then the index arm, then the pivot.
-            ZStack {
-                porcelain(.frame)
-                porcelain(.arm).shadow(color: .black.opacity(0.24), radius: 5, y: 3)
-                porcelain(.hub).shadow(color: .black.opacity(0.2), radius: 3, y: 2)
-            }
-            .overlay {
-                if !small {  // the pivot hole, through every layer
-                    Circle().fill(.black).frame(width: 40, height: 40).position(IconGeo.pivot).blendMode(.destinationOut)
-                }
-            }
-            .compositingGroup()
-            .shadow(color: .black.opacity(0.35), radius: 12, y: 8)
+            Instrument(parts: IconParts(px: pixels))
         }
         .frame(width: 1024, height: 1024)
-    }
-
-    /// Enamel: a top-to-bottom porcelain face with a bright top edge and a shaded bottom edge.
-    private func porcelain(_ part: MarkSilhouette.Part) -> some View {
-        let shape = MarkSilhouette(part: part, grow: 0, small: small)
-        return ZStack {
-            IconPalette.porcelainShade
-            Color.white.mask { shape.offset(y: -2) }
-            LinearGradient(colors: [IconPalette.porcelainTop, IconPalette.porcelainBottom], startPoint: .top, endPoint: .bottom)
-                .mask { shape.offset(y: -2) }
-                .mask { shape.offset(y: 2) }
-        }
-        .mask { shape }
-    }
-}
-
-// MARK: - Geometry (1024 pt canvas, y down; angles clockwise from +x, as in SextantMark)
-
-private enum IconGeo {
-    static let body = CGRect(x: 100, y: 100, width: 824, height: 824)
-    static let cornerRadius: CGFloat = 185.4
-    static let pivot = CGPoint(x: 512, y: 226)
-    static let radius: CGFloat = 388  // centreline of the sector outline
-    static let frameWidth: CGFloat = 40  // the two radial arms
-    static let bandWidth: CGFloat = 96  // the graduated arc
-    static let indexAngle = 78.0  // where SextantMark's index arm points
-    static let hubR: CGFloat = 58
-    static let halo: CGFloat = 28
-    // Key centres, mirrored about x = 512: the narrowest gap between them is about 140 pt, 2 px at 16 px.
-    static let keyDX: CGFloat = 188
-    static let keyY: CGFloat = 704
-    static let keyTilt = 10.0  // tops turned in towards the pivot
-    static let keySize: CGFloat = 214
-
-    static var outer: CGFloat { radius + frameWidth / 2 }
-
-    static func point(_ degrees: Double, _ r: CGFloat) -> CGPoint {
-        let a = Angle.degrees(degrees).radians
-        return CGPoint(x: pivot.x + cos(a) * r, y: pivot.y + sin(a) * r)
     }
 }
 
 private enum IconPalette {
     static let graphiteTop = Color(red: 0.235, green: 0.247, blue: 0.267)
-    static let graphiteBottom = Color(red: 0.125, green: 0.133, blue: 0.149)
-    static let porcelainTop = Color(red: 0.98, green: 0.973, blue: 0.953)
-    static let porcelainBottom = Color(red: 0.9, green: 0.884, blue: 0.853)
-    static let porcelainShade = Color(red: 0.74, green: 0.725, blue: 0.7)
-    static let keyBase = Color(red: 0.38, green: 0.4, blue: 0.44)
-    static let keyTopLight = Color(red: 0.54, green: 0.57, blue: 0.62)
-    static let keyTopDark = Color(red: 0.49, green: 0.515, blue: 0.565)
+    static let graphiteBottom = Color(red: 0.118, green: 0.125, blue: 0.141)
+    static let ink = Color(red: 0.2, green: 0.21, blue: 0.23)
+    static let porcelainHigh = Color(red: 0.96, green: 0.95, blue: 0.925)
+    static let porcelainLow = Color(red: 0.84, green: 0.825, blue: 0.79)
+    static let brassHigh = Color(red: 0.91, green: 0.75, blue: 0.47)
+    static let brassLow = Color(red: 0.7, green: 0.53, blue: 0.29)
+    static let smokeHigh = Color(red: 0.47, green: 0.49, blue: 0.53)
+    static let smokeLow = Color(red: 0.22, green: 0.235, blue: 0.26)
+}
+
+// MARK: - Geometry
+
+/// The instrument's parts in canvas coordinates (1024 pt, y down). Built in a local frame with the pivot at the origin
+/// and the limb below it (90° points straight down), then tilted and centred.
+private struct IconParts {
+    var frame = Path()  // legs, limb, brace and pivot boss
+    var ticks = Path()
+    var horizonMirror = Path()
+    var arm = Path()  // index arm, pivot cap and vernier pad
+    var armShine = Path()  // specular line along the arm's lit edge
+    var indexMirror = Path()
+    var telescope = Path()
+    var eyepiece = Path()  // the clamp and eyepiece bands on the telescope
+    var bounds = CGRect.zero
+    var bevel: CGFloat = 0  // depth of the top-lit edge in canvas pt; 0 is flat
+    var lift: CGFloat = 0  // how far raised parts cast a contact shadow, in canvas pt
+
+    // Mirrors stand across the frame, turned well off the arm's axis so neither reads as a cap on it.
+    static let horizonAngle = 60.0
+    static let indexAngle = 45.0
+
+    private enum Tier { case full, mid, small, tiny }
+
+    // swiftlint:disable:next function_body_length
+    init(px: CGFloat) {  // one drawing with per-tier branches reads better than four near-copies
+        let u = 1024 / px  // one output pixel in canvas pt
+        let tier: Tier = px >= 128 ? .full : px >= 64 ? .mid : px >= 32 ? .small : .tiny
+        let detailed = tier == .full || tier == .mid
+        // Tilt puts the apex near top centre with the limb low and almost level. Half the frame angle is a true 60°
+        // frame, a touch over; the limb runs `o` past each leg. At 32 and 16 px the arc opens wider and sits straighter
+        // so the bottom reads as a heavy curve, not a third side.
+        let tilt = Angle.degrees(tier == .tiny ? 5 : tier == .small ? 8 : 11)
+        let h = detailed ? 30.5 : 33
+        let o = detailed ? 3.5 : 6.0
+
+        // Proportions per tier. Below 64 px widths are set in output pixels (u).
+        let (r, limbW, legW, boss): (CGFloat, CGFloat, CGFloat, CGFloat) =
+            switch tier {
+            case .full: (560, 108, 56, 60)
+            case .mid: (575, 120, 64, 70)
+            case .small: (600, 4 * u, 2 * u, 2 * u)
+            case .tiny: (620, 3 * u, 1.5 * u, 1.5 * u)
+            }
+        let rIn = r - limbW
+        // Index arm angle. At 16 px it hangs plumb on screen, so its 1 px line sits on the pixel grid.
+        let a: Double = tier == .tiny ? 90 - tilt.degrees : 104
+        let armW: (CGFloat, CGFloat) =
+            switch tier {
+            case .full: (30, 46)
+            case .mid: (40, 54)
+            case .small: (2 * u, 2 * u)
+            case .tiny: (u, u)
+            }
+        // The telescope crosses the frame at this height; its axis runs through the horizon mirror's centre.
+        let ys = r * 0.5
+        let legX = ys * tan(Angle.degrees(h).radians)
+        let tubeH: CGFloat = tier == .full ? 50 : 56
+        let mirrorAt = CGPoint(x: -legX + 6, y: ys)
+
+        // Frame: legs from the pivot boss, the limb and a brace (from 128 px).
+        var solid = Self.annulus(r0: rIn, r1: r, from: 90 - h - o, to: 90 + h + o).union(Self.circle(.zero, boss))
+        for leg in [90 - h, 90 + h] {
+            solid = solid.union(Self.line(.zero, Self.point(leg, rIn + 4), width: legW, cap: .round))
+        }
+        if tier == .full {
+            let braceR = r * 0.67
+            solid = solid.union(Self.annulus(r0: braceR - 15, r1: braceR + 15, from: 90 - h, to: 90 + h))
+        }
+        let inside = Self.sector(r: rIn + 1, from: 90 - h, to: 90 + h)
+        let windows = Self.opened(inside.subtracting(solid), tier == .tiny ? 0 : tier == .small ? u : 26)
+        let corner: CGFloat = tier == .full ? 18 : tier == .mid ? 22 : 0
+        var plate = Self.closed(Self.opened(solid.union(inside), corner), corner).subtracting(windows)
+
+        // Index arm: pivots at the apex, widens towards the limb and ends in a vernier pad on it.
+        var armPath = Self.taper(angle: a, length: detailed ? rIn : rIn + u, w0: armW.0, w1: armW.1)
+        if detailed {
+            let pad: (CGFloat, CGFloat, Double) = tier == .full ? (22, 44, 6) : (26, 54, 7.5)
+            armPath = armPath.union(Self.circle(.zero, 40))
+                .union(Self.opened(Self.annulus(r0: rIn - pad.0, r1: rIn + pad.1, from: a - pad.2, to: a + pad.2), tier == .full ? 10 : 14))
+        }
+
+        // Telescope: a tube across the right leg, eyepiece past it. It stops short of the left leg: leg to leg it reads as an A.
+        var scope = Path()
+        var band = Path()
+        switch tier {
+        case .full:
+            scope = Self.rect(x0: -22, x1: legX + 104, y: ys, height: tubeH, radius: 14)
+            // Two porcelain bands: the clamp that mounts the tube on the leg, and the eyepiece.
+            band = Self.rect(x0: legX - 18, x1: legX + 18, y: ys, height: tubeH + 12, radius: 6)
+                .union(Self.rect(x0: legX + 64, x1: legX + 86, y: ys, height: tubeH + 12, radius: 5))
+        case .mid:
+            scope = Self.rect(x0: -22, x1: legX + 104, y: ys, height: tubeH, radius: tubeH / 2)
+        case .small, .tiny:
+            break
+        }
+
+        // Mirrors from 128 px only: at 64 px a mirror on the leg reads as a break in it.
+        var horizon = Path()
+        var index = Path()
+        if tier == .full {
+            horizon = Self.bar(center: mirrorAt, angle: Self.horizonAngle, length: 82, width: 34, radius: 8)
+            index = Self.bar(center: .zero, angle: Self.indexAngle, length: 118, width: 42, radius: 9)
+        }
+
+        if tier == .mid {
+            // At 64 px tone alone cannot separate tube and leg, so the tube cuts a 1.5 px dark gap round it.
+            plate = plate.subtracting(scope.union(scope.strokedPath(StrokeStyle(lineWidth: 3 * u, lineCap: .round))))
+        }
+
+        var tickPath = Path()
+        if detailed {
+            // Graduations on the outer edge of the limb: 9 majors and 8 minors at 1024, three majors at 64 px.
+            let steps: [(Double, Bool)] =
+                tier == .full
+                ? (0...16).map { (60 + 3.75 * Double($0), $0.isMultiple(of: 2)) }
+                : [(72, true), (90, true), (108, true)]
+            for (deg, major) in steps {
+                let len: CGFloat = tier == .mid ? 44 : major ? 38 : 22
+                tickPath = tickPath.union(
+                    Self.line(Self.point(deg, r - 14 - len), Self.point(deg, r - 14), width: tier == .mid ? 20 : major ? 8 : 6, cap: .round)
+                )
+            }
+            tickPath = tickPath.intersection(plate)
+        }
+
+        var shine = Path()
+        if tier == .full {
+            let n = Self.point(a + 90, 1)  // the arm's upper, lit side once tilted
+            let p0 = Self.point(a, 72)
+            let p1 = Self.point(a, rIn - 34)
+            shine = Self.line(
+                CGPoint(x: p0.x + n.x * armW.0 * 0.24, y: p0.y + n.y * armW.0 * 0.24),
+                CGPoint(x: p1.x + n.x * armW.1 * 0.24, y: p1.y + n.y * armW.1 * 0.24), width: 3, cap: .round)
+        }
+
+        // Tilt, then centre the silhouette on the body (a touch high, for the shadow below).
+        let rot = CGAffineTransform(rotationAngle: tilt.radians)
+        let silhouette = plate.union(armPath).union(scope).union(band).union(horizon).union(index).applying(rot)
+        let b = silhouette.boundingRect
+        var dx = 512 - b.midX
+        var dy = 506 - b.midY
+        if !detailed {
+            // Snap the pivot so the arm's centre line is on a pixel boundary (even width) or centre (odd).
+            let odd = Int((armW.0 / u).rounded()) % 2 == 1
+            dx = ((dx / u).rounded() + (odd ? 0.5 : 0)) * u
+            dy = (dy / u).rounded() * u
+        }
+        let place = rot.concatenating(CGAffineTransform(translationX: dx, y: dy))
+        horizonMirror = horizon.applying(place)
+        frame = plate.applying(place)
+        ticks = tickPath.applying(place)
+        arm = armPath.applying(place)
+        armShine = shine.applying(place)
+        indexMirror = index.applying(place)
+        telescope = scope.applying(place)
+        eyepiece = band.applying(place)
+        bounds = b.offsetBy(dx: dx, dy: dy)
+        (bevel, lift) =
+            switch tier {
+            case .full: (5, 5)
+            case .mid: (0.75 * u, 0.6 * u)
+            case .small: (0.6 * u, 0.5 * u)
+            case .tiny: (0, 0)
+            }
+    }
+
+    static func point(_ deg: Double, _ r: CGFloat) -> CGPoint {
+        let a = Angle.degrees(deg).radians
+        return CGPoint(x: cos(a) * r, y: sin(a) * r)
+    }
+
+    static func circle(_ c: CGPoint, _ r: CGFloat) -> Path {
+        Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
+    }
+
+    static func line(_ p: CGPoint, _ q: CGPoint, width: CGFloat, cap: CGLineCap) -> Path {
+        Path {
+            $0.move(to: p)
+            $0.addLine(to: q)
+        }
+        .strokedPath(StrokeStyle(lineWidth: width, lineCap: cap))
+    }
+
+    static func rect(x0: CGFloat, x1: CGFloat, y: CGFloat, height: CGFloat, radius: CGFloat) -> Path {
+        Path(roundedRect: CGRect(x: x0, y: y - height / 2, width: x1 - x0, height: height), cornerRadius: radius, style: .continuous)
+    }
+
+    /// A rounded rectangle centred on `center` with its long side along `angle`.
+    static func bar(center: CGPoint, angle: Double, length: CGFloat, width: CGFloat, radius: CGFloat) -> Path {
+        Path(roundedRect: CGRect(x: -length / 2, y: -width / 2, width: length, height: width), cornerRadius: radius, style: .continuous)
+            .applying(
+                CGAffineTransform(rotationAngle: Angle.degrees(angle).radians).concatenating(
+                    CGAffineTransform(translationX: center.x, y: center.y)))
+    }
+
+    /// A bar from the origin along `angle`, `w0` wide at the origin and `w1` at the far end.
+    static func taper(angle: Double, length: CGFloat, w0: CGFloat, w1: CGFloat) -> Path {
+        let e = point(angle, length)
+        let n = point(angle + 90, 1)
+        return Path { p in
+            p.addLines([
+                CGPoint(x: n.x * w0 / 2, y: n.y * w0 / 2),
+                CGPoint(x: e.x + n.x * w1 / 2, y: e.y + n.y * w1 / 2),
+                CGPoint(x: e.x - n.x * w1 / 2, y: e.y - n.y * w1 / 2),
+                CGPoint(x: -n.x * w0 / 2, y: -n.y * w0 / 2),
+            ])
+            p.closeSubpath()
+        }
+    }
+
+    static func sector(r: CGFloat, from a0: Double, to a1: Double) -> Path {
+        Path { p in
+            p.move(to: .zero)
+            p.addArc(center: .zero, radius: r, startAngle: .degrees(a0), endAngle: .degrees(a1), clockwise: false)
+            p.closeSubpath()
+        }
+    }
+
+    static func annulus(r0: CGFloat, r1: CGFloat, from a0: Double, to a1: Double) -> Path {
+        Path { p in
+            p.addArc(center: .zero, radius: r1, startAngle: .degrees(a0), endAngle: .degrees(a1), clockwise: false)
+            p.addArc(center: .zero, radius: r0, startAngle: .degrees(a1), endAngle: .degrees(a0), clockwise: true)
+            p.closeSubpath()
+        }
+    }
+
+    /// Rounds convex corners by `c` (erode, then dilate).
+    static func opened(_ p: Path, _ c: CGFloat) -> Path {
+        guard c > 0 else { return p }
+        let ring = StrokeStyle(lineWidth: c * 2, lineCap: .round, lineJoin: .round)
+        let core = p.subtracting(p.strokedPath(ring))
+        return core.union(core.strokedPath(ring))
+    }
+
+    /// Fills concave corners with a radius `c` fillet (dilate, then erode).
+    static func closed(_ p: Path, _ c: CGFloat) -> Path {
+        guard c > 0 else { return p }
+        let ring = StrokeStyle(lineWidth: c * 2, lineCap: .round, lineJoin: .round)
+        let grown = p.union(p.strokedPath(ring))
+        return grown.subtracting(grown.strokedPath(ring))
+    }
 }
 
 // MARK: - Layers
 
 private struct IconBody: View {
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: IconGeo.cornerRadius, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 185.4, style: .continuous)
         shape
             .fill(LinearGradient(colors: [IconPalette.graphiteTop, IconPalette.graphiteBottom], startPoint: .top, endPoint: .bottom))
-            .overlay(shape.fill(RadialGradient(colors: [.white.opacity(0.1), .clear], center: .top, startRadius: 0, endRadius: 560)))
+            .overlay(
+                shape.fill(
+                    RadialGradient(colors: [.white.opacity(0.07), .clear], center: UnitPoint(x: 0.5, y: 0), startRadius: 0, endRadius: 560))
+            )
             .overlay(
                 shape.strokeBorder(
-                    LinearGradient(colors: [.white.opacity(0.3), .clear], startPoint: .top, endPoint: .center), lineWidth: 2.5)
-            )  // a glint along the top edge that fades down the sides
-            .frame(width: IconGeo.body.width, height: IconGeo.body.height)
-            .shadow(color: .black.opacity(0.32), radius: 14, y: 10)
+                    LinearGradient(
+                        colors: [.white.opacity(0.22), .white.opacity(0.03), .white.opacity(0.07)], startPoint: .top, endPoint: .bottom),
+                    lineWidth: 3)
+            )  // a glint along the top edge, faint down the sides
+            .frame(width: 824, height: 824)
+            .shadow(color: .black.opacity(0.3), radius: 14, y: 10)
             .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
-            .position(x: IconGeo.body.midX, y: IconGeo.body.midY)
+            .position(x: 512, y: 512)
     }
 }
 
-/// The sextant mark (SextantMark's geometry, thickened) as an alpha silhouette, one part at a time.
-/// `grow` widens every shape and drops the details, which is how the halo is cut.
-private struct MarkSilhouette: View {
-    enum Part { case frame, arm, hub, all }
-    var part: Part
-    var grow: CGFloat
-    var small: Bool
+private struct Instrument: View {
+    var parts: IconParts
+
+    /// A top-to-bottom gradient spanning `rect` (canvas pt).
+    func gradient(_ high: Color, _ low: Color, over rect: CGRect) -> LinearGradient {
+        LinearGradient(
+            colors: [high, low], startPoint: UnitPoint(x: 0.5, y: rect.minY / 1024), endPoint: UnitPoint(x: 0.5, y: rect.maxY / 1024))
+    }
+
+    func smoke(_ shape: Path) -> LinearGradient { gradient(IconPalette.smokeHigh, IconPalette.smokeLow, over: shape.boundingRect) }
 
     var body: some View {
+        let porcelain = gradient(IconPalette.porcelainHigh, IconPalette.porcelainLow, over: parts.bounds)
+        let d = parts.bevel
+        let s = parts.lift
         ZStack {
-            if part == .frame || part == .all {
-                if grow == 0 { sector.fill(.white.opacity(0.13)) }  // a faint plate inside the frame
-                sector.stroke(style: StrokeStyle(lineWidth: IconGeo.frameWidth + grow, lineJoin: .round))
-                band.stroke(style: StrokeStyle(lineWidth: IconGeo.bandWidth + grow, lineCap: .butt))
-                if grow == 0 && !small {
-                    Group {
-                        ticks(major: false).stroke(style: StrokeStyle(lineWidth: 11, lineCap: .round))
-                        ticks(major: true).stroke(style: StrokeStyle(lineWidth: 20, lineCap: .round))
-                    }
-                    .blendMode(.destinationOut)
-                }
-            }
-            if part == .arm || part == .all { index(grow: grow) }
-            if part == .hub || part == .all {
-                Circle().frame(width: IconGeo.hubR * 2 + grow, height: IconGeo.hubR * 2 + grow).position(IconGeo.pivot)
-            }
+            Bevelled(shape: parts.frame, fill: porcelain, depth: d)
+            parts.ticks.fill(IconPalette.ink.opacity(0.45))
+            Bevelled(shape: parts.horizonMirror, fill: smoke(parts.horizonMirror), depth: d * 0.7, rim: d > 0)
+                .shadow(color: .black.opacity(0.3), radius: s * 0.6, y: s * 0.5)
+            Bevelled(
+                shape: parts.arm, fill: gradient(IconPalette.brassHigh, IconPalette.brassLow, over: parts.arm.boundingRect), depth: d * 0.8
+            )
+            // Contact shadow where the arm lies on the frame, then a softer drop.
+            .shadow(color: .black.opacity(0.4), radius: s * 0.5, y: s * 0.6)
+            .shadow(color: .black.opacity(0.18), radius: s * 1.6, y: s * 1.4)
+            parts.armShine.fill(.white.opacity(0.6)).blur(radius: 0.6)
+            Bevelled(shape: parts.indexMirror, fill: smoke(parts.indexMirror), depth: d * 0.7, rim: true)
+                .shadow(color: .black.opacity(0.35), radius: s * 0.6, y: s * 0.6)
+            Bevelled(shape: parts.telescope, fill: smoke(parts.telescope), depth: d * 0.8, rim: d > 0)
+                .shadow(color: .black.opacity(0.4), radius: s * 0.8, y: s * 0.8)
+            Bevelled(shape: parts.eyepiece, fill: porcelain, depth: d * 0.6)
         }
-        .foregroundStyle(.black)  // an opaque alpha source: the default label colour is not fully opaque
+        .frame(width: 1024, height: 1024)
         .compositingGroup()
-    }
-
-    /// Pivot, both radial arms and the arc: a closed 60° sector.
-    private var sector: Path {
-        var p = Path()
-        p.move(to: IconGeo.pivot)
-        p.addLine(to: IconGeo.point(120, IconGeo.radius))
-        p.addArc(center: IconGeo.pivot, radius: IconGeo.radius, startAngle: .degrees(120), endAngle: .degrees(60), clockwise: true)
-        p.closeSubpath()
-        return p
-    }
-
-    /// The thick graduated band; its outer edge matches the frame's, its ends hide inside the arms.
-    private var band: Path {
-        Path { p in
-            p.addArc(
-                center: IconGeo.pivot, radius: IconGeo.outer - IconGeo.bandWidth / 2, startAngle: .degrees(60), endAngle: .degrees(120),
-                clockwise: false)
-        }
-    }
-
-    /// Graduations cut into the band from its outer edge: 10° apart, the middle one long and wide enough to show at 64 px.
-    private func ticks(major: Bool) -> Path {
-        Path { p in
-            for tick in 1..<6 where tick.isMultiple(of: 3) == major {
-                let degrees = 60 + Double(tick) * 10
-                p.move(to: IconGeo.point(degrees, IconGeo.outer - 18))
-                p.addLine(to: IconGeo.point(degrees, IconGeo.outer - (major ? 72 : 46)))
-            }
-        }
-    }
-
-    /// The index arm: tapers from the hub to a rounded tip that rests on the band's outer edge.
-    private func index(grow: CGFloat) -> Path {
-        let w0 = (small ? 100 : 76) + grow
-        let w1 = (small ? 70 : 46) + grow
-        let a = Angle.degrees(IconGeo.indexAngle).radians
-        let normal = CGVector(dx: -sin(a), dy: cos(a))
-        let tip = IconGeo.point(IconGeo.indexAngle, IconGeo.outer - w1 / 2 + grow / 2)
-        func offset(_ p: CGPoint, _ d: CGFloat) -> CGPoint { CGPoint(x: p.x + normal.dx * d, y: p.y + normal.dy * d) }
-        var p = Path()
-        p.move(to: offset(IconGeo.pivot, w0 / 2))
-        p.addLine(to: offset(tip, w1 / 2))
-        p.addArc(center: tip, radius: w1 / 2, startAngle: .radians(a + .pi / 2), endAngle: .radians(a - .pi / 2), clockwise: true)
-        p.addLine(to: offset(IconGeo.pivot, -w0 / 2))
-        p.closeSubpath()
-        return p
+        // Contact shadow close under the porcelain, plus a soft drop onto the plate.
+        .shadow(color: .black.opacity(0.4), radius: 3, y: 3)
+        .shadow(color: .black.opacity(0.35), radius: 20, y: 16)
     }
 }
 
-/// Two generic keycaps, mirrored about the centre line, their tops leaning in.
-private struct IconKeys: View {
-    var body: some View {
-        ZStack {
-            ForEach([-1.0, 1.0], id: \.self) { side in
-                IconKeycap()
-                    .rotationEffect(.degrees(-side * IconGeo.keyTilt))
-                    .position(x: 512 + side * IconGeo.keyDX, y: IconGeo.keyY)
-            }
-        }
-    }
-}
+/// A raised part lit from above: a bright lip along every upward-facing edge (outer tops and the lower rims of holes), a
+/// darker shade along the downward-facing ones, and optionally a faint rim so dark parts keep their edge on graphite.
+private struct Bevelled<Fill: ShapeStyle>: View {
+    var shape: Path
+    var fill: Fill
+    var depth: CGFloat
+    var rim = false
 
-/// A keycap seen from slightly in front: a skirt with a cooler, lit top face set back towards the top.
-private struct IconKeycap: View {
     var body: some View {
-        let s = IconGeo.keySize
-        let face = RoundedRectangle(cornerRadius: s * 0.17, style: .continuous)
-        ZStack {
-            RoundedRectangle(cornerRadius: s * 0.22, style: .continuous).fill(IconPalette.keyBase)
-            face.fill(LinearGradient(colors: [IconPalette.keyTopLight, IconPalette.keyTopDark], startPoint: .top, endPoint: .bottom))
-                .overlay(
-                    face.strokeBorder(
-                        LinearGradient(colors: [IconPalette.porcelainTop.opacity(0.55), .clear], startPoint: .top, endPoint: .center),
-                        lineWidth: 3)
-                )
-                .frame(width: s * 0.78, height: s * 0.7)
-                .offset(y: -s * 0.08)
-        }
-        .frame(width: s, height: s)
-        .shadow(color: .black.opacity(0.35), radius: 3, y: 4)  // contact shadow
+        shape.fill(fill)
+            .overlay {
+                if depth > 0 {
+                    shape.subtracting(shape.offsetBy(dx: 0, dy: depth)).fill(.white.opacity(0.95)).blur(radius: depth * 0.25)
+                    shape.subtracting(shape.offsetBy(dx: 0, dy: -depth * 1.4)).fill(.black.opacity(0.2)).blur(radius: depth * 0.35)
+                }
+                if rim { shape.stroke(.white.opacity(0.28), lineWidth: 3) }
+            }
+            .clipShape(shape)
     }
 }
