@@ -55,7 +55,6 @@ struct KeymapSource {
         out.add("  RGB_SLD = ZSA_SAFE_RANGE,")
         for (i, use) in plan.macros.enumerated() { out.add("  ST_MACRO_\(i),", use.key) }
         for color in plan.colors { out.add("  \(color.name),", color.key) }
-        if features.pointing == .trackball { out.add(KeymapTemplates.trackballKeycodes) }
         out.add("};\n")
         if !plan.dances.isEmpty {
             out.add("enum tap_dance_codes {")
@@ -173,7 +172,6 @@ struct KeymapSource {
         }
         out.add("")
         for (i, dual) in plan.dualFunctions.enumerated() { dualFunction(i, dual, &out) }
-        if features.pointing == .trackball { out.add(KeymapTemplates.trackballCases) }
         out.add("    case RGB_SLD:\n      if (record->event.pressed) {\n        rgblight_mode(1);\n      }\n      return false;")
         for color in plan.colors {
             out.add("    case \(color.name):", color.key)

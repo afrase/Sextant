@@ -29,7 +29,19 @@ struct QMKGeneratorGoldenTests {
                 // Oryx enables Repeat Key with no repeat key in the layout (trigger unknown); Sextant only when one is used.
                 "rules.mk": [(#"REPEAT_KEY_ENABLE=yes "#, "")]
             ]),
-        Sample(json: "voyager-e5Rrr.json", zip: "e5Rrr-source.zip"),
+        Sample(
+            json: "voyager-e5Rrr.json", zip: "e5Rrr-source.zip",
+            allowances: [
+                // Oryx built this trackball for an older firmware. The pinned one (ADR 0035) drives the trackball with
+                // the `zsa/navigator_trackball` module, which sets its own driver and handles the Navigator keycodes
+                // that `zsa/defaults` declares: declaring or handling them again fails the build or doubles a CPI step.
+                "rules.mk": [(#" POINTING_DEVICE_DRIVER=navigator_trackball"#, "")],
+                "keymap.json": [(#""zsa/oryx","#, #""zsa/oryx","zsa/navigator_trackball","#)],
+                "keymap.c": [
+                    (#"DRAG_SCROLL,NAVIGATOR_INC_CPI,NAVIGATOR_DEC_CPI,NAVIGATOR_TURBO,NAVIGATOR_AIM\}"#, "}"),
+                    (#"case DRAG_SCROLL:.*?pointing_device_set_cpi\(0\);\}return false;"#, ""),
+                ],
+            ]),
         Sample(json: "voyager-m9dpx.json", zip: "m9dpx-source.zip"),
         Sample(
             json: "voyager-XlrR4.json", zip: "XlrR4-source.zip",

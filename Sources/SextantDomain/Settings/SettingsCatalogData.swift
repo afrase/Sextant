@@ -984,7 +984,7 @@ enum SettingsCatalogData {
   {
    "id": "navigator",
    "title": "Navigator",
-   "summary": "Trackball and trackpad options. Shown only when a Navigator is attached.",
+   "summary": "The Navigator module, the half it is on, and its trackball or trackpad options.",
    "visibleOnVoyager": true,
    "settings": [
     {

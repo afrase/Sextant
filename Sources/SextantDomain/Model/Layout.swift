@@ -57,6 +57,21 @@ public struct NavigatorConfig: Hashable, Sendable {
     }
 }
 
+extension KeyboardLayout {
+    /// Attaches a Navigator of `kind`, or removes it (nil). A new kind starts from its default options, since trackpad
+    /// and trackball options differ, but keeps the automouse layer, which Oryx stores on the layer whatever the module
+    /// (ADR 0035). The side stays; a new Navigator goes on the right half.
+    public mutating func setNavigator(_ kind: NavigatorConfig.Kind?) {
+        guard let kind else {
+            navigator = nil
+            return
+        }
+        guard kind != navigator?.kind else { return }
+        let automouse = navigator?.options["automouseLayer"].map { ["automouseLayer": $0] }
+        navigator = NavigatorConfig(kind: kind, side: navigator?.side ?? .right, options: automouse ?? [:])
+    }
+}
+
 /// Where an imported layout came from on Oryx (read-only provenance; never sent back).
 public struct OryxRevisionInfo: Hashable, Sendable {
     /// Oryx layout hash id, e.g. `KlgM7`.

@@ -38,6 +38,8 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 
 - **App icon (spec §10.7, the user noticed there was none):** `AppIconArtwork` (SextantUI) draws the graphite squircle, porcelain sextant mark and two generic keys on the macOS icon grid; `scripts/icon` renders each size offscreen through the `app-icon` snapshot scenes (16 and 32 px from a simplified drawing) into the committed `Resources/AppIcon.icns`, which `scripts/bundle` ships (`CFBundleIconFile`).
 
+- **Choosing the Navigator (ADR 0035, the user asked for Oryx's trackpad or trackball and side):** Firmware Settings › Navigator always shows and starts with Navigator (None · Trackpad · Trackball) and Side; each change is one undo step ("Set Navigator", "Move Navigator to Left/Right"); a new kind starts from its defaults but keeps the automouse layer; the board's disc, the inspector's sections and the palette ("Navigator · Trackpad · Right"; Navigator settings now read the Navigator's options) follow. Switching a real build to a trackball showed Sextant's trackball output (e5Rrr's) didn't build with the pinned firmware; it now uses `zsa/navigator_trackball`, and the user's layout as trackball or with no Navigator, and e5Rrr, compile under the real toolchain. Untested on a trackball.
+
 ## In flight
 - Nothing.
 

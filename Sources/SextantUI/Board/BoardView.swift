@@ -314,6 +314,14 @@ private struct NavigatorDisc: View {
     var diameter: CGFloat
     var kind: NavigatorConfig.Kind?
 
+    private var help: String {
+        switch kind {
+        case .trackball?: String(localized: "Navigator trackball · settings in Firmware Settings › Navigator")
+        case .knob?: String(localized: "Navigator knob · settings in Firmware Settings › Navigator")
+        default: String(localized: "Navigator trackpad · settings in Firmware Settings › Navigator")
+        }
+    }
+
     var body: some View {
         Circle()
             .fill(Tokens.ghostFill.color)
@@ -324,7 +332,7 @@ private struct NavigatorDisc: View {
                     .foregroundStyle(.tertiary)
             }
             .frame(width: diameter, height: diameter)
-            .help(String(localized: "Navigator trackpad · settings in Firmware Settings › Navigator"))
+            .help(help)
             .accessibilityHidden(true)
     }
 }

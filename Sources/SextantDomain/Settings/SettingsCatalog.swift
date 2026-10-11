@@ -139,7 +139,7 @@ public struct SettingsSection: Identifiable, Hashable, Sendable {
     public var id: String
     public var title: String
     public var summary: String
-    /// Oryx hides Audio on the Voyager; Navigator is shown only with a Navigator attached.
+    /// Oryx hides Audio on the Voyager.
     public var isVisibleOnVoyager: Bool
     public var settings: [Setting]
 }

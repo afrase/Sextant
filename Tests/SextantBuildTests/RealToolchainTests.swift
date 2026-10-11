@@ -50,4 +50,33 @@ struct RealToolchainTests {
         print("Built \(artifact.image.count) bytes (payload \(used)):\n\(log.joined(separator: "\n"))")
         if let out = ProcessInfo.processInfo.environment["SEXTANT_REAL_TOOLCHAIN_OUT"] { try artifact.image.write(to: URL(filePath: out)) }
     }
+
+    /// The user's layout switched to a trackball or to no Navigator (ADR 0035), and e5Rrr's trackball with its automouse
+    /// layer and Navigator keys, compile with the pinned firmware. Needs the set-up toolchain (the test above); it
+    /// downloads nothing.
+    @Test(arguments: ["trackball", "none", "e5Rrr"])
+    func buildsAnotherNavigator(variant: String) async throws {
+        try #require(installer.isInstalled)
+        let file = variant == "e5Rrr" ? "voyager-e5Rrr.json" : "my-layout-KlgM7-full.json"
+        var layout = try KeyboardLayout(oryxJSON: Data(contentsOf: QMKGeneratorGoldenTests.examples.appending(path: file)))
+        if variant != "e5Rrr" { layout.setNavigator(variant == "trackball" ? .trackball : nil) }
+        let kind = layout.navigator?.kind
+        let source = try QMKGenerator().generate(layout, identity: FirmwareIdentity(serial: try #require(layout.oryx?.serial)))
+        var log: [String] = []
+        var result: BuildEvent?
+        for await event in NativeToolchain(installer: installer).build(source, board: .voyager) {
+            switch event {
+            case let .output(line): log.append(line)
+            case .finished, .failed: result = event
+            default: break
+            }
+        }
+        guard case let .finished(artifact)? = result else {
+            Issue.record("build: \(String(describing: result))\n\(log.suffix(60).joined(separator: "\n"))")
+            return
+        }
+        try FirmwareImage(data: artifact.image).validate(forBootloaderPID: 0x0791, board: .voyager)
+        #expect(log.contains { $0.contains("navigator_trackball") } == (kind == .trackball))
+        #expect(!log.contains { $0.contains("navigator_trackpad.c") })
+    }
 }

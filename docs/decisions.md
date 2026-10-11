@@ -38,6 +38,7 @@ The index of settled decisions. From decision 6 on, each has an ADR in [`adr/`](
 | 32 | 2026-10-11 | A recovery copy of every change until its autosave lands | [ADR 0032](adr/0032-recovery-copy.md). The user's request: never lose work. The window says when edits were restored. |
 | 33 | 2026-10-11 | A slim native toolchain, sandboxed, instead of the build VM | [ADR 0033](adr/0033-native-sandboxed-toolchain.md). Supersedes the build backend of ADRs 0018 and 0021. The user asked why a whole Debian image; about 190 MB instead of about 1.5 GB with the VM's kernel and init. The lead's call, at the user's request. |
 | 34 | 2026-10-11 | Separate switches for flashing and live access | [ADR 0034](adr/0034-separate-flashing-and-live-access.md). The user approved flashing only; with flashing off, Build & Flash stops before asking for flash mode. |
+| 35 | 2026-10-11 | Choosing the Navigator, and trackball firmware for the pinned modules | [ADR 0035](adr/0035-choosing-the-navigator.md). The user's request: set a trackpad or trackball and its side, as Oryx does. A new kind starts from defaults (keeps the automouse layer); the trackball builds with `zsa/navigator_trackball`, not e5Rrr's in-tree driver. |
 
 UI taste calls: all nine decided 2026-10-11 (ui-spec §14).
 

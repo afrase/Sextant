@@ -347,23 +347,33 @@ extension LayoutWindowModel {
         }
     }
 
-    /// "Tapping term · 180 ms · changed": the settings the Firmware Settings page shows; choosing one goes to its section.
+    /// "Tapping term · 180 ms · changed": the settings the Firmware Settings page shows, and the Navigator ("Trackpad ·
+    /// Right"); choosing one goes to its section.
     private func settingItems(_ query: String) -> [PaletteItem] {
         guard let layout = session?.layout else { return [] }
         let sections = FirmwareSettings.sections(for: layout)
         let section = { (id: String) in sections.first { $0.settings.contains { $0.id == id } }?.id }
-        return SettingsCatalog.voyager.search(query).filter { section($0.id) != nil }.prefix(5).map { setting in
-            let value = setting.format(layout.settingValue(setting.id))
-            let changed = layout.settings[setting.id].map { $0 != setting.defaultValue } ?? false
-            return PaletteItem(
-                id: "setting-\(setting.id)", group: .settings, title: setting.title,
-                detail: changed ? String(localized: "\(value) · changed") : value, leading: .symbol("slider.horizontal.3")
-            ) { [weak self] in
+        func item(_ id: String, _ title: String, _ detail: String, section: String?) -> PaletteItem {
+            PaletteItem(id: "setting-\(id)", group: .settings, title: title, detail: detail, leading: .symbol("slider.horizontal.3")) {
+                [weak self] in
                 self?.palette = nil
                 self?.showsFirmwareSettings = true
-                self?.settingsScrollTarget = section(setting.id)
+                self?.settingsScrollTarget = section
             }
         }
+        let attached = layout.navigator.map { "\(FirmwareSettings.title($0.kind)) · \(FirmwareSettings.title($0.side))" }
+        let navigator = item(
+            "navigator", String(localized: "Navigator"), attached ?? FirmwareSettings.title(nil), section: FirmwareSettings.navigator)
+        let kinds = "\(FirmwareSettings.title(.trackpad)) \(FirmwareSettings.title(.trackball))"
+        return Self.ranked([navigator], query) { [$0.title, kinds] }
+            + SettingsCatalog.voyager.search(query).filter { section($0.id) != nil }.prefix(5).map { setting in
+                // Navigator settings live in the Navigator's options (ADR 0030).
+                let stored = layout.storedValue(of: setting)
+                let value = setting.format(stored ?? setting.unsetValue)
+                let changed = stored.map { $0 != setting.unsetValue } ?? false
+                return item(
+                    setting.id, setting.title, changed ? String(localized: "\(value) · changed") : value, section: section(setting.id))
+            }
     }
 
     /// "Change Hold · Left Option · ⌥⌘2": one per slot of the selected key; choosing one opens the picker on it.
