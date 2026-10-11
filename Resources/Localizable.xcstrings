@@ -313,7 +313,7 @@
     "Add Layout" : {
 
     },
-    "Add a Reset key (QK_BOOT) to a layer to flash without a paperclip." : {
+    "Add a Reset key (QK_BOOT) to a layer to enter flash mode from the keyboard." : {
 
     },
     "Add as Revision of ‘%@’" : {
@@ -1428,10 +1428,10 @@
     "Press Return to change. Actions available." : {
 
     },
-    "Press the reset pinhole" : {
+    "Press the reset button" : {
 
     },
-    "Press the reset pinhole on the top edge of the left half, near the cable, once with a paperclip." : {
+    "Press the reset button on the top edge of the left half, next to the cable, once." : {
 
     },
     "Preview Lighting on Keyboard" : {
@@ -1753,7 +1753,7 @@
     "Step %lld of 5" : {
 
     },
-    "Still waiting? Connect the cable straight to this Mac rather than through a hub, then press the pinhole once more." : {
+    "Still waiting? Connect the cable straight to this Mac rather than through a hub, then press the reset button once more." : {
 
     },
     "Stop" : {

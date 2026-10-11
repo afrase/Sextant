@@ -132,7 +132,7 @@ struct SextantRing: View {
     }
 }
 
-/// Card A, the reset pinhole, and card B, the Reset key on the user's own board (spec §7.3).
+/// Card A, the reset button, and card B, the Reset key on the user's own board (spec §7.3).
 struct FlashModeCards: View {
     var layout: KeyboardLayout?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -147,11 +147,10 @@ struct FlashModeCards: View {
                     Capsule().fill(Color.secondary.opacity(0.5)).frame(width: 8, height: 18).offset(x: -24)
                     Image(systemName: "target").foregroundStyle(Tokens.danger.color).symbolEffect(.pulse, isActive: !reduceMotion)
                         .offset(x: -44, y: 6)
-                    Image(systemName: "paperclip").font(.title3).rotationEffect(.degrees(-30)).offset(x: -58, y: -10)
                 }
                 .frame(maxWidth: .infinity)
                 .accessibilityHidden(true)
-                Text("Press the reset pinhole on the top edge of the left half, near the cable, once with a paperclip.")
+                Text("Press the reset button on the top edge of the left half, next to the cable, once.")
             }
             card {
                 if let layout, let path = FlashPath.find(in: layout) {
@@ -162,7 +161,7 @@ struct FlashModeCards: View {
                     step(
                         path.holds.count + 1, key: path.reset, in: layout, text: String(localized: "Press Reset (key \(path.reset.index))"))
                 } else {
-                    Label("Add a Reset key (QK_BOOT) to a layer to flash without a paperclip.", systemImage: "info.circle")
+                    Label("Add a Reset key (QK_BOOT) to a layer to enter flash mode from the keyboard.", systemImage: "info.circle")
                 }
             }
         }

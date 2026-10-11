@@ -98,7 +98,7 @@ extension ActivityState.Status {
         case let .heldByAnotherApp(app):
             ActivityLook(symbol: "lock.fill", tone: .secondary, text: String(localized: "In use by \(app)"))
         case .inFlashMode:
-            ActivityLook(symbol: "paperclip", tone: .warning, text: String(localized: "Keyboard in flash mode"))
+            ActivityLook(symbol: "button.horizontal.top.press", tone: .warning, text: String(localized: "Keyboard in flash mode"))
         case let .issues(count, key):
             ActivityLook(
                 symbol: "exclamationmark.triangle.fill", tone: .warning,
@@ -128,8 +128,8 @@ extension ActivityState.Status {
                 detail: String(localized: "\(bytes.formatted()) B · \(percent)%"))
         case .waitingForFlashMode:
             ActivityLook(
-                symbol: "paperclip", tone: .warning, text: String(localized: "Waiting for flash mode"),
-                detail: String(localized: "Press the reset pinhole"), progress: .indeterminate)
+                symbol: "button.horizontal.top.press", tone: .warning, text: String(localized: "Waiting for flash mode"),
+                detail: String(localized: "Press the reset button"), progress: .indeterminate)
         case let .erasing(fraction):
             ActivityLook(
                 symbol: nil, tone: .secondary, text: String(localized: "Erasing · \(Int((fraction * 100).rounded()))%"),

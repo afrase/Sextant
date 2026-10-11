@@ -310,7 +310,7 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
 | Live issues (pre-build) | `exclamationmark.triangle.fill` | "2 issues" | "key 45" | — |
 | Building | spinner | "Compiling keymap.c" | "12 of 41" | determinate |
 | Built (⌘B only) | `checkmark.circle.fill` | "Built" | "65,786 B · 26%" | — |
-| Waiting for flash mode | `paperclip` (orange) | "Waiting for flash mode" | "Press the reset pinhole" | indeterminate shimmer (Reduce Motion: static) |
+| Waiting for flash mode | `button.horizontal.top.press` (orange) | "Waiting for flash mode" | "Press the reset button" | indeterminate shimmer (Reduce Motion: static) |
 | Writing / Verifying | spinner | "Writing · 64%" / "Verifying · 40%" | bytes | determinate, per phase |
 | Flashed | `checkmark.seal.fill` (green) | "Flashed" | revision id | Shown for 8 s, then "On keyboard" |
 | Build failed | `xmark.octagon.fill` (red) | "Build Failed" | "1 error · key 45" | — |
@@ -915,23 +915,23 @@ The picker is the command palette component in **assign scope**.
 | Building | "Building firmware" | Rows: Generate source ✓, Compile (12 of 41), Link. A "Show Log" disclosure tails 6 mono lines; its lines link to keys. A size meter appears after Link | [Hide] [Stop] |
 | Too large | "Firmware is 3,214 bytes too large" | The size meter turns red. Shows the biggest contributors (e.g. "RGB animations · 18.5 KB") and suggestions such as "Turn off unused animations (Firmware Settings › RGB)" | [Open Firmware Settings] [Close] |
 | Flash mode | "Put the keyboard in flash mode" | Card A and card B (below). Status line: spinner, "Waiting for the keyboard to enter flash mode…". Info: "The keyboard's lights go dark and it disconnects while in flash mode. That's expected. Sextant starts writing as soon as it sees the bootloader." | [Hide] [Cancel] |
-| Still waiting (after 45 s) | (same) | Adds: "Still waiting? Connect the cable straight to this Mac rather than through a hub, then press the pinhole once more." | (same) |
+| Still waiting (after 45 s) | (same) | Adds: "Still waiting? Connect the cable straight to this Mac rather than through a hub, then press the reset button once more." | (same) |
 | Writing | "Flashing" | The sextant ring (below), with the phase percentage. A 3-segment bar: Erase / Write / Verify. Facts: Target STM32 · 0x08002000 / 33 pages erased / ≈24 KB/s / ≈1 s left. An orange callout: "Keep the keyboard connected until this finishes." | [Hide], [Cancel] (disabled, with the tooltip "Can't stop while writing. If the cable comes out, the keyboard stays in flash mode and you can simply flash again.") |
 | Verifying | "Verifying" | The same ring. "Reading back and comparing every byte." | Same as Writing |
 | Done | "Flashed" | `checkmark.seal.fill` (bounces once). "Your Voyager is running My MacOS Layout, revision q7Lm2E." "It reconnected and reported KlgM7/q7Lm2E ✓." "Saved as a revision in History." | [Done] (default) |
 | Build failed | "Build failed: 1 error" | The issue list, each with message, location and key. Each row has [Show Key] (it closes the sheet and selects the key) and [Fix] | [Close] [Fix & Rebuild] |
 | Flash failed | "Flashing didn't finish" | "Nothing is broken: the bootloader can't be overwritten, so you can always try again. Put the keyboard in flash mode again to retry." [Show Details] (DFU status, step, address) | [Close] [Try Again] |
 
-**Flash mode, card A: the reset pinhole**
-- An illustration of a generic left half's top edge, with the cable and a paperclip, and the pinhole marked with `target`. The pinhole pulses; under Reduce Motion it is static.
-- Copy: "Press the reset pinhole on the top edge of the left half, near the cable, once with a paperclip."
-- Verify the exact pinhole position on hardware before release (research 02 §8.7).
+**Flash mode, card A: the reset button**
+- An illustration of a generic left half's top edge, with the cable, and the reset button marked with `target`. The marker pulses; under Reduce Motion it is static.
+- Copy: "Press the reset button on the top edge of the left half, next to the cable, once." (The Voyager has a button there, not a pinhole; the user confirmed on hardware, 2026-10-11.)
+- Verify the exact button position on hardware before release (research 02 §8.7).
 
 **Flash mode, card B: the Reset key (Console graft)**
 - A rendered close-up of the user's own board on the layer that holds `QK_BOOT`.
 - Numbered callouts on the real keys: 1 "Hold Space (key 51), which keeps Brd+Sys active"; 2 "Press Reset (key 31)".
 - The path is computed: find the `QK_BOOT` key, then the chain of `MO` or `LT` holds from layer 0 that reaches its layer.
-- If there is no reachable `QK_BOOT`, card B is replaced by the tip "Add a Reset key (QK_BOOT) to a layer to flash without a paperclip."
+- If there is no reachable `QK_BOOT`, card B is replaced by the tip "Add a Reset key (QK_BOOT) to a layer to enter flash mode from the keyboard."
 
 **Sextant ring (signature)**
 - 168 pt across, with a graduated bezel: a tick every 3.6°, and a major tick every 36°.
@@ -1472,7 +1472,7 @@ All names below were checked against the macOS 27 SDK in this session.
 
 | Area | Symbols |
 |---|---|
-| Build and flash | `bolt.fill` (Build & Flash), `stop.fill` (Stop), `hammer.fill` (Build), `checkmark.seal.fill` (flashed), `paperclip` and `target` (pinhole), `lock.shield` (safety note) |
+| Build and flash | `bolt.fill` (Build & Flash), `stop.fill` (Stop), `hammer.fill` (Build), `checkmark.seal.fill` (flashed), `button.horizontal.top.press` and `target` (reset button), `lock.shield` (safety note) |
 | Status | `checkmark.circle.fill`, `arrow.up.circle`, `exclamationmark.triangle.fill`, `xmark.octagon.fill`, `info.circle`, `lock.fill` |
 | Device and live | `keyboard`, `dot.radiowaves.left.and.right` (live, follow), `cable.connector`, `rectangle.and.hand.point.up.left` (Navigator trackpad; `trackpad` does not exist), `eye.slash` (paused) |
 | Chrome | `sidebar.leading`, `sidebar.trailing`, `arrow.uturn.backward`, `arrow.uturn.forward`, `magnifyingglass`, `chevron.down`, `plus`, `ellipsis.circle` |
@@ -1508,7 +1508,7 @@ Modifiers on caps and in hints are text glyphs (⌃ ⌥ ⇧ ⌘ ⇪ ⌫ ⌦ ⏎ 
 | Lens-lane capsule | `.materialize` | Fade |
 | Pressed key | Instant on; fade 0.12 s on release; scale 0.96 | No scale |
 | Recording ring | Opacity pulse, 0.9 s, repeating | Static |
-| Waiting for flash mode | Arc shimmer, 2.4 s per turn; pinhole pulse | Static, with the status text only |
+| Waiting for flash mode | Arc shimmer, 2.4 s per turn; reset-button marker pulse | Static, with the status text only |
 | Flash ring progress | Linear interpolation, 0.25 s | Same |
 | Done seal | `symbolEffect(.bounce)` once | None |
 | HUD | In 0.12 s with an 8 pt rise; out 0.18 s | Fade |

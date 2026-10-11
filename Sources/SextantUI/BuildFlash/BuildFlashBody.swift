@@ -82,7 +82,7 @@ struct BuildFlashBody: View {
                 Label(
                     """
                     Still waiting? Connect the cable straight to this Mac rather than through a hub, \
-                    then press the pinhole once more.
+                    then press the reset button once more.
                     """,
                     systemImage: "info.circle"
                 )
