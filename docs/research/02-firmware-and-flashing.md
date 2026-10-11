@@ -29,7 +29,7 @@ Conventions:
    - It uses interface 0, alt 0, 2048-byte erase pages and 2048-byte transfers.
    - In normal mode the keyboard is `3297:1977` (section 8).
 4. **Entering the bootloader takes a physical action or a key.** The options are:
-   - the paperclip reset button on the top edge of the left half;
+   - the reset button on the top edge of the left half, above the "3" key (a button, not a pinhole; zsa.io/go);
    - the `QK_BOOT` key, which the user has on layer 2 at key index 31;
    - Bootmagic: hold the top-left key while plugging in. This also wipes EEPROM.
    The stock firmware exposes no DFU runtime interface and no raw-HID "jump to bootloader" command.
@@ -495,7 +495,7 @@ Alternatively, keep generated keymaps outside the checkout with an External User
 
 | Method | How | Source |
 |---|---|---|
-| Reset button | paperclip pinhole on the **top edge of the left half**, near the cable | Oryx asset `voyager-reset-light-Blm1OVY4.png` ("Reset Button" callout); Oryx flash UI "Press the reset button, then click Connect" (`_revisionId-CtR9sUEn.js` offset 168,670) |
+| Reset button | a dedicated button (not a pinhole) on the **top edge of the left half**, "near the '3' key in the default layout" (zsa.io/go) | Oryx asset `voyager-reset-light-Blm1OVY4.png` ("Reset Button" callout); Oryx flash UI "Press the reset button, then click Connect" (`_revisionId-CtR9sUEn.js` offset 168,670) |
 | `QK_BOOT` keycode | calls `bootloader_jump()`, which charges the A8 capacitor for 500 ms and resets; Ignition sees A8 high for at least 100 ms. **The user has `QK_BOOT` at layer 2, Oryx index 31** (right half, top row, outermost). | `voyager.c` lines 308-321; `layout.json` |
 | Bootmagic | hold matrix [0,1] (Oryx index 0, the top-left key) while plugging in. It **resets EEPROM** (`eeconfig_disable`) and then calls `bootloader_jump()`. | `keyboard.json` lines 26-28; `quantum/bootmagic/bootmagic.c` lines 35-75 @93b2b9e; QMK `docs/features/bootmagic.md` lines 20-24 |
 | Host software command | **none in stock firmware.** There is no DFU runtime descriptor, so `DFU_DETACH` is impossible. The Oryx protocol has no bootloader command (`study/03` section 3.3). VIA's `id_bootloader_jump` (0x0B) is not compiled in. | `.bin` config descriptor; `oryx.h` |
@@ -615,7 +615,7 @@ Bugs in the old tools, so nobody copies them:
 Assessment: **hard to brick, easy to "soft-brick", always recoverable with the reset button**, provided nothing writes below 0x08002000 (INFERRED from the sources below).
 
 - **The bootloader lives outside every erase range.** Ignition sits in 0x08000000-0x08001FFF. ZSA's flashers start at 0x08002000 and never mass-erase. The `rmk-zsa-voyager` README additionally states the bootloader "lives in protected flash and cannot be overwritten" (community claim, unverified).
-- **The bootloader runs first on every reset** and checks the A8 line. The reset button and `bootloader_jump()` both drive that path (`voyager.c` lines 308-321). A non-working application therefore cannot prevent entry to DFU through the pinhole button (INFERRED: the button's wiring to A8 or reset is not documented).
+- **The bootloader runs first on every reset** and checks the A8 line. The reset button and `bootloader_jump()` both drive that path (`voyager.c` lines 308-321). A non-working application therefore cannot prevent entry to DFU through the reset button (INFERRED: the button's wiring to A8 or reset is not documented).
 - **Soft-brick cases** (keyboard dead or erratic until reflashed):
   - interrupted flash;
   - a firmware linked at 0x08000000 (for example a generic `stm32-dfu` build) written at 0x08002000. Its vector table points 8 KiB too low, so it hard-faults. zapp explicitly refuses mismatched images "which would brick the keyboard due to mismatched base addresses" (`flash/mod.rs` lines 41-47, 81-101);
@@ -682,7 +682,7 @@ All descriptor facts therefore come from the firmware image:
    - Never send `[0x41]` alone.
 4. **Leave**, then wait for `3297:1977` to re-appear, with a 10 s timeout. Then optionally verify via the Oryx protocol `GET_FW_VERSION`: the serial should equal the expected `layout/revision` (`study/03` section 3.3).
 5. **UX for entering the bootloader:**
-   - instruct the user to press the reset pinhole (show the Oryx-style picture);
+   - instruct the user to press the reset button (show a top-down picture pointing at it);
    - or press their `QK_BOOT` key (Sextant knows where it is from the layout);
    - mention Bootmagic as a last resort because it erases settings.
 6. **Test oracles during development** (not shipped): `zapp flash file.bin` and `dfu-util -d 3297:0791 -a 0 -s 0x08002000:leave -D file.bin`.

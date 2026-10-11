@@ -66,6 +66,17 @@ struct BuildFlashBody: View {
             Text("Built without flashing. Flash it now, or any time with Build & Flash (⌘R).").foregroundStyle(.secondary)
             log
         case let .waitingForFlashMode(stillWaiting):
+            // Above the cards, so it shows without scrolling however many steps card B lists.
+            if stillWaiting {
+                Label(
+                    """
+                    Still waiting? Connect the cable straight to this Mac rather than through a hub, \
+                    then press the reset button once more.
+                    """,
+                    systemImage: "info.circle"
+                )
+                .font(.callout).fixedSize(horizontal: false, vertical: true)
+            }
             if let session = model.session { FlashModeCards(layout: session.layout, geometry: session.geometry) }
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
@@ -78,16 +89,6 @@ struct BuildFlashBody: View {
                 """
             )
             .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            if stillWaiting {
-                Label(
-                    """
-                    Still waiting? Connect the cable straight to this Mac rather than through a hub, \
-                    then press the reset button once more.
-                    """,
-                    systemImage: "info.circle"
-                )
-                .font(.callout).fixedSize(horizontal: false, vertical: true)
-            }
         case .validating, .erasing, .writing, .verifying:
             flashing
         case let .done(revision, saveError):

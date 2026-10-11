@@ -265,8 +265,8 @@ private struct MiniBoard: View {
                 .overlay { shape.strokeBorder(Tokens.capEdge.color, lineWidth: 0.5) }
                 .overlay {
                     // The key under the button shows its legend, so "above the 3 key" has a 3 to find.
-                    if frame.index == button, let primary = KeyText.baseLegend(layout: layout, index: frame.index) {
-                        Text(CapLegendView.capText(for: primary)).font(.system(size: pitch * 0.55, weight: .semibold))
+                    if frame.index == button, let name = KeyText.baseName(layout: layout, index: frame.index) {
+                        Text(name).font(.system(size: pitch * 0.55, weight: .semibold))
                             .foregroundStyle(Tokens.capLegend.color).minimumScaleFactor(0.5).lineLimit(1)
                     }
                 }
@@ -275,14 +275,15 @@ private struct MiniBoard: View {
 }
 
 /// The reset button on the case edge: an accent pill in a ring, with a halo that pulses outward (held still under
-/// Reduce Motion).
+/// Reduce Motion, and in snapshots so renders match).
 private struct ResetButtonMarker: View {
     var pitch: CGFloat
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isSnapshot) private var isSnapshot
 
     var body: some View {
         ZStack {
-            if reduceMotion {
+            if reduceMotion || isSnapshot {
                 halo(0.35)
             } else {
                 TimelineView(.animation) { context in

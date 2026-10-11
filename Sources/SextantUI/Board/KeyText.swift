@@ -57,11 +57,19 @@ enum KeyText {
         }
     }
 
-    /// "Left thumb", "Left hand, bottom row, column 2", "Right hand, top row, far right". Columns count from the left
-    /// on both halves.
+    /// "Left thumb, outer key", "Left hand, bottom row, column 2", "Right hand, top row, far right". Columns count
+    /// from the left on both halves.
     static func position(_ shape: BoardGeometry.KeyShape, in geometry: BoardGeometry) -> String {
         let leftHand = shape.hand == .left
-        if shape.cluster == .thumb { return leftHand ? String(localized: "Left thumb") : String(localized: "Right thumb") }
+        if shape.cluster == .thumb {
+            // Thumb column 1 is the key nearer the middle of the board.
+            return switch (leftHand, shape.column == 1) {
+            case (true, true): String(localized: "Left thumb, inner key")
+            case (true, false): String(localized: "Left thumb, outer key")
+            case (false, true): String(localized: "Right thumb, inner key")
+            case (false, false): String(localized: "Right thumb, outer key")
+            }
+        }
         let main = geometry.keys.filter { $0.cluster == .main }
         let lastRow = main.map(\.row).max() ?? 0
         let hand = leftHand ? String(localized: "Left hand") : String(localized: "Right hand")
@@ -78,7 +86,8 @@ enum KeyText {
                 String(localized: "top row")
             } else if shape.row == lastRow {
                 String(localized: "bottom row")
-            } else if shape.isHomeRow {
+            } else if shape.row == geometry.keys.first(where: \.isHomeRow)?.row {
+                // By row, not the per-key flag, which is off for the outer pinky keys.
                 String(localized: "home row")
             } else {
                 String(localized: "row \(shape.row + 1)")
@@ -88,42 +97,43 @@ enum KeyText {
 
     // MARK: Flash mode (spec §7.3)
 
-    /// Card A: where the reset button is, "on the top edge of the left half, above the 3 key", naming the key the
-    /// base layer puts under it.
+    /// Card A: where the reset button is, "on the top edge of the left half, above the 3 key", naming the key by what
+    /// it shows on the base layer.
     static func resetButtonPlace(layout: KeyboardLayout, geometry: BoardGeometry) -> String {
         let index = (layout.board ?? .voyager).resetButtonKey
         guard geometry.keys.indices.contains(index) else { return String(localized: "on the top edge of the keyboard") }
         let shape = geometry.key(index)
         let half = shape.hand == .left ? String(localized: "left half") : String(localized: "right half")
-        if let primary = baseLegend(layout: layout, index: index), primary.layer == nil {
-            return String(localized: "on the top edge of the \(half), above the \(CapLegendView.capText(for: primary)) key")
+        if let name = baseName(layout: layout, index: index) {
+            return String(localized: "on the top edge of the \(half), above the \(name) key")
         }
         return String(localized: "on the top edge of the \(half), above the top-row key in column \(shape.column + 1)")
     }
 
-    /// What a key shows on the base layer, the legend people know it by; nil for a transparent or disabled key.
-    static func baseLegend(layout: KeyboardLayout, index: Int) -> ActionLegend? {
+    /// What a key shows on the base layer, the name people know it by ("3", "Space", "Nav"); nil for a transparent or
+    /// disabled key.
+    static func baseName(layout: KeyboardLayout, index: Int) -> String? {
         let resolved = Legends.legend(layout: layout, layer: 0, index: index)
-        return resolved.ownKind == .transparent || resolved.ownKind == .disabled ? nil : resolved.legend.primary
+        guard resolved.ownKind != .transparent, resolved.ownKind != .disabled, let primary = resolved.legend.primary else { return nil }
+        return primary.layerName ?? CapLegendView.capText(for: primary)
     }
 
     /// Card B: one step of the way to the Reset key, naming the key by what it shows on the base layer and where it
-    /// is: ("Hold Space", "Right thumb"), ("Press the key that types “-” on Main", "Right hand, top row, far right").
+    /// is: ("Hold Space", "Right thumb, outer key"), ("Press the key that shows “-” on Main", "Right hand, top row, far
+    /// right").
     static func flashStep(_ key: KeyRef, isHold: Bool, layout: KeyboardLayout, geometry: BoardGeometry) -> (text: String, position: String)
     {
-        let base = baseLegend(layout: layout, index: key.index)
+        let name = baseName(layout: layout, index: key.index)
         let main = layout.layers.first?.title ?? ""
         let text: String
-        if key.layer == 0, let base {
-            // The key does this on the base layer itself, so its own legend names it.
-            let name = base.layerName ?? CapLegendView.capText(for: base)
+        if key.layer == 0, let name {
+            // The key does this on the base layer itself, so its own name says it.
             text = isHold ? String(localized: "Hold \(name)") : String(localized: "Press \(name)")
-        } else if let base, base.layer == nil {
-            let name = CapLegendView.capText(for: base)
+        } else if let name {
             text =
                 isHold
-                ? String(localized: "Hold the key that types “\(name)” on \(main)")
-                : String(localized: "Press the key that types “\(name)” on \(main)")
+                ? String(localized: "Hold the key that shows “\(name)” on \(main)")
+                : String(localized: "Press the key that shows “\(name)” on \(main)")
         } else {
             text = isHold ? String(localized: "Hold the key") : String(localized: "Press the key")
         }

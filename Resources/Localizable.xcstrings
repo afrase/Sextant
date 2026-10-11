@@ -903,12 +903,12 @@
     "Hold the key" : {
 
     },
-    "Hold the key that types “%@” on %@" : {
+    "Hold the key that shows “%@” on %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Hold the key that types “%1$@” on %2$@"
+            "value" : "Hold the key that shows “%1$@” on %2$@"
           }
         }
       }
@@ -1161,7 +1161,10 @@
     "Left hand" : {
 
     },
-    "Left thumb" : {
+    "Left thumb, inner key" : {
+
+    },
+    "Left thumb, outer key" : {
 
     },
     "Legends" : {
@@ -1446,12 +1449,12 @@
     "Press the key" : {
 
     },
-    "Press the key that types “%@” on %@" : {
+    "Press the key that shows “%@” on %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Press the key that types “%1$@” on %2$@"
+            "value" : "Press the key that shows “%1$@” on %2$@"
           }
         }
       }
@@ -1567,7 +1570,10 @@
     "Right hand" : {
 
     },
-    "Right thumb" : {
+    "Right thumb, inner key" : {
+
+    },
+    "Right thumb, outer key" : {
 
     },
     "Runs %@ · not in your library" : {
