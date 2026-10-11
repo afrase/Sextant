@@ -11,8 +11,9 @@ struct SextantCommands: Commands {
     var body: some Commands {
         SidebarCommands()
         InspectorCommands()
-        CommandGroup(replacing: .newItem) {
-            Button("New Layout") {}.keyboardShortcut("n").disabled(true)
+        // ⌘N stays New Window until New Layout exists (spec step 12), so a second layout window can still be opened.
+        CommandGroup(after: .newItem) {
+            Button("New Layout") {}.disabled(true)
             Button("Import from Oryx…") {}.keyboardShortcut("i", modifiers: [.command, .shift]).disabled(true)
             Button("Import from Connected Keyboard") {}.disabled(true)
         }
@@ -97,9 +98,9 @@ private struct LayerMenu: View {
         Menu("Layer Colour") {}.disabled(true)
         Divider()
         Button("Move Layer Up") { window?.moveLayer(by: -1) }
-            .keyboardShortcut(.upArrow, modifiers: [.command, .option]).disabled(window?.canMoveLayerUp != true)
+            .keyboardShortcut(.upArrow, modifiers: [.command, .option]).disabled(window?.canShowPreviousLayer != true)
         Button("Move Layer Down") { window?.moveLayer(by: 1) }
-            .keyboardShortcut(.downArrow, modifiers: [.command, .option]).disabled(window?.canMoveLayerDown != true)
+            .keyboardShortcut(.downArrow, modifiers: [.command, .option]).disabled(window?.canShowNextLayer != true)
         Divider()
         Button("Copy Layer To…") {}.disabled(true)
         Button("Clear Layer…") {}.disabled(true)

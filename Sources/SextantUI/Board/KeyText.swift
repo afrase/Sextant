@@ -3,9 +3,6 @@ import SextantDomain
 
 /// Words for keys and layers: the canvas readout (spec §3.7), context-strip lines and VoiceOver text (§4.11, §11).
 enum KeyText {
-    /// The text a cap draws for an action ("⏎", "Space", "Esc").
-    static func capText(_ action: ActionLegend) -> String { CapLegendView.capText(for: action) }
-
     // MARK: VoiceOver
 
     /// Short label: "Return, hold for Sym+Num", "Z, inherited", "Reset".
@@ -21,8 +18,7 @@ enum KeyText {
 
     /// Long value: what the key does, then where it is. "Dual-function. Tap sends Return. Hold activates layer 1,
     /// Sym+Num. Left thumb, key 24."
-    static func value(layout: KeyboardLayout, layer: Int, index: Int, geometry: BoardGeometry) -> String {
-        let resolved = Legends.legend(layout: layout, layer: layer, index: index)
+    static func value(_ resolved: ResolvedLegend, layout: KeyboardLayout, layer: Int, index: Int, geometry: BoardGeometry) -> String {
         let layerName = layout.layers[safe: layer]?.title ?? ""
         let what: String
         if resolved.isInherited, let primary = resolved.legend.primary {
@@ -87,7 +83,7 @@ enum KeyText {
         guard let found = layout.keysActivating(layer: layer).first, let key = layout.key(layer: found.layer, index: found.index)
         else { return nil }
         let legend = Legends.legend(for: key, layerNames: layout.layerNames)
-        let name = legend.primary.map(capText) ?? ""
+        let name = legend.primary.map(CapLegendView.capText) ?? ""
         let text =
             switch found.action.canonicalCode {
             case "TG", "TT": String(localized: "toggled by \(name) (key \(found.index))")
@@ -114,6 +110,7 @@ enum KeyText {
     static func stripLine(_ resolved: ResolvedLegend) -> (text: String, spoken: String) {
         let legend = resolved.legend
         guard let primary = legend.primary else { return (KeyKind.transparent.title, KeyKind.transparent.title) }
+        let capText = CapLegendView.capText
         if resolved.isInherited {
             return (String(localized: "Inherits \(capText(primary))"), String(localized: "inherits \(primary.name)"))
         }

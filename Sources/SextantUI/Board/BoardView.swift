@@ -61,6 +61,15 @@ public struct BoardView: View {
                     gridAnchor: gridAnchor(board, geometry, origin), wash: models.first?.layerTones, layer: layer, showsGrid: showsGrid)
                 keys(board, models: models, cap: cap)
                     .frame(width: board.size.width, height: board.size.height)
+                    // The board draws its own focus ring (spec §11): the selection glow, or this outline before a key is chosen.
+                    .overlay {
+                        if isFocused && session.selection.keyIndex == nil {
+                            RoundedRectangle(cornerRadius: 0.3 * cap, style: .continuous)
+                                .strokeBorder(Color.accentColor.opacity(0.6), lineWidth: 2)
+                                .padding(-0.3 * cap)
+                                .allowsHitTesting(false)
+                        }
+                    }
                     .position(center)
             }
         }
@@ -69,7 +78,8 @@ public struct BoardView: View {
         .focusEffectDisabled()
         .onMoveCommand(perform: move)
         .onKeyPress(keys: [.tab, Self.backTab], phases: .down) { press in
-            cycleSlot(back: press.key == Self.backTab || press.modifiers.contains(.shift))
+            // ⌃⇥ / ⌃⇧⇥ leave the board, as they leave a text view.
+            press.modifiers.contains(.control) ? .ignored : cycleSlot(back: press.key == Self.backTab || press.modifiers.contains(.shift))
         }
         .onKeyPress(.delete) {
             guard session.selection.keyIndex != nil else { return .ignored }
@@ -114,17 +124,16 @@ public struct BoardView: View {
             }
             BoardCanvas(layout: board) { frame in
                 if let model = models[safe: frame.index] {
-                    let value = KeyText.value(layout: layout, layer: layer, index: frame.index, geometry: session.geometry)
+                    let value = KeyText.value(model.legend, layout: layout, layer: layer, index: frame.index, geometry: session.geometry)
                     BoardKey(model: model, u: cap, height: frame.size.height, press: pressed?.state(frame.index))
-                        .onTapGesture {
-                            session.select(key: frame.index)
-                            isFocused = true
-                        }
+                        .onTapGesture { select(frame.index) }
                         .help(value)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(KeyText.label(model.legend, index: frame.index))
                         .accessibilityValue(value)
-                        .accessibilityHint(Text("Press Return to change. Actions available."))
+                        // shortcut: "Press Return to change." joins this hint when ⏎ opens the picker (spec step 5).
+                        .accessibilityHint(Text("Actions available."))
+                        .accessibilityAction { select(frame.index) }
                         .accessibilityAddTraits(frame.index == session.selection.keyIndex ? [.isButton, .isSelected] : .isButton)
                         .accessibilitySortPriority(order[safe: frame.index] ?? 0)
                         .accessibilityRotorEntry(id: frame.index, in: rotors)
@@ -200,6 +209,11 @@ public struct BoardView: View {
     // MARK: Keyboard
 
     private static let backTab = KeyEquivalent("\u{19}")
+
+    private func select(_ index: Int) {
+        session.select(key: index)
+        isFocused = true
+    }
 
     private func move(_ direction: MoveCommandDirection) {
         switch direction {

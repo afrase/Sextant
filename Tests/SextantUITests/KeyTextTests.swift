@@ -31,11 +31,11 @@ struct KeyTextTests {
         let enter = Legends.legend(layout: layout, layer: 0, index: 24)
         #expect(KeyText.label(enter, index: 24) == "Return, hold for Sym+Num")
         #expect(
-            KeyText.value(layout: layout, layer: 0, index: 24, geometry: geometry)
+            KeyText.value(enter, layout: layout, layer: 0, index: 24, geometry: geometry)
                 == "Dual-function. Tap sends Return. Hold activates layer 1, Sym+Num. Left thumb, key 24.")
         let z = Legends.legend(layout: layout, layer: 1, index: 19)
         #expect(KeyText.label(z, index: 19).hasSuffix(", inherited"))
-        let value = KeyText.value(layout: layout, layer: 1, index: 19, geometry: geometry)
+        let value = KeyText.value(z, layout: layout, layer: 1, index: 19, geometry: geometry)
         #expect(value.hasPrefix("Transparent on Sym+Num. Acts as Z, hold Left Option, from Main."), "\(value)")
         #expect(value.hasSuffix("Left hand, bottom row, column 2, key 19."), "\(value)")
     }

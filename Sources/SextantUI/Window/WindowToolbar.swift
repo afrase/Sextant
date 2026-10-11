@@ -70,9 +70,9 @@ struct WindowToolbar: CustomizableToolbarContent {
 private struct UndoButton: View {
     var session: EditSession?
     var redo: Bool
-    @Environment(\.undoManager) private var undoManager
 
     var body: some View {
+        let undoManager = session?.undoManager
         // The session's `canUndo` / `canRedo` follow every edit, undo and redo, so the names refresh with them.
         let can = (redo ? session?.canRedo : session?.canUndo) ?? false
         let title = (redo ? undoManager?.redoMenuItemTitle : undoManager?.undoMenuItemTitle) ?? ""

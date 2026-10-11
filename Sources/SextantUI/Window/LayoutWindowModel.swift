@@ -45,7 +45,9 @@ public final class LayoutWindowModel {
     /// The displayed layer tracks the keyboard's (spec §8.2). Only meaningful with a keyboard connected.
     public var isFollowing = false
     /// Device and build status for the toolbar capsule; the device and build steps feed it.
-    public var activity = ActivityState()
+    public var activity = ActivityState() {
+        didSet { if !activity.isKeyboardConnected { isFollowing = false } }
+    }
     /// Live presses; the live session feeds it.
     public let pressedKeys = PressedKeys()
     /// The kind the footer's kind key points at (hover or press).
@@ -111,10 +113,7 @@ public final class LayoutWindowModel {
 
     var laneStatus: LaneStatus? {
         guard let session else { return nil }
-        let issues = LayoutIssues.check(session.layout)
-        if let issue = issues.first(where: { $0.severity == .error && $0.key != nil }) ?? issues.first(where: { $0.key != nil }),
-            let key = issue.key
-        {
+        if let issue = LayoutIssues.check(session.layout).first(where: { $0.severity == .error && $0.key != nil }), let key = issue.key {
             return .issue(text: KeyText.issueText(issue, layout: session.layout), key: key)
         }
         guard isFollowing else { return nil }
@@ -141,8 +140,6 @@ public final class LayoutWindowModel {
     var hasSelectedKey: Bool { session?.selection.keyIndex != nil }
     var canShowPreviousLayer: Bool { (session?.selection.layer ?? 0) > 0 }
     var canShowNextLayer: Bool { session.map { $0.selection.layer < $0.layout.layers.count - 1 } ?? false }
-    var canMoveLayerUp: Bool { canShowPreviousLayer }
-    var canMoveLayerDown: Bool { canShowNextLayer }
     var canDeleteLayer: Bool { (session?.layout.layers.count ?? 0) > 1 }
     var canOverrideKey: Bool {
         guard let session, let index = session.selection.keyIndex else { return false }
@@ -182,8 +179,10 @@ public final class LayoutWindowModel {
         let name = session.layout.layers[safe: layer]?.title ?? ""
         let list = refs.prefix(3).map { String(localized: "key \($0.index) on \(session.layout.layers[safe: $0.layer]?.title ?? "")") }
         let more = refs.count > 3 ? "…" : ""
-        let count = refs.count == 1 ? String(localized: "1 key switches") : String(localized: "\(refs.count) keys switch")
-        return String(localized: "\(count) to \(name): \(list.joined(separator: ", "))\(more). They will do nothing.")
+        let keys = "\(list.joined(separator: ", "))\(more)"
+        return refs.count == 1
+            ? String(localized: "1 key switches to \(name): \(keys). It will do nothing.")
+            : String(localized: "\(refs.count) keys switch to \(name): \(keys). They will do nothing.")
     }
 
     func build(_ command: BuildCommand) {

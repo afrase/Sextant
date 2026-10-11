@@ -44,11 +44,11 @@ struct LayoutWindowModelTests {
     @Test func layerCommandEnablement() async throws {
         let model = try await openUserLayout()
         let session = try #require(model.session)
-        #expect(!model.canShowPreviousLayer && model.canShowNextLayer && !model.canMoveLayerUp && model.canMoveLayerDown)
+        #expect(!model.canShowPreviousLayer && model.canShowNextLayer)
         model.showAdjacentLayer(1)
         model.showAdjacentLayer(1)
         #expect(session.selection.layer == 2)
-        #expect(model.canShowPreviousLayer && !model.canShowNextLayer && !model.canMoveLayerDown)
+        #expect(model.canShowPreviousLayer && !model.canShowNextLayer)
         model.showAdjacentLayer(1)
         #expect(session.selection.layer == 2, "showing past the last layer does nothing")
         #expect(model.canDeleteLayer)
@@ -85,7 +85,7 @@ struct LayoutWindowModelTests {
         model.requestDeleteLayer()
         #expect(model.layerPendingDeletion == 2)
         #expect(session.layout.layers.count == 3, "nothing is deleted before the answer")
-        #expect(model.deletionMessage(for: 2) == "1 key switches to Brd+Sys: key 51 on Main. They will do nothing.")
+        #expect(model.deletionMessage(for: 2) == "1 key switches to Brd+Sys: key 51 on Main. It will do nothing.")
         model.layerPendingDeletion = nil
         session.addLayer()
         model.requestDeleteLayer()
@@ -99,6 +99,8 @@ struct LayoutWindowModelTests {
         model.isFollowing = true
         #expect(model.laneStatus == .live(text: "LIVE · Brd+Sys held by Space (key 51)"))
         #expect(model.readout == "LIVE · following the keyboard")
+        model.activity = ActivityState()
+        #expect(!model.isFollowing && model.laneStatus == nil, "unplugging the keyboard ends Follow")
     }
 
     @Test func kindKeyListsKindsOnTheShownLayer() async throws {

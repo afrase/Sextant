@@ -118,7 +118,8 @@ private struct ContextStrip: View {
             if let key = session.selection.keyIndex {
                 cards { index, layer in keyCard(layer: index, key: key, title: layer.title) }
             } else {
-                Text("Select a key to see it on every layer · ⏎ edits · ⌘K finds anything")
+                // shortcut: the spec's " · ⏎ edits · ⌘K finds anything" joins when the picker and palette exist (step 5).
+                Text("Select a key to see it on every layer")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
