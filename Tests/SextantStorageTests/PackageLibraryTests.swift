@@ -150,6 +150,34 @@ struct PackageLibraryTests {
         }
     }
 
+    @Test func keepsARecoveryCopyUntilASaveOvertakesIt() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await library.create(layout, origin: .local, firstRevision: nil)
+        var edited = layout
+        edited.updateKey(layer: 0, index: 1) { $0 = Key("KC_Q") }
+        try await library.saveRecovery(edited, for: entry.id)
+        #expect(await library.recovery(of: entry.id) == edited, "newer than layout.json")
+        #expect(try await library.entries().map(\.id) == [entry.id], "the recovery folder is not a layout")
+
+        try await library.save(edited, to: entry.id)
+        #expect(await library.recovery(of: entry.id) == nil, "older than the save that followed it")
+        #expect(!FileManager.default.fileExists(atPath: root.appending(path: ".recovery/\(entry.id.uuidString).json").path))
+
+        try await library.saveRecovery(edited, for: entry.id)
+        try await library.trash(entry.id)
+        #expect(await library.recovery(of: entry.id) == nil, "trashing a layout drops its copy")
+    }
+
+    @Test func keepsAnUnreadableRecoveryCopy() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await library.create(layout, origin: .local, firstRevision: nil)
+        let file = root.appending(path: ".recovery/\(entry.id.uuidString).json")
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("{".utf8).write(to: file)
+        #expect(await library.recovery(of: entry.id) == nil)
+        #expect(FileManager.default.fileExists(atPath: file.path), "it may be the only copy of those edits")
+    }
+
     @Test func anEmptyLibraryHasNoEntries() async throws {
         #expect(try await library.entries().isEmpty)
     }

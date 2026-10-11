@@ -12,6 +12,7 @@ import os
 ///   layout.json          the working copy (Oryx-shaped layout JSON)
 ///   revisions/NNNN-<hash8>.json   append-only checkpoints
 ///   firmware/<revision>.bin       an Oryx- or Sextant-built image, plus <revision>.bin.md5
+/// <root>/.recovery/<id>.json   the latest edits until their autosave lands
 /// ```
 public actor PackageLibrary: LayoutLibrary {
     /// The package format this build writes. Newer packages are refused, not misread.
@@ -128,10 +129,38 @@ public actor PackageLibrary: LayoutLibrary {
         let folder = try folder(for: id)
         try io { try moveToTrash(folder) }
         folders[id] = nil
+        discardRecovery(of: id)
     }
 
     public func location(of id: UUID) -> URL? {
         try? folder(for: id)
+    }
+
+    public func saveRecovery(_ layout: KeyboardLayout, for id: UUID) throws(LibraryError) {
+        try io { try FileManager.default.createDirectory(at: recoveryFolder, withIntermediateDirectories: true) }
+        try write(layout, to: recoveryFile(id))
+    }
+
+    public func recovery(of id: UUID) -> KeyboardLayout? {
+        let file = recoveryFile(id)
+        guard let copied = modified(file) else { return nil }
+        // Not newer than the working copy: a later save landed and only the discard was lost (a crash right after it).
+        if let saved = (try? folder(for: id)).flatMap({ modified($0.appending(path: "layout.json")) }), copied <= saved {
+            discardRecovery(of: id)
+            return nil
+        }
+        do {
+            return try decode(KeyboardLayout.self, from: file)
+        } catch {
+            // Kept, not deleted: it may be the only copy of those edits.
+            log.error(
+                "Unreadable recovery copy \(file.lastPathComponent, privacy: .public): \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
+    public func discardRecovery(of id: UUID) {
+        try? FileManager.default.removeItem(at: recoveryFile(id))
     }
 
     public func storeFirmware(_ data: Data, md5: String, revisionID: String, to id: UUID) throws(LibraryError) {
@@ -300,6 +329,14 @@ public actor PackageLibrary: LayoutLibrary {
         // APFS names hold 255 UTF-16 units and one Character can take dozens: leave room for "-XXXXXX.sextant".
         while name.utf16.count > 200 { name.removeLast() }
         return name.isEmpty ? "Layout" : name
+    }
+
+    /// Inside the library (same volume, so writes stay atomic), not the temporary folder macOS empties on restart.
+    private var recoveryFolder: URL { root.appending(path: ".recovery", directoryHint: .isDirectory) }
+    private func recoveryFile(_ id: UUID) -> URL { recoveryFolder.appending(path: "\(id.uuidString).json") }
+
+    private func modified(_ url: URL) -> Date? {
+        try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
     }
 
     private func write(_ value: some Encodable, to url: URL) throws(LibraryError) {

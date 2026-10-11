@@ -43,6 +43,9 @@ public final class Library {
         // A document whose window went away can still hold its last edit: write it before reading the file.
         await sessions[id]?.session?.flush()
         let session = EditSession(stored: try await store.load(id), library: store, autosaveDelay: autosaveDelay)
+        if let recovered = await store.recovery(of: id) {
+            if recovered == session.layout { await store.discardRecovery(of: id) } else { session.recover(recovered) }
+        }
         sessions[id] = OpenSession(session: session)
         return session
     }

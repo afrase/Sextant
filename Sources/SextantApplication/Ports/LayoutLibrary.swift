@@ -132,4 +132,10 @@ public protocol LayoutLibrary: Sendable {
     func firmware(revisionID: String, of id: UUID) async throws(LibraryError) -> (data: Data, md5: String)?
     /// The package folder, for Show in Finder.
     func location(of id: UUID) async -> URL?
+    /// Keeps a crash-safe copy of a working copy whose autosave hasn't landed yet (never lose work).
+    func saveRecovery(_ layout: KeyboardLayout, for id: UUID) async throws(LibraryError)
+    /// The recovery copy, when it holds edits the working copy doesn't (newer than the last save), else nil.
+    func recovery(of id: UUID) async -> KeyboardLayout?
+    /// Drops the recovery copy once the library has every change.
+    func discardRecovery(of id: UUID) async
 }

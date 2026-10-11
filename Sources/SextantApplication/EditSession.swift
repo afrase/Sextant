@@ -24,7 +24,8 @@ public struct EditorSelection: Hashable, Sendable {
 /// Each edit snapshots the layout and selection (a layout is a few kB of values) and registers the
 /// inverse on ``undoManager`` under a readable action name ("Set Tap", "Rename Layer"). Set the window's
 /// manager so ⌘Z and the Edit menu work through the responder chain. Edits are written to the library
-/// ``autosaveDelay`` after the last change (spec §2.3).
+/// ``autosaveDelay`` after the last change (spec §2.3), and to a recovery copy at once, so a crash or a failing
+/// save loses nothing (``Library/open(_:autosaveDelay:)`` restores it).
 @MainActor
 @Observable
 public final class EditSession {
@@ -40,6 +41,8 @@ public final class EditSession {
     public private(set) var changeCount = 0
     /// The last autosave failure, if any (cleared by the next successful save).
     public private(set) var saveError: LibraryError?
+    /// The document was restored from a recovery copy: edits that hadn't reached the library before Sextant quit.
+    public private(set) var recoveredUnsavedChanges = false
     /// The layout as of the last revision, for "Edited" in the window subtitle (spec §3.4). Nil when the stored
     /// working copy already differed from its last revision at open: edited until the next revision.
     private var revisionBaseline: KeyboardLayout?
@@ -49,6 +52,9 @@ public final class EditSession {
     @ObservationIgnored private let library: any LayoutLibrary
     @ObservationIgnored private let autosaveDelay: Duration
     @ObservationIgnored private var pendingSave: Task<Void, Never>?
+    /// Recovery writes run in order; each waits for the one before.
+    @ObservationIgnored private var recoveryWrite: Task<Void, Never>?
+    @ObservationIgnored private var recoveryGeneration = 0
     @ObservationIgnored private let log = Logger(subsystem: "com.sextant.app", category: "application")
 
     public init(stored: StoredLayout, library: any LayoutLibrary, autosaveDelay: Duration = .seconds(1)) {
@@ -317,10 +323,19 @@ public final class EditSession {
 
     /// Writes any pending change now (window close, quit, before a build).
     public func flush() async {
-        guard let pending = pendingSave else { return }
-        pending.cancel()
-        pendingSave = nil
-        await save()
+        if let pending = pendingSave {
+            pending.cancel()
+            pendingSave = nil
+            await save()
+        }
+        await recoveryWrite?.value
+    }
+
+    /// Makes a recovery copy the document. It is saved like any edit; the window says what happened.
+    func recover(_ recovered: KeyboardLayout) {
+        layout = recovered
+        recoveredUnsavedChanges = true
+        changed()
     }
 
     /// Records the current layout as a revision (⌘S, every flash).
@@ -346,9 +361,12 @@ public final class EditSession {
     }
 
     private func save() async {
+        let saved = layout
         do {
-            try await library.save(layout, to: id)
+            try await library.save(saved, to: id)
             saveError = nil
+            // The library has every change, unless one came in while this save ran.
+            if saved == layout { queueRecovery(nil) }
         } catch {
             log.error("Autosave failed: \(String(describing: error), privacy: .public)")
             saveError = error
@@ -391,7 +409,25 @@ public final class EditSession {
     private func changed() {
         changeCount += 1
         origin = origin.following(layout)
+        recoveryGeneration += 1
+        queueRecovery(layout)
         scheduleSave()
+    }
+
+    /// Writes `layout` to the recovery copy, or discards the copy when nil. Skipped when a newer change has queued its
+    /// own write by the time this one's turn comes.
+    private func queueRecovery(_ layout: KeyboardLayout?) {
+        let generation = recoveryGeneration, previous = recoveryWrite
+        recoveryWrite = Task {
+            await previous?.value
+            guard generation == self.recoveryGeneration else { return }
+            guard let layout else { return await self.library.discardRecovery(of: self.id) }
+            do {
+                try await self.library.saveRecovery(layout, for: self.id)
+            } catch {
+                self.log.error("Recovery copy failed: \(String(describing: error), privacy: .public)")
+            }
+        }
     }
 
     private func registerUndo(restoring snapshot: Snapshot, name: String) {

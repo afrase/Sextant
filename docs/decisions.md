@@ -30,6 +30,7 @@ The index of settled decisions. From decision 6 on, each has an ADR in [`adr/`](
 | 24 | 2026-10-11 | Import over an existing layout: checkpoint first, keep the title | [ADR 0024](adr/0024-import-as-revision.md) |
 | 25 | 2026-10-11 | Window minimums and board rendering | [ADR 0025](adr/0025-window-and-board-ui.md). Deviates from spec §3.2 ideals. |
 | 26 | 2026-10-11 | One window per layout; quitting flushes open documents | [ADR 0026](adr/0026-one-window-per-layout.md). From the integration review. |
+| 32 | 2026-10-11 | A recovery copy of every change until its autosave lands | [ADR 0032](adr/0032-recovery-copy.md). The user's request: never lose work. 27–31 are reserved for the Phase B slices. |
 
 UI taste calls: all nine decided 2026-10-11 (ui-spec §14).
 

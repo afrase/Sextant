@@ -112,7 +112,7 @@ Small things that are not worth a port are injected as values: an `any Clock<Dur
 | Use case | Isolation | Does |
 |---|---|---|
 | `Library` | `@MainActor @Observable` | Lists library entries; opens, creates (blank QWERTY), duplicates, renames, trashes layouts. One document per layout (`isOpen`, `close`), so one window per layout; writes pending autosaves on close and quit |
-| `EditSession` | `@MainActor @Observable` | One open document: `layout`, `selection` (layer, key, slot), every undoable edit from PrototypeKit's `EditorStore` (set action / code / modifiers / label / colour, paint, transparent, disable, swap, override, layer add / duplicate / rename / colour / move / delete, settings, title). Registers undo on the window's `UndoManager` with named actions and snapshots layout + selection. Debounced autosave (1 s) through `LayoutLibrary`. Live issues recomputed per edit. |
+| `EditSession` | `@MainActor @Observable` | One open document: `layout`, `selection` (layer, key, slot), every undoable edit from PrototypeKit's `EditorStore` (set action / code / modifiers / label / colour, paint, transparent, disable, swap, override, layer add / duplicate / rename / colour / move / delete, settings, title). Registers undo on the window's `UndoManager` with named actions and snapshots layout + selection. Debounced autosave (1 s) through `LayoutLibrary`, plus an immediate recovery copy of every change until its autosave lands (ADR 0032). Live issues recomputed per edit. |
 | `ImportFromOryx` | `@MainActor @Observable` | Steps: read link → fetch layout → fetch Oryx's firmware with md5 (optional) → convert; an `ImportSummary` preview; saves as a new layout or as a revision of an existing one with the same Oryx id, checkpointing local edits first (ADR 0024). Strips " [fork]". |
 | `LiveSession` | `@MainActor @Observable` | Consumes `DeviceWatcher` and `KeyboardLink`. State: connection (none / connected / bootloader / held by another app / access off), serial and `FirmwareMatch` (ADR 0019), active layer, pressed key indices (matrix → index via `BoardDefinition`), Follow mode, secure-input pause. Coalesces to ≤ 60 Hz, reconnects with backoff, never stores or logs events (ADR 0023). |
 | `BuildFlashSession` | `@MainActor @Observable` | The §7 state machine: issues gate → generate → compile (progress, log mapped through the source map) → size → wait for bootloader → validate image → flash → wait for re-enumeration and serial check → record a revision. Cancel is refused during erase / write / verify. |
@@ -160,6 +160,7 @@ My MacOS Layout-1F3A9C.sextant/
   firmware/
     <revisionId>.bin        an Oryx- or Sextant-built image
     <revisionId>.bin.md5
+.recovery/<UUID>.json       the latest edits until their autosave lands (ADR 0032)
 ```
 
 - Folder names are for humans; identity is `meta.json` `id`. Renaming a layout rewrites `meta.json` and renames the folder.

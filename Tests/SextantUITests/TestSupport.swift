@@ -46,4 +46,7 @@ actor MemoryLibrary: LayoutLibrary {
     func storeFirmware(_ data: Data, md5: String, revisionID: String, to id: UUID) {}
     func firmware(revisionID: String, of id: UUID) -> (data: Data, md5: String)? { nil }
     func location(of id: UUID) -> URL? { nil }
+    func saveRecovery(_ layout: KeyboardLayout, for id: UUID) {}
+    func recovery(of id: UUID) -> KeyboardLayout? { nil }
+    func discardRecovery(of id: UUID) {}
 }

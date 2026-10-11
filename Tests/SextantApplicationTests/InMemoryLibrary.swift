@@ -92,6 +92,12 @@ actor InMemoryLibrary: LayoutLibrary {
         return item.firmware[revisionID]
     }
 
+    /// Recovery copies by layout; the fake keeps whatever was written last.
+    private(set) var recoveries: [UUID: KeyboardLayout] = [:]
+    func saveRecovery(_ layout: KeyboardLayout, for id: UUID) { recoveries[id] = layout }
+    func recovery(of id: UUID) -> KeyboardLayout? { recoveries[id] }
+    func discardRecovery(of id: UUID) { recoveries[id] = nil }
+
     func layout(_ id: UUID) -> KeyboardLayout? { items[id]?.layout }
 
     /// Equal layouts hash equally within a test run, like storage's canonical hash.
