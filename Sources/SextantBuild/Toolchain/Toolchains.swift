@@ -1,206 +1,87 @@
-import Containerization
 import Foundation
 import SextantApplication
 import SextantDomain
-import Synchronization
 
-/// The default toolchain (ADR 0018): `qmk compile` in a throwaway Linux VM (Apple Containerization) running a pinned
-/// Debian bookworm root filesystem with ZSA's compiler, against a pinned checkout of ZSA's QMK fork.
-///
-/// Everything lives in one folder that the setup step fills, with the user's consent: the VM kernel, the init and root
-/// filesystems, and the firmware checkout. ``status()`` only looks at it and never downloads anything.
-public struct ContainerToolchain: Toolchain {
-    /// What the setup step installs, pinned (research 02 §6–7): a `debian:bookworm` root filesystem with
-    /// `gcc-arm-none-eabi 15:12.2.rel1-1` (ZSA's compiler), `qmk`, GNU make and `dfu-suffix`, plus these checkouts.
-    public enum Pins {
-        /// `zsa/qmk_firmware`, branch `firmware25`.
-        public static let firmwareCommit = "93b2b9ec3368f86c5eb5a2e3f934049f8daef885"
-        /// `zsa/qmk_modules` (submodule `modules/zsa`).
-        public static let modulesCommit = "13890cd7856175de20798689d15ba6a46bf0c5c7"
-    }
-
-    struct Home: Sendable {
-        let root: URL
-        var kernel: URL { root.appending(path: "vmlinux") }
-        var initfs: URL { root.appending(path: "initfs.ext4") }
-        var rootfs: URL { root.appending(path: "rootfs.ext4") }
-        var firmware: URL { root.appending(path: "qmk_firmware", directoryHint: .isDirectory) }
-    }
-
-    let home: Home
-    let runner: any CommandRunner
-
-    public init(home: URL = Self.defaultHome()) {
-        let home = Home(root: home)
-        self.init(home: home, runner: VirtualMachineRunner(home: home))
-    }
-
-    init(home: Home, runner: any CommandRunner) {
-        self.home = home
-        self.runner = runner
-    }
-
-    public static func defaultHome() -> URL {
-        URL.applicationSupportDirectory.appending(path: "Sextant/Toolchain/container", directoryHint: .isDirectory)
-    }
-
-    public func status() async -> ToolchainStatus {
-        let files = [home.kernel, home.initfs, home.rootfs]
-        guard files.allSatisfy({ FileManager.default.fileExists(atPath: $0.path) }), Self.isPinned(firmware: home.firmware) else {
-            return .needsSetup(String(localized: "Building firmware needs a one-time download of the build tools (about 1 GB)."))
-        }
-        return .ready(String(localized: "Linux build VM with ZSA's compiler and QMK firmware 25"))
-    }
-
-    public func build(_ source: GeneratedSource, board: BoardDefinition) -> AsyncStream<BuildEvent> {
-        QMKBuild(hostHome: home.firmware, commandHome: VirtualMachineRunner.firmwareMount, runner: runner).run(source, board: board)
-    }
-
-    /// True when a firmware checkout and its ZSA modules submodule are detached at the pinned commits.
-    static func isPinned(firmware: URL) -> Bool {
-        func head(_ path: String) -> String? {
-            (try? String(contentsOf: firmware.appending(path: path), encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        return head(".git/HEAD") == Pins.firmwareCommit && head(".git/modules/modules/zsa/HEAD") == Pins.modulesCommit
-    }
-}
-
-/// The fallback toolchain: `qmk compile` on the Mac with a managed QMK CLI, Arm compiler and GNU make 4, against a
-/// checkout of ZSA's QMK fork, all in one folder the setup step fills.
+/// The build toolchain (ADR 0033): Arm's GCC 12.2.1 (the release ZSA builds with), GNU make 4, Python with the `qmk`
+/// CLI and ZSA's QMK fork at pinned commits, all in one folder the setup step fills with the user's consent.
+/// ``status()`` only looks at it and never downloads. Every build runs under `sandbox-exec` (``Sandbox``).
 public struct NativeToolchain: Toolchain {
-    let home: URL
+    let installer: ToolchainInstaller
     let runner: any CommandRunner
-    private var qmk: URL { home.appending(path: "venv/bin/qmk") }
-    private var tools: URL { home.appending(path: "toolchain/bin") }
-    private var firmware: URL { home.appending(path: "qmk_firmware", directoryHint: .isDirectory) }
+    var home: URL { installer.home }
+    var firmware: URL { home.appending(path: "qmk_firmware", directoryHint: .isDirectory) }
 
-    public init(home: URL = Self.defaultHome()) { self.init(home: home, runner: ProcessRunner()) }
+    /// `installer` is shared by every window's toolchain, so only one setup runs at a time.
+    public init(installer: ToolchainInstaller) { self.init(installer: installer, runner: ProcessRunner()) }
 
-    init(home: URL, runner: any CommandRunner) {
-        self.home = home
+    init(installer: ToolchainInstaller, runner: any CommandRunner) {
+        self.installer = installer
         self.runner = runner
     }
 
-    public static func defaultHome() -> URL {
-        URL.applicationSupportDirectory.appending(path: "Sextant/Toolchain/native", directoryHint: .isDirectory)
-    }
-
     public func status() async -> ToolchainStatus {
-        guard FileManager.default.isExecutableFile(atPath: qmk.path),
-            FileManager.default.fileExists(atPath: tools.appending(path: "arm-none-eabi-gcc").path),
-            ContainerToolchain.isPinned(firmware: firmware)
-        else { return .needsSetup(String(localized: "Building firmware needs a one-time download of the build tools.")) }
-        return .ready(String(localized: "QMK on this Mac"))
+        guard installer.isInstalled else {
+            let size = ByteCountFormatter.string(fromByteCount: installer.downloadSize, countStyle: .file)
+            return .needsSetup(String(localized: "Building firmware needs a one-time download of the build tools (about \(size))."))
+        }
+        return .ready(String(localized: "ZSA's compiler (Arm GCC 12.2.1) and QMK firmware 25, on this Mac"))
     }
 
     public func build(_ source: GeneratedSource, board: BoardDefinition) -> AsyncStream<BuildEvent> {
-        let path = [tools.path, qmk.deletingLastPathComponent().path, "/usr/bin", "/bin"].joined(separator: ":")
-        return QMKBuild(hostHome: firmware, commandHome: firmware.path, runner: runner, qmk: qmk.path, environment: ["PATH": path])
-            .run(source, board: board)
+        let scratch = home.appending(path: "tmp", directoryHint: .isDirectory)
+        try? FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+        let tools = ["arm/bin", "make/bin", "python/bin"].map { home.appending(path: $0).path }
+        let sandbox = Sandbox(readable: home, writable: [firmware.appending(path: ".build"), scratch], images: firmware)
+        return QMKBuild(
+            hostHome: firmware, commandHome: firmware.path, runner: runner,
+            qmk: sandbox.command + [home.appending(path: "python/bin/qmk").path],
+            environment: [
+                "PATH": (tools + ["/usr/bin", "/bin"]).joined(separator: ":"), "HOME": scratch.path, "TMPDIR": scratch.path,
+                // The sandbox keeps the toolchain read-only; Python would try to write bytecode next to its modules.
+                "PYTHONDONTWRITEBYTECODE": "1",
+            ]
+        )
+        .run(source, board: board)
     }
+
+    public func setUp() -> AsyncStream<SetupEvent> { installer.setUp() }
 }
 
-/// Runs a build command in a throwaway Linux VM: a per-build APFS clone of the pinned root filesystem (Containerization
-/// attaches the root filesystem read-write whatever its options say, so the pinned image itself is never attached),
-/// the firmware checkout shared read-write at ``firmwareMount``, no network.
-struct VirtualMachineRunner: CommandRunner {
-    static let firmwareMount = "/qmk"
-    let home: ContainerToolchain.Home
+/// A `sandbox-exec` profile for a build (ADR 0033): no network, no reads in the home folder outside the toolchain, and
+/// writes only to the build's folders and its firmware image. A layout that got past the generator's validation can't
+/// read the user's files into the firmware, send anything anywhere, or change the toolchain for later builds.
+struct Sandbox {
+    /// The toolchain folder, the only part of the home folder a build reads.
+    var readable: URL
+    var writable: [URL]
+    /// The QMK home, where `qmk compile` copies the finished `.bin`.
+    var images: URL
+    var home = URL.homeDirectory
 
-    func run(_ command: BuildCommand) -> AsyncThrowingStream<CommandOutput, any Error> {
-        AsyncThrowingStream { continuation in
-            let task = Task {
-                var scratch: URL?
-                defer { if let scratch { try? FileManager.default.removeItem(at: scratch) } }  // after the VM stopped
-                do {
-                    let directory = try FileManager.default.url(
-                        for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: home.root, create: true)
-                    scratch = directory
-                    let rootfs = directory.appending(path: "rootfs.ext4")
-                    try FileManager.default.copyItem(at: home.rootfs, to: rootfs)  // same volume: an instant APFS clone
-                    let output = LineWriter { continuation.yield(.line($0)) }
-                    let container = try makeContainer(command, rootfs: rootfs, output: output)
-                    try await container.create()
-                    let status: ExitStatus
-                    do {
-                        try await container.start()
-                        status = try await withTaskCancellationHandler {
-                            try await container.wait()
-                        } onCancel: {
-                            Task { try? await container.kill(.kill) }
-                        }
-                    } catch {
-                        try? await container.stop()  // never leave a VM running
-                        throw error
-                    }
-                    try? await container.stop()
-                    output.flush()
-                    continuation.yield(.exit(status.exitCode))
-                    continuation.finish()
-                } catch {
-                    continuation.finish(throwing: error)
-                }
-            }
-            continuation.onTermination = { _ in task.cancel() }
-        }
+    var command: [String] { ["/usr/bin/sandbox-exec", "-p", profile] }
+
+    var profile: String {
+        let writes = writable.map { "(subpath \(Self.quoted($0)))" }.joined(separator: " ")
+        let image = "^" + NSRegularExpression.escapedPattern(for: Self.canonical(images)) + "/zsa_[a-z0-9_]+\\.bin$"
+        return """
+            (version 1)
+            (allow default)
+            (deny network*)
+            (deny file-write*)
+            (allow file-write* \(writes) (regex #"\(image)") (literal "/dev/null") (literal "/dev/dtracehelper"))
+            (deny file-read-data (subpath \(Self.quoted(home))))
+            (allow file-read-data (subpath \(Self.quoted(readable))))
+            """
     }
 
-    private func makeContainer(_ command: BuildCommand, rootfs: URL, output: LineWriter) throws -> LinuxContainer {
-        let vmm = VZVirtualMachineManager(
-            kernel: Kernel(path: home.kernel, platform: .linuxArm),
-            initialFilesystem: .block(format: "ext4", source: home.initfs.path, destination: "/", options: ["ro"]))
-        let id = "sextant-build-\(UUID().uuidString.prefix(8).lowercased())"
-        let cpus = min(8, ProcessInfo.processInfo.activeProcessorCount)
-        return try LinuxContainer(
-            id, rootfs: .block(format: "ext4", source: rootfs.path, destination: "/", options: ["ro"]), vmm: vmm,
-            vm: VMResources(cpus: cpus, memoryInBytes: 3 << 30)
-        ) { config in
-            config.cpus = cpus
-            config.memoryInBytes = 2 << 30
-            config.process.arguments = command.arguments
-            config.process.workingDirectory = command.workingDirectory
-            config.process.environmentVariables += ["HOME=/tmp"] + command.environment.map { "\($0)=\($1)" }
-            config.process.stdout = output
-            config.process.stderr = output
-            config.mounts.append(.share(source: home.firmware.path, destination: Self.firmwareMount))
-            config.mounts.append(.any(type: "tmpfs", source: "tmpfs", destination: "/tmp", options: ["mode=1777"]))
-        }
-    }
-}
-
-/// Splits a VM process's output bytes into lines.
-final class LineWriter: Writer, Sendable {
-    private let pending = Mutex(Data())
-    private let line: @Sendable (String) -> Void
-
-    init(line: @escaping @Sendable (String) -> Void) { self.line = line }
-
-    func write(_ data: Data) throws {
-        let complete: [Data] = pending.withLock { buffer in
-            buffer.append(data)
-            var lines: [Data] = []
-            while let newline = buffer.firstIndex(of: 0x0A) {
-                lines.append(buffer[buffer.startIndex..<newline])
-                buffer.removeSubrange(buffer.startIndex...newline)
-            }
-            return lines
-        }
-        for bytes in complete { line(Self.text(bytes)) }
+    /// The real path: sandbox rules match resolved paths (`/private/var`, not `/var`).
+    static func canonical(_ url: URL) -> String {
+        guard let resolved = realpath(url.path, nil) else { return url.standardizedFileURL.path }
+        defer { free(resolved) }
+        return String(cString: resolved)
     }
 
-    func close() throws { flush() }
-
-    /// Emits a last line that had no newline.
-    func flush() {
-        let rest = pending.withLock { buffer in
-            defer { buffer.removeAll() }
-            return buffer
-        }
-        if !rest.isEmpty { line(Self.text(rest)) }
-    }
-
-    /// Compiler output is UTF-8; anything else still comes through (Latin-1 decodes every byte).
-    private static func text(_ bytes: Data) -> String {
-        String(bytes: bytes, encoding: .utf8) ?? String(bytes: bytes, encoding: .isoLatin1) ?? ""
+    private static func quoted(_ url: URL) -> String {
+        "\"" + canonical(url).replacing("\\", with: "\\\\").replacing("\"", with: "\\\"") + "\""
     }
 }

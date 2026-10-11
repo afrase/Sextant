@@ -36,6 +36,7 @@ The index of settled decisions. From decision 6 on, each has an ADR in [`adr/`](
 | 30 | 2026-10-11 | Import sheet, firmware settings storage, library management, app settings | [ADR 0030](adr/0030-import-settings-and-library-ui.md). Welcome, not an automatic default layout (the user's call). Since the integration review New Window has no shortcut (⌥⌘N is Legends ▸ Key Numbers, spec §9.1). |
 | 31 | 2026-10-11 | Device and Build & Flash in the window | [ADR 0031](adr/0031-device-and-build-flash-ui.md). Since the integration review flash mode is claimed per run (`claimFlashMode(for:owner:)`), and quitting or closing a window waits while a flash writes. |
 | 32 | 2026-10-11 | A recovery copy of every change until its autosave lands | [ADR 0032](adr/0032-recovery-copy.md). The user's request: never lose work. The window says when edits were restored. |
+| 33 | 2026-10-11 | A slim native toolchain, sandboxed, instead of the build VM | [ADR 0033](adr/0033-native-sandboxed-toolchain.md). Supersedes the build backend of ADRs 0018 and 0021. The user asked why a whole Debian image; about 190 MB instead of about 1.5 GB with the VM's kernel and init. The lead's call, at the user's request. |
 
 UI taste calls: all nine decided 2026-10-11 (ui-spec §14).
 

@@ -358,6 +358,7 @@ private struct Generator: FirmwareGenerator {
 /// A build that succeeds at once, reporting 65,786 bytes, with an image that passes validation for an STM32 bootloader.
 private struct Builds: Toolchain {
     func status() async -> ToolchainStatus { .ready("test") }
+    func setUp() -> AsyncStream<SetupEvent> { AsyncStream { $0.finish() } }
     func build(_ source: GeneratedSource, board: BoardDefinition) -> AsyncStream<BuildEvent> {
         var payload = Data(count: 64)
         payload.replaceSubrange(0..<8, with: [0x00, 0x80, 0x00, 0x20, 0x01, 0x21, 0x00, 0x08])  // stack in RAM, odd reset vector
@@ -374,6 +375,7 @@ private struct Builds: Toolchain {
 private struct FailingBuild: Toolchain {
     var diagnostics: [Diagnostic]
     func status() async -> ToolchainStatus { .ready("test") }
+    func setUp() -> AsyncStream<SetupEvent> { AsyncStream { $0.finish() } }
     func build(_ source: GeneratedSource, board: BoardDefinition) -> AsyncStream<BuildEvent> {
         AsyncStream { continuation in
             continuation.yield(.failed(.compileFailed(diagnostics)))

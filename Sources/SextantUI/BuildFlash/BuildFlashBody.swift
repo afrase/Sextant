@@ -31,14 +31,33 @@ struct BuildFlashBody: View {
         case let .needsSetup(detail):
             Text(
                 """
-                Sextant builds firmware with the compiler ZSA uses, in a small Linux virtual machine on this Mac. \
-                It needs a one-time download of about 1 GB, kept in Application Support.
+                Sextant builds firmware on this Mac with the compiler ZSA uses, the QMK tools and ZSA’s firmware \
+                source. Each build runs sandboxed: no network, and no access to your files.
                 """
             )
             .fixedSize(horizontal: false, vertical: true)
             Text(verbatim: detail).font(.callout).foregroundStyle(.secondary)
-            Label("Downloading the build tools isn’t available in this version yet.", systemImage: "info.circle")
-                .font(.callout).foregroundStyle(.secondary)
+            Label(
+                "Downloads come from Arm, the Python project, Homebrew, PyPI and GitHub, each checked against a pinned checksum.",
+                systemImage: "checkmark.shield"
+            )
+            .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        case let .settingUp(received, total):
+            let file = ByteCountFormatter.self
+            if received < total {
+                Text("Downloading the build tools…")
+                ProgressView(value: Double(received), total: Double(max(total, 1)))
+                Text(
+                    "\(file.string(fromByteCount: received, countStyle: .file)) of \(file.string(fromByteCount: total, countStyle: .file))"
+                )
+                .font(.callout).monospacedDigit().foregroundStyle(.secondary)
+            } else {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Installing the build tools…")
+                }
+            }
+            Text("This happens once. The build starts as soon as the tools are ready.").font(.callout).foregroundStyle(.secondary)
         case .generating, .compiling, .linking:
             building
             log

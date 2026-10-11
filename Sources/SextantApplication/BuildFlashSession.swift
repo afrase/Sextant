@@ -51,8 +51,10 @@ public final class BuildFlashSession {
         case blocked([LayoutIssue])
         /// The connected keyboard runs another layout, or firmware with no serial: ``confirmReplace()`` or ``stop()``.
         case confirmingReplace(serial: String?, title: String?)
-        /// The toolchain needs its one-time setup (§7.3 "Set up the build tools").
+        /// The toolchain needs its one-time setup (§7.3 "Set up the build tools"): ``setUpBuildTools()`` or ``stop()``.
         case needsSetup(String)
+        /// Downloading (`received` of `total` bytes), then installing (`received == total`); the build follows.
+        case settingUp(received: Int64, total: Int64)
         case generating
         case compiling(file: String, done: Int, total: Int)
         case linking
@@ -166,6 +168,29 @@ public final class BuildFlashSession {
     public func confirmReplace() {
         guard case .confirmingReplace = phase, let request else { return }
         begin(request, keyboard: nil, confirmed: true)
+    }
+
+    /// Download and Build: runs the toolchain's one-time setup, with the user's consent, then the build it held up.
+    public func setUpBuildTools() {
+        guard case .needsSetup = phase, task == nil, let request else { return }
+        runID += 1
+        let id = runID
+        task = Task {
+            var installed = false
+            for await event in toolchain.setUp() {
+                guard !Task.isCancelled else { break }
+                switch event {
+                case let .downloading(received, total): show(.settingUp(received: received, total: total))
+                case .installing:
+                    if case let .settingUp(_, total) = phase { show(.settingUp(received: total, total: total)) }
+                case .finished: installed = true
+                case let .failed(error): fail(.toolchain(error))
+                }
+            }
+            guard runID == id else { return }
+            task = nil
+            if installed, !Task.isCancelled { begin(request, keyboard: nil, confirmed: true) }
+        }
     }
 
     /// Stop or Cancel: back to idle. Ignored from validation until the flash is verified.

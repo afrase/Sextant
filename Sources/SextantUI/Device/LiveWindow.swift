@@ -140,6 +140,7 @@ extension ActivityState.Status {
         switch phase {
         case .idle, .blocked, .confirmingReplace, .failed(.flashingElsewhere): return nil
         case .needsSetup: self = .needsSetup
+        case let .settingUp(received, total): self = .settingUp(fraction: total > 0 ? Double(received) / Double(total) : 0)
         case .generating: self = .generating
         case let .compiling(file, done, total): self = .building(file: file, done: done, total: total)
         case .linking: self = .linking

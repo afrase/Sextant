@@ -1,22 +1,8 @@
 import SextantApplication
 import SwiftUI
 
-/// Which toolchain builds firmware (Settings › Build). The composition root reads the choice when it builds.
-public enum BuildBackend: String, CaseIterable, Sendable {
-    /// Apple's containerization: a pinned Linux VM with ZSA's compiler (ADR 0018, the default).
-    case container
-    /// A managed QMK toolchain on this Mac (the fallback).
-    case native
-
-    /// The user-defaults key.
-    public static let key = "buildBackend"
-
-    /// The stored choice.
-    public static var current: Self { UserDefaults.standard.string(forKey: key).flatMap(Self.init(rawValue:)) ?? .container }
-}
-
-/// Reports a backend's build tools status. It only looks; it never downloads (the setup step does, with consent).
-public typealias BuildToolsStatus = @MainActor (BuildBackend) async -> ToolchainStatus
+/// Reports the build tools' status. It only looks; it never downloads (the setup step does, with consent).
+public typealias BuildToolsStatus = @MainActor () async -> ToolchainStatus
 
 /// The firmware commits builds are pinned to; the composition root passes SextantBuild's pins.
 public typealias FirmwareSource = (firmware: String, modules: String)
@@ -68,7 +54,6 @@ public struct GeneralSettings: View {
 public struct BuildSettings: View {
     var status: BuildToolsStatus?
     var source: FirmwareSource?
-    @AppStorage(BuildBackend.key) private var backend = BuildBackend.container
     @AppStorage(SettingsKey.prefersOryxBuild) private var prefersOryxBuild = true
     @State private var toolsStatus: ToolchainStatus?
 
@@ -82,11 +67,6 @@ public struct BuildSettings: View {
     public var body: some View {
         Form {
             Section {
-                Picker("Build tools", selection: $backend) {
-                    Text("Apple container (recommended)").tag(BuildBackend.container)
-                    Text("Managed toolchain on this Mac").tag(BuildBackend.native)
-                }
-                .pickerStyle(.radioGroup)
                 switch toolsStatus {
                 case let .ready(detail)?: Label(detail, systemImage: "checkmark.circle.fill").labelStyle(StatusLabelStyle(tint: .green))
                 case let .needsSetup(detail)?:
@@ -97,9 +77,16 @@ public struct BuildSettings: View {
                     .labelStyle(StatusLabelStyle(tint: .secondary))
                 case nil: Text("Checking the build tools…").foregroundStyle(.secondary)
                 }
+            } header: {
+                Text("Build tools")
             } footer: {
-                Text("The container builds in a small Linux VM with ZSA's compiler; the managed toolchain builds on this Mac.")
-                    .foregroundStyle(.secondary)
+                Text(
+                    """
+                    Sextant builds on this Mac with the compiler ZSA uses. \
+                    Each build runs sandboxed: no network, and no access to your files.
+                    """
+                )
+                .foregroundStyle(.secondary)
             }
             if let source {
                 LabeledContent("Firmware source") {
@@ -110,10 +97,7 @@ public struct BuildSettings: View {
             Toggle("Use Oryx's build when the layout is unchanged since import", isOn: $prefersOryxBuild)
         }
         .formStyle(.grouped)
-        .task(id: backend) {
-            toolsStatus = nil
-            toolsStatus = await status?(backend)
-        }
+        .task { toolsStatus = await status?() }
     }
 }
 

@@ -79,6 +79,8 @@ extension Scenes {
             ("writing", SceneToolchain(output + [artifact]), writing, nil),
             ("done", SceneToolchain(output + [artifact]), writing, serial),
             ("failed", SceneToolchain(output + failure), [], nil),
+            ("setup", SceneToolchain([], setup: []), [], nil),
+            ("downloading", SceneToolchain([], setup: [.downloading(received: 84_200_000, total: 190_400_000)]), [], nil),
         ]
         for (name, toolchain, progress, reconnect) in runs {
             let flashMode = SceneWatcher(progress.isEmpty ? [] : [bootloader])
@@ -88,6 +90,7 @@ extension Scenes {
                 flasher: SceneFlasher(progress, reconnectAs: reconnect, watcher: flashMode))
             guard let build = model.buildFlash else { continue }
             if name == "built" { build.build() } else { build.buildAndFlash(connectedKeyboard: nil) }
+            if name == "downloading", await until({ phase(build.phase, isNamed: "setup") }) { build.setUpBuildTools() }
             _ = await until { phase(build.phase, isNamed: name) }
             scenes += SnapshotScene.pair("buildflash-\(name)", size: full, overlays: [.sheet(width: 640) { BuildFlashSheet(model: model) }])
             {
@@ -133,7 +136,7 @@ extension Scenes {
     private static func phase(_ phase: BuildFlashSession.Phase, isNamed name: String) -> Bool {
         switch (phase, name) {
         case (.compiling, "compiling"), (.built, "built"), (.waitingForFlashMode, "waiting"), (.writing, "writing"), (.done, "done"),
-            (.failed, "failed"):
+            (.failed, "failed"), (.needsSetup, "setup"), (.settingUp, "downloading"):
             true
         default: false
         }
@@ -200,18 +203,31 @@ private struct SceneGenerator: FirmwareGenerator {
     }
 }
 
-/// Plays scripted build events; with `hangs`, the build never ends.
+/// Plays scripted build events; with `hangs`, the build never ends. With `setup`, it needs setting up, and setting up
+/// plays those events and never ends.
 private final class SceneToolchain: Toolchain {
     private let script: [BuildEvent]
     private let hangs: Bool
+    private let setup: [SetupEvent]?
     private let open = Mutex<[AsyncStream<BuildEvent>.Continuation]>([])
+    private let settingUp = Mutex<[AsyncStream<SetupEvent>.Continuation]>([])
 
-    init(_ script: [BuildEvent], hangs: Bool = false) {
+    init(_ script: [BuildEvent], hangs: Bool = false, setup: [SetupEvent]? = nil) {
         self.script = script
         self.hangs = hangs
+        self.setup = setup
     }
 
-    func status() async -> ToolchainStatus { .ready("scene") }
+    func status() async -> ToolchainStatus {
+        setup == nil ? .ready("scene") : .needsSetup("Building firmware needs a one-time download of the build tools (about 190 MB).")
+    }
+
+    func setUp() -> AsyncStream<SetupEvent> {
+        let (stream, continuation) = AsyncStream.makeStream(of: SetupEvent.self)
+        setup?.forEach { continuation.yield($0) }
+        settingUp.withLock { $0.append(continuation) }
+        return stream
+    }
 
     func build(_ source: GeneratedSource, board: BoardDefinition) -> AsyncStream<BuildEvent> {
         let (stream, continuation) = AsyncStream.makeStream(of: BuildEvent.self)

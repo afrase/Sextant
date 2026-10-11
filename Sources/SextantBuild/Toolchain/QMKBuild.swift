@@ -30,8 +30,8 @@ struct QMKBuild: Sendable {
     /// The same checkout as the command sees it.
     let commandHome: String
     let runner: any CommandRunner
-    /// The `qmk` executable as the command sees it.
-    var qmk = "qmk"
+    /// The command that runs `qmk` (the sandbox, then the executable), as the command sees it.
+    var qmk = ["qmk"]
     /// Environment the backend adds (its tools on `PATH`).
     var environment: [String: String] = [:]
     private let log = Logger(subsystem: "com.sextant.app", category: "build")
@@ -73,8 +73,11 @@ struct QMKBuild: Sendable {
             return .failed(.failed(String(localized: "Sextant couldn't write the keymap for the compiler.")))
         }
 
+        // Sextant writes the DFU suffix itself (`FirmwareImage.withSuffix`), so `dfu-suffix` isn't needed.
         let command = BuildCommand(
-            arguments: [qmk, "compile", "-j", "8", "-e", "BUILD_DIR=\(buildDirectory)", "-kb", keyboard, "-km", keymap],
+            arguments: qmk + [
+                "compile", "-j", "8", "-e", "BUILD_DIR=\(buildDirectory)", "-e", "DFU_SUFFIX=true", "-kb", keyboard, "-km", keymap,
+            ],
             environment: environment.merging(["QMK_HOME": commandHome, "SKIP_GIT": "yes"]) { $1 },
             workingDirectory: commandHome)
         var output = BuildLog(sourceMap: source.sourceMap)
@@ -101,13 +104,16 @@ struct QMKBuild: Sendable {
             if output.diagnostics.contains(where: { $0.severity == .error }) { return .failed(.compileFailed(output.diagnostics)) }
             return .failed(.failed(output.lines.suffix(3).joined(separator: "\n")))
         }
-        guard let data = try? Data(contentsOf: image), data.count > 16 else {
+        guard let payload = try? Data(contentsOf: image), !payload.isEmpty,
+            let product = board.bootloaderProductIDs.first(where: { $0.value == .stm32 })?.key
+        else {
             return .failed(.failed(String(localized: "The compiler finished without a firmware file.")))
         }
-        // The payload (the file minus its 16-byte DFU suffix) must fit the linker's application window.
-        let over = data.count - 16 - Int(board.applicationEnd - board.flashStart)
+        // The payload must fit the linker's application window.
+        let over = payload.count - Int(board.applicationEnd - board.flashStart)
         if over > 0 { return .failed(.tooLarge(overBy: over)) }
-        return .finished(BuildArtifact(image: data, usedBytes: output.usedBytes, log: output.lines))
+        let file = FirmwareImage.withSuffix(payload, vendorID: board.vendorID, productID: product).data
+        return .finished(BuildArtifact(image: file, usedBytes: output.usedBytes, log: output.lines))
     }
 }
 

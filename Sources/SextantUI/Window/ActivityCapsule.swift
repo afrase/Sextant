@@ -23,6 +23,8 @@ public struct ActivityState: Hashable, Sendable {
         case issues(count: Int, firstKey: Int?)
         /// The build tools need their one-time setup (spec §7.3).
         case needsSetup
+        /// Downloading, then installing (at 1), the build tools.
+        case settingUp(fraction: Double)
         case generating
         case building(file: String, done: Int, total: Int)
         case linking
@@ -56,7 +58,7 @@ public struct ActivityState: Hashable, Sendable {
     /// A build or flash is running, so Build & Flash becomes Stop or Writing… (spec §3.4).
     var isBusy: Bool {
         switch status {
-        case .generating, .building, .linking, .waitingForFlashMode, .erasing, .writing, .verifying: true
+        case .settingUp, .generating, .building, .linking, .waitingForFlashMode, .erasing, .writing, .verifying: true
         default: false
         }
     }
@@ -105,6 +107,12 @@ extension ActivityState.Status {
         case .needsSetup:
             ActivityLook(
                 symbol: "hammer.fill", tone: .warning, text: String(localized: "Build tools needed"), detail: String(localized: "Set up"))
+        case let .settingUp(fraction) where fraction >= 1:
+            ActivityLook(symbol: nil, tone: .secondary, text: String(localized: "Installing build tools"), progress: .indeterminate)
+        case let .settingUp(fraction):
+            ActivityLook(
+                symbol: nil, tone: .secondary, text: String(localized: "Downloading build tools · \(Int((fraction * 100).rounded()))%"),
+                progress: .determinate(fraction))
         case .generating:
             ActivityLook(symbol: nil, tone: .secondary, text: String(localized: "Generating source"), progress: .indeterminate)
         case let .building(file, done, total):

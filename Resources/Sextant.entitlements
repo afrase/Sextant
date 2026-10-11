@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Hardened runtime, not sandboxed (research 00 §6, ADR 0011). -->
+<!-- Hardened runtime, not sandboxed (research 00 §6, ADR 0011). No entitlements: builds run in sandbox-exec, not a VM (ADR 0033). -->
 <plist version="1.0">
-<dict>
-	<!-- Virtualization.framework refuses to start a VM without it: firmware builds run in a Linux VM (ADR 0018). -->
-	<key>com.apple.security.virtualization</key>
-	<true/>
-</dict>
+<dict/>
 </plist>

@@ -55,6 +55,16 @@
     "%@ layer" : {
 
     },
+    "%@ of %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ of %2$@"
+          }
+        }
+      }
+    },
     "%@ of %@ bytes" : {
       "localizations" : {
         "en" : {
@@ -300,9 +310,6 @@
 
     },
     "Another window is flashing the keyboard. Try again when it finishes." : {
-
-    },
-    "Apple container (recommended)" : {
 
     },
     "Assign to %@ %@…" : {
@@ -626,7 +633,13 @@
     "Download and Build" : {
 
     },
-    "Downloading the build tools isn’t available in this version yet." : {
+    "Downloading build tools · %lld%%" : {
+
+    },
+    "Downloading the build tools…" : {
+
+    },
+    "Downloads come from Arm, the Python project, Homebrew, PyPI and GitHub, each checked against a pinned checksum." : {
 
     },
     "Dual-function" : {
@@ -926,6 +939,12 @@
     "Inspector" : {
 
     },
+    "Installing build tools" : {
+
+    },
+    "Installing the build tools…" : {
+
+    },
     "Issues" : {
 
     },
@@ -1172,9 +1191,6 @@
 
     },
     "Make Transparent (⌘⌫)" : {
-
-    },
-    "Managed toolchain on this Mac" : {
 
     },
     "Matches the connected keyboard" : {
@@ -1558,13 +1574,19 @@
     "Set up the build tools" : {
 
     },
+    "Setting up the build tools" : {
+
+    },
     "Settings take effect after you build and flash. Values equal to the default aren't stored." : {
 
     },
     "Sextant Help" : {
 
     },
-    "Sextant builds firmware with the compiler ZSA uses, in a small Linux virtual machine on this Mac. It needs a one-time download of about 1 GB, kept in Application Support." : {
+    "Sextant builds firmware on this Mac with the compiler ZSA uses, the QMK tools and ZSA’s firmware source. Each build runs sandboxed: no network, and no access to your files." : {
+
+    },
+    "Sextant builds on this Mac with the compiler ZSA uses. Each build runs sandboxed: no network, and no access to your files." : {
 
     },
     "Sextant builds the firmware on this Mac, then writes it once you put the keyboard in flash mode." : {
@@ -1785,9 +1807,6 @@
     "The compiler reported an error Sextant couldn’t place on a key." : {
 
     },
-    "The container builds in a small Linux VM with ZSA's compiler; the managed toolchain builds on this Mac." : {
-
-    },
     "The file has no DFU suffix." : {
 
     },
@@ -1848,6 +1867,9 @@
 
     },
     "These keys go back to the layer colour. You can undo this." : {
+
+    },
+    "This happens once. The build starts as soon as the tools are ready." : {
 
     },
     "This is a %@ layout. Sextant supports the ZSA Voyager for now." : {
