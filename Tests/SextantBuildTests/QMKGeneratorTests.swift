@@ -147,11 +147,14 @@ struct QMKGeneratorTests {
         layout.updateKey(layer: 0, index: 1) { $0 = Key(tap: KeyAction(code: "LM", layer: 15, modifiers: .leftShift)) }
         _ = try QMKGenerator().generate(layout, identity: identity)
         // Navigator options feed C defines too.
-        for (id, value) in [("automouseLayer", 40.0), ("automouseLayer", 1.5), ("automouseTime", 0), ("automouseThreshold", 101)] {
+        for (id, value) in [("automouseTime", 0.0), ("automouseThreshold", 101)] {
             layout = clean
             layout.navigator?.options[id] = .number(value)
             #expect(throws: GeneratorError.self, "\(id) \(value)") { try QMKGenerator().generate(layout, identity: identity) }
         }
+        layout = clean
+        layout.automouseLayer = 40
+        #expect(throws: GeneratorError.self) { try QMKGenerator().generate(layout, identity: identity) }
     }
 
     /// Catalog keys the generator would otherwise write as undeclared or dead keys.

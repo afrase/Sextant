@@ -48,7 +48,9 @@ struct LayoutIssuesTests {
         layout.combos = [Combo(keyIndices: [1, 2], layer: 1, output: .toggle(2))]
         #expect(LayoutIssues.check(layout).isEmpty)
         layout.combos = []
-        layout.navigator = NavigatorConfig(kind: .trackpad, side: .right, options: ["automouseLayer": .number(2)])
+        layout.automouseLayer = 2
+        #expect(LayoutIssues.check(layout).map(\.kind) == [.unreachableLayer(2)], "no Navigator, no automouse")
+        layout.navigator = NavigatorConfig(kind: .trackpad, side: .right)
         #expect(LayoutIssues.check(layout).isEmpty)
     }
 }

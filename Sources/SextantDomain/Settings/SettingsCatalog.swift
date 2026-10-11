@@ -144,7 +144,7 @@ public struct SettingsSection: Identifiable, Hashable, Sendable {
     public var settings: [Setting]
 }
 
-/// The bundled, trimmed firmware settings catalog: 14 sections, 100 settings.
+/// The bundled, trimmed firmware settings catalog: 14 sections, 101 settings.
 public struct SettingsCatalog: Sendable {
     public var sections: [SettingsSection]
 

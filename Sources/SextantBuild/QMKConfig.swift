@@ -18,7 +18,7 @@ struct Features {
         try Self.refuseUnsupportedSettings(plan.layout.settings)
         if let navigator = plan.layout.navigator {
             pointing = try Self.pointing(navigator)
-            let layer = navigator.options["automouseLayer"].map { $0.doubleValue.flatMap { Int(exactly: $0) } ?? -1 }
+            let layer = plan.layout.automouseLayer
             if let layer, !plan.layout.layers.indices.contains(layer) {
                 throw .unsupported(String(localized: "a Navigator automouse layer that doesn't exist"), nil)
             }
@@ -190,7 +190,7 @@ struct Features {
 
     private static func pointing(_ navigator: NavigatorConfig) throws(GeneratorError) -> Pointing {
         let kind: Pointing
-        var written: Set<String> = ["automouseLayer", "automouseTime", "automouseThreshold"]
+        var written: Set<String> = ["automouseTime", "automouseThreshold"]
         switch navigator.kind {
         case .trackpad: kind = .trackpad
         case .trackball:

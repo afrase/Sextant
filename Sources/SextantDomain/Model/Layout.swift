@@ -58,17 +58,19 @@ public struct NavigatorConfig: Hashable, Sendable {
 }
 
 extension KeyboardLayout {
-    /// Attaches a Navigator of `kind`, or removes it (nil). A new kind starts from its default options, since trackpad
-    /// and trackball options differ, but keeps the automouse layer, which Oryx stores on the layer whatever the module
-    /// (ADR 0035). The side stays; a new Navigator goes on the right half.
+    /// Attaches a Navigator of `kind`, or removes it (nil). A new kind keeps the options the settings catalog lists for
+    /// it (auto-mouse, rotation) and drops the rest, since trackpad and trackball options differ (ADR 0035). The side
+    /// stays; a new Navigator goes on the right half. ``automouseLayer`` belongs to the layout, so it outlasts both.
     public mutating func setNavigator(_ kind: NavigatorConfig.Kind?) {
         guard let kind else {
             navigator = nil
             return
         }
         guard kind != navigator?.kind else { return }
-        let automouse = navigator?.options["automouseLayer"].map { ["automouseLayer": $0] }
-        navigator = NavigatorConfig(kind: kind, side: navigator?.side ?? .right, options: automouse ?? [:])
+        let shared = (navigator?.options ?? [:]).filter {
+            SettingsCatalog.voyager.setting(id: $0.key)?.navigatorKinds?.contains(kind.rawValue) == true
+        }
+        navigator = NavigatorConfig(kind: kind, side: navigator?.side ?? .right, options: shared)
     }
 }
 
@@ -113,6 +115,9 @@ public struct KeyboardLayout: Hashable, Sendable {
     /// Sparse firmware settings: only values that differ from the catalog default (Oryx convention).
     public var settings: [String: SettingValue]
     public var navigator: NavigatorConfig?
+    /// The layer the Navigator turns on while it moves (Oryx's per-layer `automouse` flag). Like Oryx, the layout keeps
+    /// it without a Navigator, so removing the module and adding it back keeps it (ADR 0035).
+    public var automouseLayer: Int?
     /// The layout's colour swatches (up to 10), user data.
     public var swatch: [HexColor]
     /// Set when the layout was imported from Oryx.
@@ -120,8 +125,8 @@ public struct KeyboardLayout: Hashable, Sendable {
 
     public init(
         title: String, geometry: String = "voyager", layers: [Layer], combos: [Combo] = [],
-        settings: [String: SettingValue] = [:], navigator: NavigatorConfig? = nil, swatch: [HexColor] = [],
-        oryx: OryxRevisionInfo? = nil
+        settings: [String: SettingValue] = [:], navigator: NavigatorConfig? = nil, automouseLayer: Int? = nil,
+        swatch: [HexColor] = [], oryx: OryxRevisionInfo? = nil
     ) {
         self.title = title
         self.geometry = geometry
@@ -129,6 +134,7 @@ public struct KeyboardLayout: Hashable, Sendable {
         self.combos = combos
         self.settings = settings
         self.navigator = navigator
+        self.automouseLayer = automouseLayer
         self.swatch = swatch
         self.oryx = oryx
     }
@@ -240,16 +246,11 @@ extension KeyboardLayout {
             combos[ci].output = out ?? KeyAction.none
             combos[ci].layer = combos[ci].layer.flatMap(map)
         }
-        // Navigator options that name layers (aim, turbo, drag-scroll, automouse) follow too.
+        automouseLayer = automouseLayer.flatMap(map)
+        // Navigator options that name layers (aim, turbo, drag-scroll) follow too.
         if var options = navigator?.options {
             for (id, value) in options {
-                switch value {
-                case let .integers(list) where id.hasSuffix("Layers"): options[id] = .integers(list.compactMap(map))
-                case let .number(n) where id == "automouseLayer":
-                    // Imported data: a non-integral or out-of-range number is no layer, not a crash.
-                    options[id] = Int(exactly: n).flatMap(map).map { .number(Double($0)) }
-                default: break
-                }
+                if case let .integers(list) = value, id.hasSuffix("Layers") { options[id] = .integers(list.compactMap(map)) }
             }
             navigator?.options = options
         }

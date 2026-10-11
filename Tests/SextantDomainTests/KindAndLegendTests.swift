@@ -78,13 +78,13 @@ struct KindAndLegendTests {
             Combo(id: "a", keyIndices: [13, 14], layer: 1, output: .code("KC_ESCAPE")),
             Combo(id: "b", keyIndices: [15, 16], layer: 3, output: .code("KC_TAB")),
         ]
-        l.navigator = NavigatorConfig(
-            kind: .trackpad, side: .right, options: ["aimLayers": .integers([1, 3]), "automouseLayer": .number(1)])
+        l.navigator = NavigatorConfig(kind: .trackpad, side: .right, options: ["aimLayers": .integers([1, 3])])
+        l.automouseLayer = 1
         l.removeLayer(at: 1)
         #expect(l.combos.map(\.id) == ["b"], "a combo limited to the deleted layer goes with it")
         #expect(l.combos.first?.layer == 2, "combos above it shift down")
         #expect(l.navigator?.options["aimLayers"] == .integers([2]))
-        #expect(l.navigator?.options["automouseLayer"] == nil)
+        #expect(l.automouseLayer == nil)
     }
 
     @Test func diffFindsChangedKeys() {

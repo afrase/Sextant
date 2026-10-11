@@ -69,7 +69,7 @@ public enum LayoutIssues {
     /// Layers some chain of layer keys (or combos, or the Navigator's automouse) reaches from layer 0.
     static func reachableLayers(_ layout: KeyboardLayout) -> Set<Int> {
         var reached: Set<Int> = [0]
-        if case let .number(n)? = layout.navigator?.options["automouseLayer"], let auto = Int(exactly: n) { reached.insert(auto) }
+        if layout.navigator != nil, let auto = layout.automouseLayer { reached.insert(auto) }
         var queue = Array(reached)
         while let li = queue.popLast() {
             guard layout.layers.indices.contains(li) else { continue }

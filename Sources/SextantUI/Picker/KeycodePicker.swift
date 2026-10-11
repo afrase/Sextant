@@ -365,7 +365,8 @@ extension LayoutWindowModel {
         let navigator = item(
             "navigator", String(localized: "Navigator"), attached ?? FirmwareSettings.title(nil), section: FirmwareSettings.navigator)
         let kinds = "\(FirmwareSettings.title(.trackpad)) \(FirmwareSettings.title(.trackball))"
-        return Self.ranked([navigator], query) { [$0.title, kinds] }
+        let sides = "\(String(localized: "Side")) \(FirmwareSettings.title(.left)) \(FirmwareSettings.title(.right))"
+        return Self.ranked([navigator], query) { [$0.title, kinds, sides] }
             + SettingsCatalog.voyager.search(query).filter { section($0.id) != nil }.prefix(5).map { setting in
                 // Navigator settings live in the Navigator's options (ADR 0030).
                 let stored = layout.storedValue(of: setting)

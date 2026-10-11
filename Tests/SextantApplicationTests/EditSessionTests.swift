@@ -111,7 +111,9 @@ struct EditSessionTests {
 
         step(undo) { session.setNavigator(.trackball) }
         #expect(undo.undoActionName == "Set Navigator")
-        #expect(session.layout.navigator == NavigatorConfig(kind: .trackball, side: .left), "trackpad options don't carry over")
+        #expect(session.layout.navigator?.kind == .trackball && session.layout.navigator?.side == .left)
+        #expect(session.layout.navigator?.options["tap"] == nil, "trackpad options don't carry over")
+        #expect(session.layout.navigator?.options["automouseTime"] == .number(800), "options both kinds have do")
         step(undo) { session.setNavigator(nil) }
         #expect(session.layout.navigator == nil && session.geometry.navigator == nil)
         let removed = session.layout
@@ -130,12 +132,17 @@ struct EditSessionTests {
         #expect(session.geometry.navigator?.hand == .right)
     }
 
-    /// The automouse layer is Oryx's layer flag, so it outlasts a change of module.
+    /// The automouse layer is Oryx's layer flag, so it outlasts a change of module and None; options both kinds have
+    /// outlast a change of module.
     @Test func aNewNavigatorKindKeepsTheAutomouseLayer() {
         var layout = KeyboardLayout.blankQWERTY(title: "T")
-        layout.navigator = NavigatorConfig(kind: .trackpad, side: .left, options: ["automouseLayer": .number(0), "tap": .bool(false)])
+        layout.automouseLayer = 0
+        layout.navigator = NavigatorConfig(kind: .trackpad, side: .left, options: ["automouseTime": .number(500), "tap": .bool(false)])
         layout.setNavigator(.trackball)
-        #expect(layout.navigator == NavigatorConfig(kind: .trackball, side: .left, options: ["automouseLayer": .number(0)]))
+        #expect(layout.navigator == NavigatorConfig(kind: .trackball, side: .left, options: ["automouseTime": .number(500)]))
+        layout.setNavigator(nil)
+        layout.setNavigator(.trackpad)
+        #expect(layout.navigator == NavigatorConfig(kind: .trackpad, side: .right) && layout.automouseLayer == 0)
     }
 
     @Test func autosavesAfterEdits() async throws {

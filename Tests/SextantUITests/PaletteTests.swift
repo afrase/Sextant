@@ -52,6 +52,8 @@ struct PaletteTests {
         session.setSetting("automouseTime", to: .number(800))
         model.openPalette(query: "auto-mouse release")
         #expect(model.paletteItems.first { $0.id == "setting-automouseTime" }?.detail == "800 ms · changed")
+        model.openPalette(query: "side")
+        #expect(model.paletteItems.contains { $0.id == "setting-navigator" }, "the user's words: change sides")
         model.openPalette(query: "navigator")
         let row = try #require(model.paletteItems.first { $0.id == "setting-navigator" })
         #expect(row.detail == "Trackpad · Left")

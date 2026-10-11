@@ -6,7 +6,7 @@ import SwiftUI
 enum FirmwareSettings {
     /// The MVP core sections (spec §13.5 step 11), with the settings that apply to this layout's board and Navigator.
     /// Navigator is always there: it starts with the choice of module and side (ADR 0035).
-    /// shortcut: RGB shows only its timeout and the other nine sections are left out; v1 shows all 100 settings.
+    /// shortcut: RGB shows only its timeout and the other nine sections are left out; v1 shows all 101 settings.
     static func sections(for layout: KeyboardLayout, catalog: SettingsCatalog = .voyager) -> [SettingsSection] {
         catalog.sections.compactMap { section in
             var section = section
@@ -133,8 +133,10 @@ private struct NavigatorChoice: View {
         }
         .padding(.vertical, 4)
         VStack(alignment: .leading, spacing: 6) {
-            Picker("Side", selection: Binding(get: { navigator?.side ?? .right }, set: { session.moveNavigator(to: $0) })) {
-                ForEach([NavigatorConfig.Side.left, .right], id: \.self) { Text(FirmwareSettings.title($0)).tag($0) }
+            // No Navigator, no side selected.
+            let side = Binding(get: { navigator?.side }, set: { if let side = $0 { session.moveNavigator(to: side) } })
+            Picker("Side", selection: side) {
+                ForEach([NavigatorConfig.Side.left, .right], id: \.self) { Text(FirmwareSettings.title($0)).tag(Optional($0)) }
             }
             .pickerStyle(.segmented)
             .disabled(navigator == nil)
@@ -211,7 +213,7 @@ private struct SettingRow: View {
                 title
             }
         case .animationSelect:
-            // shortcut: no MVP core setting uses it (RGB animations come with all 100 settings in v1).
+            // shortcut: no MVP core setting uses it (RGB animations come with all 101 settings in v1).
             LabeledContent {
                 Text(setting.format(value)).foregroundStyle(.secondary)
             } label: {
