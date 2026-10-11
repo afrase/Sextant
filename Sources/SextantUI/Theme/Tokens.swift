@@ -7,26 +7,39 @@ import SwiftUI
 
 /// A colour with light, dark and optional high-contrast variants, resolved by the drawing appearance.
 public struct Token: Sendable {
-    public var light: HexColor
-    public var dark: HexColor
-    public var lightAlpha: Double = 1
-    public var darkAlpha: Double = 1
+    public let light: HexColor
+    public let dark: HexColor
+    public let lightAlpha: Double
+    public let darkAlpha: Double
     /// High-contrast alphas, when they differ (cap edges, ghost strokes).
-    public var lightAlphaHC: Double?
-    public var darkAlphaHC: Double?
+    public let lightAlphaHC: Double?
+    public let darkAlphaHC: Double?
+    /// Built once, in `init`: a new dynamic colour on every read made SwiftUI re-resolve it and see a changed value on
+    /// each draw.
+    public private(set) var color = Color.clear
 
-    public var color: Color { Color(nsColor: nsColor) }
-
-    public var nsColor: NSColor {
+    public init(
+        light: HexColor, dark: HexColor, lightAlpha: Double = 1, darkAlpha: Double = 1, lightAlphaHC: Double? = nil,
+        darkAlphaHC: Double? = nil
+    ) {
+        self.light = light
+        self.dark = dark
+        self.lightAlpha = lightAlpha
+        self.darkAlpha = darkAlpha
+        self.lightAlphaHC = lightAlphaHC
+        self.darkAlphaHC = darkAlphaHC
         let t = self
-        return NSColor(name: nil) { appearance in
-            let match = appearance.bestMatch(from: [.aqua, .darkAqua, .accessibilityHighContrastAqua, .accessibilityHighContrastDarkAqua])
-            let isDark = match == .darkAqua || match == .accessibilityHighContrastDarkAqua
-            let isHC = match == .accessibilityHighContrastAqua || match == .accessibilityHighContrastDarkAqua
-            let c = isDark ? t.dark : t.light
-            let a = isDark ? (isHC ? t.darkAlphaHC : nil) ?? t.darkAlpha : (isHC ? t.lightAlphaHC : nil) ?? t.lightAlpha
-            return NSColor(srgbRed: c.red, green: c.green, blue: c.blue, alpha: a)
-        }
+        color = Color(
+            nsColor: NSColor(name: nil) { appearance in
+                let match = appearance.bestMatch(from: [
+                    .aqua, .darkAqua, .accessibilityHighContrastAqua, .accessibilityHighContrastDarkAqua,
+                ])
+                let isDark = match == .darkAqua || match == .accessibilityHighContrastDarkAqua
+                let isHC = match == .accessibilityHighContrastAqua || match == .accessibilityHighContrastDarkAqua
+                let c = isDark ? t.dark : t.light
+                let a = isDark ? (isHC ? t.darkAlphaHC : nil) ?? t.darkAlpha : (isHC ? t.lightAlphaHC : nil) ?? t.lightAlpha
+                return NSColor(srgbRed: c.red, green: c.green, blue: c.blue, alpha: a)
+            })
     }
 }
 
@@ -62,18 +75,18 @@ public enum Tokens {
     public static let neutralChip = pair(0x8E8E93, 0x98989D)
 
     /// Kind colour (bar, band hairline, band fill at 12% / 18%) and band ink.
-    public static func kind(_ kind: KeyKind) -> (tint: Token, ink: Token)? {
-        switch kind {
-        case .modifier: (pair(0x4F4CCF, 0xA9A7FF), pair(0x4F4CCF, 0xF2F2F4))
-        case .layer: layerKind
-        case .lighting: (pair(0x7D5A00, 0xFFD43B), pair(0x7D5A00, 0xFFD43B))
-        case .label: (pair(0x0A6C94, 0x80D5F6), pair(0x0A6C94, 0x80D5F6))
-        case .macro: (pair(0x7A35C4, 0xD6B8FF), pair(0x7A35C4, 0xD6B8FF))
-        case .tapDance: (pair(0xA3275F, 0xFF9CC8), pair(0xA3275F, 0xF2F2F4))
-        case .disabled: (pair(0x6E6E73, 0xA8A8AE), pair(0x6E6E73, 0xF2F2F4))
-        case .regular, .dualFunction, .transparent: nil
-        }
-    }
+    public static func kind(_ kind: KeyKind) -> (tint: Token, ink: Token)? { kinds[kind] }
+
+    /// Built once, so every cap shares the same colours.
+    private static let kinds: [KeyKind: (tint: Token, ink: Token)] = [
+        .modifier: (pair(0x4F4CCF, 0xA9A7FF), pair(0x4F4CCF, 0xF2F2F4)),
+        .layer: layerKind,
+        .lighting: (pair(0x7D5A00, 0xFFD43B), pair(0x7D5A00, 0xFFD43B)),
+        .label: (pair(0x0A6C94, 0x80D5F6), pair(0x0A6C94, 0x80D5F6)),
+        .macro: (pair(0x7A35C4, 0xD6B8FF), pair(0x7A35C4, 0xD6B8FF)),
+        .tapDance: (pair(0xA3275F, 0xFF9CC8), pair(0xA3275F, 0xF2F2F4)),
+        .disabled: (pair(0x6E6E73, 0xA8A8AE), pair(0x6E6E73, 0xF2F2F4)),
+    ]
 
     /// Layer keys whose target has no colour.
     public static let layerKind = (tint: pair(0x0A6E67, 0x5FE3D3), ink: pair(0x0A6E67, 0x5FE3D3))

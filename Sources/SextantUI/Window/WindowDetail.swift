@@ -7,14 +7,7 @@ struct WindowDetail: View {
 
     var body: some View {
         content
-            // Choosing a layer by number or menu returns from a page to the board; Follow's layer changes don't.
-            .onChange(of: model.session?.selection.layer) {
-                // A layer picked by hand ends Record Key too: it would assign to the layer it started on, now hidden.
-                if !model.isFollowing {
-                    model.showsFirmwareSettings = false
-                    model.recorder = nil
-                }
-            }
+            .modifier(LayerSwitchEffects(model: model))
             // The page doesn't show the key Record Key would assign to.
             .onChange(of: model.showsFirmwareSettings) { model.recorder = nil }
             // One alert, in the key window: every window shares the library.
@@ -43,7 +36,7 @@ struct WindowDetail: View {
                 } else {
                     CanvasColumn(model: model, session: session)
                         .navigationTitle(session.layout.title)
-                        .navigationSubtitle(model.subtitle)
+                        .modifier(LayerSubtitle(model: model))
                 }
             }
             .paletteHost(model)
@@ -61,5 +54,32 @@ struct WindowDetail: View {
         } else {
             WelcomeView(model: model)
         }
+    }
+}
+
+// The two modifiers below read the selected layer in their own bodies, so a layer switch doesn't re-run WindowDetail
+// and rebuild the canvas column (the board would evaluate twice per switch).
+
+/// Choosing a layer by number or menu returns from a page to the board; Follow's layer changes don't.
+private struct LayerSwitchEffects: ViewModifier {
+    var model: LayoutWindowModel
+
+    func body(content: Content) -> some View {
+        content.onChange(of: model.session?.selection.layer) {
+            // A layer picked by hand ends Record Key too: it would assign to the layer it started on, now hidden.
+            if !model.isFollowing {
+                model.showsFirmwareSettings = false
+                model.recorder = nil
+            }
+        }
+    }
+}
+
+/// The board's window subtitle: the layer, plus " · Edited".
+private struct LayerSubtitle: ViewModifier {
+    var model: LayoutWindowModel
+
+    func body(content: Content) -> some View {
+        content.navigationSubtitle(model.subtitle)
     }
 }

@@ -25,12 +25,11 @@ struct BenchBackdrop: View {
     var showsGrid: Bool
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         ZStack {
             if contrast != .increased {
-                if showsGrid { grid }
+                if showsGrid { BenchGridLines(boardRect: boardRect, pitch: pitch, gridAnchor: gridAnchor) }
                 ZStack {
                     if let wash {
                         Rectangle()
@@ -53,9 +52,18 @@ struct BenchBackdrop: View {
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
+}
 
-    /// Hairlines on the key pitch, at full strength up to 1.5 pitch beyond the board and gone 1.5 pitch later.
-    private var grid: some View {
+/// Hairlines on the key pitch, at full strength up to 1.5 pitch beyond the board and gone 1.5 pitch later. A view of
+/// its own, so a layer change (which changes the atmosphere) doesn't redraw it.
+private struct BenchGridLines: View {
+    var boardRect: CGRect
+    var pitch: CGFloat
+    /// A point where grid lines cross, so the grid lines up with the keys.
+    var gridAnchor: CGPoint
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
         let hairline = 1 / displayScale
         return Canvas { ctx, _ in
             let p = pitch

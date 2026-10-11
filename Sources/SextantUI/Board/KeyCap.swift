@@ -121,33 +121,42 @@ struct KeyCap: View, Equatable {
 
     // MARK: Face
 
-    @ViewBuilder private var face: some View {
-        if model.isGhost {
-            shape.fill(Tokens.ghostFill.color)
-                .overlay { shape.strokeBorder(Tokens.ghostStroke.color, style: StrokeStyle(lineWidth: 1, dash: [3, 2.5])) }
-                .overlay {
-                    if model.legend.activatesDisplayedLayer, let tones = model.layerTones {
-                        Hatch(color: tones.display.color.opacity(isDark ? 0.38 : 0.30), spacing: 0.10 * u).clipShape(shape)
-                    }
-                }
-        } else {
-            shape
-                .fill(LinearGradient(colors: [Tokens.capTop.color, Tokens.capBottom.color], startPoint: .top, endPoint: .bottom))
-                .overlay { if let bar = model.bar { shape.fill(bar.color.opacity(0.05)) } }
-                .overlay {
-                    if model.kind == .disabled, let disabled = Tokens.kind(.disabled) {
-                        Hatch(color: disabled.tint.color.opacity(0.12), spacing: 0.10 * u).clipShape(shape)
-                    }
-                }
-                .overlay { shape.strokeBorder(Tokens.capEdge.color, lineWidth: 0.75) }
-                .overlay {
-                    // Inner top-edge highlight.
-                    shape.inset(by: 1).stroke(Tokens.capHighlight.color, lineWidth: 1)
-                        .mask(LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.25)))
-                }
-                .shadow(color: .black.opacity(isDark ? 0.45 : 0.10), radius: isDark ? 2.5 : 1, y: isDark ? 2 : 1)
-                .shadow(color: .black.opacity(isDark ? 0 : 0.06), radius: 3, y: 2)
+    /// Both faces stay in the tree and crossfade by opacity: most caps change between ghost and normal on a layer
+    /// switch, and rebuilding the face each time made switching slow.
+    private var face: some View {
+        ZStack {
+            ghostFace.opacity(model.isGhost ? 1 : 0)
+            normalFace.opacity(model.isGhost ? 0 : 1)
         }
+    }
+
+    private var ghostFace: some View {
+        shape.fill(Tokens.ghostFill.color)
+            .overlay { shape.strokeBorder(Tokens.ghostStroke.color, style: StrokeStyle(lineWidth: 1, dash: [3, 2.5])) }
+            .overlay {
+                if model.legend.activatesDisplayedLayer, let tones = model.layerTones {
+                    Hatch(color: tones.display.color.opacity(isDark ? 0.38 : 0.30), spacing: 0.10 * u).clipShape(shape)
+                }
+            }
+    }
+
+    private var normalFace: some View {
+        shape
+            .fill(LinearGradient(colors: [Tokens.capTop.color, Tokens.capBottom.color], startPoint: .top, endPoint: .bottom))
+            .overlay { if let bar = model.bar { shape.fill(bar.color.opacity(0.05)) } }
+            .overlay {
+                if model.kind == .disabled, let disabled = Tokens.kind(.disabled) {
+                    Hatch(color: disabled.tint.color.opacity(0.12), spacing: 0.10 * u).clipShape(shape)
+                }
+            }
+            .overlay { shape.strokeBorder(Tokens.capEdge.color, lineWidth: 0.75) }
+            .overlay {
+                // Inner top-edge highlight.
+                shape.inset(by: 1).stroke(Tokens.capHighlight.color, lineWidth: 1)
+                    .mask(LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.25)))
+            }
+            .shadow(color: .black.opacity(isDark ? 0.45 : 0.10), radius: isDark ? 2.5 : 1, y: isDark ? 2 : 1)
+            .shadow(color: .black.opacity(isDark ? 0 : 0.06), radius: 3, y: 2)
     }
 
     /// Opacity of the pressed fill; the pressed ink's contrast math mixes with the same value.
