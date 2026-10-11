@@ -20,6 +20,8 @@ public struct BoardView: View {
     var capRange: ClosedRange<CGFloat>
 
     @FocusState private var isFocused: Bool
+    /// The board got focus from a click, not the keyboard: the outline is a keyboard-focus cue, so it stays hidden.
+    @State private var focusedByPointer = false
     @Namespace private var rotors
     @Environment(\.motion) private var motion
     @Environment(\.colorSchemeContrast) private var contrast
@@ -71,7 +73,7 @@ public struct BoardView: View {
                     .keySwapGesture(session, board: board)
                     // The board draws its own focus ring (spec §11): the selection glow, or this outline before a key is chosen.
                     .overlay {
-                        if isFocused && session.selection.keyIndex == nil {
+                        if isFocused && session.selection.keyIndex == nil && !focusedByPointer {
                             RoundedRectangle(cornerRadius: 0.3 * cap, style: .continuous)
                                 .strokeBorder(Color.accentColor.opacity(0.6), lineWidth: 2)
                                 .padding(-0.3 * cap)
@@ -83,9 +85,11 @@ public struct BoardView: View {
                     .position(center)
             }
         }
+        .simultaneousGesture(SpatialTapGesture().onEnded { _ in focusedByPointer = true })
         .focusable()
         .focused($isFocused)
         .focusEffectDisabled()
+        .onChange(of: isFocused) { if !isFocused { focusedByPointer = false } }
         .onMoveCommand(perform: move)
         .onKeyPress(keys: [.tab, Self.backTab], phases: .down) { press in
             // ⌃⇥ / ⌃⇧⇥ leave the board, as they leave a text view.
