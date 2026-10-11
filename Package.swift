@@ -75,7 +75,8 @@ let package = Package(
             dependencies: [
                 "SextantUI", "SextantApplication", "SextantDomain",
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
-            ]
+            ],
+            exclude: ["__Snapshots__"]  // swift-snapshot-testing reference images
         ),
     ],
     swiftLanguageModes: [.v6]

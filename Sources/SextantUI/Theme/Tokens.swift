@@ -80,6 +80,11 @@ public enum Tokens {
     /// The band colour for a hold that is a plain key (= / Esc).
     public static let holdKey = (tint: pair(0x9E4700, 0xFFB870), ink: pair(0x9E4700, 0xFFB870))
     public static let danger = Token(light: hex(0xFF3B30), dark: hex(0xFF453A))
+    /// `status.warning` and `status.success` (system orange and green), for issue rings and live presses.
+    public static let warning = Token(light: hex(0xFF9500), dark: hex(0xFF9F0A))
+    public static let success = Token(light: hex(0x34C759), dark: hex(0x30D158))
+    /// Opaque stand-in for app glass under Reduce Transparency, Increase Contrast and in snapshots (§10.4).
+    public static let surface = Token(light: hex(0xFBFBFD), dark: hex(0x26262B), lightAlpha: 0.96, darkAlpha: 0.96)
 }
 
 /// Display variants of a user's layer colour (spec §4.5), computed once per colour.
