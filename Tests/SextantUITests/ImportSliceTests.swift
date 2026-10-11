@@ -92,7 +92,8 @@ struct ImportSliceTests {
     @Test func firmwareSettingsShowTheCoreSections() async throws {
         let layout = try KeyboardLayout(oryxJSON: try #require(userLayoutData))
         let sections = FirmwareSettings.sections(for: layout)
-        #expect(sections.map(\.id) == ["debounce", "rgb", "tapping", "oneshot"], "no Navigator, no Navigator section")
+        #expect(sections.map(\.id) == ["debounce", "rgb", "tapping", "oneshot", "navigator"], "Navigator, to attach one")
+        #expect(sections.last?.settings.isEmpty == true, "no Navigator, no Navigator settings")
         #expect(sections[1].settings.map(\.id) == ["rgbTimeout"])
         var trackpad = layout
         trackpad.navigator = NavigatorConfig(kind: .trackpad, side: .right)

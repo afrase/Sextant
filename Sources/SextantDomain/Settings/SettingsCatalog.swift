@@ -139,12 +139,12 @@ public struct SettingsSection: Identifiable, Hashable, Sendable {
     public var id: String
     public var title: String
     public var summary: String
-    /// Oryx hides Audio on the Voyager; Navigator is shown only with a Navigator attached.
+    /// Oryx hides Audio on the Voyager.
     public var isVisibleOnVoyager: Bool
     public var settings: [Setting]
 }
 
-/// The bundled, trimmed firmware settings catalog: 14 sections, 100 settings.
+/// The bundled, trimmed firmware settings catalog: 14 sections, 101 settings.
 public struct SettingsCatalog: Sendable {
     public var sections: [SettingsSection]
 

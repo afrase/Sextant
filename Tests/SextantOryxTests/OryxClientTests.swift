@@ -42,7 +42,8 @@ struct OryxClientTests {
         let query = try #require(body["query"] as? String)
         #expect(query.hasPrefix("query getLayout("))
         #expect(!query.contains("mutation"))
-        for field in ["md5", "qmkVersion", "navigators", "swatch", "combos", "layers", "keys", "position"] {
+        // Oryx keeps the automouse layer only as a layer flag.
+        for field in ["md5", "qmkVersion", "navigators", "swatch", "combos", "layers", "keys", "position", "automouse"] {
             #expect(query.contains(field), "\(field)")
         }
     }

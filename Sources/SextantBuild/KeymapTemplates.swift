@@ -90,14 +90,8 @@ enum KeymapTemplates {
 
     // MARK: Navigator trackball (as in Oryx's trackball sources)
 
-    static let trackballKeycodes = """
-          DRAG_SCROLL,
-          NAVIGATOR_INC_CPI,
-          NAVIGATOR_DEC_CPI,
-          NAVIGATOR_TURBO,
-          NAVIGATOR_AIM
-        """
-
+    // The pinned firmware's `zsa/defaults` declares the Navigator keycodes and `zsa/navigator_trackball` handles them
+    // (ADR 0035), so keymap.c no longer declares them or handles them in process_record_user.
     static let trackballExterns = """
         extern bool set_scrolling;
         extern bool navigator_turbo;
@@ -124,40 +118,6 @@ enum KeymapTemplates {
           }
         }
 
-        """
-
-    static let trackballCases = """
-            case DRAG_SCROLL:
-              if (record->event.pressed) {
-                set_scrolling = true;
-              } else {
-                set_scrolling = false;
-              }
-              return false;
-          case NAVIGATOR_TURBO:
-            if (record->event.pressed) {
-              navigator_turbo = true;
-            } else {
-              navigator_turbo = false;
-            }
-            return false;
-          case NAVIGATOR_AIM:
-            if (record->event.pressed) {
-              navigator_aim = true;
-            } else {
-              navigator_aim = false;
-            }
-            return false;
-          case NAVIGATOR_INC_CPI:
-            if (record->event.pressed) {
-                pointing_device_set_cpi(1);
-            }
-            return false;
-          case NAVIGATOR_DEC_CPI:
-            if (record->event.pressed) {
-                pointing_device_set_cpi(0);
-            }
-            return false;
         """
 }
 

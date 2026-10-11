@@ -52,6 +52,44 @@ struct QMKGeneratorTests {
         }
     }
 
+    /// A layout switched to another Navigator (ADR 0035) gets that module's firmware lines, as Oryx writes them for the
+    /// user's trackpad (KlgM7) and e5Rrr's trackball (less what e5Rrr's own options add, and with the pinned firmware's
+    /// trackball module), and none with no Navigator.
+    @Test func switchingTheNavigatorSwitchesItsFirmware() throws {
+        func oryx(_ zip: String) throws -> [String: String] {
+            try QMKGeneratorGoldenTests.unzipSources(QMKGeneratorGoldenTests.examples.appending(path: "sources/\(zip)"))
+        }
+        func lines(_ text: String?) -> [String] { (text ?? "").components(separatedBy: "\n") }
+        func navigatorRules(_ text: String?) -> [String] {
+            lines(text).filter { $0.hasPrefix("POINTING_DEVICE") || $0.hasPrefix("PRECISION_TRACKPAD") }
+        }
+        let user = try oryx("KlgM7-40xJ7M-source.zip"), e5Rrr = try oryx("e5Rrr-source.zip")
+        let e5Config = lines(e5Rrr["config.h"])
+        let start = try #require(e5Config.firstIndex(of: "#define WHEEL_EXTENDED_SUPPORT"))
+        let end = try #require(e5Config.firstIndex(of: "#define NAVIGATOR_SCROLL_DIVIDER 75"))
+        let trackballConfig = e5Config[start...end].filter { !$0.contains("CPI") }  // e5Rrr sets a sensitivity
+        #expect(trackballConfig.count == 6)
+
+        var layout = try userLayout()
+        var files = try QMKGenerator().generate(layout, identity: identity).files
+        #expect(navigatorRules(files["rules.mk"]) == navigatorRules(user["rules.mk"]) && navigatorRules(user["rules.mk"]).count == 2)
+
+        layout.navigator?.side = .left  // like e5Rrr's; the firmware has nothing per side
+        layout.setNavigator(.trackball)
+        files = try QMKGenerator().generate(layout, identity: identity).files
+        // e5Rrr's `POINTING_DEVICE_DRIVER = navigator_trackball` is the module's job now (see the golden allowances).
+        #expect(navigatorRules(files["rules.mk"]) == navigatorRules(e5Rrr["rules.mk"]).filter { !$0.contains("DRIVER") })
+        #expect(lines(files["config.h"]).joined(separator: "\n").contains(trackballConfig.joined(separator: "\n")))
+        #expect(files["config.h"]?.contains("AUTO_MOUSE") == false)
+        #expect(
+            files["keymap.json"]?.contains("\"zsa/navigator_trackball\"") == true && files["keymap.json"]?.contains("trackpad") == false)
+
+        layout.setNavigator(nil)
+        files = try QMKGenerator().generate(layout, identity: identity).files
+        #expect(navigatorRules(files["rules.mk"]).isEmpty && files["config.h"]?.contains("NAVIGATOR") == false)
+        #expect(files["keymap.json"]?.contains("navigator") == false && files["keymap.c"]?.contains("navigator") == false)
+    }
+
     @Test func refusesKeysItCantExpress() throws {
         var layout = try userLayout()
         let macro = KeyAction(code: "KC_TRANSPARENT", macro: Macro(steps: [MacroStep(code: "KC_A")]))
@@ -109,11 +147,14 @@ struct QMKGeneratorTests {
         layout.updateKey(layer: 0, index: 1) { $0 = Key(tap: KeyAction(code: "LM", layer: 15, modifiers: .leftShift)) }
         _ = try QMKGenerator().generate(layout, identity: identity)
         // Navigator options feed C defines too.
-        for (id, value) in [("automouseLayer", 40.0), ("automouseLayer", 1.5), ("automouseTime", 0), ("automouseThreshold", 101)] {
+        for (id, value) in [("automouseTime", 0.0), ("automouseThreshold", 101)] {
             layout = clean
             layout.navigator?.options[id] = .number(value)
             #expect(throws: GeneratorError.self, "\(id) \(value)") { try QMKGenerator().generate(layout, identity: identity) }
         }
+        layout = clean
+        layout.automouseLayer = 40
+        #expect(throws: GeneratorError.self) { try QMKGenerator().generate(layout, identity: identity) }
     }
 
     /// Catalog keys the generator would otherwise write as undeclared or dead keys.

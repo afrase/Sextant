@@ -474,6 +474,9 @@
     "Checking the build tools…" : {
 
     },
+    "Choose the module attached to your keyboard. The change takes effect after you build and flash." : {
+
+    },
     "Chord" : {
 
     },
@@ -1047,6 +1050,9 @@
     "Keys in this layout" : {
 
     },
+    "Knob" : {
+
+    },
     "L" : {
 
     },
@@ -1248,6 +1254,12 @@
     "Move Layout to Trash…" : {
 
     },
+    "Move Navigator to Left" : {
+
+    },
+    "Move Navigator to Right" : {
+
+    },
     "Move Up" : {
 
     },
@@ -1263,10 +1275,19 @@
     "Name" : {
 
     },
+    "Navigator" : {
+
+    },
     "Navigator %@ found on the left half; its settings come along." : {
 
     },
     "Navigator %@ found on the right half; its settings come along." : {
+
+    },
+    "Navigator knob · settings in Firmware Settings › Navigator" : {
+
+    },
+    "Navigator trackball · settings in Firmware Settings › Navigator" : {
 
     },
     "Navigator trackpad · settings in Firmware Settings › Navigator" : {
@@ -1596,6 +1617,9 @@
     "Set Layer Color" : {
 
     },
+    "Set Navigator" : {
+
+    },
     "Set up" : {
 
     },
@@ -1844,6 +1868,9 @@
     "The file is too short to be firmware." : {
 
     },
+    "The half of the keyboard it's attached to." : {
+
+    },
     "The image is %lld bytes; this keyboard takes at most %lld." : {
       "localizations" : {
         "en" : {
@@ -1894,6 +1921,9 @@
     "The layer color is also its LED color on the keyboard." : {
 
     },
+    "The trackpad or trackball module on your keyboard, if any." : {
+
+    },
     "These keys go back to the layer color. You can undo this." : {
 
     },
@@ -1942,6 +1972,12 @@
 
     },
     "Toggle" : {
+
+    },
+    "Trackball" : {
+
+    },
+    "Trackpad" : {
 
     },
     "Transparent" : {

@@ -35,7 +35,7 @@ struct CatalogTests {
     @Test func settingsCatalogDecodes() throws {
         let catalog = SettingsCatalog.voyager
         #expect(catalog.sections.count == 14)
-        #expect(catalog.allSettings.count == 100)
+        #expect(catalog.allSettings.count == 101)
         #expect(catalog.setting(id: "tappingTerm")?.defaultValue == .number(200))
         #expect(catalog.search("chordal").count == 2)
     }

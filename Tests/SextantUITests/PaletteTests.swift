@@ -41,6 +41,26 @@ struct PaletteTests {
         #expect(model.palette == nil && model.showsFirmwareSettings && model.settingsScrollTarget == "tapping")
     }
 
+    /// The Navigator has a row too (ADR 0035), and Navigator settings read the Navigator's options.
+    @Test func theNavigatorRowFollowsTheLayout() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        model.openPalette(query: "trackball")
+        #expect(model.paletteItems.first { $0.id == "setting-navigator" }?.detail == "None")
+        session.setNavigator(.trackpad)
+        session.moveNavigator(to: .left)
+        session.setSetting("automouseTime", to: .number(800))
+        model.openPalette(query: "auto-mouse release")
+        #expect(model.paletteItems.first { $0.id == "setting-automouseTime" }?.detail == "800 ms · changed")
+        model.openPalette(query: "side")
+        #expect(model.paletteItems.contains { $0.id == "setting-navigator" }, "the user's words: change sides")
+        model.openPalette(query: "navigator")
+        let row = try #require(model.paletteItems.first { $0.id == "setting-navigator" })
+        #expect(row.detail == "Trackpad · Left")
+        model.run(row)
+        #expect(model.palette == nil && model.showsFirmwareSettings && model.settingsScrollTarget == "navigator")
+    }
+
     @Test func holdSuggestsModifiersAndOtherLayers() async throws {
         let model = try await openUserLayout()
         model.session?.select(key: 19, slot: .hold)

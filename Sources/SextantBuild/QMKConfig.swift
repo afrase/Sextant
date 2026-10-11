@@ -18,7 +18,7 @@ struct Features {
         try Self.refuseUnsupportedSettings(plan.layout.settings)
         if let navigator = plan.layout.navigator {
             pointing = try Self.pointing(navigator)
-            let layer = navigator.options["automouseLayer"].map { $0.doubleValue.flatMap { Int(exactly: $0) } ?? -1 }
+            let layer = plan.layout.automouseLayer
             if let layer, !plan.layout.layers.indices.contains(layer) {
                 throw .unsupported(String(localized: "a Navigator automouse layer that doesn't exist"), nil)
             }
@@ -131,21 +131,25 @@ struct Features {
         case .trackpad?:
             out += ["PRECISION_TRACKPAD_ENABLE = yes", "PRECISION_TRACKPAD_DRIVER = navigator_trackpad"]
             if automouseLayer != nil { out.append("POINTING_DEVICE_DRIVER = custom") }
-        case .trackball?: out += ["POINTING_DEVICE_ENABLE = yes", "POINTING_DEVICE_DRIVER = navigator_trackball"]
+        // The `zsa/navigator_trackball` module sets its own driver; the pinned firmware refuses `navigator_trackball` here.
+        case .trackball?: out.append("POINTING_DEVICE_ENABLE = yes")
         case nil: break
         }
         return out.joined(separator: "\n") + "\n"
     }
 
     /// QMK community modules. `zsa/oryx` keeps the live protocol (Keymapp, Oryx, Sextant) and `zsa/defaults` ZSA's
-    /// keycodes; the trackpad module keeps the Navigator trackpad working.
+    /// keycodes; the trackpad module keeps the Navigator trackpad working, the trackball module drives the trackball.
     func keymapJSON() -> String {
         var modules = ["zsa/oryx"]
         if usesJiggler { modules.append("zsa/mousejiggler") }
         if plan.codes.contains("KC_MS_DBL_CLICK") { modules.append("zsa/doubleclick") }
-        if pointing == .trackpad {
+        switch pointing {
+        case .trackpad?:
             modules.append("zsa/navigator_trackpad")
             if automouseLayer != nil { modules.append("zsa/automouse") }
+        case .trackball?: modules.append("zsa/navigator_trackball")
+        case nil: break
         }
         modules.append("zsa/defaults")
         let list = modules.map { "        \"\($0)\"" }.joined(separator: ",\n")
@@ -186,7 +190,7 @@ struct Features {
 
     private static func pointing(_ navigator: NavigatorConfig) throws(GeneratorError) -> Pointing {
         let kind: Pointing
-        var written: Set<String> = ["automouseLayer", "automouseTime", "automouseThreshold"]
+        var written: Set<String> = ["automouseTime", "automouseThreshold"]
         switch navigator.kind {
         case .trackpad: kind = .trackpad
         case .trackball:

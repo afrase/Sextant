@@ -36,7 +36,8 @@ public final class EditSession {
     /// Revisions, oldest first.
     public private(set) var revisions: [RevisionSummary]
     public private(set) var origin: LayoutOrigin
-    public let geometry: BoardGeometry
+    /// The board's key shapes, with the Navigator disc on the layout's Navigator side.
+    public private(set) var geometry: BoardGeometry
     /// Bumped on every change, including undo and redo, so views refresh `canUndo`.
     public private(set) var changeCount = 0
     /// The last autosave failure, if any (cleared by the next successful save).
@@ -65,8 +66,12 @@ public final class EditSession {
         revisions = stored.revisions
         origin = stored.entry.origin
         self.library = library
-        geometry = (stored.layout.board ?? .voyager).geometry(navigator: stored.layout.navigator.map { $0.side == .left ? .left : .right })
+        geometry = Self.geometry(of: stored.layout)
         self.autosaveDelay = autosaveDelay
+    }
+
+    private static func geometry(of layout: KeyboardLayout) -> BoardGeometry {
+        (layout.board ?? .voyager).geometry(navigator: layout.navigator.map { $0.side == .left ? .left : .right })
     }
 
     // MARK: Read helpers
@@ -294,6 +299,18 @@ public final class EditSession {
         edit(String(localized: "Change Setting")) { $0.store(value, for: setting) }
     }
 
+    /// Attaches, changes or removes (nil) the Navigator (``KeyboardLayout/setNavigator(_:)``). The UI doesn't offer the
+    /// knob: the generator can't build it.
+    public func setNavigator(_ kind: NavigatorConfig.Kind?) {
+        edit(String(localized: "Set Navigator")) { $0.setNavigator(kind) }
+    }
+
+    /// Moves the Navigator to the other half, keeping its options.
+    public func moveNavigator(to side: NavigatorConfig.Side) {
+        let name = side == .left ? String(localized: "Move Navigator to Left") : String(localized: "Move Navigator to Right")
+        edit(name) { $0.navigator?.side = side }
+    }
+
     // MARK: Import
 
     /// Records a layout imported from Oryx in History, then makes it the document as one undoable edit that keeps
@@ -410,6 +427,9 @@ public final class EditSession {
     private func changed() {
         changeCount += 1
         origin = origin.following(layout)
+        // Only a Navigator change moves the disc; skipping equal values spares the board a redraw.
+        let shapes = Self.geometry(of: layout)
+        if shapes != geometry { geometry = shapes }
         recoveryGeneration += 1
         queueRecovery(layout)
         scheduleSave()

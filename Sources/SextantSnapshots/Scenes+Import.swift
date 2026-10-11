@@ -40,6 +40,25 @@ extension Scenes {
             scenes += SnapshotScene.pair("firmware-settings-min", size: CGSize(width: 1120, height: 640)) { make() }
         }
 
+        // The Navigator section with the trackpad swapped for a trackball on the left, and with none; the board with the
+        // trackball's disc on the left (ADR 0035). Offscreen renders don't scroll, so the window is tall enough for the
+        // whole form, Navigator last.
+        for (name, kind, height) in [("navigator", NavigatorConfig.Kind.trackball, 2550.0), ("navigator-none", nil, 1450.0)] {
+            if let model = await ownLibraryModel(importing: "my-layout-KlgM7-full.json"), let session = model.session {
+                session.moveNavigator(to: .left)
+                session.setNavigator(kind)
+                model.showsFirmwareSettings = true
+                scenes += SnapshotScene.pair("firmware-settings-\(name)", size: CGSize(width: full.width, height: height)) {
+                    LayoutWindow(model: model, layoutID: .constant(session.id))
+                }
+            }
+        }
+        if let model = await ownLibraryModel(importing: "my-layout-KlgM7-full.json"), let session = model.session {
+            session.setNavigator(.trackball)
+            session.moveNavigator(to: .left)
+            scenes += SnapshotScene.pair("board-navigator-left", size: full) { LayoutWindow(model: model, layoutID: .constant(session.id)) }
+        }
+
         // Settings panes (spec §8.9).
         let setup = ToolchainStatus.needsSetup("Building firmware needs a one-time download of the build tools (about 199 MB).")
         let status: BuildToolsStatus = { setup }

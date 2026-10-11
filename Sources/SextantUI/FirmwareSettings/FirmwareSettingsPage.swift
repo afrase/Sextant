@@ -5,13 +5,31 @@ import SwiftUI
 /// Which firmware settings the page shows, and how they read (spec §8.8).
 enum FirmwareSettings {
     /// The MVP core sections (spec §13.5 step 11), with the settings that apply to this layout's board and Navigator.
-    /// shortcut: RGB shows only its timeout and the other nine sections are left out; v1 shows all 100 settings.
+    /// Navigator is always there: it starts with the choice of module and side (ADR 0035).
+    /// shortcut: RGB shows only its timeout and the other nine sections are left out; v1 shows all 101 settings.
     static func sections(for layout: KeyboardLayout, catalog: SettingsCatalog = .voyager) -> [SettingsSection] {
         catalog.sections.compactMap { section in
             var section = section
             section.settings = section.settings.filter { isCore($0, in: section.id) && applies($0, to: layout, catalog: catalog) }
-            return section.settings.isEmpty ? nil : section
+            return section.settings.isEmpty && section.id != navigator ? nil : section
         }
+    }
+
+    /// The Navigator section's id.
+    static let navigator = "navigator"
+
+    /// "Trackpad", or "None" without a Navigator.
+    static func title(_ kind: NavigatorConfig.Kind?) -> String {
+        switch kind {
+        case nil: String(localized: "None")
+        case .trackpad?: String(localized: "Trackpad")
+        case .trackball?: String(localized: "Trackball")
+        case .knob?: String(localized: "Knob")
+        }
+    }
+
+    static func title(_ side: NavigatorConfig.Side) -> String {
+        side == .left ? String(localized: "Left") : String(localized: "Right")
     }
 
     private static func isCore(_ setting: Setting, in section: String) -> Bool {
@@ -67,12 +85,7 @@ struct FirmwareSettingsPage: View {
             Divider()
             ScrollViewReader { proxy in
                 Form {
-                    ForEach(FirmwareSettings.sections(for: session.layout)) { section in
-                        Section(section.title) {
-                            ForEach(section.settings) { SettingRow(setting: $0, session: session) }
-                        }
-                        .id(section.id)
-                    }
+                    ForEach(FirmwareSettings.sections(for: session.layout)) { self.section($0).id($0.id) }
                 }
                 .formStyle(.grouped)
                 // Initial too: the palette sets a target before the page appears.
@@ -83,6 +96,54 @@ struct FirmwareSettingsPage: View {
                 }
             }
         }
+    }
+
+    /// A section's rows; Navigator starts with the module and side and ends with a footnote.
+    private func section(_ section: SettingsSection) -> some View {
+        Section {
+            if section.id == FirmwareSettings.navigator { NavigatorChoice(session: session) }
+            ForEach(section.settings) { SettingRow(setting: $0, session: session) }
+        } header: {
+            Text(section.title)
+        } footer: {
+            if section.id == FirmwareSettings.navigator {
+                Text("Choose the module attached to your keyboard. The change takes effect after you build and flash.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+/// The Navigator's module (None, Trackpad, Trackball) and the half it is on, laid out like setting rows. Changing the
+/// module resets its options; moving it keeps them. Each change is one undo step.
+private struct NavigatorChoice: View {
+    var session: EditSession
+
+    var body: some View {
+        let navigator = session.layout.navigator
+        // An imported knob shows as it is; Sextant can't build one, so it isn't offered otherwise.
+        let kinds: [NavigatorConfig.Kind?] = [nil, .trackpad, .trackball] + (navigator?.kind == .knob ? [.knob] : [])
+        VStack(alignment: .leading, spacing: 6) {
+            Picker("Navigator", selection: Binding(get: { navigator?.kind }, set: { session.setNavigator($0) })) {
+                ForEach(kinds, id: \.self) { Text(FirmwareSettings.title($0)).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            Text("The trackpad or trackball module on your keyboard, if any.")
+                .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 4)
+        VStack(alignment: .leading, spacing: 6) {
+            // No Navigator, no side selected.
+            let side = Binding(get: { navigator?.side }, set: { if let side = $0 { session.moveNavigator(to: side) } })
+            Picker("Side", selection: side) {
+                ForEach([NavigatorConfig.Side.left, .right], id: \.self) { Text(FirmwareSettings.title($0)).tag(Optional($0)) }
+            }
+            .pickerStyle(.segmented)
+            .disabled(navigator == nil)
+            Text("The half of the keyboard it's attached to.")
+                .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -152,7 +213,7 @@ private struct SettingRow: View {
                 title
             }
         case .animationSelect:
-            // shortcut: no MVP core setting uses it (RGB animations come with all 100 settings in v1).
+            // shortcut: no MVP core setting uses it (RGB animations come with all 101 settings in v1).
             LabeledContent {
                 Text(setting.format(value)).foregroundStyle(.secondary)
             } label: {

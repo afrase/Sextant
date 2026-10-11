@@ -38,6 +38,8 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 
 - **App icon (spec §10.7, the user noticed there was none):** `AppIconArtwork` (SextantUI) draws the graphite squircle, porcelain sextant mark and two generic keys on the macOS icon grid; `scripts/icon` renders each size offscreen through the `app-icon` snapshot scenes (16 and 32 px from a simplified drawing) into the committed `Resources/AppIcon.icns`, which `scripts/bundle` ships (`CFBundleIconFile`).
 
+- **Choosing the Navigator (ADR 0035, the user asked for Oryx's trackpad or trackball and side):** Firmware Settings › Navigator always shows and starts with Navigator (None · Trackpad · Trackball) and Side; each change is one undo step ("Set Navigator", "Move Navigator to Left/Right"); a new kind keeps the options both kinds have; the automouse layer is the layout's (Oryx's layer flag, now asked for on import) and outlasts None; the trackball has a sensitivity slider; the board's disc, the inspector's sections and the palette ("Navigator · Trackpad · Right"; Navigator settings now read the Navigator's options) follow. Switching a real build to a trackball showed Sextant's trackball output (e5Rrr's) didn't build with the pinned firmware; it now uses `zsa/navigator_trackball`, and the user's layout as trackball or with no Navigator, and e5Rrr, compile under the real toolchain. Untested on a trackball.
+
 ## In flight
 - Nothing.
 
@@ -47,7 +49,7 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 
 ## Known gaps and notes
 - Security: the generator validates every data-derived token (ADR 0020), after a background security review found C injection; covered by hostile-input tests.
-- Build slice leftovers: the Navigator `sensitivity` (trackball CPI) has no range check (still integer-only, so no injection); a cancelled build can leave a uniquely named temp folder behind (`shortcut:`).
+- Build slice leftovers: a cancelled build can leave a uniquely named temp folder behind (`shortcut:`).
 - Build tools (ADR 0033): the first real build settled the open questions: every include pattern matches, the pruned ChibiOS and LUFA are enough, `qmk` runs without `.git`, the sandbox needs no extra allowance (no Mach services, no reads outside the toolchain, only the variables it sets), and the RWX-segment warning is gone. Python could lose about 7 MB of Tcl/Tk and IDLE; not worth it yet.
 - Device slice: an interface seized by another app after pairing goes unnoticed (reports just stop; `shortcut:`); `IOHIDDeviceSetReport` has no timeout.
 - The "hold" marker crowds the signal bar on hold-only keys (board step).

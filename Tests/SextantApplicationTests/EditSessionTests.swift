@@ -7,9 +7,9 @@ import Testing
 struct EditSessionTests {
     let store = InMemoryLibrary()
 
-    func open() async throws -> (EditSession, UndoManager) {
+    func open(_ data: Data = Fixtures.userLayoutData) async throws -> (EditSession, UndoManager) {
         let library = Library(store: store)
-        let entry = try await library.importOryxJSON(Fixtures.userLayoutData)
+        let entry = try await library.importOryxJSON(data)
         let session = try await library.open(entry.id, autosaveDelay: .milliseconds(1))
         let undo = UndoManager()
         undo.groupsByEvent = false
@@ -95,6 +95,54 @@ struct EditSessionTests {
         #expect(session.layout.settings["tappingTerm"] == .number(180))
         session.setSetting("tappingTerm", to: .number(200))
         #expect(session.layout.settings["tappingTerm"] == nil, "a value equal to the default is removed")
+    }
+
+    /// The Navigator's module and side (ADR 0035): one named undo step each; a new module starts from its defaults; a
+    /// move keeps the options; the board's disc follows the side.
+    @Test func navigatorKindAndSideAreOneUndoStepEach() async throws {
+        let (session, undo) = try await open(Fixtures.data("my-layout-KlgM7-full.json"))
+        #expect(session.layout.navigator?.kind == .trackpad && session.layout.navigator?.side == .right)
+        #expect(session.layout.navigator?.options["tap"] == .bool(true) && session.geometry.navigator?.hand == .right)
+        step(undo) { session.setSetting("automouseTime", to: .number(800)) }
+        step(undo) { session.moveNavigator(to: .left) }
+        #expect(undo.undoActionName == "Move Navigator to Left")
+        #expect(session.layout.navigator?.side == .left && session.layout.navigator?.options["automouseTime"] == .number(800))
+        #expect(session.geometry.navigator?.hand == .left, "the disc moves with it")
+
+        step(undo) { session.setNavigator(.trackball) }
+        #expect(undo.undoActionName == "Set Navigator")
+        #expect(session.layout.navigator?.kind == .trackball && session.layout.navigator?.side == .left)
+        #expect(session.layout.navigator?.options["tap"] == nil, "trackpad options don't carry over")
+        #expect(session.layout.navigator?.options["automouseTime"] == .number(800), "options both kinds have do")
+        step(undo) { session.setNavigator(nil) }
+        #expect(session.layout.navigator == nil && session.geometry.navigator == nil)
+        let removed = session.layout
+        session.moveNavigator(to: .right)
+        #expect(session.layout == removed, "no Navigator, nothing to move")
+
+        undo.undo()
+        #expect(session.layout.navigator?.kind == .trackball && session.geometry.navigator?.hand == .left)
+        undo.undo()
+        #expect(session.layout.navigator?.kind == .trackpad && session.layout.navigator?.options["automouseTime"] == .number(800))
+        undo.redo()
+        undo.redo()
+        #expect(session.layout.navigator == nil)
+        step(undo) { session.setNavigator(.trackpad) }
+        #expect(session.layout.navigator == NavigatorConfig(kind: .trackpad, side: .right), "a new Navigator goes on the right")
+        #expect(session.geometry.navigator?.hand == .right)
+    }
+
+    /// The automouse layer is Oryx's layer flag, so it outlasts a change of module and None; options both kinds have
+    /// outlast a change of module.
+    @Test func aNewNavigatorKindKeepsTheAutomouseLayer() {
+        var layout = KeyboardLayout.blankQWERTY(title: "T")
+        layout.automouseLayer = 0
+        layout.navigator = NavigatorConfig(kind: .trackpad, side: .left, options: ["automouseTime": .number(500), "tap": .bool(false)])
+        layout.setNavigator(.trackball)
+        #expect(layout.navigator == NavigatorConfig(kind: .trackball, side: .left, options: ["automouseTime": .number(500)]))
+        layout.setNavigator(nil)
+        layout.setNavigator(.trackpad)
+        #expect(layout.navigator == NavigatorConfig(kind: .trackpad, side: .right) && layout.automouseLayer == 0)
     }
 
     @Test func autosavesAfterEdits() async throws {

@@ -7,8 +7,8 @@ enum SettingsCatalogData {
 {
  "format": 1,
  "board": "voyager",
- "about": "Setting ids, types, defaults and ranges follow Oryx's settings catalog (fetched 2026-10-11) so imported configs map 1:1. Titles and descriptions are Sextant's own. Debounce shows the Voyager default. Oryx stores config sparsely: a missing key means the default.",
- "settingCount": 100,
+ "about": "Setting ids, types, defaults and ranges follow Oryx's settings catalog (fetched 2026-10-11) so imported configs map 1:1. Titles and descriptions are Sextant's own. Debounce shows the Voyager default. Oryx stores config sparsely: a missing key means the default. Trackball sensitivity is Sextant's (ADR 0035): Oryx keeps it outside its catalog, so its default and range are the trackball module's.",
+ "settingCount": 101,
  "sections": [
   {
    "id": "autoshift",
@@ -984,9 +984,21 @@ enum SettingsCatalogData {
   {
    "id": "navigator",
    "title": "Navigator",
-   "summary": "Trackball and trackpad options. Shown only when a Navigator is attached.",
+   "summary": "The Navigator module, the half it is on, and its trackball or trackpad options.",
    "visibleOnVoyager": true,
    "settings": [
+    {
+     "id": "sensitivity",
+     "title": "Trackball sensitivity",
+     "summary": "How far the pointer moves as the ball turns. Higher is faster.",
+     "type": "slider",
+     "default": 40,
+     "min": 5,
+     "max": 125,
+     "navigatorKinds": [
+      "trackball"
+     ]
+    },
     {
      "id": "automouseThreshold",
      "title": "Auto-mouse sensitivity",

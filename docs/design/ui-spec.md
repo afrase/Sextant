@@ -431,7 +431,7 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
   - the inner thumb (keys 25 and 50) is 1u × 1.35u.
 - **Board size.** 15.0 pitch units wide by about 6.7 tall.
 - **Spacing.** The gap between caps is 0.11 × cap.
-- **Navigator.** For a layout with a Navigator, draw a recessed, non-interactive disc of 0.95 pitch at the inner edge of the right half, between rows 1 and 2. Use a trackpad or trackball glyph and the tooltip "Navigator trackpad · settings in Firmware Settings › Navigator".
+- **Navigator.** For a layout with a Navigator, draw a recessed, non-interactive disc of 0.95 pitch at the inner edge of the half it is attached to (Firmware Settings › Navigator › Side), between rows 1 and 2. Use a trackpad or trackball glyph and the tooltip "Navigator trackpad · settings in Firmware Settings › Navigator" ("Navigator trackball · …" for a trackball).
 - **Thumbs.** Thumbs and their legends rotate together, as on the hardware. Hit-testing uses a rotated `contentShape`.
 - **Optical centring.** The board is centred horizontally. Vertically, its centre sits at 46% of the board area.
 
@@ -1176,6 +1176,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
   - a control: `Toggle`, a `Slider` with a value field and unit, or a `Picker`;
   - a plain-English description in Sextant's own words (ZSA's text must not be shipped);
   - a footer: "Default 200 ms · Reset to Default" when modified, and the setting id in mono on the trailing edge.
+- **Navigator section** (always shown, ADR 0035): it starts with "Navigator" (None · Trackpad · Trackball, segmented) and "Side" (Left · Right, disabled with None), then the attached kind's settings. Footer: "Choose the module attached to your keyboard. The change takes effect after you build and flash." A new kind starts from its defaults; moving keeps the options. The knob isn't offered.
 - **Coupling rules** appear inline, for example: "Turning on Chordal hold also turns on Exclude thumbs."
 - **Search** matches titles, descriptions, ids and synonyms. It shows "11 settings match ‘hold’".
 

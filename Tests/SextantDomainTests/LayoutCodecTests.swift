@@ -28,6 +28,8 @@ struct LayoutCodecTests {
         #expect(e5.swatch.count == 10)
 
         let jr = try Fixtures.layout("voyager-JRGQm.json")
+        #expect(e5.automouseLayer == 4 && jr.automouseLayer == 7, "Oryx flags the automouse layer on the layer")
+        #expect(jr.navigator?.options["automouseLayer"] == nil)
         #expect(jr.combos.first?.name == "PrevWebTab")
         #expect(jr.combos.first?.keyIndices == [14, 13, 15])
         #expect(jr.combos.first?.output.modifiers == [.leftControl, .leftShift])
@@ -49,6 +51,18 @@ struct LayoutCodecTests {
         let decoded = try KeyboardLayout(oryxJSON: data)
         #expect(decoded == original)
         #expect(try encoder.encode(decoded) == data, "encoding is deterministic")
+    }
+
+    /// The automouse layer is the layout's (ADR 0035): it is saved on its layer, with or without a Navigator, and a
+    /// Navigator's `automouseLayer` (older Sextant files) is read too.
+    @Test func theAutomouseLayerIsSavedOnItsLayer() throws {
+        var layout = try Fixtures.layout("voyager-JRGQm.json")
+        layout.navigator = nil
+        #expect(try KeyboardLayout(oryxJSON: JSONEncoder().encode(layout)).automouseLayer == 7)
+        layout.navigator = NavigatorConfig(kind: .trackpad, side: .right, options: ["automouseLayer": .number(2)])
+        layout.automouseLayer = nil
+        let decoded = try KeyboardLayout(oryxJSON: JSONEncoder().encode(layout))
+        #expect(decoded.automouseLayer == 2 && decoded.navigator?.options.isEmpty == true)
     }
 
     @Test func emptyListsEqualTheirDefault() throws {
@@ -91,13 +105,13 @@ struct LayoutCodecTests {
     @Test func hostileNumbersDoNotCrash() throws {
         var layout = try Fixtures.layout()
         layout.settings["tappingTerm"] = .number(1e300)
-        layout.navigator = NavigatorConfig(kind: .trackpad, side: .right, options: ["automouseLayer": .number(.infinity)])
+        layout.navigator = NavigatorConfig(kind: .trackpad, side: .right, options: ["automouseLayer": .number(1e300)])
+        #expect(try KeyboardLayout(oryxJSON: JSONEncoder().encode(layout)).automouseLayer == nil)
         #expect(SettingValue.number(1e300).description == "1e+300")
         #expect(SettingValue.number(.infinity).description == "inf")
         #expect(SettingsCatalog.voyager.setting(id: "tappingTerm")?.format(.number(1e300)) != nil)
         layout.layers.append(.transparent(title: "Extra"))
         layout.moveLayer(from: 1, to: 3)
-        #expect(layout.navigator?.options["automouseLayer"] == nil)
         #expect(HexColor(red: .nan, green: 0.5, blue: 1).hex == "#0080FF")
         #expect(HexColor(hue: .nan, saturation: 1, brightness: 1).hex == "#FF0000")
     }

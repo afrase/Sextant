@@ -64,10 +64,11 @@ extension KeyboardLayout: Codable {
             // shortcut: one Navigator per layout (the Voyager takes one), left wins if Oryx ever sends both.
             navigator = n.left.flatMap { $0.config(side: .left) } ?? n.right.flatMap { $0.config(side: .right) }
         }
-        // Oryx flags the automouse layer on the layer itself; Sextant keeps it as the Navigator's `automouseLayer` option.
-        if navigator?.options["automouseLayer"] == nil, let auto = layers.firstIndex(where: \.automouse) {
-            navigator?.options["automouseLayer"] = .number(Double(auto))
-        }
+        // Oryx flags the automouse layer on the layer itself; a Navigator's `automouseLayer` (older Sextant files) wins.
+        // A non-integral imported number is no layer, not a crash.
+        let automouseLayer =
+            navigator?.options.removeValue(forKey: "automouseLayer")?.doubleValue.flatMap { Int(exactly: $0) }
+            ?? layers.firstIndex(where: \.automouse)
 
         var oryx: OryxRevisionInfo?
         if let layoutId = try c.decodeIfPresent(String.self, forKey: .hashId),
@@ -92,6 +93,7 @@ extension KeyboardLayout: Codable {
             },
             settings: try r.decodeIfPresent(LenientDictionary.self, forKey: .config)?.values ?? [:],
             navigator: navigator,
+            automouseLayer: automouseLayer,
             swatch: try r.decodeIfPresent(Swatch.self, forKey: .swatch)?.colors ?? [],
             oryx: oryx)
     }
@@ -108,7 +110,8 @@ extension KeyboardLayout: Codable {
         try r.encodeIfPresent(oryx?.createdAt, forKey: .createdAt)
         try r.encodeIfPresent(oryx?.message, forKey: .title)
         try r.encode(settings, forKey: .config)
-        try r.encode(layers.enumerated().map { PositionedLayer(position: $0, layer: $1) }, forKey: .layers)
+        try r.encode(
+            layers.enumerated().map { PositionedLayer(position: $0, layer: $1, automouse: $0 == automouseLayer) }, forKey: .layers)
         if !combos.isEmpty { try r.encode(combos, forKey: .combos) }
         if let navigator {
             let options = NavigatorOptions(navigator)
@@ -122,14 +125,15 @@ extension KeyboardLayout: Codable {
 private struct PositionedLayer: Codable {
     var position: Int
     var layer: Layer
-    /// Oryx's automouse flag, read only (folded into the Navigator's options).
+    /// Oryx's automouse flag (``KeyboardLayout/automouseLayer``).
     var automouse = false
 
     private enum Keys: String, CodingKey { case hashId, title, color, position, keys, automouse }
 
-    init(position: Int, layer: Layer) {
+    init(position: Int, layer: Layer, automouse: Bool) {
         self.position = position
         self.layer = layer
+        self.automouse = automouse
     }
 
     init(from decoder: Decoder) throws {
@@ -150,6 +154,7 @@ private struct PositionedLayer: Codable {
         try c.encode(layer.title, forKey: .title)
         try c.encodeIfPresent(layer.color, forKey: .color)
         try c.encode(position, forKey: .position)
+        if automouse { try c.encode(true, forKey: .automouse) }
         try c.encode(layer.keys, forKey: .keys)
     }
 }
