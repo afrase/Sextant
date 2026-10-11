@@ -77,6 +77,41 @@ struct PackageLibraryTests {
         await #expect(throws: LibraryError.newerFormat(2)) { try await library.load(entry.id) }
     }
 
+    @Test func keepsFirmwarePerRevision() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await library.create(layout, origin: .local, firstRevision: nil)
+        #expect(try await library.firmware(revisionID: "40xJ7M", of: entry.id) == nil)
+
+        try await library.storeFirmware(Data([1, 2, 3]), md5: "ABC123", revisionID: "40xJ7M", to: entry.id)
+        let folder = try #require(await library.location(of: entry.id))
+        for file in ["firmware/40xJ7M.bin", "firmware/40xJ7M.bin.md5"] {
+            #expect(FileManager.default.fileExists(atPath: folder.appending(path: file).path), "\(file)")
+        }
+        var kept = try #require(try await library.firmware(revisionID: "40xJ7M", of: entry.id))
+        #expect(kept.data == Data([1, 2, 3]) && kept.md5 == "abc123")
+
+        try await library.storeFirmware(Data([4]), md5: "def456", revisionID: "40xJ7M", to: entry.id)
+        kept = try #require(try await library.firmware(revisionID: "40xJ7M", of: entry.id))
+        #expect(kept.data == Data([4]) && kept.md5 == "def456", "a rebuilt revision replaces its image")
+        #expect(try await library.firmware(revisionID: "0002-3b9f2c1e", of: entry.id) == nil)
+
+        try FileManager.default.removeItem(at: folder.appending(path: "firmware/40xJ7M.bin.md5"))
+        #expect(try await library.firmware(revisionID: "40xJ7M", of: entry.id) == nil, "an image without its md5 isn't kept")
+    }
+
+    @Test func refusesFirmwareOutsideThePackage() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await library.create(layout, origin: .local, firstRevision: nil)
+        for id in ["", "../escape", "a/b", ".hidden", String(repeating: "x", count: 65)] {
+            await #expect(throws: LibraryError.self) { try await library.storeFirmware(Data(), md5: "", revisionID: id, to: entry.id) }
+            await #expect(throws: LibraryError.self) { try await library.firmware(revisionID: id, of: entry.id) }
+        }
+        let missing = UUID()
+        await #expect(throws: LibraryError.notFound(missing)) {
+            try await library.storeFirmware(Data(), md5: "", revisionID: "40xJ7M", to: missing)
+        }
+    }
+
     @Test func anEmptyLibraryHasNoEntries() async throws {
         #expect(try await library.entries().isEmpty)
     }

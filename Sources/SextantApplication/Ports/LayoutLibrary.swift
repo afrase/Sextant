@@ -111,6 +111,10 @@ public protocol LayoutLibrary: Sendable {
     func duplicate(_ id: UUID) async throws(LibraryError) -> LibraryEntry
     /// Moves the layout to the Trash.
     func trash(_ id: UUID) async throws(LibraryError)
+    /// Keeps a firmware image for one of the layout's revisions with its md5, replacing any image kept for it.
+    func storeFirmware(_ data: Data, md5: String, revisionID: String, to id: UUID) async throws(LibraryError)
+    /// The firmware image kept for a revision and its md5, or nil when none is kept.
+    func firmware(revisionID: String, of id: UUID) async throws(LibraryError) -> (data: Data, md5: String)?
     /// The package folder, for Show in Finder.
     func location(of id: UUID) async -> URL?
 }

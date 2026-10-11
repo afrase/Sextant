@@ -46,4 +46,6 @@ private actor MemoryLibrary: LayoutLibrary {
     func duplicate(_ id: UUID) throws(LibraryError) -> LibraryEntry { throw .notFound(id) }
     func trash(_ id: UUID) {}
     func location(of id: UUID) -> URL? { nil }
+    func storeFirmware(_ data: Data, md5: String, revisionID: String, to id: UUID) {}
+    func firmware(revisionID: String, of id: UUID) -> (data: Data, md5: String)? { nil }
 }
