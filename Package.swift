@@ -22,6 +22,9 @@ let package = Package(
 
         // Driven adapters.
         .target(name: "SextantStorage", dependencies: ["SextantApplication", "SextantDomain"]),
+        .target(name: "SextantOryx", dependencies: ["SextantApplication", "SextantDomain"]),
+        .target(name: "SextantBuild", dependencies: ["SextantApplication", "SextantDomain"]),
+        .target(name: "SextantDevice", dependencies: ["SextantApplication", "SextantDomain"]),
 
         // Driving adapter (UI).
         .target(name: "SextantUI", dependencies: ["SextantApplication", "SextantDomain"]),
@@ -29,18 +32,25 @@ let package = Package(
         // Composition root.
         .executableTarget(
             name: "SextantApp",
-            dependencies: ["SextantDomain", "SextantApplication", "SextantStorage", "SextantUI"]
+            dependencies: [
+                "SextantDomain", "SextantApplication", "SextantStorage", "SextantOryx", "SextantBuild", "SextantDevice", "SextantUI",
+            ]
         ),
 
         // Dev tool: offscreen snapshots of real scenes for design QA (no TCC, no visible windows).
         .executableTarget(
             name: "SextantSnapshots",
-            dependencies: ["SextantDomain", "SextantApplication", "SextantStorage", "SextantUI"]
+            dependencies: [
+                "SextantDomain", "SextantApplication", "SextantStorage", "SextantOryx", "SextantBuild", "SextantDevice", "SextantUI",
+            ]
         ),
 
         .testTarget(name: "SextantDomainTests", dependencies: ["SextantDomain"]),
         .testTarget(name: "SextantApplicationTests", dependencies: ["SextantApplication", "SextantDomain"]),
         .testTarget(name: "SextantStorageTests", dependencies: ["SextantStorage", "SextantApplication", "SextantDomain"]),
+        .testTarget(name: "SextantOryxTests", dependencies: ["SextantOryx", "SextantApplication", "SextantDomain"]),
+        .testTarget(name: "SextantBuildTests", dependencies: ["SextantBuild", "SextantApplication", "SextantDomain"]),
+        .testTarget(name: "SextantDeviceTests", dependencies: ["SextantDevice", "SextantApplication", "SextantDomain"]),
         .testTarget(name: "SextantUITests", dependencies: ["SextantUI", "SextantApplication", "SextantDomain"]),
     ],
     swiftLanguageModes: [.v6]
