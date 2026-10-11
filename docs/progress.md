@@ -19,6 +19,9 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 ## In flight
 - Workflow `mvp-slices` (run `wf_d18cfec3-579`, base `dc87917`): five slices in worktrees on branches `slice/build`, `slice/device`, `slice/oryx`, `slice/ui`, `slice/usecases`, each implemented, reviewed by three adversarial lenses, verified, fixed and re-verified. When it finishes: review each branch, merge in the order usecases → oryx → device → build → ui, wire the composition root (hardware gate, LiveSession, BuildFlashSession, ImportFromOryx), record ADRs for the slices' decisions, run an integration review.
 
+**Merge blockers to verify before landing `slice/build`:**
+- Security review (background, on `slice/build`): the generator emits layout data into C verbatim, so a hostile layout could inject C into `keymap.c`/`config.h`. Every data-derived token must be validated at the generator (catalogued keycode or strict `^[A-Z][A-Z0-9_]*$` identifier, serial limited to `[A-Za-z0-9/_-]`, animation ids from the settings catalog, finite integer numbers, no raw layout text in comments); otherwise throw `GeneratorError`. Needs hostile-input tests (closing parens, newlines, `#include`, `*/`).
+
 ## Next
 1. Spec steps 4–7 (key inspector, picker and Record Key, layers, lighting), then 11–12 (firmware settings, Settings scene, empty states), then the import, device and Build & Flash UI over the merged use cases.
 
