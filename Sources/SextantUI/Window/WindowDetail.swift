@@ -7,8 +7,8 @@ struct WindowDetail: View {
 
     var body: some View {
         content
-            // Choosing a layer by number or menu returns from a page to the board.
-            .onChange(of: model.session?.selection.layer) { model.showsFirmwareSettings = false }
+            // Choosing a layer by number or menu returns from a page to the board; Follow's layer changes don't.
+            .onChange(of: model.session?.selection.layer) { if !model.isFollowing { model.showsFirmwareSettings = false } }
             // One alert, in the key window: every window shares the library.
             .alert(
                 Text("Sextant couldn't change the library"),

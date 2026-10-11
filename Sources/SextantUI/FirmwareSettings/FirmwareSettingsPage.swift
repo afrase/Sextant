@@ -161,37 +161,45 @@ private struct SettingRow: View {
     }
 }
 
-/// A slider with a value field and unit. Dragging commits once, when the drag ends; the field commits on ⏎ and is
-/// clamped to the setting's range in whole steps (the firmware takes integers and refuses values out of range).
+/// A slider with a value field and unit. A drag commits once, when it ends; arrow keys and VoiceOver commit each step.
+/// The field commits on ⏎. Values are clamped to the setting's range in whole steps (the firmware takes integers and
+/// refuses values out of range).
 private struct NumberControl: View {
     var setting: Setting
     var value: Double
     var session: EditSession
+    /// The value under the pointer while dragging; nil otherwise.
     @State private var draft: Double?
+    @State private var isDragging = false
 
     var body: some View {
         let range = setting.range ?? 0...100
         HStack(spacing: 8) {
             // Whole steps without `step:`, which draws a tick per step (a solid bar over 1000 of them).
-            Slider(value: Binding(get: { draft ?? value }, set: { draft = $0.rounded() }), in: range) { editing in
+            Slider(
+                value: Binding(get: { draft ?? value }, set: { isDragging ? (draft = $0.rounded()) : commit($0) }), in: range
+            ) {
+                Text(setting.title)
+            } onEditingChanged: { editing in
+                isDragging = editing
                 guard !editing, let draft else { return }
                 commit(draft)
                 self.draft = nil
             }
             .labelsHidden()
             if setting.marks.isEmpty {
-                TextField("Value", value: Binding(get: { draft ?? value }, set: { commit($0) }), format: .number.grouping(.never))
-                    .labelsHidden()
-                    .multilineTextAlignment(.trailing)
-                    .monospacedDigit()
-                    .frame(width: 56)
+                TextField(value: Binding(get: { draft ?? value }, set: { commit($0) }), format: .number.grouping(.never)) {
+                    Text(setting.title)
+                }
+                .labelsHidden()
+                .multilineTextAlignment(.trailing)
+                .monospacedDigit()
+                .frame(width: 56)
                 Text(verbatim: unit).foregroundStyle(.secondary).frame(minWidth: 24, alignment: .leading)
             } else {
                 Text(setting.format(.number(draft ?? value))).monospacedDigit().frame(minWidth: 56, alignment: .leading)
             }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(setting.title)
     }
 
     private func commit(_ number: Double) {
