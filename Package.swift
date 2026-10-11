@@ -69,7 +69,10 @@ let package = Package(
         .testTarget(name: "SextantStorageTests", dependencies: ["SextantStorage", "SextantApplication", "SextantDomain"]),
         .testTarget(name: "SextantOryxTests", dependencies: ["SextantOryx", "SextantApplication", "SextantDomain"]),
         .testTarget(name: "SextantBuildTests", dependencies: ["SextantBuild", "SextantApplication", "SextantDomain"]),
-        .testTarget(name: "SextantDeviceTests", dependencies: ["SextantDevice", "SextantApplication", "SextantDomain"]),
+        .testTarget(
+            name: "SextantDeviceTests",
+            dependencies: ["SextantDevice", "SextantApplication", "SextantDomain", .product(name: "Clocks", package: "swift-clocks")]
+        ),
         .testTarget(
             name: "SextantUITests",
             dependencies: [
