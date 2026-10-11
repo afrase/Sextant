@@ -20,17 +20,26 @@ extension View {
     }
 }
 
-private struct PaletteHost: ViewModifier {
+/// The selected key's rotated bounds, which `PickerCapOverlay` publishes so the picker can float clear of it.
+private struct PickerTarget: PreferenceKey {
+    static var defaultValue: Anchor<CGRect>? { nil }
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) { value = value ?? nextValue() }
+}
+
+struct PaletteHost: ViewModifier {
     var model: LayoutWindowModel
     @Environment(\.motion) private var motion
 
     func body(content: Content) -> some View {
         content
-            .overlay {
+            .overlayPreferenceValue(PickerTarget.self) { target in
                 GeometryReader { proxy in
                     if let palette = model.palette, let session = model.session {
                         let items = model.paletteItems
-                        let frame = Self.frame(picking: model.isPicking, items: items, session: session, in: proxy.size)
+                        let frame =
+                            model.isPicking
+                            ? Self.pickerFrame(beside: target.map { proxy[$0] } ?? .zero, in: proxy.size)
+                            : Self.paletteFrame(items: items, in: proxy.size)
                         PalettePanel(model: model, palette: palette, session: session, items: items, width: frame.width)
                             .frame(width: frame.width, height: frame.height)
                             .position(x: frame.midX, y: frame.midY)
@@ -52,26 +61,26 @@ private struct PaletteHost: ViewModifier {
             .modifier(RecordKeyMonitor(model: model))
     }
 
-    /// The picker floats over the half of the board opposite its key, so the key stays visible (spec §5.6); the
-    /// palette sits at the top centre, 24 pt below the toolbar (§5.7). Both stay inside the centre column.
-    static func frame(picking: Bool, items: [PaletteItem], session: EditSession, in area: CGSize) -> CGRect {
-        let size: CGSize
-        let center: CGPoint
-        if picking {
-            size = CGSize(width: min(560, area.width / 2 + 40), height: min(440, area.height - 16))
-            let hand = session.selection.keyIndex.flatMap { session.geometry.keys[safe: $0]?.hand }
-            // The board area starts under the 44 pt header and 36 pt lens lane and leaves 108 pt of strip and footer;
-            // the board's centre is at 46% of it (§3.3).
-            center = CGPoint(x: area.width * (hand == .right ? 0.25 : 0.75), y: 80 + (area.height - 188) * 0.46)
-        } else {
-            let headers = zip(items, items.dropFirst()).filter { $0.group != $1.group }.count + (items.isEmpty ? 0 : 1)
-            let list = items.isEmpty ? 80 : min(400, CGFloat(items.count) * 40 + CGFloat(headers) * 26 + 12)
-            size = CGSize(width: min(640, area.width - 32), height: 52 + list + 30)
-            center = CGPoint(x: area.width / 2, y: 24 + size.height / 2)
-        }
-        let x = min(max(center.x, size.width / 2 + 12), area.width - size.width / 2 - 12)
-        let y = min(max(center.y, size.height / 2 + 8), area.height - size.height / 2 - 8)
-        return CGRect(x: x - size.width / 2, y: y - size.height / 2, width: size.width, height: size.height)
+    /// The picker floats over the half of the column opposite its key and keeps 8 pt clear of the key's rotated
+    /// bounds, narrowing rather than covering an inner key: the target cap always stays visible (spec §5.6).
+    static func pickerFrame(beside key: CGRect, in area: CGSize) -> CGRect {
+        // Laid out as if the key were on the left, then mirrored for a right-hand key.
+        let mirrored = key.midX > area.width / 2
+        let near = mirrored ? area.width - key.minX + 8 : key.maxX + 8
+        let width = max(0, min(560, area.width / 2 + 40, area.width - 12 - near))
+        let x = min(max(area.width * 0.75 - width / 2, near), area.width - 12 - width)
+        let height = min(440, area.height - 16)
+        // Centred on the board, which sits about 45% down the column (§3.3).
+        let y = min(max(area.height * 0.45 - height / 2, 8), area.height - 8 - height)
+        return CGRect(x: mirrored ? area.width - x - width : x, y: y, width: width, height: height)
+    }
+
+    /// The palette sits at the top centre, 24 pt below the toolbar (§5.7), as tall as its results.
+    static func paletteFrame(items: [PaletteItem], in area: CGSize) -> CGRect {
+        let headers = zip(items, items.dropFirst()).filter { $0.group != $1.group }.count + (items.isEmpty ? 0 : 1)
+        let list = items.isEmpty ? 80 : min(400, CGFloat(items.count) * 40 + CGFloat(headers) * 26 + 12)
+        let size = CGSize(width: min(640, area.width - 32), height: 52 + list + 30)
+        return CGRect(origin: CGPoint(x: (area.width - size.width) / 2, y: max(8, min(24, area.height - 8 - size.height))), size: size)
     }
 }
 
@@ -109,7 +118,14 @@ struct PalettePanel: View {
             footer.frame(height: 29)
         }
         .surface(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(isPicking ? Text("Keycode picker") : Text("Command palette"))
         .onAppear { isFieldFocused = true }
+        // Focus stays in the field, so VoiceOver hears the highlighted result as it changes (arrows or typing).
+        .onChange(of: items[safe: palette.highlight]?.id) {
+            guard let item = items[safe: palette.highlight] else { return }
+            AccessibilityNotification.Announcement(ResultAccessibility.label(item)).post()
+        }
     }
 
     private var header: some View {
@@ -159,13 +175,14 @@ struct PalettePanel: View {
         case .downArrow: model.moveHighlight(by: isGrid ? columns : 1)
         case .leftArrow where isGrid: model.moveHighlight(by: -1)
         case .rightArrow where isGrid: model.moveHighlight(by: 1)
-        case .return: model.runHighlighted(advance: press.modifiers.contains(.command))
+        // ⏎, ⌘⏎ and ⌫ act once per press: a held key must not assign again or drop the token.
+        case .return where press.phase == .down: model.runHighlighted(advance: press.modifiers.contains(.command))
         case .tab where isPicking && press.modifiers.contains(.option): model.cycleSlot()
         case .tab where isPicking: model.cycleCategory(back: press.modifiers.contains(.shift))
         case KeyEquivalent("\u{19}") where isPicking: model.cycleCategory(back: true)  // ⇧⇥ arrives as back-tab
         case .escape: model.closePalette()
         // The field gets ⌫ as U+007F, not `KeyEquivalent.delete`.
-        case KeyEquivalent("\u{7F}") where isPicking && palette.query.isEmpty: model.dropScopeToken()
+        case KeyEquivalent("\u{7F}") where isPicking && palette.query.isEmpty && press.phase == .down: model.dropScopeToken()
         default: return .ignored
         }
         return .handled
@@ -239,10 +256,14 @@ private struct ResultAccessibility: ViewModifier {
     var isHighlighted: Bool
     var run: () -> Void
 
+    static func label(_ item: PaletteItem) -> String {
+        [item.title, item.detail, item.note ?? ""].filter { !$0.isEmpty }.joined(separator: ", ")
+    }
+
     func body(content: Content) -> some View {
         content
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel([item.title, item.detail, item.note ?? ""].filter { !$0.isEmpty }.joined(separator: ", "))
+            .accessibilityLabel(Self.label(item))
             .accessibilityAddTraits(isHighlighted ? [.isButton, .isSelected] : .isButton)
             .accessibilityValue(item.isCurrent ? Text("Current value") : Text(verbatim: ""))
             .accessibilityAction { run() }
@@ -336,36 +357,40 @@ private struct CategoryRail: View {
     var compact: Bool
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 2) {
-                ForEach([nil] + KeycodeCategory.allCases.map(Optional.some), id: \.self) { category in
-                    let title = category?.title ?? String(localized: "Suggested")
-                    Button {
-                        model.palette?.category = category
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: category?.symbolName ?? "star").frame(width: 18)
-                            if !compact {
-                                Text(title).lineLimit(1).minimumScaleFactor(0.8)
-                                Spacer(minLength: 4)
-                                Text(verbatim: "\(model.pickerCount(category))").monospacedDigit().foregroundStyle(.tertiary)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 2) {
+                    ForEach([nil] + KeycodeCategory.allCases.map(Optional.some), id: \.self) { category in
+                        let title = category?.title ?? String(localized: "Suggested")
+                        Button {
+                            model.palette?.category = category
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: category?.symbolName ?? "star").frame(width: 18)
+                                if !compact {
+                                    Text(title).lineLimit(1)
+                                    Spacer(minLength: 4)
+                                    Text(verbatim: "\(model.pickerCount(category))").monospacedDigit().foregroundStyle(.tertiary)
+                                }
                             }
+                            .font(.callout)
+                            .padding(.horizontal, 8)
+                            .frame(maxWidth: .infinity, minHeight: 26, alignment: compact ? .center : .leading)
+                            .background(Highlight(isOn: category == selected))
+                            .contentShape(Rectangle())
                         }
-                        .font(.callout)
-                        .padding(.horizontal, 8)
-                        .frame(maxWidth: .infinity, minHeight: 26, alignment: compact ? .center : .leading)
-                        .background(Highlight(isOn: category == selected))
-                        .contentShape(Rectangle())
+                        .buttonStyle(.plain)
+                        .help(title)
+                        .accessibilityLabel(title)
+                        .accessibilityAddTraits(category == selected ? .isSelected : [])
                     }
-                    .buttonStyle(.plain)
-                    .help(title)
-                    .accessibilityLabel(title)
-                    .accessibilityAddTraits(category == selected ? .isSelected : [])
                 }
+                .padding(6)
             }
-            .padding(6)
+            .scrollIndicators(.never)
+            // ⇥ can select a category below the fold.
+            .onChange(of: selected) { _, category in proxy.scrollTo(category) }
         }
-        .scrollIndicators(.never)
     }
 }
 
@@ -390,9 +415,10 @@ struct BoardPickerKeys: ViewModifier {
                 window?.closePalette()
                 return .handled
             }
+            // A panel opened while the board had focus (⏎, typing, ⌘K, the menu) gives it back when it closes.
             .onChange(of: window?.palette == nil) { _, closed in
                 if closed && refocus { isFocused.wrappedValue = true }
-                if closed { refocus = false }
+                refocus = !closed && (refocus || isFocused.wrappedValue)
             }
     }
 
@@ -400,7 +426,7 @@ struct BoardPickerKeys: ViewModifier {
     private func open(_ query: String) -> KeyPress.Result {
         guard let window, window.lens == .keys, session.selection.keyIndex != nil else { return .ignored }
         refocus = true
-        window.openKeycodePicker(query)
+        window.openKeycodePicker(prefilled: query)
         return .handled
     }
 }
@@ -443,6 +469,12 @@ struct PickerCapOverlay: View {
             .position(frame.center)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
+            let box = frame.boundingBox
+            Color.clear
+                .frame(width: box.width, height: box.height)
+                .anchorPreference(key: PickerTarget.self, value: .bounds) { $0 }
+                .position(x: box.midX, y: box.midY)
+                .allowsHitTesting(false)
         }
     }
 }

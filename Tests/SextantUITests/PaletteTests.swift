@@ -11,7 +11,7 @@ struct PaletteTests {
     @Test func pickerRanksGlyphsCodesAndWords() async throws {
         let model = try await openUserLayout()
         model.session?.select(key: 19)
-        model.openKeycodePicker("[")
+        model.openKeycodePicker(prefilled: "[")
         #expect(model.paletteItems.first?.keycode?.code == "KC_LBRC", "exact glyph")
         model.palette?.query = "KC_LEFT_BRACKET"
         #expect(model.paletteItems.first?.keycode?.code == "KC_LBRC", "alias")
@@ -46,7 +46,7 @@ struct PaletteTests {
         let session = try #require(model.session)
         session.select(key: 19)  // Z, hold Left Option
         session.setModifiers([.leftCommand])
-        model.openKeycodePicker("[")
+        model.openKeycodePicker(prefilled: "[")
         #expect(model.pickerPreview?.legend.legend.primary?.qmk == "LGUI(KC_LBRC)", "the cap previews the result")
         #expect(session.selectedAction?.code == "KC_Z", "previewing doesn't edit")
         model.runHighlighted()
@@ -54,7 +54,7 @@ struct PaletteTests {
         #expect(model.palette == nil, "⏎ closes the picker")
         #expect(model.recentKeycodes.first == KeyAction(code: "KC_LBRC"))
 
-        model.openKeycodePicker("esc")
+        model.openKeycodePicker(prefilled: "esc")
         model.runHighlighted(advance: true)
         #expect(session.layout.key(layer: 0, index: 19)?.tap?.code == "KC_ESCAPE")
         #expect(session.selection.keyIndex == 20, "the next key in reading order")
@@ -62,7 +62,7 @@ struct PaletteTests {
 
         // A one-shot modifier's modifiers aren't a chord for the keycode that replaces it.
         session.setAction(KeyAction(code: "OSM", modifiers: [.leftShift]))
-        model.openKeycodePicker("a")
+        model.openKeycodePicker(prefilled: "a")
         model.runHighlighted()
         #expect(session.selectedAction == KeyAction(code: "KC_A"))
     }
@@ -95,6 +95,13 @@ struct PaletteTests {
         model.openPalette()
         #expect(model.paletteItems.first?.group == .recent)
         #expect(model.paletteItems.first?.title == "New Layer")
+
+        // A toggle stays in Recent under its new title.
+        model.openPalette(query: "hide inspector")
+        model.run(try #require(model.paletteItems.first))
+        model.openPalette()
+        #expect(model.paletteItems.first?.group == .recent)
+        #expect(model.paletteItems.first?.title == "Show Inspector")
     }
 
     @Test func aPastedOryxLinkOffersImportFirst() async throws {
@@ -136,6 +143,70 @@ struct PaletteTests {
         #expect(model.palette?.scope == .general, "⌫ on an empty field drops the token")
         model.startRecording()
         #expect(model.palette == nil && model.recorder != nil)
+    }
+
+    @Test func theHookStaysAnUnappliedNoArgumentMethod() async throws {
+        let model = try await openUserLayout()
+        model.session?.select(key: 19)
+        // The inspector passes it as `Button(action: model.openKeycodePicker)`.
+        let open: @MainActor () -> Void = model.openKeycodePicker
+        open()
+        #expect(model.isPicking)
+    }
+
+    @Test func onlyHIDKeycodesKeepTheChordAndNoKeycodeKeepsAColour() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.select(key: 19)
+        session.setAction(KeyAction(code: "KC_1", modifiers: [.leftShift]))
+        model.assign(KeyAction(code: "QK_BOOT"))
+        #expect(session.selectedAction == KeyAction(code: "QK_BOOT"), "LSFT(QK_BOOT) would be QK_KB_0")
+        session.setAction(KeyAction(code: "RGB", color: HexColor(hex: "#FF0000")))
+        model.assign(KeyAction(code: "KC_A"))
+        #expect(session.selectedAction?.color == nil)
+    }
+
+    @Test func changingScopeStartsAtTheTopWithNoCategory() async throws {
+        let model = try await openUserLayout()
+        model.session?.select(key: 19)
+        model.openPalette()
+        model.palette?.highlight = 1
+        let changeHold = try #require(model.paletteItems[safe: 1])
+        #expect(changeHold.title == "Change Hold")
+        model.run(changeHold)
+        #expect(model.isPicking && model.session?.selection.slot == .hold)
+        #expect(model.palette?.highlight == 0)
+        model.palette?.category = .letters
+        model.dropScopeToken()
+        #expect(model.palette?.category == nil)
+    }
+
+    @Test func recentLayerKeycodesSkipDeletedLayers() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.select(key: 19, slot: .hold)
+        model.assign(.momentary(2))
+        session.deleteLayer(2)
+        model.openKeycodePicker()
+        #expect(!model.paletteItems.contains { $0.keycode?.layer == 2 })
+    }
+
+    /// The column at the 1120 × 640 and 1440 × 900 windows, with sidebar and inspector.
+    @Test(arguments: [CGSize(width: 640, height: 588), CGSize(width: 960, height: 848)])
+    func thePickerNeverCoversItsKey(column: CGSize) {
+        let geometry = BoardGeometry.voyager
+        // The board area is the column less its 44 + 36 pt top and 76 + 32 pt bottom bands; BoardView centres it at 46%.
+        let area = CGSize(width: column.width, height: column.height - 188)
+        let cap = BoardView.capSize(for: area, boardUnits: geometry.bounds.size, range: 36...76)
+        let board = geometry.layout(keySize: cap, spacing: cap * 0.11)
+        let origin = CGPoint(x: (area.width - board.size.width) / 2, y: 80 + area.height * 0.46 - board.size.height / 2)
+        for frame in board.frames {
+            let key = frame.boundingBox.offsetBy(dx: origin.x, dy: origin.y)
+            let panel = PaletteHost.pickerFrame(beside: key, in: column)
+            #expect(!panel.insetBy(dx: -7.5, dy: 0).intersects(key), "key \(frame.index) stays 8 pt clear")
+            #expect(CGRect(origin: .zero, size: column).contains(panel))
+            #expect(panel.width >= column.width / 2 - 24, "key \(frame.index): narrows only by the key's reach")
+        }
     }
 
     @Test func paletteSearchRanksExactPrefixWordSubstring() {

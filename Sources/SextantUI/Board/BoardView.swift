@@ -170,7 +170,10 @@ public struct BoardView: View {
 
     /// One ring that moves between keys, following their rotation (spec §4.7, §10.6).
     @ViewBuilder private func selectionRing(_ board: BoardLayout, cap: CGFloat) -> some View {
-        if let index = session.selection.keyIndex, board.frames.indices.contains(index) {
+        // The picker preview and Record Key draw their own rings instead (§4.7).
+        if let index = session.selection.keyIndex, board.frames.indices.contains(index), window?.pickerPreview == nil,
+            window?.recorder == nil
+        {
             let frame = board.frames[index]
             let quiet = contrast == .increased || motion.reduceMotion
             let width: CGFloat = contrast == .increased || (isFocused && quiet) ? 3 : 2

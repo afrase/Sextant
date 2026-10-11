@@ -15,7 +15,13 @@ public struct Palette: Equatable {
 
     /// A new panel per open (focus and the appear animation); changing scope keeps it, so the panel morphs.
     let id = UUID()
-    var scope: Scope
+    /// A new scope starts at the top of Suggested; the highlight and category of the old one don't apply.
+    var scope: Scope {
+        didSet {
+            highlight = 0
+            category = nil
+        }
+    }
     var query = "" { didSet { if query != oldValue { highlight = 0 } } }
     /// The picker's category rail; nil is Suggested.
     var category: KeycodeCategory? { didSet { highlight = 0 } }
@@ -62,9 +68,12 @@ struct PaletteItem: Identifiable {
 }
 
 extension LayoutWindowModel {
-    /// Opens the keycode picker on the selected key's slot (spec §5.6), pre-filled when typing on the board started it.
-    /// The inspector's keycode tile, ⏎ on the board and Key ▸ Change Keycode… call it. It ends Record Key.
-    public func openKeycodePicker(_ query: String = "") {
+    /// Opens the keycode picker on the selected key's slot (spec §5.6). The inspector's keycode tile, ⏎ on the board
+    /// and Key ▸ Change Keycode… call it, some as an unapplied `() -> Void`, so it keeps this exact signature.
+    public func openKeycodePicker() { openKeycodePicker(prefilled: "") }
+
+    /// Opens the picker pre-filled, as typing on the board does. It ends Record Key.
+    public func openKeycodePicker(prefilled query: String) {
         guard hasSelectedKey else { return }
         recorder = nil
         palette = Palette(scope: .assign, query: query)
@@ -131,8 +140,8 @@ extension LayoutWindowModel {
 
     // MARK: Assigning
 
-    /// Assigns a keycode to the selected slot as one undo step. A plain keycode replacing a plain keycode keeps its
-    /// chord modifiers and colour, as `EditSession.setCode` does. With `advance` (⌘⏎) the selection moves to the next key in reading
+    /// Assigns a keycode to the selected slot as one undo step. A plain HID keycode replacing a plain keycode keeps its
+    /// chord modifiers, as `EditSession.setCode` does. With `advance` (⌘⏎) the selection moves to the next key in reading
     /// order and the picker stays open; otherwise it closes.
     func assign(_ action: KeyAction, advance: Bool = false) {
         guard let session, let index = session.selection.keyIndex else { return }
@@ -149,11 +158,12 @@ extension LayoutWindowModel {
     }
 
     private func assigned(_ action: KeyAction) -> KeyAction {
-        // OSM and LM keep their modifiers in the same field, but they aren't a chord for the keycode replacing them.
-        guard !action.isLayerAction, !action.isTransparent, !action.isNone, let existing = session?.selectedAction,
+        // Only a HID keycode takes a chord (LSFT(QK_BOOT) is another keycode, QK_KB_0). OSM and LM keep their modifiers
+        // in the same field, but they aren't a chord for the keycode replacing them. The picker never offers a colour key.
+        guard action.code.hasPrefix("KC_"), !action.isTransparent, !action.isNone, let existing = session?.selectedAction,
             !existing.isLayerAction, KeycodeCatalog.entry(for: existing.code)?.needsModifiers != true
         else { return action }
-        return KeyAction(code: action.code, modifiers: existing.modifiers, color: existing.color)
+        return KeyAction(code: action.code, modifiers: existing.modifiers)
     }
 
     /// The selected cap as the highlighted keycode would make it, for the picker preview state (spec §4.7, §5.6).
@@ -230,8 +240,10 @@ extension LayoutWindowModel {
             ]
             : ["KC_ESCAPE", "KC_TAB", "KC_ENTER", "KC_SPACE", "KC_BSPC", "KC_DELETE", "KC_TRANSPARENT", "KC_NO"]
         let layers = isHold ? session.layout.layers.indices.filter { $0 != session.selection.layer }.map(KeyAction.momentary) : []
+        // Recents outlive deleted layers and layout switches.
+        let recents = recentKeycodes.filter { $0.layer.map(session.layout.layers.indices.contains) ?? true }
         var seen = Set<KeyAction>()
-        return (recentKeycodes + codes.map { KeyAction(code: $0) } + layers).filter { seen.insert($0).inserted }
+        return (recents + codes.map { KeyAction(code: $0) } + layers).filter { seen.insert($0).inserted }
     }
 
     /// A cap showing `action` alone; a layer key takes its target layer's colour.
@@ -248,12 +260,12 @@ extension LayoutWindowModel {
         if keysOnly { return keyItems(query, limit: 60) }
         let commands = paletteCommands
         guard !query.isEmpty else {
-            let recent = recentCommands.compactMap { title in commands.first { $0.title == title } }.map { item in
+            let recent = recentCommands.compactMap { id in commands.first { $0.id == id } }.map { item in
                 var item = item
                 item.group = .recent
                 return item
             }
-            return slotSuggestions + recent + commands.filter { !recentCommands.contains($0.title) }
+            return slotSuggestions + recent + commands.filter { !recentCommands.contains($0.id) }
         }
         var items: [PaletteItem] = []
         // A pasted configure.zsa.io link or layout/revision serial; a bare word could be a layout id, so it needs a "/".
@@ -372,14 +384,18 @@ extension LayoutWindowModel {
     private var paletteCommands: [PaletteItem] {
         guard let session else { return [] }
         var items: [PaletteItem] = []
-        func add(_ title: String, _ shortcut: String = "", if enabled: Bool = true, _ run: @escaping @MainActor () -> Void) {
+        /// A toggle passes a `key`, so it stays one command in Recent when its title flips.
+        func add(
+            _ title: String, _ shortcut: String = "", key: String? = nil, if enabled: Bool = true, _ run: @escaping @MainActor () -> Void
+        ) {
             guard enabled else { return }
+            let id = "command-\(key ?? title)"
             items.append(
-                PaletteItem(id: "command-\(title)", group: .commands, title: title, detail: shortcut, leading: .symbol("command")) {
+                PaletteItem(id: id, group: .commands, title: title, detail: shortcut, leading: .symbol("command")) {
                     [weak self] in
                     guard let self else { return }
                     palette = nil
-                    recentCommands = Array(([title] + recentCommands.filter { $0 != title }).prefix(5))
+                    recentCommands = Array(([id] + recentCommands.filter { $0 != id }).prefix(5))
                     run()
                 })
         }
@@ -388,7 +404,7 @@ extension LayoutWindowModel {
         add(String(localized: "Build"), "⌘B", if: canBuild) { self.build(.build) }
         add(String(localized: "Stop"), "⌘.", if: canStop) { self.build(.stop) }
         add(String(localized: "Show Build Log"), "⇧⌘B", if: onBuild != nil) { self.build(.showLog) }
-        add(isFollowing ? String(localized: "Stop Following") : String(localized: "Follow Keyboard"), "⌘L", if: canFollow) {
+        add(isFollowing ? String(localized: "Stop Following") : String(localized: "Follow Keyboard"), "⌘L", key: "follow", if: canFollow) {
             self.isFollowing.toggle()
         }
         add(String(localized: "Import from Oryx…"), "⇧⌘I") { self.openImport() }
@@ -412,8 +428,11 @@ extension LayoutWindowModel {
         for (mode, shortcut) in [(LegendMode.symbols, ""), (.qmk, "⌥⌘C"), (.index, "⌥⌘N")] {
             add(String(localized: "Legends: \(mode.title)"), shortcut) { self.legendMode = mode }
         }
-        add(showsInspector ? String(localized: "Hide Inspector") : String(localized: "Show Inspector")) { self.showsInspector.toggle() }
-        add(columnVisibility == .detailOnly ? String(localized: "Show Sidebar") : String(localized: "Hide Sidebar"), "⌃⌘S") {
+        add(showsInspector ? String(localized: "Hide Inspector") : String(localized: "Show Inspector"), key: "inspector") {
+            self.showsInspector.toggle()
+        }
+        add(columnVisibility == .detailOnly ? String(localized: "Show Sidebar") : String(localized: "Hide Sidebar"), "⌃⌘S", key: "sidebar")
+        {
             self.columnVisibility = self.columnVisibility == .detailOnly ? .all : .detailOnly
         }
         return items
