@@ -1,0 +1,250 @@
+import Foundation
+import SextantApplication
+import SextantDomain
+import Synchronization
+import Testing
+
+@testable import SextantUI
+
+/// The window over a live session and Build & Flash, both on fakes (spec §3.5, §7, §8.2).
+@MainActor
+struct DeviceAndBuildTests {
+    private let watcher = Watcher()
+    private let link = Link()
+    private let flashMode = Watcher()
+
+    /// A window with the user's layout open, a live session on the fake watcher and link, and Build & Flash whose build
+    /// succeeds and then waits for flash mode on `flashMode`.
+    func window(library: Library? = nil) async throws -> LayoutWindowModel {
+        let store = MemoryLibrary()
+        let library = library ?? Library(store: store)
+        if library.entries.isEmpty { _ = try await library.importOryxJSON(try #require(userLayoutData)) }
+        let live = LiveSession(watcher: watcher, link: link, secureInputProbe: { false })
+        live.start()
+        let flashMode = flashMode
+        let model = LayoutWindowModel(
+            library: library, live: live,
+            makeBuildFlash: { session in
+                BuildFlashSession(
+                    session: session, library: store, generator: Generator(), toolchain: Builds(), watcher: flashMode, flasher: NoFlasher(),
+                    md5: { _ in "" })
+            })
+        await model.open(nil)
+        return model
+    }
+
+    @Test func followTracksTheKeyboardUntilALayerIsChosenByHand() async throws {
+        let model = try await window()
+        let session = try #require(model.session)
+        let following = Task { await model.followKeyboard() }
+        defer { following.cancel() }
+        #expect(model.activity == ActivityState(), "no keyboard")
+        #expect(!model.canFollow)
+
+        watcher.attach(.keyboard(KeyboardDevice(id: 1, productID: 0x1977, serial: "KlgM7/40xJ7M")))
+        let key13 = BoardDefinition.voyager.keys[13]
+        #expect(await eventually { link.sessions > 0 })
+        link.send(.protocolVersion(5), .layer(2), .keyDown(row: key13.matrixRow, column: key13.matrixColumn))
+        #expect(await eventually { session.selection.layer == 2 }, "the shown layer follows the keyboard's")
+        #expect(model.isFollowing && model.canFollow && model.pressedKeys.state(13).isDown)
+        #expect(model.activity.device == .connected(serial: "KlgM7/40xJ7M", matchesLayout: true))
+
+        session.select(layer: 1)
+        #expect(await eventually { !model.isFollowing }, "a layer chosen by hand stops Follow")
+        link.send(.layer(0))
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(session.selection.layer == 1, "the keyboard no longer moves the shown layer")
+
+        model.isFollowing = true  // ⌘L
+        #expect(await eventually { session.selection.layer == 0 })
+        #expect(model.isFollowing, "Follow's own layer change doesn't count as a hand's")
+    }
+
+    @Test func buildCommandsRunTheWindowsBuildFlashAndClosingStopsIt() async throws {
+        let model = try await window()
+        let build = try #require(model.buildFlash)
+        #expect(model.canBuild && !model.canStop)
+        model.build(.buildAndFlash)
+        #expect(model.showsBuildSheet, "⌘R shows the sheet")
+        #expect(await eventually { build.phase == .waitingForFlashMode(stillWaiting: false) })
+        #expect(model.activity.status == .waitingForFlashMode)
+        #expect(model.canStop && !model.canBuild, "Stop instead of Build while waiting")
+        model.showsBuildSheet = false  // Hide
+        #expect(build.phase == .waitingForFlashMode(stillWaiting: false), "hiding keeps it running")
+        await model.close()
+        #expect(build.phase == .idle, "a closed window can't flash the next keyboard put in flash mode")
+    }
+
+    /// Leaving a layout stops its Build & Flash: a waiting run has no time limit and would flash the next keyboard.
+    @Test func switchingLayoutsStopsTheOldLayoutsBuild() async throws {
+        let library = Library(store: MemoryLibrary())
+        let data = try #require(userLayoutData)
+        let first = try await library.importOryxJSON(data)
+        let second = try await library.importOryxJSON(data)
+        let model = try await window(library: library)
+        await model.open(first.id)
+        let old = try #require(model.buildFlash)
+        old.buildAndFlash(connectedKeyboard: nil)
+        #expect(await eventually { old.phase == .waitingForFlashMode(stillWaiting: false) })
+        await model.open(second.id)
+        #expect(old.phase == .idle)
+        #expect(model.buildFlash !== old, "each layout gets its own")
+    }
+
+    @Test func buildOnlyIsQuietAndTheCapsuleShowsItsSize() async throws {
+        let model = try await window()
+        let build = try #require(model.buildFlash)
+        model.build(.build)
+        #expect(await eventually { build.phase == .built })
+        #expect(!model.showsBuildSheet, "⌘B doesn't bring up the sheet")
+        #expect(model.activity.status == .built(bytes: 65_786, percentOfFlash: 54))
+        model.build(.showLog)
+        #expect(model.showsBuildSheet && model.showsBuildLog)
+    }
+
+    @Test func aKeyboardRunningAnUnknownOryxLayoutOffersImport() async throws {
+        let model = try await window()
+        watcher.attach(.keyboard(KeyboardDevice(id: 1, productID: 0x1977, serial: "Q9x2a/aa11")))
+        #expect(await eventually { model.unknownOryxSerial == "Q9x2a/aa11" })
+        #expect(model.activity.status == .otherLayout(serial: "Q9x2a/aa11"))
+        watcher.detach(1)
+        watcher.attach(.keyboard(KeyboardDevice(id: 2, productID: 0x1977, serial: "KlgM7/0aB1cD")))
+        #expect(await eventually { model.live?.firmwareSerial == "KlgM7/0aB1cD" })
+        #expect(model.unknownOryxSerial == nil, "the library has a layout from that Oryx layout")
+        #expect(model.activity.status == .notOnKeyboard(edits: nil), "an earlier revision of this layout")
+        #expect(model.liveLayerTitle(1) == "Sym+Num")
+    }
+
+    // MARK: Mapping
+
+    @Test func phasesMapToTheCapsule() {
+        typealias Status = ActivityState.Status
+        func status(_ phase: BuildFlashSession.Phase) -> Status? { Status(phase, usedBytes: 61_440, capacity: 122_880) }
+        #expect(status(.idle) == nil && status(.blocked([])) == nil && status(.confirmingReplace(serial: nil, title: nil)) == nil)
+        #expect(status(.needsSetup("1 GB")) == .needsSetup)
+        #expect(status(.compiling(file: "keymap.c", done: 12, total: 41)) == .building(file: "keymap.c", done: 12, total: 41))
+        #expect(status(.built) == .built(bytes: 61_440, percentOfFlash: 50))
+        #expect(status(.erasing(done: 0, total: 0)) == .erasing(fraction: 0), "no division by zero")
+        #expect(status(.writing(done: 16, total: 64)) == .writing(fraction: 0.25, bytes: 16))
+        let mapped = Diagnostic(file: "keymap.c", line: 31, column: 9, severity: .error, message: "", key: KeyRef(layer: 2, index: 45))
+        let unmapped = Diagnostic(file: "quantum.c", line: 1, column: 1, severity: .error, message: "")
+        let warning = Diagnostic(file: "keymap.c", line: 2, column: 1, severity: .warning, message: "", key: KeyRef(layer: 0, index: 1))
+        #expect(status(.failed(.toolchain(.compileFailed([warning, unmapped, mapped])))) == .buildFailed(errors: 2, key: 45))
+        #expect(status(.failed(.toolchain(.tooLarge(overBy: 10)))) == .buildFailed(errors: 1, key: nil))
+        #expect(status(.failed(.flash(.dfuError(status: 10, address: 0x0800_2000)))) == .flashFailed)
+        #expect(status(.done(revision: nil, saveError: .io("disk full"))) == .flashed(revision: ""))
+        #expect(Status.verifying.look.progress == .indeterminate, "reconnecting has no percentage")
+    }
+
+    @Test func theKeyboardMapsToTheCapsule() {
+        typealias Status = ActivityState.Status
+        let keyboard = KeyboardDevice(id: 1, productID: 0x1977, serial: "KlgM7/40xJ7M")
+        let date = Date(timeIntervalSince1970: 0)
+        func status(_ connection: LiveSession.Connection, _ match: FirmwareMatch?) -> Status {
+            Status(connection, match: match, serial: keyboard.serial, edits: 3, revisionDate: date)
+        }
+        #expect(status(.noKeyboard, nil) == .noKeyboard)
+        #expect(status(.connected(keyboard), .current) == .onKeyboard(revisionDate: date))
+        #expect(status(.connected(keyboard), .thisLayout) == .notOnKeyboard(edits: 3))
+        #expect(status(.hardwareAccessOff(keyboard), .otherLayout) == .otherLayout(serial: "KlgM7/40xJ7M"), "the USB serial still works")
+        #expect(status(.heldByAnotherApp(keyboard), .current) == .heldByAnotherApp("Keymapp"))
+        #expect(status(.bootloader(BootloaderDevice(id: 9, productID: 0x0791, kind: .stm32, version: 1)), nil) == .inFlashMode)
+        #expect(ActivityState.Device(.connected(keyboard), serial: "x", match: nil) == .connected(serial: "x", matchesLayout: false))
+        #expect(ActivityState.Device(.connected(keyboard), serial: "x", match: .thisLayout) == .connected(serial: "x", matchesLayout: true))
+    }
+
+    @Test func sheetStepsTitlesAndAnnouncements() {
+        #expect(BuildFlashText.step(.compiling(file: "", done: 0, total: 1)) == 1)
+        #expect(BuildFlashText.step(.waitingForFlashMode(stillWaiting: true)) == 2)
+        #expect(BuildFlashText.step(.failed(.flash(.deviceBusy))) == 3)
+        #expect(BuildFlashText.step(.failed(.notReconnected)) == 4)
+        #expect(BuildFlashText.title(.failed(.toolchain(.tooLarge(overBy: 3_214)))) == "Firmware is 3,214 bytes too large")
+        #expect(BuildFlashText.title(.failed(.flash(.imageRejected(.missingSuffix)))) == "Sextant won’t flash this image")
+        let say = BuildFlashText.announcement
+        #expect(say(.writing(done: 20, total: 100), .writing(done: 30, total: 100)) == "Flashing, 25 percent")
+        #expect(say(.writing(done: 30, total: 100), .writing(done: 40, total: 100)) == nil, "once per quarter")
+        #expect(say(.writing(done: 70, total: 100), .writing(done: 100, total: 100)) == nil, "done says Flashed instead")
+        #expect(say(.linking, .built) == "Build succeeded")
+    }
+}
+
+// MARK: - Fakes
+
+/// Presence as the real watcher reports it: devices already present first, then changes.
+private final class Watcher: DeviceWatcher {
+    private let state = Mutex<(present: [ConnectedDevice], subscribers: [AsyncStream<DeviceEvent>.Continuation])>(([], []))
+
+    func events(for board: BoardDefinition) -> AsyncStream<DeviceEvent> {
+        let (stream, continuation) = AsyncStream.makeStream(of: DeviceEvent.self)
+        state.withLock { s in
+            s.present.forEach { continuation.yield(.attached($0)) }
+            s.subscribers.append(continuation)
+        }
+        return stream
+    }
+
+    func attach(_ device: ConnectedDevice) {
+        state.withLock { s in
+            s.present.append(device)
+            s.subscribers.forEach { $0.yield(.attached(device)) }
+        }
+    }
+
+    func detach(_ id: UInt64) {
+        state.withLock { s in
+            s.present.removeAll { $0.id == id }
+            s.subscribers.forEach { $0.yield(.detached(id: id)) }
+        }
+    }
+}
+
+/// A live link whose newest session the test drives.
+private final class Link: KeyboardLink {
+    private let open = Mutex<[AsyncStream<LiveEvent>.Continuation]>([])
+
+    var sessions: Int { open.withLock { $0.count } }
+
+    func session(with device: KeyboardDevice, board: BoardDefinition) -> AsyncStream<LiveEvent> {
+        let (stream, continuation) = AsyncStream.makeStream(of: LiveEvent.self)
+        open.withLock { $0.append(continuation) }
+        return stream
+    }
+
+    func send(_ events: LiveEvent...) {
+        guard let session = open.withLock({ $0.last }) else { return }
+        events.forEach { session.yield($0) }
+    }
+}
+
+private struct Generator: FirmwareGenerator {
+    func generate(_ layout: KeyboardLayout, identity: FirmwareIdentity) throws(GeneratorError) -> GeneratedSource {
+        GeneratedSource(files: [:], sourceMap: [:])
+    }
+}
+
+/// A build that succeeds at once with a 65,786-byte image.
+private struct Builds: Toolchain {
+    func status() async -> ToolchainStatus { .ready("test") }
+    func build(_ source: GeneratedSource, board: BoardDefinition) -> AsyncStream<BuildEvent> {
+        AsyncStream { continuation in
+            continuation.yield(.output("Compiling keymap.c"))
+            continuation.yield(.finished(BuildArtifact(image: Data(count: 80), usedBytes: 65_786, log: [])))
+            continuation.finish()
+        }
+    }
+}
+
+/// Never reached: no test puts a keyboard in flash mode.
+private struct NoFlasher: Flasher {
+    func flash(
+        _ image: FirmwareImage, md5: String, to device: BootloaderDevice, board: BoardDefinition,
+        progress: @escaping @Sendable (FlashProgress) -> Void
+    ) async throws(FlashError) { throw .deviceNotFound }
+}
+
+/// Polls `condition`, letting other tasks run, for up to about two seconds.
+@MainActor
+private func eventually(_ condition: () -> Bool) async -> Bool {
+    for _ in 0..<200 where !condition() { try? await Task.sleep(for: .milliseconds(10)) }
+    return condition()
+}

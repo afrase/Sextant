@@ -18,6 +18,7 @@ struct Sidebar: View {
             }
         }
         .listStyle(.sidebar)
+        .safeAreaInset(edge: .bottom) { DeviceCard(model: model) }
     }
 
     /// Layouts are opened with their buttons, not selected.

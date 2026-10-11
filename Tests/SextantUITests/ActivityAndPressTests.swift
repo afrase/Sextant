@@ -22,7 +22,7 @@ struct ActivityStateTests {
 
     @Test func busyAndConnected() {
         #expect(!ActivityState().isBusy && !ActivityState().isKeyboardConnected)
-        #expect(ActivityState(device: .flashMode, status: .verifying(fraction: 0.4, bytes: 1)).isBusy)
+        #expect(ActivityState(device: .flashMode, status: .verifying).isBusy)
         #expect(!ActivityState(device: .flashMode, status: .flashFailed).isKeyboardConnected, "flash mode is not a live keyboard")
     }
 }

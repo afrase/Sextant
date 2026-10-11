@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// The primary action (spec §3.4): Build & Flash, Stop while building or waiting, Writing… while writing.
+/// The primary action (spec §3.4): Build & Flash, Stop while building or waiting, Writing… while flashing.
 struct BuildButton: View {
     var model: LayoutWindowModel
 
     var body: some View {
         switch model.activity.status {
-        case .building, .waitingForFlashMode:
+        case .generating, .building, .linking, .waitingForFlashMode:
             Button {
                 model.build(.stop)
             } label: {
@@ -16,7 +16,12 @@ struct BuildButton: View {
             .tint(Tokens.danger.color)
             .controlSize(.large)
             .help(Text("Stop (⌘.)"))
-        case let .writing(fraction, _), let .verifying(fraction, _):
+        case .erasing, .writing, .verifying:
+            let fraction: Double =
+                switch model.activity.status {
+                case let .erasing(fraction), let .writing(fraction, _): fraction
+                default: 1
+                }
             Button {
             } label: {
                 Label {

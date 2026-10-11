@@ -11,11 +11,11 @@ let userLayoutData = try? Data(
 
 /// A window model with the user's layout open.
 @MainActor
-func openUserLayout(onBuild: BuildHandler? = nil) async throws -> LayoutWindowModel {
+func openUserLayout() async throws -> LayoutWindowModel {
     let library = Library(store: MemoryLibrary())
     let data = try userLayoutData ?? { throw CocoaError(.fileNoSuchFile) }()
     _ = try await library.importOryxJSON(data)
-    let model = LayoutWindowModel(library: library, onBuild: onBuild)
+    let model = LayoutWindowModel(library: library)
     await model.open(nil)
     return model
 }

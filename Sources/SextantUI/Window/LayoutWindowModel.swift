@@ -16,14 +16,10 @@ public enum Lens: String, CaseIterable, Sendable {
     }
 }
 
-/// What the build commands ask the composition root to do (⌘B, ⌘R, ⌘., ⇧⌘B).
-public enum BuildCommand: Sendable {
+/// The build commands (⌘B, ⌘R, ⌘., ⇧⌘B).
+enum BuildCommand {
     case build, buildAndFlash, stop, showLog
 }
-
-/// Runs a build command for a window's layout. The composition root wires it when Build & Flash exists.
-/// `.stop` also arrives, idle or not, when the window switches away from a layout or closes.
-public typealias BuildHandler = @MainActor (BuildCommand, EditSession) -> Void
 
 /// The lens lane's status capsule, by priority: error, then live (spec §3.7).
 enum LaneStatus: Equatable {
@@ -43,11 +39,23 @@ public final class LayoutWindowModel {
     public var lens: Lens = .keys
     public var columnVisibility: NavigationSplitViewVisibility = .all
     public var showsInspector = true
-    /// The displayed layer tracks the keyboard's (spec §8.2). Only meaningful with a keyboard connected.
-    public var isFollowing = false
-    /// Device and build status for the toolbar capsule; the device and build steps feed it.
-    public var activity = ActivityState() {
-        didSet { if !activity.isKeyboardConnected { isFollowing = false } }
+    /// The displayed layer tracks the keyboard's (spec §8.2): the live session's Follow, shared by every window, or a
+    /// stand-in where there is no live session (tests, snapshots).
+    public var isFollowing: Bool {
+        get { live?.isFollowing ?? followsWithoutLive }
+        set {
+            guard let live else { return followsWithoutLive = newValue }
+            if newValue { live.follow() } else { live.stopFollowing() }
+        }
+    }
+    /// Device and build status for the toolbar capsule: derived from the live session and Build & Flash
+    /// (``liveActivity``), or a fixed value where there is no live session (tests, snapshots).
+    public var activity: ActivityState {
+        get { live == nil ? fixedActivity : liveActivity }
+        set {
+            fixedActivity = newValue
+            if !newValue.isKeyboardConnected { followsWithoutLive = false }
+        }
     }
     /// Live presses; the live session feeds it.
     public let pressedKeys = PressedKeys()
@@ -55,32 +63,40 @@ public final class LayoutWindowModel {
     var highlightedKind: KeyKind?
     /// A layer whose deletion waits for confirmation because keys still switch to it (spec §6.1).
     var layerPendingDeletion: Int?
-    /// Runs the build commands; nil until the composition root wires Build & Flash.
-    @ObservationIgnored public var onBuild: BuildHandler?
     /// App-wide keyboard presence and live state; nil in tests and snapshots without a keyboard.
     @ObservationIgnored let live: LiveSession?
     /// A fresh Import from Oryx flow per sheet; nil where importing is off (tests, snapshots).
     @ObservationIgnored let makeImport: (@MainActor () -> ImportFromOryx)?
     /// The Build & Flash state machine for the open layout; nil where building is off (tests, snapshots).
     @ObservationIgnored let makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)?
+    // MARK: device
+    /// The open layout's Build & Flash, made per layout by `makeBuildFlash`; nil where building is off. Snapshots set
+    /// one over fakes.
+    public var buildFlash: BuildFlashSession?
+    /// The Build & Flash sheet is up. Hide takes it down while the run goes on (spec §7.6).
+    var showsBuildSheet = false
+    /// The sheet's build log is expanded (⇧⌘B).
+    var showsBuildLog = false
+    /// Where the Device popover hangs while it is open (spec §8.2).
+    var devicePopover: DevicePopoverAnchor?
+    /// The layout of the latest import revision, which the keyboard's serial is matched against (ADR 0019).
+    var importedLayout: KeyboardLayout?
+    private var followsWithoutLive = false
+    private var fixedActivity = ActivityState()
 
     public init(
-        library: Library, onBuild: BuildHandler? = nil, live: LiveSession? = nil,
-        makeImport: (@MainActor () -> ImportFromOryx)? = nil,
+        library: Library, live: LiveSession? = nil, makeImport: (@MainActor () -> ImportFromOryx)? = nil,
         makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)? = nil
     ) {
         self.library = library
-        self.onBuild = onBuild
         self.live = live
         self.makeImport = makeImport
         self.makeBuildFlash = makeBuildFlash
     }
 
     /// A window over the composition root's use cases.
-    public convenience init(services: SextantServices, onBuild: BuildHandler? = nil) {
-        self.init(
-            library: services.library, onBuild: onBuild, live: services.live, makeImport: services.makeImport,
-            makeBuildFlash: services.makeBuildFlash)
+    public convenience init(services: SextantServices) {
+        self.init(library: services.library, live: services.live, makeImport: services.makeImport, makeBuildFlash: services.makeBuildFlash)
     }
 
     /// Opens `id`, or the most recently modified layout no other window has open when `id` is nil, no longer in the
@@ -97,12 +113,13 @@ public final class LayoutWindowModel {
             let next = try await library.open(target)
             if let old = session {
                 // A waiting Build & Flash has no time limit; stop it so it can't flash the next keyboard in flash mode.
-                onBuild?(.stop, old)
+                buildFlash?.stop()
                 await library.close(old)
                 // Undo steps point at the old session; drop them so ⌘Z can't reach a released document.
                 old.undoManager?.removeAllActions(withTarget: old)
             }
             session = next
+            buildFlash = makeBuildFlash?(next)
             loadError = nil
             return target
         } catch {
@@ -115,7 +132,7 @@ public final class LayoutWindowModel {
     /// window can open it.
     func close() async {
         guard let session else { return }
-        onBuild?(.stop, session)
+        buildFlash?.stop()
         await library.close(session)
     }
 
@@ -180,12 +197,12 @@ public final class LayoutWindowModel {
         return session.layout.resolvedKey(layer: session.selection.layer, index: index).isInherited
     }
     var canFollow: Bool { session != nil && activity.isKeyboardConnected }
-    var canBuild: Bool { onBuild != nil && session != nil && !activity.isBusy }
+    var canBuild: Bool { buildFlash != nil && session != nil && !activity.isBusy }
     /// Stop is for building and waiting only: flashing can't be interrupted once it writes (spec §7.4).
     var canStop: Bool {
-        guard onBuild != nil else { return false }
+        guard buildFlash != nil else { return false }
         switch activity.status {
-        case .building, .waitingForFlashMode: return true
+        case .generating, .building, .linking, .waitingForFlashMode: return true
         default: return false
         }
     }
@@ -227,9 +244,19 @@ public final class LayoutWindowModel {
             : String(localized: "\(refs.count) keys switch to \(name): \(keys). They will do nothing.")
     }
 
+    /// ⌘B builds quietly, the capsule showing progress; ⌘R also brings up the sheet (spec §7.1).
     func build(_ command: BuildCommand) {
-        guard let session else { return }
-        onBuild?(command, session)
+        guard let buildFlash else { return }
+        switch command {
+        case .build: buildFlash.build()
+        case .buildAndFlash:
+            buildFlash.buildAndFlash(connectedKeyboard: connectedKeyboard)
+            showsBuildSheet = true
+        case .stop: buildFlash.stop()
+        case .showLog:
+            showsBuildLog = true
+            showsBuildSheet = true
+        }
     }
 
     func showIssue(_ key: KeyRef) {

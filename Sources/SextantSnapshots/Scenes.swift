@@ -55,6 +55,7 @@ enum Scenes {
         window("window-lighting", lighting, light: true)
 
         scenes += await boards(f)
+        scenes += await device(f)
         scenes += SnapshotScene.pair("activity", size: CGSize(width: 480, height: 14 * 40 + 16), chrome: .content) { activityStates }
         // After every model has loaded, so the autosave of this edit can't leak into other scenes.
         symNum.session?.setColor(HexColor(hex: "#FF9500"), layer: 1, index: 30)
@@ -64,7 +65,7 @@ enum Scenes {
     /// The fixtures' window model with Build & Flash wired to a no-op, so it draws enabled.
     static func model(_ f: Fixtures, layer: Int = 0, key: Int? = nil) async -> LayoutWindowModel {
         let model = await f.windowModel(layer: layer, key: key)
-        model.onBuild = { _, _ in }
+        model.buildFlash = await idleBuildFlash(model)
         return model
     }
 
@@ -148,7 +149,7 @@ enum Scenes {
             ActivityState(device: connected, status: .built(bytes: 65_786, percentOfFlash: 54)),
             ActivityState(device: connected, status: .waitingForFlashMode),
             ActivityState(device: .flashMode, status: .writing(fraction: 0.64, bytes: 41_984)),
-            ActivityState(device: .flashMode, status: .verifying(fraction: 0.4, bytes: 26_214)),
+            ActivityState(device: .flashMode, status: .verifying),
             ActivityState(device: connected, status: .flashed(revision: "40xJ7M")),
             ActivityState(device: connected, status: .buildFailed(errors: 1, key: 45)),
             ActivityState(device: .flashMode, status: .flashFailed),
