@@ -48,14 +48,41 @@ public final class Library {
     }
 
     /// Adds an imported layout: strips Oryx's " [fork]" suffix and records an import revision (spec §2.3).
+    ///
+    /// With `existing`, the import becomes a new revision of that layout instead: it keeps its title, and its
+    /// working copy is checkpointed as a revision before the import replaces it, so local edits stay in History.
+    /// `firmware` is Oryx's md5-verified image for the layout's revision; it is kept when given.
     @discardableResult
-    public func add(imported layout: KeyboardLayout) async throws(LibraryError) -> LibraryEntry {
+    public func add(
+        imported layout: KeyboardLayout, asRevisionOf existing: UUID? = nil, firmware: Data? = nil
+    ) async throws(LibraryError) -> LibraryEntry {
         var layout = layout
         layout.title = Self.cleanImportedTitle(layout.title)
-        let origin: LayoutOrigin = layout.oryx.map { .oryx(layoutId: $0.layoutId, revisionId: $0.revisionId) } ?? .local
-        let entry = try await store.create(
-            layout, origin: origin,
-            firstRevision: RevisionDraft(source: .import, message: layout.oryx?.message, layout: layout))
+        let entry: LibraryEntry
+        if let existing {
+            let current = try await store.load(existing)
+            layout.title = current.layout.title
+            if current.layout != layout {
+                let message = String(localized: "Before importing from Oryx")
+                _ = try await store.appendRevision(RevisionDraft(source: .save, message: message, layout: current.layout), to: existing)
+            }
+            _ = try await store.appendRevision(RevisionDraft(source: .import, message: layout.oryx?.message, layout: layout), to: existing)
+            try await store.save(layout, to: existing)
+            entry = current.entry
+        } else {
+            let origin: LayoutOrigin = layout.oryx.map { .oryx(layoutId: $0.layoutId, revisionId: $0.revisionId) } ?? .local
+            entry = try await store.create(
+                layout, origin: origin,
+                firstRevision: RevisionDraft(source: .import, message: layout.oryx?.message, layout: layout))
+        }
+        if let firmware, let info = layout.oryx, let md5 = info.md5 {
+            do {
+                try await store.storeFirmware(firmware, md5: md5, revisionID: info.revisionId, to: entry.id)
+            } catch {
+                // The layout is in; Oryx's build is only a fallback to building locally.
+                log.error("Keeping Oryx's firmware failed: \(String(describing: error), privacy: .public)")
+            }
+        }
         log.info("Imported layout \(entry.id, privacy: .public)")
         await refresh()
         return entry
