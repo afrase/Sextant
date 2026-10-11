@@ -1,4 +1,6 @@
+import AppKit
 import SextantDomain
+import SwiftUI
 import Testing
 
 @testable import SextantUI
@@ -29,12 +31,38 @@ struct TokenContrastTests {
         // Disabled keys draw a hatch, never a band or a bar, so their token isn't checked here.
         let kinds = KeyKind.allCases.filter { $0 != .disabled }.compactMap(Tokens.kind) + [Tokens.holdKey]
         for k in kinds {
-            var band = k.tint
-            (band.lightAlpha, band.darkAlpha) = (0.12, 0.18)
+            let band = Token(light: k.tint.light, dark: k.tint.dark, lightAlpha: 0.12, darkAlpha: 0.18)
             let bandColor = resolve(band, mode, over: mode == .dark ? Tokens.capBottom.dark : Tokens.capBottom.light)
             let ink = resolve(k.ink, mode, over: bandColor)
             #expect(ink.contrast(with: bandColor) >= 4.5, "ink \(ink.hex) on band \(bandColor.hex)")
             #expect(resolve(k.tint, mode, over: cap(mode)).contrast(with: cap(mode)) >= 3, "bar \(k.tint.light.hex)")
+        }
+    }
+}
+
+/// A token builds its colour once (a fresh dynamic colour on every read made each cap slower to redraw); it still
+/// resolves per drawing appearance.
+struct TokenColourTests {
+    func alpha(_ token: Token, in name: NSAppearance.Name) -> Double? {
+        var alpha: Double?
+        NSAppearance(named: name)?.performAsCurrentDrawingAppearance {
+            alpha = NSColor(token.color).usingColorSpace(.sRGB).map { Double($0.alphaComponent) }
+        }
+        return alpha
+    }
+
+    @Test func builtOnceAndSharedByEveryRead() {
+        let (edge, edgeAgain) = (Tokens.capEdge.color, Tokens.capEdge.color)
+        #expect(edge == edgeAgain)
+        let (bar, barAgain) = (Tokens.kind(.modifier)?.tint.color, Tokens.kind(.modifier)?.tint.color)
+        #expect(bar == barAgain)
+    }
+
+    /// Light and dark only: a high-contrast appearance can't be made by name while the system setting is off.
+    @Test func resolvesPerAppearance() throws {
+        for (name, value) in [(NSAppearance.Name.aqua, 0.13), (.darkAqua, 0.10)] {
+            let resolved = try #require(alpha(Tokens.capEdge, in: name))
+            #expect(abs(resolved - value) < 0.001, "\(name.rawValue)")
         }
     }
 }
