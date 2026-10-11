@@ -180,7 +180,7 @@ public enum Legends {
         if let tap = key.tap, let hold = key.hold {
             let t = legend(for: tap).qmk
             if hold.isLayerAction, hold.canonicalCode == "MO", let l = hold.layer { return "LT(\(l), \(t))" }
-            if let m = KeycodeCatalog.modifier(forCode: hold.canonicalCode) {
+            if let m = KeycodeCatalog.modifier(forCode: hold.canonicalCode)?.union(hold.modifiers) {
                 if m == .hyper { return "ALL_T(\(t))" }
                 if m == .meh { return "MEH_T(\(t))" }
                 return "MT(\(m.qmkMaskNames.joined(separator: " | ")), \(t))"

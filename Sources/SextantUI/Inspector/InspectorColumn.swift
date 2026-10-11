@@ -9,7 +9,7 @@ struct InspectorColumn: View {
             VStack(alignment: .leading, spacing: 12) {
                 if let session = model.session {
                     if let index = session.selection.keyIndex {
-                        KeyInspector(session: session, index: index)
+                        KeyInspector(model: model, session: session, index: index)
                     } else {
                         LayerInspector(session: session)
                     }
