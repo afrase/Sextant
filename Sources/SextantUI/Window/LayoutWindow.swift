@@ -8,8 +8,8 @@ public struct LayoutWindow: View {
     @Environment(\.undoManager) private var undoManager
     @State private var windowWidth: CGFloat = 1440
 
-    public init(library: Library, layoutID: Binding<UUID?>, onBuild: BuildHandler? = nil) {
-        self.init(model: LayoutWindowModel(library: library, onBuild: onBuild), layoutID: layoutID)
+    public init(services: SextantServices, layoutID: Binding<UUID?>, onBuild: BuildHandler? = nil) {
+        self.init(model: LayoutWindowModel(services: services, onBuild: onBuild), layoutID: layoutID)
     }
 
     /// A window over an existing model (snapshots preload it so rendering doesn't race the load).

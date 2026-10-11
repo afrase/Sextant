@@ -57,10 +57,30 @@ public final class LayoutWindowModel {
     var layerPendingDeletion: Int?
     /// Runs the build commands; nil until the composition root wires Build & Flash.
     @ObservationIgnored public var onBuild: BuildHandler?
+    /// App-wide keyboard presence and live state; nil in tests and snapshots without a keyboard.
+    @ObservationIgnored let live: LiveSession?
+    /// A fresh Import from Oryx flow per sheet; nil where importing is off (tests, snapshots).
+    @ObservationIgnored let makeImport: (@MainActor () -> ImportFromOryx)?
+    /// The Build & Flash state machine for the open layout; nil where building is off (tests, snapshots).
+    @ObservationIgnored let makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)?
 
-    public init(library: Library, onBuild: BuildHandler? = nil) {
+    public init(
+        library: Library, onBuild: BuildHandler? = nil, live: LiveSession? = nil,
+        makeImport: (@MainActor () -> ImportFromOryx)? = nil,
+        makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)? = nil
+    ) {
         self.library = library
         self.onBuild = onBuild
+        self.live = live
+        self.makeImport = makeImport
+        self.makeBuildFlash = makeBuildFlash
+    }
+
+    /// A window over the composition root's use cases.
+    public convenience init(services: SextantServices, onBuild: BuildHandler? = nil) {
+        self.init(
+            library: services.library, onBuild: onBuild, live: services.live, makeImport: services.makeImport,
+            makeBuildFlash: services.makeBuildFlash)
     }
 
     /// Opens `id`, or the most recently modified layout no other window has open when `id` is nil, no longer in the

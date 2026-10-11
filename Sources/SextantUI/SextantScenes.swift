@@ -14,7 +14,7 @@ public struct SextantScenes: Scene {
 
     public var body: some Scene {
         WindowGroup(id: "layout", for: UUID.self) { $layoutID in
-            LayoutWindow(library: services.library, layoutID: $layoutID, onBuild: onBuild)
+            LayoutWindow(services: services, layoutID: $layoutID, onBuild: onBuild)
         }
         // 1440×900, or 1600×1000 on displays at least 1728 pt wide, clamped to the screen (spec §3.2).
         .defaultWindowPlacement { _, context in
