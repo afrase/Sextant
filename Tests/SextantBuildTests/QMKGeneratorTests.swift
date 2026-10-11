@@ -13,6 +13,20 @@ struct QMKGeneratorTests {
         try KeyboardLayout(oryxJSON: Data(contentsOf: QMKGeneratorGoldenTests.examples.appending(path: "my-layout-KlgM7-full.json")))
     }
 
+    /// The serial rule (application, ADR 0019) and the generator's serial check (ADR 0020) must agree.
+    @Test func buildsWithASextantIdentity() throws {
+        let layout = try userLayout()
+        var edited = layout
+        edited.updateKey(layer: 0, index: 1) { $0 = Key("KC_Q") }
+        let identity = FirmwareIdentity(layout: edited, libraryID: UUID(), importedLayout: layout)
+        #expect(identity.serial.hasPrefix("sx-"))
+        let source = try QMKGenerator().generate(edited, identity: identity)
+        #expect(source.files["config.h"]?.contains("#define SERIAL_NUMBER \"\(identity.serial)\"") == true)
+        let unchanged = FirmwareIdentity(layout: layout, libraryID: UUID(), importedLayout: layout)
+        #expect(unchanged.serial == "KlgM7/40xJ7M")
+        #expect(throws: Never.self) { try QMKGenerator().generate(layout, identity: unchanged) }
+    }
+
     @Test func sourceMapPointsKeymapLinesAtKeys() throws {
         let source = try QMKGenerator().generate(try userLayout(), identity: identity)
         let lines = try #require(source.files["keymap.c"]).components(separatedBy: "\n")

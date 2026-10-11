@@ -3,7 +3,7 @@
 Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. Design: `docs/architecture.md`. Decisions: `docs/decisions.md` and `docs/adr/`.
 
 ## Done
-- **Code design:** `docs/architecture.md`, ADRs 0006–0018.
+- **Code design:** `docs/architecture.md`, ADRs 0006–0025.
 - **Scaffold:** one package, a target per layer (`SextantDomain`, `SextantApplication`, `SextantStorage`, `SextantUI`), the composition root `SextantApp`, the dev tool `SextantSnapshots`. Scripts: `scripts/check` (lint, warnings-as-errors build, tests), `scripts/bundle` (signed `.app`), `scripts/strings` (String Catalog sync), `scripts/notarize` (user only).
 - **Milestone 1:** the user's layout renders read-only: `PackageLibrary` (storage) → `Library` / `EditSession` (use cases) → `LayoutWindowModel` → `BoardView`. Reviewed with a four-lens workflow; 34 confirmed findings fixed.
 
@@ -16,16 +16,19 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 - **Tooling (ADR 0018):** pinned community packages; `scripts/check` runs swift-format, SwiftLint (quality + layer import rules), a warnings-as-errors build, tests and a Periphery report.
 - **Security fix:** imported numbers could crash Sextant (`Int(Double)` traps); fixed and tested.
 
-## In flight
-- Workflow `mvp-slices` (run `wf_d18cfec3-579`, base `dc87917`): five slices in worktrees on branches `slice/build`, `slice/device`, `slice/oryx`, `slice/ui`, `slice/usecases`, each implemented, reviewed by three adversarial lenses, verified, fixed and re-verified. When it finishes: review each branch, merge in the order usecases → oryx → device → build → ui, wire the composition root (hardware gate, LiveSession, BuildFlashSession, ImportFromOryx), record ADRs for the slices' decisions, run an integration review.
-
-**Merge blockers to verify before landing `slice/build`:**
-- Security review (background, on `slice/build`): the generator emits layout data into C verbatim, so a hostile layout could inject C into `keymap.c`/`config.h`. Every data-derived token must be validated at the generator (catalogued keycode or strict `^[A-Z][A-Z0-9_]*$` identifier, serial limited to `[A-Za-z0-9/_-]`, animation ids from the settings catalog, finite integer numbers, no raw layout text in comments); otherwise throw `GeneratorError`. Needs hostile-input tests (closing parens, newlines, `#include`, `*/`).
+- **MVP slices merged** (workflow `mvp-slices`, 35 agents, each slice implemented, reviewed by three adversarial lenses, verified, fixed and re-verified; 45 findings fixed): QMK generator with golden tests on all five Oryx samples, container and native toolchains, live issues, flash path (`slice/build`); device watcher, raw-HID link and DFU flasher with every guard tested on fakes (`slice/device`); Oryx client, import use case, stored Oryx firmware (`slice/oryx`); window skeleton, commands, full board (`slice/ui`, spec steps 2–3); `LiveSession`, `BuildFlashSession`, firmware identity, hardware gate (`slice/usecases`). Integration fixes: Add-as-Revision save errors surface; "Edited" uses the stored content hash. ADRs 0019–0025.
+- **Composition root wired:** `SextantServices` (library, live session, import and Build & Flash factories); raw HID and flashing behind `SextantHardwareEnabled` (ADR 0012).
 
 ## Next
-1. Spec steps 4–7 (key inspector, picker and Record Key, layers, lighting), then 11–12 (firmware settings, Settings scene, empty states), then the import, device and Build & Flash UI over the merged use cases.
+1. Integration review of merged `main` (adversarial, cross-slice).
+2. UI for the remaining MVP steps: 4 key inspector, 5 picker/palette/Record Key, 6 layers, 7 lighting, 8 import sheet, 9 device card/popover/Follow/presses, 10 Build & Flash sheet (feeding `ActivityState`, replacing `onBuild` with `BuildFlashSession`), 11 Firmware Settings, 12 Settings scene, empty states, onboarding.
+3. Toolchain setup step (download and verify the VM images) once the user approves the download.
 
 ## Known gaps and notes
+- Security: the generator validates every data-derived token (ADR 0020), after a background security review found C injection; covered by hostile-input tests.
+- Build slice leftovers: the Navigator `sensitivity` (trackball CPI) has no range check (still integer-only, so no injection); a cancelled build can leave a uniquely named temp folder behind (`shortcut:`); the VM path is compiled but has never booted.
+- Device slice: an interface seized by another app after pairing goes unnoticed (reports just stop; `shortcut:`); `IOHIDDeviceSetReport` has no timeout.
+- `BuildFlashSession.stop()` must be called when a document closes (a waiting run would otherwise flash the next keyboard put in flash mode); the UI's `.stop` on window close does this once Build & Flash is wired.
 - The "hold" marker crowds the signal bar on hold-only keys (board step).
 - `Library.rename`, `duplicate` and `trash` bypass an open `EditSession`; route renames of open layouts through `EditSession.setTitle` when the sidebar menu is built (step 6).
 - Domain keycode names and legends are English data, not localized (ADR 0016).

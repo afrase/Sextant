@@ -22,6 +22,13 @@ The index of settled decisions. From decision 6 on, each has an ADR in [`adr/`](
 | 16 | 2026-10-11 | One String Catalog, resolved from the main bundle | [ADR 0016](adr/0016-string-catalog.md). `scripts/strings` syncs it. |
 | 17 | 2026-10-11 | Boards are data: everything board-specific comes from `BoardDefinition` | [ADR 0017](adr/0017-boards-are-data.md). The user's future goal of more keyboards. |
 | 18 | 2026-10-11 | Prefer community libraries and tools; container builds by default | [ADR 0018](adr/0018-libraries-and-tooling.md). Supersedes ADR 0014. SwiftLint, Periphery, Apple and Point-Free packages. |
+| 19 | 2026-10-11 | Firmware serial: Oryx's when unchanged since import, else `sx:` fingerprint | [ADR 0019](adr/0019-firmware-identity.md). Resolves research 00 §9 item 4 for now. |
+| 20 | 2026-10-11 | Generator: validate every token, refuse rather than guess | [ADR 0020](adr/0020-generator-conventions.md). Follows a security finding. |
+| 21 | 2026-10-11 | Build VM: throwaway, offline, read-only Linux guest | [ADR 0021](adr/0021-build-vm.md) |
+| 22 | 2026-10-11 | Device I/O policy for raw HID and DFU | [ADR 0022](adr/0022-device-io-policy.md) |
+| 23 | 2026-10-11 | Live session: coalesced to 60 Hz, in memory, reconnecting | [ADR 0023](adr/0023-live-session-policy.md) |
+| 24 | 2026-10-11 | Import over an existing layout: checkpoint first, keep the title | [ADR 0024](adr/0024-import-as-revision.md) |
+| 25 | 2026-10-11 | Window minimums and board rendering | [ADR 0025](adr/0025-window-and-board-ui.md). Deviates from spec §3.2 ideals. |
 
 UI taste calls: all nine decided 2026-10-11 (ui-spec §14).
 

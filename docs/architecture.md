@@ -97,13 +97,13 @@ All ports are `Sendable` protocols with `async` methods and **typed throws**. Im
 
 | Port | Methods (shape) | Adapter | Fake (tests) |
 |---|---|---|---|
-| `LayoutLibrary` | `entries()`, `load(id)`, `create(layout, origin)`, `save(id, layout)`, `appendRevision(id, revision)`, `rename`, `duplicate`, `trash(id)`, `storeFirmware(id, revisionID, data, md5)`, `location(id)` | `PackageLibrary` (SextantStorage) | `InMemoryLibrary` |
+| `LayoutLibrary` | `entries()`, `load(id)` (with the working copy's content hash), `create`, `save`, `appendRevision`, `layout(ofRevision:in:)`, `rename`, `duplicate`, `trash`, `storeFirmware` / `firmware(revisionID:of:)`, `location(of:)` | `PackageLibrary` (SextantStorage) | `InMemoryLibrary` |
 | `OryxReader` | `layout(ref) -> KeyboardLayout`, `firmware(revisionID, expectedMD5) -> Data` | `OryxClient` (SextantOryx) | `FakeOryx` |
 | `FirmwareGenerator` | `generate(layout, identity) throws -> GeneratedSource` (files + source map) | `QMKGenerator` (SextantBuild) | `FakeGenerator` |
-| `Toolchain` | `status()`, `build(source) -> AsyncThrowingStream<BuildEvent>` (progress lines, then `.finished(BuildArtifact)`) | `ProcessToolchain` (SextantBuild) | `FakeToolchain` |
-| `DeviceWatcher` | `events() -> AsyncStream<DeviceEvent>` (`.attached(Device)`, `.detached(id)`) | `IOKitDeviceWatcher` | `FakeDeviceWatcher` |
-| `KeyboardLink` | `open(device) -> AsyncThrowingStream<LiveEvent>` (layer, key down/up by matrix position, protocol version, firmware serial) | `RawHIDLink` | `FakeKeyboardLink` |
-| `Flasher` | `flash(image, md5, to: BootloaderDevice, progress:)` | `DFUFlasher` (SextantDevice) | `FakeFlasher` |
+| `Toolchain` | `status()`, `build(source, board) -> AsyncStream<BuildEvent>` (output, progress, then `.finished(BuildArtifact)` or `.failed(ToolchainError)`) | `ContainerToolchain` (default), `NativeToolchain` (SextantBuild) | `FakeToolchain` |
+| `DeviceWatcher` | `events(for: board) -> AsyncStream<DeviceEvent>` (`.attached(ConnectedDevice)`, `.detached(id)`) | `IOKitDeviceWatcher` | `FakeDeviceWatcher` |
+| `KeyboardLink` | `session(with: device, board:) -> AsyncStream<LiveEvent>` (serial, protocol version, layer, key down/up by matrix position, then `.ended`) | `RawHIDLink`, or `RefusingKeyboardLink` behind the gate | `FakeKeyboardLink` |
+| `Flasher` | `flash(image, md5:, to: BootloaderDevice, board:, progress:)` | `DFUFlasher` (SextantDevice), or `RefusingFlasher` behind the gate | `FakeFlasher` |
 
 Small things that are not worth a port are injected as values: an `any Clock<Duration>` for debounce and timeouts, a `@Sendable () -> Bool` secure-input probe, an `UndoManager`.
 
@@ -113,8 +113,8 @@ Small things that are not worth a port are injected as values: an `any Clock<Dur
 |---|---|---|
 | `Library` | `@MainActor @Observable` | Lists library entries; opens, creates (blank QWERTY), duplicates, renames, trashes layouts |
 | `EditSession` | `@MainActor @Observable` | One open document: `layout`, `selection` (layer, key, slot), every undoable edit from PrototypeKit's `EditorStore` (set action / code / modifiers / label / colour, paint, transparent, disable, swap, override, layer add / duplicate / rename / colour / move / delete, settings, title). Registers undo on the window's `UndoManager` with named actions and snapshots layout + selection. Debounced autosave (1 s) through `LayoutLibrary`. Live issues recomputed per edit. |
-| `ImportFromOryx` | `@MainActor @Observable` | Steps: read link → fetch layout → (optional) fetch firmware with md5 → convert; builds an `ImportSummary` preview; saves as a new layout or as a revision of an existing one with the same Oryx id. Strips " [fork]". |
-| `LiveSession` | `@MainActor @Observable` | Consumes `DeviceWatcher` and `KeyboardLink`. State: connection (none / connected / bootloader / held by another app), device identity and serial match, active layer, pressed key indices (matrix → index via `BoardDefinition`), Follow mode, secure-input pause. Coalesces to ≤ 60 Hz. Never stores events. |
+| `ImportFromOryx` | `@MainActor @Observable` | Steps: read link → fetch layout → fetch Oryx's firmware with md5 (optional) → convert; an `ImportSummary` preview; saves as a new layout or as a revision of an existing one with the same Oryx id, checkpointing local edits first (ADR 0024). Strips " [fork]". |
+| `LiveSession` | `@MainActor @Observable` | Consumes `DeviceWatcher` and `KeyboardLink`. State: connection (none / connected / bootloader / held by another app / access off), serial and `FirmwareMatch` (ADR 0019), active layer, pressed key indices (matrix → index via `BoardDefinition`), Follow mode, secure-input pause. Coalesces to ≤ 60 Hz, reconnects with backoff, never stores or logs events (ADR 0023). |
 | `BuildFlashSession` | `@MainActor @Observable` | The §7 state machine: issues gate → generate → compile (progress, log mapped through the source map) → size → wait for bootloader → validate image → flash → wait for re-enumeration and serial check → record a revision. Cancel is refused during erase / write / verify. |
 
 ### 3.3 Hardware gate
@@ -123,7 +123,7 @@ Raw-HID writes (pairing, protocol query) and flashing need the user's explicit h
 
 ## 4. Adapters
 
-- **`SextantStorage.PackageLibrary`** (actor): §6 format; atomic writes (`Data.write(options: .atomic)`); SHA-256 content hash of the canonical JSON; trash via `FileManager.trashItem`.
+- **`SextantStorage.PackageLibrary`** (actor): §6 format; atomic writes (`Data.write(options: .atomic)`); SHA-256 content hash of the canonical JSON; per-revision Oryx firmware; trash via `FileManager.trashItem`.
 - **`SextantOryx.OryxClient`** (struct over an injected `URLSession`): `POST https://oryx.zsa.io/graphql` with the `getLayout` query and a descriptive User-Agent; `GET /firmware/{rev}` with md5 enforced. Never logs in, never mutates. Contract tests use a `URLProtocol` stub with fixture JSON from `docs/research/oryx-examples/`.
 - **`SextantBuild.QMKGenerator`** (struct, pure): emits `keymap.c`, `config.h`, `rules.mk`, `keymap.json` (and `i18n.h` when needed) following research 02 §4, keeping `zsa/oryx`, `zsa/defaults` and the Navigator modules. Emits a source map (keymap.c line → `KeyRef`).
 - **`SextantBuild` toolchains** (ADR 0018): `ContainerToolchain` (default) runs `qmk compile` in a pinned Debian image with ZSA's gcc 12.2.1 through Apple's Containerization package; the image is fetched only from the first build's setup step, with consent. `NativeToolchain` (fallback) runs a managed native toolchain through swift-subprocess. Both stream output and share the `file:line:col: error:` diagnostic and size parsers.
@@ -134,7 +134,7 @@ Raw-HID writes (pairing, protocol query) and flashing need the user's explicit h
 
 ### 4.1 Composition root (`SextantApp`)
 
-`@main struct SextantMain` builds one `AppEnvironment` (the concrete adapters plus the use cases that outlive windows: `Library`, `LiveSession`) and hands it to `SextantUI`'s scenes through initialisers. Command-line flag: `--import <oryx.json>` imports a layout file into the library at launch. Snapshots are a separate tool: `swift run SextantSnapshots <dir> [--only a,b]`. No singletons: everything flows from `SextantMain`.
+`@main struct SextantMain` builds the concrete adapters (the raw-HID link and flasher only when `SextantHardwareEnabled` is set, ADR 0012), starts `LiveSession`, and hands `SextantUI` a `SextantServices` value: `Library`, `LiveSession`, and factories for `ImportFromOryx` and `BuildFlashSession`. The UI never sees an adapter. Command-line flag: `--import <oryx.json>` imports a layout file into the library at launch. Snapshots are a separate tool: `swift run SextantSnapshots <dir> [--only a,b]`. No singletons: everything flows from `SextantMain`.
 
 ## 5. Concurrency
 
