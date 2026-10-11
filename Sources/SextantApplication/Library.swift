@@ -11,6 +11,8 @@ public final class Library {
     public private(set) var entries: [LibraryEntry] = []
     /// The last error from a library operation, for the UI to show.
     public var lastError: LibraryError?
+    /// The library has been read once, so empty ``entries`` mean an empty library (the Welcome) rather than loading.
+    public private(set) var hasLoaded = false
 
     @ObservationIgnored private let store: any LayoutLibrary
     /// Open documents, one per layout: an import lands in the open one instead of behind it, and no second copy's
@@ -31,6 +33,7 @@ public final class Library {
         } catch {
             fail(error)
         }
+        hasLoaded = true
     }
 
     /// True while a window has the layout open, or is opening it. A layout has one window (spec §2.1).
@@ -109,20 +112,40 @@ public final class Library {
         return entry
     }
 
+    /// Adds a new local layout (File ▸ New Layout) with a first revision, so it starts unedited. Nil when it couldn't
+    /// be written (see ``lastError``).
+    @discardableResult
+    public func create(_ layout: KeyboardLayout) async -> LibraryEntry? {
+        var entry: LibraryEntry?
+        let first = RevisionDraft(source: .save, message: String(localized: "New layout"), layout: layout)
+        await run { () throws(LibraryError) in entry = try await self.store.create(layout, origin: .local, firstRevision: first) }
+        return entry
+    }
+
+    /// Renames a layout. An open document renames itself (undoably, in its window), so its next autosave can't put the
+    /// old title back.
     public func rename(_ id: UUID, to title: String) async {
         let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty else { return }
+        if let session = sessions[id]?.session {
+            session.setTitle(t)
+            await session.flush()
+        }
         await run { () throws(LibraryError) in try await self.store.rename(id, to: t) }
     }
 
+    /// Copies a layout, including an open document's last edit.
     @discardableResult
     public func duplicate(_ id: UUID) async -> LibraryEntry? {
+        await sessions[id]?.session?.flush()
         var copy: LibraryEntry?
         await run { () throws(LibraryError) in copy = try await self.store.duplicate(id) }
         return copy
     }
 
+    /// Moves a layout to the Trash, unless a window has it open: its autosave would write into a package that is gone.
     public func trash(_ id: UUID) async {
+        guard !isOpen(id) else { return }
         await run { () throws(LibraryError) in try await self.store.trash(id) }
     }
 

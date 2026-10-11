@@ -37,7 +37,7 @@ enum LaneStatus: Equatable {
 public final class LayoutWindowModel {
     public let library: Library
     /// The open layout, once loaded.
-    public private(set) var session: EditSession?
+    public internal(set) var session: EditSession?
     public private(set) var loadError: LibraryError?
     public var legendMode: LegendMode = .symbols
     public var lens: Lens = .keys
@@ -89,6 +89,18 @@ public final class LayoutWindowModel {
     var recentKeycodes: [KeyAction] = []
     var recentCommands: [String] = []
 
+    // MARK: import
+    /// The Import from Oryx sheet's flow while the sheet is open (spec §8.1).
+    var importFlow: ImportFromOryx?
+    /// The sidebar's destination is Firmware Settings rather than a layer (spec §2.2).
+    public var showsFirmwareSettings = false
+    /// The Firmware Settings section to scroll to (the inspector's Sections list).
+    var settingsScrollTarget: String?
+    /// The layout whose Rename… alert is showing.
+    var layoutPendingRename: UUID?
+    /// A layout is loading (true until the first ``open(_:)`` finishes), so the empty states wait for it.
+    var isOpening = true
+
     public init(
         library: Library, onBuild: BuildHandler? = nil, live: LiveSession? = nil,
         makeImport: (@MainActor () -> ImportFromOryx)? = nil,
@@ -113,6 +125,8 @@ public final class LayoutWindowModel {
     /// when there is none. Returns the id actually opened.
     @discardableResult
     public func open(_ id: UUID?) async -> UUID? {
+        isOpening = true
+        defer { isOpening = false }
         await library.refresh()
         let known = library.entries.map(\.id)
         let free = { (candidate: UUID) in candidate == self.session?.id || !self.library.isOpen(candidate) }
@@ -196,12 +210,13 @@ public final class LayoutWindowModel {
 
     // MARK: Command enablement
 
-    var hasSelectedKey: Bool { session?.selection.keyIndex != nil }
+    /// Key commands are off on the Firmware Settings page, where the selected key isn't shown (the selection stays).
+    var hasSelectedKey: Bool { !showsFirmwareSettings && session?.selection.keyIndex != nil }
     var canShowPreviousLayer: Bool { (session?.selection.layer ?? 0) > 0 }
     var canShowNextLayer: Bool { session.map { $0.selection.layer < $0.layout.layers.count - 1 } ?? false }
     var canDeleteLayer: Bool { (session?.layout.layers.count ?? 0) > 1 }
     var canOverrideKey: Bool {
-        guard let session, let index = session.selection.keyIndex else { return false }
+        guard !showsFirmwareSettings, let session, let index = session.selection.keyIndex else { return false }
         return session.layout.resolvedKey(layer: session.selection.layer, index: index).isInherited
     }
     var canFollow: Bool { session != nil && activity.isKeyboardConnected }
@@ -258,6 +273,7 @@ public final class LayoutWindowModel {
     }
 
     func showIssue(_ key: KeyRef) {
+        showsFirmwareSettings = false
         session?.select(layer: key.layer)
         session?.select(key: key.index, slot: key.slot)
     }

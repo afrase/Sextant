@@ -38,7 +38,14 @@ struct SextantMain: App {
     }
 
     var body: some Scene {
-        SextantScenes(services: services)
+        SextantScenes(
+            services: services, buildToolsStatus: { await Self.toolchain($0).status() },
+            firmwareSource: (ContainerToolchain.Pins.firmwareCommit, ContainerToolchain.Pins.modulesCommit))
+    }
+
+    /// The toolchain for Settings › Build's choice. Constructing one only names its folder; status never downloads.
+    static func toolchain(_ backend: BuildBackend) -> any Toolchain {
+        backend == .native ? NativeToolchain() : ContainerToolchain()
     }
 
     /// Builds every adapter and use case. Raw-HID writes and flashing stay off until the user sets the
@@ -54,14 +61,14 @@ struct SextantMain: App {
         let live = LiveSession(watcher: watcher, link: link, secureInputProbe: SecureInputProbe.isEnabled)
         let oryx = OryxClient()
         let generator = QMKGenerator()
-        let toolchain = ContainerToolchain()  // ADR 0018: container builds by default
         let md5: @Sendable (Data) -> String = { Insecure.MD5.hash(data: $0).map { String(format: "%02x", $0) }.joined() }
         return SextantServices(
             library: library, live: live,
             makeImport: { ImportFromOryx(oryx: oryx, library: library) },
             makeBuildFlash: { session in
+                // ADR 0018: container builds by default; Settings › Build can pick the native fallback.
                 BuildFlashSession(
-                    session: session, library: store, generator: generator, toolchain: toolchain, watcher: watcher,
+                    session: session, library: store, generator: generator, toolchain: toolchain(.current), watcher: watcher,
                     flasher: flasher, md5: md5)
             })
     }

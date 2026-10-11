@@ -127,13 +127,7 @@ public struct Setting: Identifiable, Hashable, Sendable {
         if case let .number(d) = value {
             if let m = marks[d] { return m }
             let n = Int(exactly: d).map(String.init) ?? String(format: "%.1f", d)
-            switch unit {
-            case "milliseconds", "ms": return "\(n) ms"
-            case "seconds": return "\(n) s"
-            case "minutes": return "\(n) min"
-            case "degrees": return "\(n)°"
-            default: return n
-            }
+            return unitSymbol.isEmpty || unitSymbol == "°" ? n + unitSymbol : "\(n) \(unitSymbol)"
         }
         return value.description
     }

@@ -36,7 +36,12 @@ struct LayerMenu: View {
             ForEach(Array(session.layout.layers.prefix(9).enumerated()), id: \.element.id) { index, layer in
                 Toggle(
                     String(localized: "Layer \(index) · \(layer.title)"),
-                    isOn: Binding(get: { session.selection.layer == index }, set: { _ in session.select(layer: index) })
+                    isOn: Binding(
+                        get: { window?.showsFirmwareSettings != true && session.selection.layer == index },
+                        set: { _ in
+                            window?.showsFirmwareSettings = false
+                            session.select(layer: index)
+                        })
                 )
                 .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
             }

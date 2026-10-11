@@ -8,7 +8,9 @@ struct InspectorColumn: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 if let session = model.session {
-                    if model.lens == .lighting {
+                    if model.showsFirmwareSettings {
+                        FirmwareSettingsInspector(model: model, session: session)
+                    } else if model.lens == .lighting {
                         LightingInspector(model: model, session: session)
                     } else if let index = session.selection.keyIndex {
                         KeyInspector(model: model, session: session, index: index)

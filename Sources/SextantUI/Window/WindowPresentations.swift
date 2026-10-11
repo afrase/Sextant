@@ -5,6 +5,8 @@ extension View {
     func windowPresentations(_ model: LayoutWindowModel) -> some View {
         modifier(DeleteLayerAlert(model: model))
             .modifier(LayerPresentations(model: model))
+            .modifier(ImportSheetPresenter(model: model))
+            .modifier(RenameLayoutAlert(model: model))
     }
 }
 
