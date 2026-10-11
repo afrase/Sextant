@@ -52,6 +52,8 @@ public struct LayoutWindow: View {
             let opened = await model.open(layoutID)
             if let opened, opened != layoutID { layoutID = opened }
         }
+        // Closing the window ends its layout's Build & Flash too (see LayoutWindowModel.open).
+        .onDisappear { model.build(.stop) }
         .onChange(of: model.session?.id, initial: true) { model.session?.undoManager = undoManager }
         .onChange(of: model.library.entries.first?.id) {
             // A layout arrived while this window had none open (first import): open it.

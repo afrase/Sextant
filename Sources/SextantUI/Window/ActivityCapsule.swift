@@ -129,12 +129,15 @@ public struct ActivityCapsule: View {
     var boardName: String
     /// Opens the build log or sheet; nil until Build & Flash is wired.
     var onShowLog: (() -> Void)?
+    /// Narrower in small windows, so the toolbar's trailing items stay out of its overflow menu.
+    var idealWidth: CGFloat
     @State private var width: CGFloat = 440
 
-    public init(state: ActivityState, boardName: String, onShowLog: (() -> Void)? = nil) {
+    public init(state: ActivityState, boardName: String, onShowLog: (() -> Void)? = nil, idealWidth: CGFloat = 440) {
         self.state = state
         self.boardName = boardName
         self.onShowLog = onShowLog
+        self.idealWidth = idealWidth
     }
 
     public var body: some View {
@@ -155,7 +158,7 @@ public struct ActivityCapsule: View {
             .disabled(onShowLog == nil)
             .accessibilityLabel([look.text, look.detail].compactMap { $0 }.joined(separator: ", "))
         }
-        .frame(minWidth: 280, idealWidth: 440, maxWidth: 520, minHeight: 28)
+        .frame(minWidth: 280, idealWidth: idealWidth, maxWidth: 520, minHeight: 28)
         .overlay(alignment: .bottom) { hairline(look.progress) }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { width = $0 })
     }

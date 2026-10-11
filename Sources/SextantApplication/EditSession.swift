@@ -41,8 +41,10 @@ public final class EditSession {
     /// The last autosave failure, if any (cleared by the next successful save).
     public private(set) var saveError: LibraryError?
     /// The layout as of the last revision, for "Edited" in the window subtitle (spec §3.4).
-    /// shortcut: starts as the layout at open, so edits autosaved in an earlier launch read as unedited until the
-    /// library hands over the last revision's layout (StoredLayout has only summaries today).
+    /// shortcut: starts as the layout at open, so autosaved edits read as unedited whenever the layout is opened again:
+    /// in a later launch, and also after switching to another layout in the sidebar and back (the switch flushes the
+    /// edits, and `Library.open` builds a new session). Upgrade when StoredLayout exposes the last revision's layout
+    /// or a content hash comparable here (today it has only summaries, hashed by the storage adapter's own encoding).
     private var revisionBaseline: KeyboardLayout
 
     /// The window's undo manager. Edits made while it is nil are not undoable.

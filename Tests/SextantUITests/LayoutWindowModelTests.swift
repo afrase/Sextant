@@ -20,6 +20,20 @@ struct LayoutWindowModelTests {
         #expect(model.loadError == nil)
     }
 
+    /// Leaving a layout stops its Build & Flash: a waiting run has no time limit and would flash the next keyboard.
+    @Test func switchingLayoutsStopsTheOldLayoutsBuild() async throws {
+        let library = Library(store: MemoryLibrary())
+        let data = try #require(userLayoutData)
+        let first = try await library.importOryxJSON(data)
+        let second = try await library.importOryxJSON(data)
+        var calls: [(BuildCommand, UUID)] = []
+        let model = LayoutWindowModel(library: library) { command, session in calls.append((command, session.id)) }
+        await model.open(first.id)
+        #expect(calls.isEmpty)
+        await model.open(second.id)
+        #expect(calls.map(\.0) == [.stop] && calls.map(\.1) == [first.id])
+    }
+
     /// Spec §3.4: the subtitle is the layer, plus " · Edited" until the layout matches the last revision again.
     @Test func subtitleSaysEditedUntilUndoneOrSaved() async throws {
         let model = try await openUserLayout()

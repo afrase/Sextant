@@ -23,7 +23,6 @@ public struct BoardView: View {
     @Namespace private var rotors
     @Environment(\.motion) private var motion
     @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(
         session: EditSession, mode: LegendMode = .symbols, issues: [KeyRef: LayoutIssue.Severity] = [:], pressed: PressedKeys? = nil,
@@ -115,7 +114,7 @@ public struct BoardView: View {
     private func keys(_ board: BoardLayout, models: [KeyCapModel], cap: CGFloat) -> some View {
         let layout = session.layout
         let layer = session.selection.layer
-        let order = readingOrder()
+        let order = Self.readingOrder(session.geometry)
         return ZStack(alignment: .topLeading) {
             if layout.navigator != nil, let nav = board.navigator {
                 NavigatorDisc(diameter: nav.diameter, kind: layout.navigator?.kind)
@@ -158,7 +157,7 @@ public struct BoardView: View {
     @ViewBuilder private func selectionRing(_ board: BoardLayout, cap: CGFloat) -> some View {
         if let index = session.selection.keyIndex, board.frames.indices.contains(index) {
             let frame = board.frames[index]
-            let quiet = contrast == .increased || reduceMotion
+            let quiet = contrast == .increased || motion.reduceMotion
             let width: CGFloat = contrast == .increased || (isFocused && quiet) ? 3 : 2
             let outset = 2.5 + width
             RoundedRectangle(cornerRadius: 0.16 * cap + outset, style: .continuous)
@@ -185,8 +184,8 @@ public struct BoardView: View {
     }
 
     /// VoiceOver reads the left half row by row, its thumbs, then the right half and its thumbs (spec §4.11).
-    private func readingOrder() -> [Double] {
-        let keys = session.geometry.keys
+    nonisolated static func readingOrder(_ geometry: BoardGeometry) -> [Double] {
+        let keys = geometry.keys
         let sorted = keys.sorted {
             ($0.hand == .right ? 1 : 0, $0.cluster == .thumb ? 1 : 0, $0.row, $0.center.x)
                 < ($1.hand == .right ? 1 : 0, $1.cluster == .thumb ? 1 : 0, $1.row, $1.center.x)

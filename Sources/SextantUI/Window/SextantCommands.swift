@@ -17,7 +17,8 @@ struct SextantCommands: Commands {
             Button("Import from Oryx…") {}.keyboardShortcut("i", modifiers: [.command, .shift]).disabled(true)
             Button("Import from Connected Keyboard") {}.disabled(true)
         }
-        CommandGroup(replacing: .saveItem) {
+        // After, not replacing: the system group holds Close (⌘W) and Close All (⌥⌘W).
+        CommandGroup(after: .saveItem) {
             Button("Save Revision…") {}.keyboardShortcut("s").disabled(true)
             Button("Duplicate Layout") {}.disabled(true)
             Button("Rename Layout…") {}.disabled(true)
@@ -44,6 +45,9 @@ struct SextantCommands: Commands {
         CommandMenu("Layer") { LayerMenu(window: window) }
         CommandMenu("Key") { KeyMenu(window: window) }
         CommandMenu("Keyboard") { KeyboardMenu(window: window) }
+        CommandGroup(before: .windowList) {
+            Button("Main Window") {}.keyboardShortcut("0").disabled(true)
+        }
         CommandGroup(replacing: .help) {
             Button("Sextant Help") {}.disabled(true)
             Button("Keyboard Shortcuts") {}.keyboardShortcut("/").disabled(true)

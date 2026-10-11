@@ -6,8 +6,10 @@ import Testing
 
 /// Readout, context-strip and VoiceOver text on the user's layout (spec §3.7, §4.11, §11).
 struct KeyTextTests {
-    let layout = (try? KeyboardLayout(oryxJSON: userLayoutData ?? Data())) ?? KeyboardLayout(title: "", layers: [])
+    let layout: KeyboardLayout
     var geometry: BoardGeometry { BoardDefinition.voyager.geometry(navigator: .right) }
+
+    init() throws { layout = try KeyboardLayout(oryxJSON: #require(userLayoutData)) }
 
     @Test func readout() {
         #expect(KeyText.readout(layout: layout, layer: 0, isFollowing: false) == "Layer 0 · base · 52 keys")
@@ -46,6 +48,20 @@ struct KeyTextTests {
         #expect(KeyText.position(geometry.key(14), in: geometry) == "Left hand, home row, column 3")
     }
 
+    /// Spec §4.11: the left half row by row, its thumbs, then the right half and its thumbs.
+    @Test func voiceOverReadingOrder() {
+        let order = BoardView.readingOrder(geometry)
+        func priorities(_ hand: BoardGeometry.Hand, _ cluster: BoardGeometry.Cluster) -> [Double] {
+            geometry.keys.filter { $0.hand == hand && $0.cluster == cluster }.map { order[$0.index] }
+        }
+        #expect(order[0] == order.max(), "the top-left key reads first")
+        let groups = [priorities(.left, .main), priorities(.left, .thumb), priorities(.right, .main), priorities(.right, .thumb)]
+        #expect(groups.allSatisfy { !$0.isEmpty })
+        for (earlier, later) in zip(groups, groups.dropFirst()) {
+            #expect((earlier.min() ?? 0) > (later.max() ?? 0), "left rows, left thumbs, right rows, right thumbs")
+        }
+    }
+
     @Test func issueCapsuleText() {
         let issue = LayoutIssue(kind: .unknownKeycode("KC_FOO"), severity: .error, key: KeyRef(layer: 2, index: 45, slot: .tap))
         #expect(KeyText.issueText(issue, layout: layout) == "Unknown keycode KC_FOO on Brd+Sys · key 45 · Tap")
@@ -55,7 +71,9 @@ struct KeyTextTests {
 
 /// What each cap draws (spec §4.4, §4.5).
 struct KeyCapModelTests {
-    let layout = (try? KeyboardLayout(oryxJSON: userLayoutData ?? Data())) ?? KeyboardLayout(title: "", layers: [])
+    let layout: KeyboardLayout
+
+    init() throws { layout = try KeyboardLayout(oryxJSON: #require(userLayoutData)) }
 
     @Test func bandsAndBars() {
         #expect(KeyCapModel(layout: layout, layer: 0, index: 24).band?.slot == .hold, "dual-function: hold band")
@@ -63,6 +81,10 @@ struct KeyCapModelTests {
         #expect(KeyCapModel(layout: layout, layer: 0, index: 24, mode: .qmk).band == nil, "QMK mode hides the band")
         let holdOnly = KeyCapModel(layout: layout, layer: 0, index: 18)
         #expect(holdOnly.isHoldOnly && holdOnly.bar != nil, "hold-only modifier: marker and bar")
+        var layerHold = layout
+        layerHold.layers[0].keys[18] = Key(hold: .momentary(1))
+        let mo = KeyCapModel(layout: layerHold, layer: 0, index: 18)
+        #expect(mo.legend.legend.primarySlot == .hold && !mo.isHoldOnly, "a hold-only layer key's caption already says hold")
         let reset = KeyCapModel(layout: layout, layer: 2, index: 31)
         #expect(reset.bar?.light == Tokens.danger.light, "Reset gets a red bar")
 
@@ -80,5 +102,18 @@ struct KeyCapModelTests {
         #expect(inherited.isGhost && !inherited.isOwned && inherited.kind == .dualFunction, "shows the inherited kind")
         let holder = KeyCapModel(layout: layout, layer: 1, index: 24)
         #expect(holder.isGhost && holder.isOwned, "the key holding the layer is ringed and hatched")
+    }
+
+    /// Spec §4.8: the LED dot shows when the key has its own LED colour, transparent or not.
+    @Test func ledDotFollowsTheKeysOwnColour() {
+        let glow = HexColor(red: 0.16, green: 1, blue: 1)
+        var lit = layout
+        lit.layers[1].keys[19] = Key(glowColor: glow)  // all-null: transparent (ADR 0015), with its own colour
+        let ghost = KeyCapModel(layout: lit, layer: 1, index: 19)
+        #expect(ghost.isGhost && ghost.ownGlow == glow)
+        var below = layout
+        below.layers[0].keys[19].glowColor = glow
+        let inherited = KeyCapModel(layout: below, layer: 1, index: 19)
+        #expect(inherited.isGhost && inherited.ownGlow == nil, "an inherited colour is not the key's own")
     }
 }

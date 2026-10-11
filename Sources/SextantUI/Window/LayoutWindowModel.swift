@@ -22,6 +22,7 @@ public enum BuildCommand: Sendable {
 }
 
 /// Runs a build command for a window's layout. The composition root wires it when Build & Flash exists.
+/// `.stop` also arrives, idle or not, when the window switches away from a layout or closes.
 public typealias BuildHandler = @MainActor (BuildCommand, EditSession) -> Void
 
 /// The lens lane's status capsule, by priority: error, then live (spec §3.7).
@@ -73,6 +74,8 @@ public final class LayoutWindowModel {
         do {
             let next = try await library.open(target)
             if let old = session {
+                // A waiting Build & Flash has no time limit; stop it so it can't flash the next keyboard in flash mode.
+                onBuild?(.stop, old)
                 await old.flush()
                 // Undo steps point at the old session; drop them so ⌘Z can't reach a released document.
                 old.undoManager?.removeAllActions(withTarget: old)

@@ -30,13 +30,12 @@ struct KeyCapModel: Equatable {
     var targetTones: LayerTones?
     var mode: LegendMode
     var issue: LayoutIssue.Severity?
+    /// The key's own LED colour on this layer, even when it is transparent (spec §4.8 LED dot).
+    var ownGlow: HexColor?
     /// Dimmed while the kind key points at another kind (spec §3.7).
-    var isDimmed: Bool
+    var isDimmed = false
 
-    init(
-        layout: KeyboardLayout, layer: Int, index: Int, mode: LegendMode = .symbols, issue: LayoutIssue.Severity? = nil,
-        isDimmed: Bool = false
-    ) {
+    init(layout: KeyboardLayout, layer: Int, index: Int, mode: LegendMode = .symbols, issue: LayoutIssue.Severity? = nil) {
         let legend = Legends.legend(layout: layout, layer: layer, index: index)
         let target = legend.legend.secondarySlot == .hold ? legend.legend.secondary?.layer : legend.legend.primary?.layer
         self.index = index
@@ -45,7 +44,7 @@ struct KeyCapModel: Equatable {
         targetTones = target.flatMap { layout.layers[safe: $0]?.color }.map(LayerTones.init)
         self.mode = mode
         self.issue = issue
-        self.isDimmed = isDimmed
+        ownGlow = layout.key(layer: layer, index: index)?.glowColor
     }
 
     /// Transparent on this layer: drawn as a ghost with the inherited legend.
@@ -62,8 +61,9 @@ struct KeyCapModel: Equatable {
         return slot == .hold || kind == .tapDance ? (action, slot) : nil
     }
 
-    /// Hold-only keys (Main 18 ⌃, 25 ⌘) show a quiet "hold" marker in the band position.
-    var isHoldOnly: Bool { mode == .symbols && legend.legend.primarySlot == .hold }
+    /// Hold-only keys (Main 18 ⌃, 25 ⌘) show a quiet "hold" marker in the band position. A layer key's caption
+    /// already says it.
+    var isHoldOnly: Bool { mode == .symbols && legend.legend.primarySlot == .hold && legend.legend.primary?.layer == nil }
 
     /// The signal-bar colour, for single-function special kinds and tap dances (spec §4.4). Reset is red.
     var bar: Token? {
@@ -150,10 +150,13 @@ struct KeyCap: View, Equatable {
         }
     }
 
+    /// Opacity of the pressed fill; the pressed ink's contrast math mixes with the same value.
+    private var pressedAlpha: Double { isDark ? 0.8 : 0.65 }
+
     /// Live press: the face fills with the layer colour (live green on the base layer), spec §4.7.
     private var pressedFill: some View {
         let tone = model.layerTones?.display ?? Tokens.success
-        return shape.fill(tone.color.opacity(isDark ? 0.8 : 0.65))
+        return shape.fill(tone.color.opacity(pressedAlpha))
             .shadow(color: isDark ? tone.color.opacity(0.6) : .clear, radius: 0.18 * u)
     }
 
@@ -161,7 +164,8 @@ struct KeyCap: View, Equatable {
     private var ink: (primary: Color, secondary: Color) {
         guard isPressed else { return (Tokens.capLegend.color, Tokens.capLegend2.color) }
         let tone = model.layerTones?.display ?? Tokens.success
-        let (fill, cap, alpha) = isDark ? (tone.dark, Tokens.capTop.dark, 0.8) : (tone.light, Tokens.capTop.light, 0.65)
+        let (fill, cap) = isDark ? (tone.dark, Tokens.capTop.dark) : (tone.light, Tokens.capTop.light)
+        let alpha = pressedAlpha
         let mixed = HexColor(
             red: cap.red + (fill.red - cap.red) * alpha, green: cap.green + (fill.green - cap.green) * alpha,
             blue: cap.blue + (fill.blue - cap.blue) * alpha)
@@ -274,7 +278,7 @@ struct KeyCap: View, Equatable {
                 badge(issue == .error ? Tokens.danger : Tokens.warning)
             } else if legend.primary?.isUnknown == true, !model.isGhost {
                 badge(Tokens.warning)
-            } else if let glow = legend.swatch, !model.isGhost, legend.slots.values.allSatisfy({ $0.color == nil }) {
+            } else if let glow = model.ownGlow {
                 Circle()
                     .fill(glow.color)
                     .overlay { Circle().strokeBorder(Tokens.capEdge.color, lineWidth: 0.5) }
