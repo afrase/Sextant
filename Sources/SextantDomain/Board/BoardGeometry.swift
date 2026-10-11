@@ -87,7 +87,7 @@ public struct BoardGeometry: Hashable, Sendable {
     ///   - stagger: column-stagger profile.
     ///   - halfGap: space between the halves' inner edges in key units. Values below 2.4 are clamped so the thumb clusters can't overlap.
     ///   - navigator: side carrying a Navigator anchor, or nil.
-    public static func voyager(stagger: Stagger = .oryx, halfGap: Double = 3.0, navigator: Hand? = .right) -> BoardGeometry {
+    public static func voyager(stagger: Stagger = .oryx, halfGap: Double = 3.0, navigator: Hand? = .right) -> Self {
         let gap = max(2.4, halfGap)
         let width = 12 + gap
         let board = BoardDefinition.voyager
@@ -145,7 +145,7 @@ public struct BoardGeometry: Hashable, Sendable {
             let innerX = side == .right ? width - 5.5 - 1.0 : 5.5 + 1.0
             anchor = NavigatorAnchor(hand: side, center: CGPoint(x: innerX, y: 2.0), diameter: 0.95)
         }
-        return BoardGeometry(name: board.displayName, keys: keys, navigator: anchor, halfGap: gap, stagger: stagger)
+        return Self(name: board.displayName, keys: keys, navigator: anchor, halfGap: gap, stagger: stagger)
     }
 
     /// Key by index.

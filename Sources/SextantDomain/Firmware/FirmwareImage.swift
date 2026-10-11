@@ -17,22 +17,24 @@ public enum FirmwareImageError: Error, Equatable, Sendable, LocalizedError {
         case .tooShort: String(localized: "The file is too short to be firmware.")
         case .missingSuffix: String(localized: "The file has no DFU suffix.")
         case let .badCRC(expected, actual):
-            String(
-                localized:
-                    "The DFU suffix checksum is wrong (\(String(format: "%08X", actual)), expected \(String(format: "%08X", expected))).")
-        case let .wrongVendor(v): String(localized: "The image is for USB vendor \(String(format: "%04X", v)), not this keyboard.")
+            String(localized: "The DFU suffix checksum is wrong (\(Self.hex(actual)), expected \(Self.hex(expected))).")
+        case let .wrongVendor(v): String(localized: "The image is for USB vendor \(Self.hex(v)), not this keyboard.")
         case let .wrongProduct(image, bootloader):
-            String(
-                localized:
-                    "The image is for bootloader \(String(format: "%04X", image)), but the keyboard's is \(String(format: "%04X", bootloader))."
-            )
-        case let .unknownBootloader(pid): String(localized: "Bootloader \(String(format: "%04X", pid)) isn't one Sextant knows.")
+            String(localized: "The image is for bootloader \(Self.hex(image)), but the keyboard's is \(Self.hex(bootloader)).")
+        case let .unknownBootloader(pid): String(localized: "Bootloader \(Self.hex(pid)) isn't one Sextant knows.")
         case let .tooLarge(bytes, limit): String(localized: "The image is \(bytes) bytes; this keyboard takes at most \(limit).")
-        case let .badStackPointer(sp): String(localized: "The image's stack pointer \(String(format: "%08X", sp)) is outside RAM.")
-        case let .badResetVector(rv):
-            String(localized: "The image's start address \(String(format: "%08X", rv)) is outside the application area.")
+        case let .badStackPointer(sp): String(localized: "The image's stack pointer \(Self.hex(sp)) is outside RAM.")
+        case let .badResetVector(rv): String(localized: "The image's start address \(Self.hex(rv)) is outside the application area.")
         }
     }
+
+    private static func hex(_ v: some BinaryInteger) -> String {
+        String(v, radix: 16, uppercase: true).leftPadded(to: v.bitWidth / 4)
+    }
+}
+
+extension String {
+    fileprivate func leftPadded(to width: Int) -> String { String(repeating: "0", count: max(0, width - count)) + self }
 }
 
 /// A firmware file: payload plus its 16-byte DFU suffix (DFU 1.1 appendix B).
@@ -79,13 +81,13 @@ public struct FirmwareImage: Hashable, Sendable {
     }
 
     /// Appends a DFU suffix (for tests and for builds whose toolchain didn't add one).
-    public static func withSuffix(_ payload: Data, vendorID: UInt16, productID: UInt16) -> FirmwareImage {
+    public static func withSuffix(_ payload: Data, vendorID: UInt16, productID: UInt16) -> Self {
         var d = payload
         d.append(contentsOf: [0xFF, 0xFF, UInt8(productID & 0xFF), UInt8(productID >> 8), UInt8(vendorID & 0xFF), UInt8(vendorID >> 8)])
         d.append(contentsOf: [0x00, 0x01, 0x55, 0x46, 0x44, 16])
         let crc = crc(d)
         d.append(contentsOf: [UInt8(crc & 0xFF), UInt8((crc >> 8) & 0xFF), UInt8((crc >> 16) & 0xFF), UInt8(crc >> 24)])
-        return FirmwareImage(data: d)
+        return Self(data: d)
     }
 
     private func le16(_ offset: Int) -> UInt16 {

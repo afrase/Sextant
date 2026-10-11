@@ -82,9 +82,9 @@ public struct Key: Hashable, Sendable {
     }
 
     /// `KC_TRANSPARENT` (what Oryx generates for an empty key).
-    public static let transparent = Key(tap: .transparent)
+    public static let transparent = Self(tap: .transparent)
     /// `KC_NO`.
-    public static let none = Key(tap: KeyAction.none)
+    public static let none = Self(tap: KeyAction.none)
 
     /// Get or set the action in a slot.
     public subscript(slot: KeySlot) -> KeyAction? {

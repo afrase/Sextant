@@ -229,7 +229,7 @@ struct KeyCap: View, Equatable {
         .allowsHitTesting(false)
     }
 
-    nonisolated static func == (a: KeyCap, b: KeyCap) -> Bool { a.model == b.model && a.u == b.u }
+    nonisolated static func == (a: Self, b: Self) -> Bool { a.model == b.model && a.u == b.u }
 }
 
 /// One action drawn as a cap legend: glyph, word, symbol with caption, swatch or label (spec §4.3).

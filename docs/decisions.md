@@ -17,10 +17,11 @@ The index of settled decisions. From decision 6 on, each has an ADR in [`adr/`](
 | 11 | 2026-10-11 | App bundle: SwiftPM plus `scripts/bundle`, no Xcode project | [ADR 0011](adr/0011-app-bundle.md) |
 | 12 | 2026-10-11 | Hardware writes wired off until the user approves | [ADR 0012](adr/0012-hardware-gate.md) |
 | 13 | 2026-10-11 | Firmware checks: structure in domain, md5 in adapters | [ADR 0013](adr/0013-firmware-integrity-split.md) |
-| 14 | 2026-10-11 | One process-based toolchain adapter, two configurations | [ADR 0014](adr/0014-toolchain-backends.md). Containerization not adopted for now. |
+| 14 | 2026-10-11 | ~~One process-based toolchain adapter, two configurations~~ (superseded by 18) | [ADR 0014](adr/0014-toolchain-backends.md). Containerization not adopted for now. |
 | 15 | 2026-10-11 | Keys with no actions are transparent | [ADR 0015](adr/0015-null-keys-are-transparent.md). Deviates from spec §4.6, following Oryx's generated source. |
 | 16 | 2026-10-11 | One String Catalog, resolved from the main bundle | [ADR 0016](adr/0016-string-catalog.md). `scripts/strings` syncs it. |
 | 17 | 2026-10-11 | Boards are data: everything board-specific comes from `BoardDefinition` | [ADR 0017](adr/0017-boards-are-data.md). The user's future goal of more keyboards. |
+| 18 | 2026-10-11 | Prefer community libraries and tools; container builds by default | [ADR 0018](adr/0018-libraries-and-tooling.md). Supersedes ADR 0014. SwiftLint, Periphery, Apple and Point-Free packages. |
 
 UI taste calls: all nine decided 2026-10-11 (ui-spec §14).
 

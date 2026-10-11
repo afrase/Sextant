@@ -44,13 +44,12 @@ public actor PackageLibrary: LayoutLibrary {
 
     public func entries() throws(LibraryError) -> [LibraryEntry] {
         try scan()
-        return folders.compactMap { id, folder in
+        return folders.compactMap { _, folder in
             do {
                 return try readMeta(folder).entry
             } catch {
-                log.error(
-                    "Skipping unreadable package \(folder.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)"
-                )
+                let detail = "\(folder.lastPathComponent): \(String(describing: error))"
+                log.error("Skipping unreadable package \(detail, privacy: .public)")
                 return nil
             }
         }
@@ -193,9 +192,8 @@ public actor PackageLibrary: LayoutLibrary {
                 do {
                     return try decode(StoredRevision.self, from: url).summary
                 } catch {
-                    log.error(
-                        "Skipping unreadable revision \(url.lastPathComponent, privacy: .public): \(String(describing: error), privacy: .public)"
-                    )
+                    let detail = "\(url.lastPathComponent): \(String(describing: error))"
+                    log.error("Skipping unreadable revision \(detail, privacy: .public)")
                     return nil
                 }
             }
@@ -227,9 +225,8 @@ public actor PackageLibrary: LayoutLibrary {
             guard let meta = try? decode(Meta.self, from: folder.appending(path: "meta.json")) else { continue }
             if let existing = map[meta.id] {
                 // A copied package (Finder duplicate) shares its id: keep the folder already in use.
-                log.error(
-                    "Two packages share id \(meta.id, privacy: .public): \(existing.lastPathComponent, privacy: .public) and \(folder.lastPathComponent, privacy: .public)"
-                )
+                let detail = "\(meta.id): \(existing.lastPathComponent) and \(folder.lastPathComponent)"
+                log.error("Two packages share id \(detail, privacy: .public)")
                 if folders[meta.id] == folder { map[meta.id] = folder }
                 continue
             }

@@ -106,7 +106,8 @@ enum SnapshotWindowRenderer {
         if frameView.bounds.size != scene.size {
             // AppKit won't make a window smaller than its content's minimum size (toolbar items, split-view columns).
             print(
-                "snapshot: note: \(scene.name) is \(Int(frameView.bounds.width))×\(Int(frameView.bounds.height)) pt, not \(Int(scene.size.width))×\(Int(scene.size.height)), because the content's minimum size is larger"
+                "snapshot: note: \(scene.name) is \(Int(frameView.bounds.width))×\(Int(frameView.bounds.height)) pt, "
+                    + "not \(Int(scene.size.width))×\(Int(scene.size.height)), because the content's minimum size is larger"
             )
         }
         LayerFlattener.flatten(window: window)
@@ -128,7 +129,8 @@ enum SnapshotWindowRenderer {
         if out.height <= 0 { out.height = ceil(natural.height) }
         if natural.height > out.height + 1 || natural.width > out.width + 1 {
             print(
-                "snapshot: note: \(name) content wants \(Int(natural.width))×\(Int(natural.height)) pt but has \(Int(out.width))×\(Int(out.height)); it will be clipped (pass 0 for a dimension to fit)"
+                "snapshot: note: \(name) content wants \(Int(natural.width))×\(Int(natural.height)) pt "
+                    + "but has \(Int(out.width))×\(Int(out.height)); it will be clipped (pass 0 for a dimension to fit)"
             )
         }
         return out

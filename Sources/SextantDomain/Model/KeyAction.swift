@@ -5,14 +5,14 @@ public struct Modifiers: OptionSet, Hashable, Sendable {
     public let rawValue: UInt8
     public init(rawValue: UInt8) { self.rawValue = rawValue }
 
-    public static let leftControl = Modifiers(rawValue: 1 << 0)
-    public static let leftShift = Modifiers(rawValue: 1 << 1)
-    public static let leftOption = Modifiers(rawValue: 1 << 2)
-    public static let leftCommand = Modifiers(rawValue: 1 << 3)
-    public static let rightControl = Modifiers(rawValue: 1 << 4)
-    public static let rightShift = Modifiers(rawValue: 1 << 5)
-    public static let rightOption = Modifiers(rawValue: 1 << 6)
-    public static let rightCommand = Modifiers(rawValue: 1 << 7)
+    public static let leftControl = Self(rawValue: 1 << 0)
+    public static let leftShift = Self(rawValue: 1 << 1)
+    public static let leftOption = Self(rawValue: 1 << 2)
+    public static let leftCommand = Self(rawValue: 1 << 3)
+    public static let rightControl = Self(rawValue: 1 << 4)
+    public static let rightShift = Self(rawValue: 1 << 5)
+    public static let rightOption = Self(rawValue: 1 << 6)
+    public static let rightCommand = Self(rawValue: 1 << 7)
 
     /// ⌃⌥⇧⌘ on the left side (QMK "Hyper").
     public static let hyper: Modifiers = [.leftControl, .leftOption, .leftShift, .leftCommand]
@@ -38,7 +38,7 @@ public struct Modifiers: OptionSet, Hashable, Sendable {
     /// Readable names, e.g. "Left Command + Left Shift".
     public var names: [String] {
         var out: [String] = []
-        let pairs: [(Modifiers, String)] = [
+        let pairs: [(Self, String)] = [
             (.leftControl, "Left Control"), (.leftOption, "Left Option"), (.leftShift, "Left Shift"), (.leftCommand, "Left Command"),
             (.rightControl, "Right Control"), (.rightOption, "Right Option"), (.rightShift, "Right Shift"),
             (.rightCommand, "Right Command"),
@@ -51,7 +51,7 @@ public struct Modifiers: OptionSet, Hashable, Sendable {
     public var qmkMaskNames: [String] {
         if self == .hyper { return ["MOD_HYPR"] }
         if self == .meh { return ["MOD_MEH"] }
-        let pairs: [(Modifiers, String)] = [
+        let pairs: [(Self, String)] = [
             (.leftControl, "MOD_LCTL"), (.leftShift, "MOD_LSFT"), (.leftOption, "MOD_LALT"), (.leftCommand, "MOD_LGUI"),
             (.rightControl, "MOD_RCTL"), (.rightShift, "MOD_RSFT"), (.rightOption, "MOD_RALT"), (.rightCommand, "MOD_RGUI"),
         ]
@@ -77,7 +77,7 @@ public struct Modifiers: OptionSet, Hashable, Sendable {
 
     /// Wraps a keycode in QMK modifier functions, e.g. `LGUI(LSFT(KC_LBRC))`.
     public func wrapQMK(_ inner: String) -> String {
-        let pairs: [(Modifiers, String)] = [
+        let pairs: [(Self, String)] = [
             (.leftControl, "LCTL"), (.leftShift, "LSFT"), (.leftOption, "LALT"), (.leftCommand, "LGUI"),
             (.rightControl, "RCTL"), (.rightShift, "RSFT"), (.rightOption, "RALT"), (.rightCommand, "RGUI"),
         ]
@@ -166,12 +166,12 @@ public struct KeyAction: Hashable, Sendable {
     public var isLEDControl: Bool { KeycodeCatalog.entry(for: canonicalCode)?.category == .lighting }
 
     // Common constructors.
-    public static func code(_ code: String, modifiers: Modifiers = []) -> KeyAction { KeyAction(code: code, modifiers: modifiers) }
-    public static func momentary(_ layer: Int) -> KeyAction { KeyAction(code: "MO", layer: layer) }
-    public static func toggle(_ layer: Int) -> KeyAction { KeyAction(code: "TG", layer: layer) }
-    public static func moveTo(_ layer: Int) -> KeyAction { KeyAction(code: "TO", layer: layer) }
-    public static func oneShotLayer(_ layer: Int) -> KeyAction { KeyAction(code: "OSL", layer: layer) }
-    public static func setColor(_ color: HexColor) -> KeyAction { KeyAction(code: "RGB", color: color) }
-    public static let transparent = KeyAction(code: "KC_TRANSPARENT")
-    public static let none = KeyAction(code: "KC_NO")
+    public static func code(_ code: String, modifiers: Modifiers = []) -> Self { Self(code: code, modifiers: modifiers) }
+    public static func momentary(_ layer: Int) -> Self { Self(code: "MO", layer: layer) }
+    public static func toggle(_ layer: Int) -> Self { Self(code: "TG", layer: layer) }
+    public static func moveTo(_ layer: Int) -> Self { Self(code: "TO", layer: layer) }
+    public static func oneShotLayer(_ layer: Int) -> Self { Self(code: "OSL", layer: layer) }
+    public static func setColor(_ color: HexColor) -> Self { Self(code: "RGB", color: color) }
+    public static let transparent = Self(code: "KC_TRANSPARENT")
+    public static let none = Self(code: "KC_NO")
 }

@@ -62,7 +62,7 @@ public struct HexColor: Hashable, Sendable, Codable, CustomStringConvertible {
     // Codable as a hex string, matching Oryx's storage.
     public init(from decoder: Decoder) throws {
         let s = try decoder.singleValueContainer().decode(String.self)
-        guard let c = HexColor(hex: s) else {
+        guard let c = Self(hex: s) else {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Bad colour \(s)"))
         }
         self = c

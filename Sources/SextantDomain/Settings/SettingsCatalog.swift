@@ -39,7 +39,7 @@ public enum SettingValue: Hashable, Sendable, Codable, CustomStringConvertible {
     }
 
     // `[]` decodes as `.integers([])`, so an empty list must equal an empty list of either type.
-    public static func == (a: SettingValue, b: SettingValue) -> Bool {
+    public static func == (a: Self, b: Self) -> Bool {
         switch (a, b) {
         case let (.bool(x), .bool(y)): x == y
         case let (.number(x), .number(y)): x == y
@@ -118,7 +118,7 @@ public struct Setting: Identifiable, Hashable, Sendable {
     /// True if this setting applies to the ZSA Voyager.
     public var appliesToVoyager: Bool { boards?.contains("voyager") ?? true }
 
-    public static func == (a: Setting, b: Setting) -> Bool { a.id == b.id && a.defaultValue == b.defaultValue && a.title == b.title }
+    public static func == (a: Self, b: Self) -> Bool { a.id == b.id && a.defaultValue == b.defaultValue && a.title == b.title }
     public func hash(into h: inout Hasher) { h.combine(id) }
 
     /// Formats a value with its unit, e.g. "200 ms".
@@ -156,7 +156,7 @@ public struct SettingsCatalog: Sendable {
 
     /// The Voyager catalog, embedded in the binary (ADR 0008). `SettingsCatalogTests` proves it decodes.
     public static let voyager: SettingsCatalog = {
-        do { return try SettingsCatalog(data: Data(SettingsCatalogData.json.utf8)) } catch {
+        do { return try Self(data: Data(SettingsCatalogData.json.utf8)) } catch {
             fatalError("Embedded settings catalog failed to decode: \(error)")
         }
     }()

@@ -82,9 +82,9 @@ public struct SnapshotScene {
         _ name: String, size: CGSize, chrome: Chrome = .window(), background: Background = .windowBackground,
         windowFrame: WindowFrame = .rounded, overlays: [SnapshotOverlay] = [],
         @ViewBuilder view: @escaping @MainActor () -> V
-    ) -> [SnapshotScene] {
+    ) -> [Self] {
         SnapshotAppearance.allCases.map { a in
-            SnapshotScene(
+            Self(
                 "\(name)-\(a.rawValue)", size: size, appearance: a, chrome: chrome, background: background,
                 windowFrame: windowFrame, overlays: overlays, view: view)
         }
@@ -137,25 +137,24 @@ public struct SnapshotOverlay {
     }
 
     /// A sheet `width` points wide whose height fits its content, centred under the toolbar.
-    public static func sheet<V: View>(width: CGFloat, top: CGFloat = 64, @ViewBuilder view: @escaping @MainActor () -> V) -> SnapshotOverlay
-    {
-        SnapshotOverlay(.sheet(top: top), size: CGSize(width: width, height: 0), view: view)
+    public static func sheet<V: View>(width: CGFloat, top: CGFloat = 64, @ViewBuilder view: @escaping @MainActor () -> V) -> Self {
+        Self(.sheet(top: top), size: CGSize(width: width, height: 0), view: view)
     }
 
     /// A sheet of `size`, centred under the toolbar.
-    public static func sheet<V: View>(size: CGSize, top: CGFloat = 64, @ViewBuilder view: @escaping @MainActor () -> V) -> SnapshotOverlay {
-        SnapshotOverlay(.sheet(top: top), size: size, view: view)
+    public static func sheet<V: View>(size: CGSize, top: CGFloat = 64, @ViewBuilder view: @escaping @MainActor () -> V) -> Self {
+        Self(.sheet(top: top), size: size, view: view)
     }
 
     /// A popover of `size` attached to `anchor` (window points) on `edge`.
     public static func popover<V: View>(size: CGSize, anchor: CGRect, edge: Edge = .bottom, @ViewBuilder view: @escaping @MainActor () -> V)
-        -> SnapshotOverlay
+        -> Self
     {
-        SnapshotOverlay(.popover(anchor: anchor, edge: edge), size: size, view: view)
+        Self(.popover(anchor: anchor, edge: edge), size: size, view: view)
     }
 
     /// A menu of `size` with its top-left at `origin`.
-    public static func menu<V: View>(size: CGSize, at origin: CGPoint, @ViewBuilder view: @escaping @MainActor () -> V) -> SnapshotOverlay {
-        SnapshotOverlay(.menu(origin: origin), size: size, view: view)
+    public static func menu<V: View>(size: CGSize, at origin: CGPoint, @ViewBuilder view: @escaping @MainActor () -> V) -> Self {
+        Self(.menu(origin: origin), size: size, view: view)
     }
 }

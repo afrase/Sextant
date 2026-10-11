@@ -1,0 +1,8 @@
+#!/bin/sh
+# Unused-code scan with Periphery (prebuilt, checksum-pinned in Tools/Package.swift). Pass --strict to fail on
+# findings. Expects a fresh debug build (scripts/check builds first).
+set -eu
+cd "$(dirname "$0")/.."
+swift package --package-path Tools resolve >/dev/null
+periphery=$(find Tools/.build/artifacts -path '*/bin/periphery' -type f | head -1)
+exec "$periphery" scan --config .periphery.yml "$@"

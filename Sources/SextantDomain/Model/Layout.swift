@@ -17,8 +17,8 @@ public struct Layer: Identifiable, Hashable, Sendable {
     }
 
     /// A layer whose keys are all transparent.
-    public static func transparent(title: String, color: HexColor? = nil, keyCount: Int = BoardDefinition.voyager.keyCount) -> Layer {
-        Layer(title: title, color: color, keys: Array(repeating: .transparent, count: keyCount))
+    public static func transparent(title: String, color: HexColor? = nil, keyCount: Int = BoardDefinition.voyager.keyCount) -> Self {
+        Self(title: title, color: color, keys: Array(repeating: .transparent, count: keyCount))
     }
 }
 

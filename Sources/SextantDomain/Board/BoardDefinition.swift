@@ -61,13 +61,13 @@ public struct BoardDefinition: Hashable, Sendable {
     }
 
     /// Every board Sextant knows (ADR 0017). Adding a board is adding its definition here.
-    public static let all: [BoardDefinition] = [.voyager]
+    public static let all: [Self] = [.voyager]
 
     /// The board for an Oryx geometry name, e.g. `voyager`.
-    public static func named(_ name: String) -> BoardDefinition? { all.first { $0.name == name } }
+    public static func named(_ name: String) -> Self? { all.first { $0.name == name } }
 
     /// The ZSA Voyager.
-    public static let voyager = BoardDefinition(
+    public static let voyager = Self(
         name: "voyager",
         displayName: "ZSA Voyager",
         keys: voyagerKeys,

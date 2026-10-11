@@ -1,6 +1,6 @@
 # 14. One process-based toolchain adapter with two configurations
 
-Status: accepted, 2026-10-11
+Status: superseded by ADR 0018 (container backend by default, packages allowed), 2026-10-11
 
 ## Context
 Research recommends Apple Containerization (container image with ZSA's gcc 12.2.1) as the default and a managed native toolchain as the fallback. Containerization is a third-party package from the project's point of view, and both backends need large downloads, which need the user's approval.

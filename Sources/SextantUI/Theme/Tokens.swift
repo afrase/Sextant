@@ -95,7 +95,7 @@ public struct LayerTones: Sendable, Equatable {
         ink = Token(light: color.darkened(toContrast: 4.5, against: .white), dark: color.lightened(toContrast: 4.5, against: bandDark))
     }
 
-    public static func == (a: LayerTones, b: LayerTones) -> Bool {
+    public static func == (a: Self, b: Self) -> Bool {
         a.display.light == b.display.light && a.display.dark == b.display.dark
     }
 }

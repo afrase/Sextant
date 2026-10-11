@@ -1,0 +1,11 @@
+# Periphery (ADR 0018): unused-code report over the main package. Runs after `swift build` via scripts/periphery.
+project_root: .
+skip_build: true
+index_store_path:
+  - .build/out
+retain_codable_properties: true   # persisted fields are read by the decoder, not by code
+exclude_tests: true
+report_exclude:
+  - Sources/SextantSnapshots/**
+  - "**/VoyagerKeys.swift"
+  - "**/SettingsCatalogData.swift"

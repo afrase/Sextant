@@ -46,7 +46,7 @@ Sextant is a native macOS 26 SwiftUI app for configuring the user's ZSA Voyager.
 
 ## Code
 
-- **Toolchain:** SwiftPM, Swift 6, macOS 26. No third-party dependencies unless the user agrees.
+- **Toolchain:** SwiftPM, Swift 6, macOS 26. Prefer established community libraries and tools over writing our own (ADR 0018): pin them exactly, permissive licences only, and ask before adding new ones (downloads).
 - **Module names:** never name a module exactly `Sextant`. Prefix every target with `Sextant`.
 - **`design/` is reference, not production code:**
   - `design/PrototypeKit` (model, legends, keycodes, geometry, samples) is the seed for `SextantKit`. Port it; don't depend on it.

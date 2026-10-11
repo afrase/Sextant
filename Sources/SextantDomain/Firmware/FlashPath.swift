@@ -14,7 +14,7 @@ public struct FlashPath: Hashable, Sendable {
     }
 
     /// The shortest reachable path to a `QK_BOOT` key, or nil when the layout has none reachable.
-    public static func find(in layout: KeyboardLayout) -> FlashPath? {
+    public static func find(in layout: KeyboardLayout) -> Self? {
         nil  // Implemented in the build slice.
     }
 }

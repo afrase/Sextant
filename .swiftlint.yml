@@ -1,0 +1,148 @@
+# SwiftLint (ADR 0018). Formatting belongs to swift-format (.swift-format); SwiftLint checks code quality and
+# the layer rules SwiftPM can't enforce for system frameworks (CLAUDE.md, docs/architecture.md §1).
+
+included:
+  - Sources
+  - Tests
+excluded:
+  - Sources/SextantDomain/Board/VoyagerKeys.swift        # generated
+  - Sources/SextantDomain/Settings/SettingsCatalogData.swift  # generated
+
+disabled_rules:
+  # swift-format owns layout and spacing.
+  - trailing_comma
+  - opening_brace
+  - vertical_whitespace_opening_braces
+  - closure_parameter_position
+  - multiple_closures_with_trailing_closure
+  - todo                      # TODOs are tracked as `shortcut:` comments instead
+
+opt_in_rules:
+  - array_init
+  - closure_body_length
+  - collection_alignment
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - contains_over_first_not_nil
+  - discouraged_object_literal
+  - empty_collection_literal
+  - empty_count
+  - empty_string
+  - fatal_error_message
+  - first_where
+  - flatmap_over_map_reduce
+  - identical_operands
+  - implicitly_unwrapped_optional
+  - last_where
+  - legacy_multiple
+  - legacy_objc_type
+  - lower_acl_than_parent
+  - modifier_order
+  - overridden_super_call
+  - prefer_self_in_static_references
+  - prefer_zero_over_explicit_init
+  - private_swiftui_state
+  - reduce_into
+  - redundant_nil_coalescing
+  - redundant_type_annotation
+  - sorted_first_last
+  - static_operator
+  - strong_iboutlet
+  - toggle_bool
+  - unavailable_function
+  - unneeded_parentheses_in_closure_argument
+  - unowned_variable_capture
+  - yoda_condition
+
+line_length:
+  warning: 140
+  error: 160
+  ignores_comments: true
+  ignores_urls: true
+identifier_name:
+  min_length: 1
+  max_length: 60
+  allowed_symbols: ["_"]
+type_name:
+  max_length: 60
+function_body_length:
+  warning: 80
+  error: 120
+type_body_length:
+  warning: 400
+  error: 600
+file_length:
+  warning: 600
+  error: 900
+cyclomatic_complexity:
+  warning: 15
+  error: 25
+  ignores_case_statements: true
+closure_body_length:
+  warning: 40
+  error: 80
+large_tuple:
+  warning: 4
+  error: 5
+nesting:
+  type_level: 2
+
+# Layer rules: which system frameworks each layer may import, and APIs the inner layers may not touch.
+# Imports between Sextant modules are enforced by Package.swift target dependencies.
+custom_rules:
+  domain_imports:
+    name: "Domain imports"
+    included: "Sources/SextantDomain/.*\\.swift"
+    regex: "^import (?!(Foundation|CoreGraphics)\\b)\\w+"
+    message: "The domain may import only Foundation and CoreGraphics value types (ADR 0008)."
+    severity: error
+  domain_purity:
+    name: "Domain purity"
+    included: "Sources/SextantDomain/.*\\.swift"
+    regex: "\\b(FileManager|URLSession|ProcessInfo|DispatchQueue|Bundle\\.(main|module))\\b|Data\\(contentsOf|\\.write\\(to|Task\\.sleep"
+    match_kinds: [identifier, keyword, typeidentifier]
+    message: "The domain is pure: no I/O, clocks or concurrency."
+    severity: error
+  application_imports:
+    name: "Application imports"
+    included: "Sources/SextantApplication/.*\\.swift"
+    regex: "^import (?!(Foundation|Observation|os|AsyncAlgorithms|SextantDomain)\\b)\\w+"
+    message: "Use cases reach the outside world only through ports."
+    severity: error
+  application_io:
+    name: "Application I/O"
+    included: "Sources/SextantApplication/.*\\.swift"
+    regex: "\\b(FileManager|URLSession|Process|IOHIDManager)\\b|Data\\(contentsOf|\\.write\\(to"
+    match_kinds: [identifier, typeidentifier]
+    message: "Use cases reach the outside world only through ports."
+    severity: error
+  storage_imports:
+    name: "Storage imports"
+    included: "Sources/SextantStorage/.*\\.swift"
+    regex: "^import (?!(Foundation|CryptoKit|os|SextantApplication|SextantDomain)\\b)\\w+"
+    message: "Storage is a file adapter: Foundation and CryptoKit only."
+    severity: error
+  oryx_imports:
+    name: "Oryx imports"
+    included: "Sources/SextantOryx/.*\\.swift"
+    regex: "^import (?!(Foundation|CryptoKit|os|SextantApplication|SextantDomain)\\b)\\w+"
+    message: "The Oryx adapter uses Foundation networking and CryptoKit only."
+    severity: error
+  build_imports:
+    name: "Build imports"
+    included: "Sources/SextantBuild/.*\\.swift"
+    regex: "^import (?!(Foundation|os|Subprocess|System|SextantApplication|SextantDomain)\\b)\\w+"
+    message: "The build adapter generates source and runs processes; no UI or device frameworks."
+    severity: error
+  device_imports:
+    name: "Device imports"
+    included: "Sources/SextantDevice/.*\\.swift"
+    regex: "^import (?!(Foundation|IOKit|IOUSBHost|CryptoKit|Carbon|Dispatch|Synchronization|os|SextantApplication|SextantDomain)\\b)\\w+"
+    message: "The device adapter speaks USB and HID; no UI frameworks."
+    severity: error
+  ui_imports:
+    name: "UI imports"
+    included: "Sources/SextantUI/.*\\.swift"
+    regex: "^import (?!(SwiftUI|AppKit|Foundation|Observation|Accessibility|UniformTypeIdentifiers|CoreGraphics|os|SextantApplication|SextantDomain)\\b)\\w+"
+    message: "Views never touch adapters (SextantStorage, SextantOryx, SextantBuild, SextantDevice)."
+    severity: error

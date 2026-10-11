@@ -126,7 +126,7 @@ Raw-HID writes (pairing, protocol query) and flashing need the user's explicit h
 - **`SextantStorage.PackageLibrary`** (actor): §6 format; atomic writes (`Data.write(options: .atomic)`); SHA-256 content hash of the canonical JSON; trash via `FileManager.trashItem`.
 - **`SextantOryx.OryxClient`** (struct over an injected `URLSession`): `POST https://oryx.zsa.io/graphql` with the `getLayout` query and a descriptive User-Agent; `GET /firmware/{rev}` with md5 enforced. Never logs in, never mutates. Contract tests use a `URLProtocol` stub with fixture JSON from `docs/research/oryx-examples/`.
 - **`SextantBuild.QMKGenerator`** (struct, pure): emits `keymap.c`, `config.h`, `rules.mk`, `keymap.json` (and `i18n.h` when needed) following research 02 §4, keeping `zsa/oryx`, `zsa/defaults` and the Navigator modules. Emits a source map (keymap.c line → `KeyRef`).
-- **`SextantBuild.ProcessToolchain`** (struct): runs a configured command (native `qmk compile` in a managed QMK home, or the `container` CLI with a pinned image) in a per-build directory, streams output, parses `file:line:col: error:` diagnostics and the size line, appends nothing to the `.bin` (the build adds the suffix). One type, two configurations.
+- **`SextantBuild` toolchains** (ADR 0018): `ContainerToolchain` (default) runs `qmk compile` in a pinned Debian image with ZSA's gcc 12.2.1 through Apple's Containerization package; the image is fetched only from the first build's setup step, with consent. `NativeToolchain` (fallback) runs a managed native toolchain through swift-subprocess. Both stream output and share the `file:line:col: error:` diagnostic and size parsers.
 - **`SextantDevice.IOKitDeviceWatcher`** (actor): `IOServiceAddMatchingNotification` for VID `0x3297`, PIDs from `BoardDefinition`; reads serial and `bcdDevice`. Read-only.
 - **`SextantDevice.RawHIDLink`** (actor on its own serial dispatch queue): IOHIDManager matching usage page `0xFF60` / usage `0x61` only, opened non-exclusively, 32-byte reports. Oryx protocol v5 parsing lives behind an internal `HIDTransport` protocol so it is tested with a fake transport.
 - **`SextantDevice.DFUFlasher`** (actor on its own serial queue): DFU 1.1 + DfuSe over an internal `USBControlTransport` protocol, implemented with `IOUSBHostInterface.sendDeviceRequest`. Guards, all unit-tested against a fake DfuSe device: address window `[0x08002000, 0x08042000)` on every erase and write, never MASS_ERASE, image re-validated for the connected PID, md5 check, GETSTATUS polls capped (count and total time), `dfuERROR` is failure, CLRSTATUS once at start only.
@@ -185,7 +185,7 @@ My MacOS Layout-1F3A9C.sextant/
 | Device | unit with fake transports | DFU guards and algorithm against a fake DfuSe device; Oryx HID protocol parsing; matrix → index |
 | UI | view-model unit tests; offscreen snapshots via `swift run SextantSnapshots <dir>` | snapshots are looked at, not diffed |
 
-`scripts/check`: `swift format lint --strict` over `Sources` and `Tests` (config in `.swift-format`), a warnings-as-errors build (`-Xswiftc -warnings-as-errors`), and `swift test`. `scripts/strings` syncs the String Catalog (ADR 0016).
+`scripts/check` (ADR 0018): swift-format lint (`.swift-format`; force unwraps and force tries banned in Sources), SwiftLint (`.swiftlint.yml`: quality rules plus path-scoped layer import rules), a warnings-as-errors build, `swift test`, and a Periphery unused-code report (`.periphery.yml`). `scripts/strings` syncs the String Catalog (ADR 0016).
 
 ## 9. Building the app bundle
 

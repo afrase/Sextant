@@ -84,7 +84,8 @@ struct PackageLibraryTests {
     @Test func hashIsStableAndContentSensitive() throws {
         var other = layout
         other.title = "x"
-        #expect(try PackageLibrary.contentHash(layout) == PackageLibrary.contentHash(layout))
-        #expect(try PackageLibrary.contentHash(layout) != PackageLibrary.contentHash(other))
+        let first = try PackageLibrary.contentHash(layout), second = try PackageLibrary.contentHash(layout)
+        #expect(first == second)
+        #expect(try first != PackageLibrary.contentHash(other))
     }
 }

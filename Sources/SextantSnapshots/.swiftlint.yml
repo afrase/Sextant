@@ -1,0 +1,3 @@
+# The ported offscreen renderer (dev tool) passes rendering context explicitly.
+disabled_rules:
+  - function_parameter_count
