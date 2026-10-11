@@ -13,6 +13,8 @@ public final class Library {
     public var lastError: LibraryError?
 
     @ObservationIgnored private let store: any LayoutLibrary
+    /// Open documents, so an import lands in the open one instead of behind it, where its autosave would undo it.
+    @ObservationIgnored private var sessions: [UUID: OpenSession] = [:]
     @ObservationIgnored private let log = Logger(subsystem: "com.sextant.app", category: "application")
 
     public init(store: any LayoutLibrary) {
@@ -30,8 +32,9 @@ public final class Library {
 
     /// Opens a layout for editing.
     public func open(_ id: UUID, autosaveDelay: Duration = .seconds(1)) async throws(LibraryError) -> EditSession {
-        let stored = try await store.load(id)
-        return EditSession(stored: stored, library: store, autosaveDelay: autosaveDelay)
+        let session = EditSession(stored: try await store.load(id), library: store, autosaveDelay: autosaveDelay)
+        sessions[id] = OpenSession(session: session)
+        return session
     }
 
     /// Imports an Oryx layout JSON file (GraphQL response or bare layout) as a new library layout,
@@ -48,14 +51,35 @@ public final class Library {
     }
 
     /// Adds an imported layout: strips Oryx's " [fork]" suffix and records an import revision (spec §2.3).
+    ///
+    /// With `existing`, the import becomes a new revision of that layout instead, made through its open document
+    /// when there is one (undoable there): see ``EditSession/applyImport(_:)``.
+    /// `firmware` is Oryx's md5-verified image for the layout's revision; it is kept when given.
     @discardableResult
-    public func add(imported layout: KeyboardLayout) async throws(LibraryError) -> LibraryEntry {
+    public func add(
+        imported layout: KeyboardLayout, asRevisionOf existing: UUID? = nil, firmware: Data? = nil
+    ) async throws(LibraryError) -> LibraryEntry {
         var layout = layout
         layout.title = Self.cleanImportedTitle(layout.title)
-        let origin: LayoutOrigin = layout.oryx.map { .oryx(layoutId: $0.layoutId, revisionId: $0.revisionId) } ?? .local
-        let entry = try await store.create(
-            layout, origin: origin,
-            firstRevision: RevisionDraft(source: .import, message: layout.oryx?.message, layout: layout))
+        let entry: LibraryEntry
+        if let existing {
+            let session = if let open = sessions[existing]?.session { open } else { try await open(existing) }
+            try await session.applyImport(layout)
+            entry = try await store.load(existing).entry
+        } else {
+            let origin: LayoutOrigin = layout.oryx.map { .oryx(layoutId: $0.layoutId, revisionId: $0.revisionId) } ?? .local
+            entry = try await store.create(
+                layout, origin: origin,
+                firstRevision: RevisionDraft(source: .import, message: layout.oryx?.message, layout: layout))
+        }
+        if let firmware, let info = layout.oryx, let md5 = info.md5 {
+            do {
+                try await store.storeFirmware(firmware, md5: md5, revisionID: info.revisionId, to: entry.id)
+            } catch {
+                // The layout is in; Oryx's build is only a fallback to building locally.
+                log.error("Keeping Oryx's firmware failed: \(String(describing: error), privacy: .public)")
+            }
+        }
         log.info("Imported layout \(entry.id, privacy: .public)")
         await refresh()
         return entry
@@ -86,6 +110,8 @@ public final class Library {
         if t.hasSuffix("[fork]") { t = String(t.dropLast("[fork]".count)).trimmingCharacters(in: .whitespaces) }
         return t.isEmpty ? String(localized: "Untitled Layout") : t
     }
+
+    private struct OpenSession { weak var session: EditSession? }
 
     private func run(_ body: () async throws(LibraryError) -> Void) async {
         do {

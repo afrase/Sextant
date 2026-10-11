@@ -31,7 +31,7 @@ private actor MemoryLibrary: LayoutLibrary {
     func entries() -> [LibraryEntry] { items.values.map(\.0) }
     func load(_ id: UUID) throws(LibraryError) -> StoredLayout {
         guard let (e, l) = items[id] else { throw .notFound(id) }
-        return StoredLayout(entry: e, layout: l, revisions: [])
+        return StoredLayout(entry: e, layout: l, contentHash: "", revisions: [])
     }
     func create(_ layout: KeyboardLayout, origin: LayoutOrigin, firstRevision: RevisionDraft?) -> LibraryEntry {
         let e = LibraryEntry(id: UUID(), title: layout.title, origin: origin, modifiedAt: Date())
@@ -47,4 +47,6 @@ private actor MemoryLibrary: LayoutLibrary {
     func duplicate(_ id: UUID) throws(LibraryError) -> LibraryEntry { throw .notFound(id) }
     func trash(_ id: UUID) {}
     func location(of id: UUID) -> URL? { nil }
+    func storeFirmware(_ data: Data, md5: String, revisionID: String, to id: UUID) {}
+    func firmware(revisionID: String, of id: UUID) -> (data: Data, md5: String)? { nil }
 }

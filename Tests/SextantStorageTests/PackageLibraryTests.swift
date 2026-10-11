@@ -28,6 +28,7 @@ struct PackageLibraryTests {
         #expect(stored.revisions.count == 1)
         #expect(stored.revisions[0].id.hasPrefix("0001-"))
         #expect(stored.revisions[0].contentHash.hasPrefix("sha256:"))
+        #expect(!stored.hasEditsSinceLastRevision, "the working copy's hash matches its import revision's")
         let folder = try #require(await library.location(of: entry.id))
         #expect(folder.pathExtension == "sextant")
         for file in ["meta.json", "layout.json", "revisions/\(stored.revisions[0].id).json"] {
@@ -53,6 +54,9 @@ struct PackageLibraryTests {
         #expect(try await library.layout(ofRevision: r1.id, in: entry.id) == edited)
         await #expect(throws: LibraryError.self) { try await library.layout(ofRevision: "../meta", in: entry.id) }
         await #expect(throws: LibraryError.self) { try await library.layout(ofRevision: "0009-missing", in: entry.id) }
+        #expect(!stored.hasEditsSinceLastRevision)
+        try await library.save(layout, to: entry.id)
+        #expect(try await library.load(entry.id).hasEditsSinceLastRevision)
     }
 
     @Test func renamesDuplicatesAndTrashes() async throws {
@@ -78,6 +82,58 @@ struct PackageLibraryTests {
             of: "\"formatVersion\" : 1", with: "\"formatVersion\" : 2")
         try text.write(to: meta, atomically: true, encoding: .utf8)
         await #expect(throws: LibraryError.newerFormat(2)) { try await library.load(entry.id) }
+    }
+
+    @Test func anOryxOriginFollowsTheImportedRevision() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let imported = try await library.create(layout, origin: .oryx(layoutId: "KlgM7", revisionId: "40xJ7M"), firstRevision: nil)
+        let local = try await library.create(layout, origin: .local, firstRevision: nil)
+        var newer = layout
+        newer.oryx?.revisionId = "N3wRev"
+        try await library.save(newer, to: imported.id)
+        try await library.save(newer, to: local.id)
+        #expect(try await library.load(imported.id).entry.origin == .oryx(layoutId: "KlgM7", revisionId: "N3wRev"))
+        #expect(try await library.load(local.id).entry.origin == .local)
+
+        var other = newer
+        other.oryx?.layoutId = "Other1"
+        try await library.save(other, to: imported.id)
+        #expect(try await library.load(imported.id).entry.origin == .oryx(layoutId: "KlgM7", revisionId: "N3wRev"))
+    }
+
+    @Test func keepsFirmwarePerRevision() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await library.create(layout, origin: .local, firstRevision: nil)
+        #expect(try await library.firmware(revisionID: "40xJ7M", of: entry.id) == nil)
+
+        try await library.storeFirmware(Data([1, 2, 3]), md5: "ABC123", revisionID: "40xJ7M", to: entry.id)
+        let folder = try #require(await library.location(of: entry.id))
+        for file in ["firmware/40xJ7M.bin", "firmware/40xJ7M.bin.md5"] {
+            #expect(FileManager.default.fileExists(atPath: folder.appending(path: file).path), "\(file)")
+        }
+        var kept = try #require(try await library.firmware(revisionID: "40xJ7M", of: entry.id))
+        #expect(kept.data == Data([1, 2, 3]) && kept.md5 == "abc123")
+
+        try await library.storeFirmware(Data([4]), md5: "def456", revisionID: "40xJ7M", to: entry.id)
+        kept = try #require(try await library.firmware(revisionID: "40xJ7M", of: entry.id))
+        #expect(kept.data == Data([4]) && kept.md5 == "def456", "a rebuilt revision replaces its image")
+        #expect(try await library.firmware(revisionID: "0002-3b9f2c1e", of: entry.id) == nil)
+
+        try FileManager.default.removeItem(at: folder.appending(path: "firmware/40xJ7M.bin.md5"))
+        #expect(try await library.firmware(revisionID: "40xJ7M", of: entry.id) == nil, "an image without its md5 isn't kept")
+    }
+
+    @Test func refusesFirmwareOutsideThePackage() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await library.create(layout, origin: .local, firstRevision: nil)
+        for id in ["", "../escape", "a/b", ".hidden", String(repeating: "x", count: 65)] {
+            await #expect(throws: LibraryError.self) { try await library.storeFirmware(Data(), md5: "", revisionID: id, to: entry.id) }
+            await #expect(throws: LibraryError.self) { try await library.firmware(revisionID: id, of: entry.id) }
+        }
+        let missing = UUID()
+        await #expect(throws: LibraryError.notFound(missing)) {
+            try await library.storeFirmware(Data(), md5: "", revisionID: "40xJ7M", to: missing)
+        }
     }
 
     @Test func anEmptyLibraryHasNoEntries() async throws {

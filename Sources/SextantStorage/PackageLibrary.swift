@@ -11,6 +11,7 @@ import os
 ///   meta.json            format version, id, title, origin, dates, content hash
 ///   layout.json          the working copy (Oryx-shaped layout JSON)
 ///   revisions/NNNN-<hash8>.json   append-only checkpoints
+///   firmware/<revision>.bin       an Oryx- or Sextant-built image, plus <revision>.bin.md5
 /// ```
 public actor PackageLibrary: LayoutLibrary {
     /// The package format this build writes. Newer packages are refused, not misread.
@@ -60,7 +61,7 @@ public actor PackageLibrary: LayoutLibrary {
         let folder = try folder(for: id)
         let meta = try readMeta(folder)
         let layout = try decode(KeyboardLayout.self, from: folder.appending(path: "layout.json"))
-        return StoredLayout(entry: meta.entry, layout: layout, revisions: revisions(in: folder))
+        return StoredLayout(entry: meta.entry, layout: layout, contentHash: meta.contentHash, revisions: revisions(in: folder))
     }
 
     public func create(_ layout: KeyboardLayout, origin: LayoutOrigin, firstRevision: RevisionDraft?) throws(LibraryError) -> LibraryEntry {
@@ -86,6 +87,7 @@ public actor PackageLibrary: LayoutLibrary {
         meta.title = layout.title
         meta.modifiedAt = now()
         meta.contentHash = try Self.contentHash(layout)
+        meta.origin = Meta.Origin(meta.origin.model.following(layout))
         try write(meta, to: folder.appending(path: "meta.json"))
     }
 
@@ -129,6 +131,27 @@ public actor PackageLibrary: LayoutLibrary {
 
     public func location(of id: UUID) -> URL? {
         try? folder(for: id)
+    }
+
+    public func storeFirmware(_ data: Data, md5: String, revisionID: String, to id: UUID) throws(LibraryError) {
+        let bin = try firmwareFile(revisionID, in: folder(for: id))
+        let sum = bin.appendingPathExtension("md5")
+        // The checksum is removed first and written last, so an image is never paired with another image's md5.
+        try io {
+            try FileManager.default.createDirectory(at: bin.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if FileManager.default.fileExists(atPath: sum.path) { try FileManager.default.removeItem(at: sum) }
+            try data.write(to: bin, options: .atomic)
+            try Data(md5.lowercased().utf8).write(to: sum, options: .atomic)
+        }
+    }
+
+    public func firmware(revisionID: String, of id: UUID) throws(LibraryError) -> (data: Data, md5: String)? {
+        let bin = try firmwareFile(revisionID, in: folder(for: id))
+        let sum = bin.appendingPathExtension("md5")
+        guard FileManager.default.fileExists(atPath: bin.path), FileManager.default.fileExists(atPath: sum.path) else { return nil }
+        return try io {
+            (try Data(contentsOf: bin), try String(contentsOf: sum, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines))
+        }
     }
 
     // MARK: Package files
@@ -208,6 +231,14 @@ public actor PackageLibrary: LayoutLibrary {
                 }
             }
             .sorted { $0.number < $1.number }
+    }
+
+    /// `firmware/<revisionID>.bin`. The id names a file, so only letters, digits, `-` and `_` are accepted.
+    private func firmwareFile(_ revisionID: String, in folder: URL) throws(LibraryError) -> URL {
+        guard (1...64).contains(revisionID.count),
+            revisionID.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") })
+        else { throw .io("Invalid revision id \(revisionID)") }
+        return folder.appending(path: "firmware/\(revisionID).bin")
     }
 
     private func readMeta(_ folder: URL) throws(LibraryError) -> Meta {

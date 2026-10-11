@@ -7,6 +7,12 @@ public enum LayoutOrigin: Hashable, Sendable {
     case local
     /// Imported read-only from Oryx.
     case oryx(layoutId: String, revisionId: String)
+
+    /// The origin once `layout` is the working copy: an Oryx origin follows an import of the same Oryx layout.
+    public func following(_ layout: KeyboardLayout) -> Self {
+        guard case let .oryx(layoutId, _) = self, let oryx = layout.oryx, oryx.layoutId == layoutId else { return self }
+        return .oryx(layoutId: layoutId, revisionId: oryx.revisionId)
+    }
 }
 
 /// One layout in the library, as the sidebar lists it.
@@ -67,14 +73,20 @@ public struct RevisionSummary: Identifiable, Hashable, Sendable {
 public struct StoredLayout: Sendable {
     public var entry: LibraryEntry
     public var layout: KeyboardLayout
+    /// The working copy's hash, comparable with ``RevisionSummary/contentHash``.
+    public var contentHash: String
     /// Oldest first.
     public var revisions: [RevisionSummary]
 
-    public init(entry: LibraryEntry, layout: KeyboardLayout, revisions: [RevisionSummary]) {
+    public init(entry: LibraryEntry, layout: KeyboardLayout, contentHash: String, revisions: [RevisionSummary]) {
         self.entry = entry
         self.layout = layout
+        self.contentHash = contentHash
         self.revisions = revisions
     }
+
+    /// Whether the working copy differs from the latest revision.
+    public var hasEditsSinceLastRevision: Bool { contentHash != revisions.last?.contentHash }
 }
 
 /// Errors from the layout library.
@@ -104,7 +116,8 @@ public protocol LayoutLibrary: Sendable {
     func load(_ id: UUID) async throws(LibraryError) -> StoredLayout
     /// Adds a layout, optionally with its first revision (an import records one).
     func create(_ layout: KeyboardLayout, origin: LayoutOrigin, firstRevision: RevisionDraft?) async throws(LibraryError) -> LibraryEntry
-    /// Overwrites the working copy (autosave).
+    /// Overwrites the working copy (autosave). An Oryx origin follows the layout's Oryx revision when an import
+    /// of the same Oryx layout replaces the working copy.
     func save(_ layout: KeyboardLayout, to id: UUID) async throws(LibraryError)
     func appendRevision(_ draft: RevisionDraft, to id: UUID) async throws(LibraryError) -> RevisionSummary
     /// The layout a revision recorded (the firmware identity rule compares against the latest import).
@@ -113,6 +126,10 @@ public protocol LayoutLibrary: Sendable {
     func duplicate(_ id: UUID) async throws(LibraryError) -> LibraryEntry
     /// Moves the layout to the Trash.
     func trash(_ id: UUID) async throws(LibraryError)
+    /// Keeps a firmware image for one of the layout's revisions with its md5, replacing any image kept for it.
+    func storeFirmware(_ data: Data, md5: String, revisionID: String, to id: UUID) async throws(LibraryError)
+    /// The firmware image kept for a revision and its md5, or nil when none is kept.
+    func firmware(revisionID: String, of id: UUID) async throws(LibraryError) -> (data: Data, md5: String)?
     /// The package folder, for Show in Finder.
     func location(of id: UUID) async -> URL?
 }

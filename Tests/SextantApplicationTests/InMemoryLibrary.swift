@@ -8,17 +8,24 @@ actor InMemoryLibrary: LayoutLibrary {
         var entry: LibraryEntry
         var layout: KeyboardLayout
         var revisions: [RevisionSummary] = []
+        /// The layout each revision recorded, by revision id.
         var revisionLayouts: [String: KeyboardLayout] = [:]
+        var firmware: [String: (data: Data, md5: String)] = [:]
     }
 
     private(set) var items: [UUID: Item] = [:]
     private(set) var saveCount = 0
+    private var loadHook: (@Sendable () async -> Void)?
 
     func entries() -> [LibraryEntry] { items.values.map(\.entry).sorted { $0.modifiedAt > $1.modifiedAt } }
 
-    func load(_ id: UUID) throws(LibraryError) -> StoredLayout {
+    /// Runs `body` at the start of every load, e.g. to change the UI while a save is in flight.
+    func beforeLoad(_ body: @escaping @Sendable () async -> Void) { loadHook = body }
+
+    func load(_ id: UUID) async throws(LibraryError) -> StoredLayout {
+        await loadHook?()
         guard let i = items[id] else { throw .notFound(id) }
-        return StoredLayout(entry: i.entry, layout: i.layout, revisions: i.revisions)
+        return StoredLayout(entry: i.entry, layout: i.layout, contentHash: Self.hash(i.layout), revisions: i.revisions)
     }
 
     func create(_ layout: KeyboardLayout, origin: LayoutOrigin, firstRevision: RevisionDraft?) throws(LibraryError) -> LibraryEntry {
@@ -28,10 +35,17 @@ actor InMemoryLibrary: LayoutLibrary {
         return entry
     }
 
+    /// When set, every `save` fails with this error (disk full, permissions).
+    var saveFailure: LibraryError?
+    func failSaves(with error: LibraryError?) { saveFailure = error }
+
     func save(_ layout: KeyboardLayout, to id: UUID) throws(LibraryError) {
-        guard items[id] != nil else { throw .notFound(id) }
-        items[id]?.layout = layout
-        items[id]?.entry.title = layout.title
+        if let saveFailure { throw saveFailure }
+        guard var item = items[id] else { throw .notFound(id) }
+        item.layout = layout
+        item.entry.title = layout.title
+        item.entry.origin = item.entry.origin.following(layout)
+        items[id] = item
         saveCount += 1
     }
 
@@ -39,7 +53,8 @@ actor InMemoryLibrary: LayoutLibrary {
         guard let item = items[id] else { throw .notFound(id) }
         let n = item.revisions.count + 1
         let s = RevisionSummary(
-            id: "\(n)", number: n, createdAt: Date(), source: draft.source, message: draft.message, contentHash: "h\(n)")
+            id: "\(n)", number: n, createdAt: Date(), source: draft.source, message: draft.message,
+            contentHash: Self.hash(draft.layout))
         items[id]?.revisions.append(s)
         items[id]?.revisionLayouts[s.id] = draft.layout
         return s
@@ -56,8 +71,8 @@ actor InMemoryLibrary: LayoutLibrary {
         items[id]?.layout.title = title
     }
 
-    func duplicate(_ id: UUID) throws(LibraryError) -> LibraryEntry {
-        let stored = try load(id)
+    func duplicate(_ id: UUID) async throws(LibraryError) -> LibraryEntry {
+        let stored = try await load(id)
         return try create(stored.layout, origin: .local, firstRevision: nil)
     }
 
@@ -67,13 +82,29 @@ actor InMemoryLibrary: LayoutLibrary {
 
     func location(of id: UUID) -> URL? { nil }
 
+    func storeFirmware(_ data: Data, md5: String, revisionID: String, to id: UUID) throws(LibraryError) {
+        guard items[id] != nil else { throw .notFound(id) }
+        items[id]?.firmware[revisionID] = (data, md5)
+    }
+
+    func firmware(revisionID: String, of id: UUID) throws(LibraryError) -> (data: Data, md5: String)? {
+        guard let item = items[id] else { throw .notFound(id) }
+        return item.firmware[revisionID]
+    }
+
     func layout(_ id: UUID) -> KeyboardLayout? { items[id]?.layout }
+
+    /// Equal layouts hash equally within a test run, like storage's canonical hash.
+    static func hash(_ layout: KeyboardLayout) -> String { "h\(layout.hashValue)" }
 }
 
 enum Fixtures {
-    static let userLayoutData: Data = {
-        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "docs/research/oryx-examples/my-layout-KlgM7-40xJ7M.json")
-        return (try? Data(contentsOf: url)) ?? Data()
-    }()
+    static let userLayoutData = (try? data("my-layout-KlgM7-40xJ7M.json")) ?? Data()
+
+    /// A file under `docs/research/oryx-examples/` (never copied into the test bundle).
+    static func data(_ name: String) throws -> Data {
+        try Data(
+            contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+                .deletingLastPathComponent().appending(path: "docs/research/oryx-examples/\(name)"))
+    }
 }
