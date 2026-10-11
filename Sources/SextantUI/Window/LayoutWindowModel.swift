@@ -95,6 +95,8 @@ public final class LayoutWindowModel {
     // MARK: picker
     /// The open command palette or keycode picker (spec §5.6, §5.7); nil when closed.
     var palette: Palette?
+    /// Bumped when a closed panel hands keyboard focus back to the board.
+    var boardFocusRequests = 0
     /// Record Key while it listens for the next key on the Mac's keyboard (spec §5.8); nil when off.
     var recorder: KeyRecorder?
     /// Keycodes assigned from the picker and commands run from the palette, newest first (Suggested, Recent).

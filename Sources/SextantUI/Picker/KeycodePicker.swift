@@ -88,6 +88,12 @@ extension LayoutWindowModel {
 
     func closePalette() { palette = nil }
 
+    /// ⌘K and ⇧⌘O close the command palette when it is showing, like Spotlight; from the picker or Find Key they
+    /// switch to it.
+    func togglePalette() {
+        if palette?.scope == .general { closePalette() } else { openPalette() }
+    }
+
     /// The picker shows keycodes only while a key is selected; otherwise it falls back to the general palette.
     var isPicking: Bool { palette?.scope == .assign && hasSelectedKey }
 

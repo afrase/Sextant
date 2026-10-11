@@ -42,6 +42,8 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 
 - **Faster layer switching (the user found it slow):** measured offscreen in a release build at 1440×900, with the user's 3-layer layout, no key selected and no animation. A switch went from about 557 M to 375 M instructions retired (−33%), and main-thread CPU from about 57 to 41 ms. With key 24 selected it went from about 604 M to 468 M, about 62 to 50 ms. Four changes: `WindowDetail` reads the layer only inside two small modifiers, so the board evaluates once per switch; each `Token` builds its colour once; a cap keeps both faces and crossfades them by opacity, instead of rebuilding its face when it turns ghost or back; the bench grid is its own view. Window snapshots are pixel-identical. With a key selected, about 6 ms of what remains comes from the key inspector's label and colour fields, which are rebuilt per layer through their `.id`.
 
+- **Closing the palette and picker (the user couldn't make ⌘K go away):** a click outside closes the panel and still lands (a click on a key retargets the picker instead), esc closes it wherever focus is in the window, ⌘K / ⇧⌘O toggle the palette, and the board gets focus back unless the click focused a text field or a list; checked with events synthesized into an offscreen window.
+
 ## In flight
 - Nothing.
 

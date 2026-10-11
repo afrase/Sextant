@@ -733,6 +733,14 @@ The picker is the command palette component in **assign scope**.
 | ⇧⌘R | Switch to Record |
 | esc | Close |
 
+**Dismissal**
+- esc closes the picker wherever focus is in its window. An input method's composition takes esc first, and Record Key is never on at the same time.
+- A click outside the panel closes it, and the click still does what it would have done (selects that layer, presses that button). A click inside the panel never closes it.
+- A click on a key on the board retargets the picker to that key instead, as ⌘⏎ does, so several keys can be assigned in turn.
+- ⌘K or ⇧⌘O switches to the general palette.
+- The panel also closes when its window stops being key.
+- Closing gives keyboard focus to the board, so arrows and ⏎ keep working, unless the click that closed it focused a text field or a list.
+
 **Footer** (tertiary, with key hints): "↑↓ move · ⏎ assign · ⌘⏎ assign & next · ⇥ category · ⇧⌘R record · esc close". The current value is on the leading side: "Now KC_TRANSPARENT".
 
 **Motion.** The panel appears with a fade and a scale from 0.98 at its anchor, over 0.16 s (§10.6). When it comes from the general palette, it morphs using `glassEffectID`.
@@ -754,7 +762,9 @@ The picker is the command palette component in **assign scope**.
 
 **Empty query:** shows Suggested, then Recent commands.
 
-**Keys:** ↑ ↓, ⏎ to run, ⌘⏎ for the alternate action (open in a new window, or assign and advance), and esc to close. ⇧⌘O is an alias for ⌘K.
+**Keys:** ↑ ↓, ⏎ to run, ⌘⏎ for the alternate action (open in a new window, or assign and advance), and esc to close. ⇧⌘O is an alias for ⌘K. ⌘K while the palette shows closes it, like Spotlight.
+
+**Dismissal:** as the picker's (§5.6), except that a click on a key closes the palette and selects the key.
 
 ### 5.8 Record Key mode
 
@@ -1322,7 +1332,7 @@ The board is one tab stop. These keys are handled with `.onKeyPress` and `.onMov
 
 Each press of esc steps back one level:
 1. Recording → cancel.
-2. Picker or palette → close.
+2. Picker or palette → close, wherever focus is in the window.
 3. Popover → close.
 4. An in-progress gesture (combo creation, paint stroke, Assign to Key) → cancel.
 5. Key selection → deselect.

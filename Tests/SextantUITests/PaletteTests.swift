@@ -161,6 +161,35 @@ struct PaletteTests {
         #expect(model.paletteItems[safe: model.palette?.highlight ?? -1]?.keycode?.code == "KC_LBRC")
     }
 
+    @Test func commandPaletteShortcutTogglesLikeSpotlight() async throws {
+        let model = try await openUserLayout()
+        model.session?.select(key: 19)
+        model.togglePalette()
+        #expect(model.palette?.scope == .general)
+        model.togglePalette()
+        #expect(model.palette == nil, "⌘K again closes it")
+        model.openKeycodePicker()
+        model.togglePalette()
+        #expect(model.palette?.scope == .general, "from the picker it switches")
+        model.openPalette(.keys)
+        model.togglePalette()
+        #expect(model.palette?.scope == .general, "from Find Key too")
+    }
+
+    /// A click keeps the panel open on the panel, and on a key while picking (it retargets the picker).
+    @Test func aClickOutsideClosesExceptOnAKeyWhilePicking() {
+        let layout = BoardGeometry.voyager.layout(keySize: 60, spacing: 6.6)
+        let board = CGRect(origin: CGPoint(x: 200, y: 100), size: layout.size)
+        let hits = PanelHits(panel: CGRect(x: 1400, y: 50, width: 400, height: 300), board: board, layout: layout)
+        let key = layout.frames[7].center
+        let onKey = CGPoint(x: board.minX + key.x, y: board.minY + key.y)
+        #expect(hits.keepsOpen(CGPoint(x: 1500, y: 100), picking: false))
+        #expect(hits.keepsOpen(onKey, picking: true))
+        #expect(!hits.keepsOpen(onKey, picking: false), "a key closes the general palette")
+        #expect(!hits.keepsOpen(CGPoint(x: board.midX, y: board.minY + 2), picking: true), "the gap between the halves")
+        #expect(!hits.keepsOpen(CGPoint(x: 10, y: 10), picking: true))
+    }
+
     @Test func pickerAndRecordKeyEndEachOther() async throws {
         let model = try await openUserLayout()
         model.session?.select(key: 19)
