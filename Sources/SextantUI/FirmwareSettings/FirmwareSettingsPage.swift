@@ -1,0 +1,235 @@
+import SextantApplication
+import SextantDomain
+import SwiftUI
+
+/// Which firmware settings the page shows, and how they read (spec §8.8).
+enum FirmwareSettings {
+    /// The MVP core sections (spec §13.5 step 11), with the settings that apply to this layout's board and Navigator.
+    /// shortcut: RGB shows only its timeout and the other nine sections are left out; v1 shows all 100 settings.
+    static func sections(for layout: KeyboardLayout, catalog: SettingsCatalog = .voyager) -> [SettingsSection] {
+        catalog.sections.compactMap { section in
+            var section = section
+            section.settings = section.settings.filter { isCore($0, in: section.id) && applies($0, to: layout, catalog: catalog) }
+            return section.settings.isEmpty ? nil : section
+        }
+    }
+
+    private static func isCore(_ setting: Setting, in section: String) -> Bool {
+        switch section {
+        case "tapping", "oneshot", "debounce", "navigator": true
+        case "rgb": setting.id == "rgbTimeout"
+        default: false
+        }
+    }
+
+    /// The board, the Navigator kind (Navigator settings only with a Navigator) and a setting it depends on.
+    private static func applies(_ setting: Setting, to layout: KeyboardLayout, catalog: SettingsCatalog) -> Bool {
+        guard setting.appliesToVoyager else { return false }
+        if let kinds = setting.navigatorKinds, !kinds.contains(layout.navigator?.kind.rawValue ?? "") { return false }
+        guard let dependency = setting.dependsOn, let other = catalog.setting(id: dependency.id) else { return true }
+        return (layout.storedValue(of: other) ?? other.unsetValue) == dependency.value
+    }
+
+    /// Where a slider starts when it is switched on: its default, else the bottom of its range.
+    static func onValue(_ setting: Setting) -> SettingValue {
+        setting.defaultValue ?? .number(setting.range?.lowerBound ?? 0)
+    }
+}
+
+/// The Firmware Settings page (spec §8.8): a grouped Form over the settings catalog. Every change is one undo step.
+struct FirmwareSettingsPage: View {
+    var model: LayoutWindowModel
+    var session: EditSession
+
+    var body: some View {
+        let changed = session.layout.changedSettings().count
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.tint))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Firmware Settings").font(.title2.weight(.semibold))
+                    Text(
+                        changed == 1
+                            ? "Built into the firmware · 1 changed from defaults"
+                            : "Built into the firmware · \(changed) changed from defaults"
+                    )
+                    .font(.callout).foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            Divider()
+            ScrollViewReader { proxy in
+                Form {
+                    ForEach(FirmwareSettings.sections(for: session.layout)) { section in
+                        Section(section.title) {
+                            ForEach(section.settings) { SettingRow(setting: $0, session: session) }
+                        }
+                        .id(section.id)
+                    }
+                }
+                .formStyle(.grouped)
+                .onChange(of: model.settingsScrollTarget) {
+                    guard let target = model.settingsScrollTarget else { return }
+                    withAnimation { proxy.scrollTo(target, anchor: .top) }
+                    model.settingsScrollTarget = nil
+                }
+            }
+        }
+    }
+}
+
+/// One setting: title (accent dot and semibold when changed), its control, Sextant's description, and a footer with
+/// the default, Reset to Default and the setting id.
+private struct SettingRow: View {
+    var setting: Setting
+    var session: EditSession
+
+    var body: some View {
+        let stored = session.layout.storedValue(of: setting)
+        let value = stored ?? setting.unsetValue
+        let isChanged = stored.map { $0 != setting.unsetValue } ?? false
+        VStack(alignment: .leading, spacing: 6) {
+            control(value, title: title(isChanged))
+            Text(setting.summary).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                if isChanged {
+                    Text("Default \(setting.format(setting.unsetValue))").foregroundStyle(.secondary)
+                    Button("Reset to Default") { session.setSetting(setting.id, to: nil) }.buttonStyle(.link)
+                }
+                Spacer()
+                Text(verbatim: setting.id).font(.caption.monospaced()).foregroundStyle(.tertiary).textSelection(.enabled)
+            }
+            .font(.caption)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func title(_ isChanged: Bool) -> some View {
+        HStack(spacing: 6) {
+            if isChanged {
+                Circle().fill(.tint).frame(width: 6, height: 6).accessibilityHidden(true)
+            }
+            Text(setting.title).fontWeight(isChanged ? .semibold : .regular)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(isChanged ? String(localized: "Changed") : "")
+    }
+
+    @ViewBuilder
+    private func control(_ value: SettingValue?, title: some View) -> some View {
+        switch setting.control {
+        case .toggle:
+            Toggle(isOn: Binding(get: { value?.boolValue ?? false }, set: { session.setSetting(setting.id, to: .bool($0)) })) { title }
+        case .slider where setting.isToggleable:
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(
+                    isOn: Binding(
+                        get: { value != nil }, set: { session.setSetting(setting.id, to: $0 ? FirmwareSettings.onValue(setting) : nil) })
+                ) {
+                    title
+                }
+                if let number = value?.doubleValue { NumberControl(setting: setting, value: number, session: session) }
+            }
+        case .slider:
+            LabeledContent {
+                NumberControl(setting: setting, value: value?.doubleValue ?? 0, session: session).frame(maxWidth: 320)
+            } label: {
+                title
+            }
+        case .layerSelect:
+            LabeledContent {
+                LayerSelect(
+                    setting: setting, selected: value.flatMap { if case let .integers(l) = $0 { l } else { nil } } ?? [], session: session)
+            } label: {
+                title
+            }
+        case .animationSelect:
+            // shortcut: no MVP core setting uses it (RGB animations come with all 100 settings in v1).
+            LabeledContent {
+                Text(setting.format(value)).foregroundStyle(.secondary)
+            } label: {
+                title
+            }
+        }
+    }
+}
+
+/// A slider with a value field and unit. Dragging commits once, when the drag ends; the field commits on ⏎ and is
+/// clamped to the setting's range in whole steps (the firmware takes integers and refuses values out of range).
+private struct NumberControl: View {
+    var setting: Setting
+    var value: Double
+    var session: EditSession
+    @State private var draft: Double?
+
+    var body: some View {
+        let range = setting.range ?? 0...100
+        HStack(spacing: 8) {
+            // Whole steps without `step:`, which draws a tick per step (a solid bar over 1000 of them).
+            Slider(value: Binding(get: { draft ?? value }, set: { draft = $0.rounded() }), in: range) { editing in
+                guard !editing, let draft else { return }
+                commit(draft)
+                self.draft = nil
+            }
+            .labelsHidden()
+            if setting.marks.isEmpty {
+                TextField("Value", value: Binding(get: { draft ?? value }, set: { commit($0) }), format: .number.grouping(.never))
+                    .labelsHidden()
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
+                    .frame(width: 56)
+                Text(verbatim: unit).foregroundStyle(.secondary).frame(minWidth: 24, alignment: .leading)
+            } else {
+                Text(setting.format(.number(draft ?? value))).monospacedDigit().frame(minWidth: 56, alignment: .leading)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(setting.title)
+    }
+
+    private func commit(_ number: Double) {
+        let range = setting.range ?? 0...100
+        session.setSetting(setting.id, to: .number(min(max(number.rounded(), range.lowerBound), range.upperBound)))
+    }
+
+    private var unit: String {
+        switch setting.unit {
+        case "milliseconds", "ms": "ms"
+        case "seconds": "s"
+        case "minutes": "min"
+        case "degrees": "°"
+        default: ""
+        }
+    }
+}
+
+/// Picks layers (Navigator aim, turbo and drag-scroll layers).
+private struct LayerSelect: View {
+    var setting: Setting
+    var selected: [Int]
+    var session: EditSession
+
+    var body: some View {
+        let layers = session.layout.layers
+        Menu(selected.isEmpty ? String(localized: "None") : selected.compactMap { layers[safe: $0]?.title }.joined(separator: ", ")) {
+            ForEach(Array(layers.enumerated()), id: \.element.id) { index, layer in
+                Toggle(
+                    String(localized: "\(index) · \(layer.title)"),
+                    isOn: Binding(
+                        get: { selected.contains(index) },
+                        set: { on in
+                            let next = on ? (selected + [index]).sorted() : selected.filter { $0 != index }
+                            session.setSetting(setting.id, to: .integers(next))
+                        }))
+            }
+        }
+        .fixedSize()
+    }
+}

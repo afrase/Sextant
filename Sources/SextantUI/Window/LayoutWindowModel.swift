@@ -37,7 +37,7 @@ enum LaneStatus: Equatable {
 public final class LayoutWindowModel {
     public let library: Library
     /// The open layout, once loaded.
-    public private(set) var session: EditSession?
+    public internal(set) var session: EditSession?
     public private(set) var loadError: LibraryError?
     public var legendMode: LegendMode = .symbols
     public var lens: Lens = .keys
@@ -63,6 +63,16 @@ public final class LayoutWindowModel {
     @ObservationIgnored let makeImport: (@MainActor () -> ImportFromOryx)?
     /// The Build & Flash state machine for the open layout; nil where building is off (tests, snapshots).
     @ObservationIgnored let makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)?
+
+    // MARK: import
+    /// The Import from Oryx sheet's flow while the sheet is open (spec §8.1).
+    var importFlow: ImportFromOryx?
+    /// The sidebar's destination is Firmware Settings rather than a layer (spec §2.2).
+    public var showsFirmwareSettings = false
+    /// The Firmware Settings section to scroll to (the inspector's Sections list).
+    var settingsScrollTarget: String?
+    /// The layout whose Rename… alert is showing.
+    var layoutPendingRename: UUID?
 
     public init(
         library: Library, onBuild: BuildHandler? = nil, live: LiveSession? = nil,
