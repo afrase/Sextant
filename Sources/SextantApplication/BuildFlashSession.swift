@@ -151,6 +151,12 @@ public final class BuildFlashSession {
         begin(.flash, keyboard: connectedKeyboard)
     }
 
+    /// The layout of the open layout's latest import revision: what a build's identity, and so
+    /// ``LiveSession/match(_:libraryID:importedLayout:)``, compares against (ADR 0019).
+    public func importedLayout() async -> KeyboardLayout? {
+        await FirmwareIdentity.importedLayout(of: session.id, revisions: session.revisions, library: library)
+    }
+
     public func confirmReplace() {
         guard case .confirmingReplace = phase, let request else { return }
         begin(request, keyboard: nil, confirmed: true)
@@ -192,8 +198,7 @@ public final class BuildFlashSession {
             layout = session.layout
             let errors = issues(layout).filter { $0.severity == .error }
             guard errors.isEmpty else { return show(.blocked(errors)) }
-            let imported = await FirmwareIdentity.importedLayout(of: session.id, revisions: session.revisions, library: library)
-            expected = FirmwareIdentity(layout: layout, libraryID: session.id, importedLayout: imported)
+            expected = FirmwareIdentity(layout: layout, libraryID: session.id, importedLayout: await importedLayout())
         }
         if request != .build, !confirmed, let keyboard,
             (keyboard.serial.map {
