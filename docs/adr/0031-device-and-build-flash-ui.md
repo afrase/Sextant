@@ -1,0 +1,40 @@
+# 31. Device and Build & Flash in the window
+
+Status: accepted, 2026-10-11
+
+## Context
+MVP steps 9 and 10 put `LiveSession` (app-wide) and `BuildFlashSession` (one per open layout) in front of the user: the
+activity capsule, the sidebar device card, the Device popover, Follow, live presses and the Build & Flash sheet (spec
+§3.5, §3.6, §7, §8.2). The window skeleton had stand-ins: a stored `activity`, a stored `isFollowing` and an `onBuild`
+hook. Parallel UI slices own the layer controls (sidebar, ⌘1–9, the jump menu), so this slice can't hook each of them.
+
+## Decision
+- **One source of truth each.** With a live session, `LayoutWindowModel.activity` is derived on read from the live
+  session, the serial match and the Build & Flash phase (a run first, then live issues, then the keyboard). `isFollowing`
+  reads and writes `LiveSession`'s Follow, so Follow is app-wide. Without a live session (tests, snapshots) both keep a
+  settable stand-in, so existing scenes still draw fixed states.
+- **Follow by observation.** One loop per window (`followKeyboard()`, an `Observations` sequence) shows the followed
+  layer, feeds presses into `PressedKeys`, and stops following when the shown layer changes for any other reason. Any
+  hand-picked layer counts (sidebar, ⌘1–9, the jump menu, Show Key), and no layer control has to know about Follow.
+- **The serial match uses the build's rule.** `BuildFlashSession.importedLayout()` (new, tested) gives the window the
+  same import revision a build compares against, so the capsule's "On keyboard" and the build's serial agree (ADR 0019).
+  The count of edits shows only when the keyboard runs that import's Oryx build. Otherwise Sextant can't count them.
+- **Build & Flash per window.** `makeBuildFlash` makes one per opened layout. It is stopped when the window switches
+  layout or closes. ⌘R brings up the sheet and ⌘B builds quietly (the capsule shows progress). Hide only dismisses.
+  A finished flash shows "Flashed" in the capsule for 8 s, then gives way to the keyboard's status.
+- **The UI only reports.** The sheet maps every `BuildFlashSession.Phase` to the spec's copy and buttons. There is no
+  "Flash Now", and Cancel is disabled from validation on. "Download and Build" stays disabled until the user approves
+  the toolchain download. "Flash Oryx's Build" stays disabled because the use case can't flash a stored image yet.
+- **Honest copy where the use case differs from the spec.** The verify step waits for the keyboard to come back with
+  the build's serial, so it shows no percentage and says so. The DFU flasher doesn't read back, so the footer says
+  "checks the image first", not "verifies every byte".
+- **Smaller than the spec, for now.** The size meter is one bar, since the build reports no per-feature breakdown. Card
+  B lists numbered steps with the real keys as mini caps, not a rendered board close-up. The popover shows key
+  positions (`k13`), never letters, and has no event monitor yet. The device card shows only where a live session exists.
+
+## Consequences
+- Every window shows the same keyboard and Follow state; building and flashing stay per layout.
+- Undo or Add Layer changing the shown layer also stops Follow. That is consistent with "a layer chosen by hand".
+- Two windows can each wait for flash mode, and the first to see the bootloader flashes. Spec §7.6 wants other windows'
+  Build & Flash disabled while one flashes. That needs an app-wide registry of running sessions, which this slice
+  doesn't own.
