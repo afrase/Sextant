@@ -3,7 +3,7 @@
 Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. Design: `docs/architecture.md`. Decisions: `docs/decisions.md` and `docs/adr/`.
 
 ## Done
-- **Code design:** `docs/architecture.md`, ADRs 0006–0017.
+- **Code design:** `docs/architecture.md`, ADRs 0006–0018.
 - **Scaffold:** one package, a target per layer (`SextantDomain`, `SextantApplication`, `SextantStorage`, `SextantUI`), the composition root `SextantApp`, the dev tool `SextantSnapshots`. Scripts: `scripts/check` (lint, warnings-as-errors build, tests), `scripts/bundle` (signed `.app`), `scripts/strings` (String Catalog sync), `scripts/notarize` (user only).
 - **Milestone 1:** the user's layout renders read-only: `PackageLibrary` (storage) → `Library` / `EditSession` (use cases) → `LayoutWindowModel` → `BoardView`. Reviewed with a four-lens workflow; 34 confirmed findings fixed.
 
@@ -12,10 +12,15 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 - Snapshots: `swift run SextantSnapshots <dir> [--only window-light,board-brdsys-dark]`.
 - App: `scripts/bundle`, then `open .build/Sextant.app --args --import docs/research/oryx-examples/my-layout-KlgM7-40xJ7M.json` (the import writes to `~/Library/Application Support/Sextant/Library/`).
 
+- **Ports and shared domain types** for Oryx, generator, toolchain, device watcher, keyboard link and flasher; adapter skeletons.
+- **Tooling (ADR 0018):** pinned community packages; `scripts/check` runs swift-format, SwiftLint (quality + layer import rules), a warnings-as-errors build, tests and a Periphery report.
+- **Security fix:** imported numbers could crash Sextant (`Int(Double)` traps); fixed and tested.
+
+## In flight
+- Workflow `mvp-slices` (run `wf_d18cfec3-579`, base `dc87917`): five slices in worktrees on branches `slice/build`, `slice/device`, `slice/oryx`, `slice/ui`, `slice/usecases`, each implemented, reviewed by three adversarial lenses, verified, fixed and re-verified. When it finishes: review each branch, merge in the order usecases → oryx → device → build → ui, wire the composition root (hardware gate, LiveSession, BuildFlashSession, ImportFromOryx), record ADRs for the slices' decisions, run an integration review.
+
 ## Next
-1. Ports for Oryx, generator, toolchain, device watcher, keyboard link and flasher (drafted), plus shared domain types.
-2. Parallel slices: QMK generator with golden tests; device adapters (watcher, raw HID, DFU guards) on fake transports; Oryx import; window skeleton and full board (spec steps 2–3); live and build/flash use cases.
-3. Spec steps 4–7, then 11–12, then wiring 8–10 into the UI.
+1. Spec steps 4–7 (key inspector, picker and Record Key, layers, lighting), then 11–12 (firmware settings, Settings scene, empty states), then the import, device and Build & Flash UI over the merged use cases.
 
 ## Known gaps and notes
 - The "hold" marker crowds the signal bar on hold-only keys (board step).
@@ -25,7 +30,7 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 
 ## Blocked / waiting on the user
 - **Hardware (ADR 0012):** raw-HID writes (pairing for the live layer) and flashing. Built against fakes; wired off by default.
-- **Installs (ADR 0014):** a QMK toolchain or container image for real builds.
+- **Container image (ADR 0018):** the build backend is container-first; the ~1 GB image downloads only from the first build's setup step, with the user's consent. Not downloaded yet.
 
 ## Deviations from the spec
 - All-null keys render transparent, not Disabled (ADR 0015): Oryx's generated firmware makes them `KC_TRANSPARENT`.
