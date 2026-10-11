@@ -16,7 +16,7 @@ struct LayerInspector: View {
                 Text(layer.title).font(.title3.weight(.semibold))
             }
             Group {
-                LabeledContent("Name") { LayerNameField(session: session, layer: layer).id(layer.id) }
+                LabeledContent("Name") { LayerNameField(model: model, session: session, layer: layer).id(layer.id) }
                 LabeledContent("Colour") {
                     Menu {
                         LayerColourMenu(model: model, layer: index)
@@ -55,14 +55,17 @@ struct LayerInspector: View {
 }
 
 /// The layer's name. Return or leaving the field renames the layer it was made for (by id, so switching layers
-/// mid-edit can't rename the next one); a blank name puts the old one back.
+/// mid-edit can't rename the next one); a blank name puts the old one back. A layout the window has let go isn't
+/// renamed, as with the key label.
 private struct LayerNameField: View {
+    var model: LayoutWindowModel
     var session: EditSession
     let layerID: String
     @State private var draft: String
     @FocusState private var isFocused: Bool
 
-    init(session: EditSession, layer: Layer) {
+    init(model: LayoutWindowModel, session: EditSession, layer: Layer) {
+        self.model = model
         self.session = session
         layerID = layer.id
         _draft = State(initialValue: layer.title)
@@ -81,7 +84,7 @@ private struct LayerNameField: View {
     }
 
     private func commit() {
-        guard let index = session.layout.layers.firstIndex(where: { $0.id == layerID }) else { return }
+        guard model.session === session, let index = session.layout.layers.firstIndex(where: { $0.id == layerID }) else { return }
         session.renameLayer(index, to: draft)
         draft = session.layout.layers[index].title
     }

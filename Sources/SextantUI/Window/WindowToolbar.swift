@@ -13,7 +13,7 @@ struct WindowToolbar: CustomizableToolbarContent {
         }
         ToolbarItem(id: "activity", placement: .principal) {
             ActivityCapsule(
-                state: model.activity, boardName: model.session?.layout.board?.displayName ?? "",
+                state: model.activity, boardName: model.boardName,
                 onShowDevice: model.live == nil ? nil : { model.devicePopover = .capsule },
                 onShowLog: model.buildFlash == nil ? nil : { model.showsBuildSheet = true },
                 // The toolbar sizes items by their ideal width: at the narrowest, the trailing items need the room.
@@ -37,7 +37,7 @@ struct WindowToolbar: CustomizableToolbarContent {
             }
             .toggleStyle(.button)
             .disabled(!model.canFollow)
-            .help(model.canFollow ? Text("Follow the keyboard’s layer (⌘L)") : Text("Connect your keyboard to follow its layer"))
+            .help(followHelp)
         }
         ToolbarItem(id: "search", placement: .primaryAction) {
             Button {
@@ -70,6 +70,16 @@ struct WindowToolbar: CustomizableToolbarContent {
             }
             .help(model.showsInspector ? Text("Hide Inspector") : Text("Show Inspector"))
         }
+    }
+}
+
+extension WindowToolbar {
+    /// Why Follow is off, when it is: live access off or Keymapp holding the keyboard leaves no layer to follow.
+    private var followHelp: Text {
+        if model.canFollow { return Text("Follow the keyboard’s layer (⌘L)") }
+        if model.session == nil { return Text("Open a layout to follow the keyboard’s layer") }
+        if model.connectedKeyboard == nil { return Text("Connect your keyboard to follow its layer") }
+        return Text("Sextant can’t read the keyboard’s layer")
     }
 }
 

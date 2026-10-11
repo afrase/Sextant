@@ -9,6 +9,8 @@ struct WindowDetail: View {
         content
             // Choosing a layer by number or menu returns from a page to the board; Follow's layer changes don't.
             .onChange(of: model.session?.selection.layer) { if !model.isFollowing { model.showsFirmwareSettings = false } }
+            // The page doesn't show the key Record Key would assign to.
+            .onChange(of: model.showsFirmwareSettings) { model.recorder = nil }
             // One alert, in the key window: every window shares the library.
             .alert(
                 Text("Sextant couldn't change the library"),
@@ -24,17 +26,21 @@ struct WindowDetail: View {
 
     @ViewBuilder private var content: some View {
         if let session = model.session {
-            if model.showsFirmwareSettings {
-                FirmwareSettingsPage(model: model, session: session)
-                    .navigationTitle(session.layout.title)
-                    .navigationSubtitle(
-                        session.isEditedSinceRevision
-                            ? String(localized: "Firmware Settings · Edited") : String(localized: "Firmware Settings"))
-            } else {
-                CanvasColumn(model: model, session: session)
-                    .navigationTitle(session.layout.title)
-                    .navigationSubtitle(model.subtitle)
+            // The palette floats over both pages: Firmware settings is one of its groups.
+            Group {
+                if model.showsFirmwareSettings {
+                    FirmwareSettingsPage(model: model, session: session)
+                        .navigationTitle(session.layout.title)
+                        .navigationSubtitle(
+                            session.isEditedSinceRevision
+                                ? String(localized: "Firmware Settings · Edited") : String(localized: "Firmware Settings"))
+                } else {
+                    CanvasColumn(model: model, session: session)
+                        .navigationTitle(session.layout.title)
+                        .navigationSubtitle(model.subtitle)
+                }
             }
+            .paletteHost(model)
         } else if !model.library.hasLoaded || model.isOpening {
             DelayedSpinner().frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let error = model.loadError {

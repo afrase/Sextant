@@ -18,9 +18,9 @@ struct MakeTransparentItem: View {
     var window: LayoutWindowModel?
 
     var body: some View {
-        // Off while a panel is open: ⌘⌫ in its field reaches the menu before the field and would edit the hidden target.
+        // Off while a text field may have focus: ⌘⌫ in it reaches the menu before the field and would edit the key.
         Button("Make Transparent") { window?.session?.makeTransparent() }
             .keyboardShortcut(.delete)
-            .disabled(window?.hasSelectedKey != true || window?.isEditingKeyLabel == true || window?.palette != nil)
+            .disabled(window?.hasSelectedKey != true || window?.isEditingText == true)
     }
 }

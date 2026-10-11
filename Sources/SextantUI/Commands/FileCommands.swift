@@ -2,7 +2,7 @@ import SextantApplication
 import SextantDomain
 import SwiftUI
 
-/// File ▸ New and Import (spec §9.1). New Layout takes ⌘N; New Window moves to ⌥⌘N.
+/// File ▸ New and Import (spec §9.1). New Layout takes ⌘N; New Window has no shortcut (⌥⌘N is Legends ▸ Key Numbers).
 struct FileNewItems: View {
     var window: LayoutWindowModel?
     var library: Library
@@ -11,7 +11,7 @@ struct FileNewItems: View {
     var body: some View {
         Button("New Layout") { Task { await addBlankLayout(to: library, from: window, openWindow: openWindow) } }
             .keyboardShortcut("n")
-        Button("New Window") { openWindow(id: "layout") }.keyboardShortcut("n", modifiers: [.command, .option])
+        Button("New Window") { openWindow(id: "layout") }
         Divider()
         Button("Import from Oryx…") { window?.openImport() }
             .keyboardShortcut("i", modifiers: [.command, .shift]).disabled(window?.canImport != true)
@@ -39,10 +39,10 @@ struct FileSaveItems: View {
     }
 }
 
-/// File ▸ New Layout and the Welcome card: adds a blank QWERTY layout and shows it. An empty window opens it by itself
-/// (it is the newest layout, see `LayoutWindow`); otherwise it gets a window of its own.
+/// File ▸ New Layout and the Welcome card: adds a blank QWERTY layout and shows it, in the asking window when it has no
+/// layout open (the Welcome, or one that couldn't open its layout), otherwise in a window of its own.
 @MainActor
 func addBlankLayout(to library: Library, from window: LayoutWindowModel?, openWindow: OpenWindowAction) async {
     guard let entry = await library.create(.blankQWERTY(title: String(localized: "Untitled Layout"))) else { return }
-    if window?.session != nil || window == nil { openWindow(id: "layout", value: entry.id) }
+    if let window, window.session == nil { await window.open(entry.id) } else { openWindow(id: "layout", value: entry.id) }
 }

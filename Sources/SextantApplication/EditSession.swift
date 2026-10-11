@@ -322,10 +322,10 @@ public final class EditSession {
 
     // MARK: Saving
 
-    /// Writes any pending change now (window close, quit, before a build).
+    /// Writes any pending change now (window close, quit, before a build, Try Again). A failed save is still pending.
     public func flush() async {
-        if let pending = pendingSave {
-            pending.cancel()
+        if pendingSave != nil || saveError != nil {
+            pendingSave?.cancel()
             pendingSave = nil
             await save()
         }

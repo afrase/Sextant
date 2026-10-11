@@ -12,7 +12,7 @@ struct SextantCommands: Commands {
     var body: some Commands {
         SidebarCommands()
         InspectorCommands()
-        // New Layout takes ⌘N (spec §9.1); FileNewItems keeps New Window on ⌥⌘N.
+        // New Layout takes ⌘N (spec §9.1); New Window has no shortcut.
         CommandGroup(replacing: .newItem) { FileNewItems(window: window, library: library) }
         // After, not replacing: the system group holds Close (⌘W) and Close All (⌥⌘W).
         CommandGroup(after: .saveItem) { FileSaveItems(window: window) }

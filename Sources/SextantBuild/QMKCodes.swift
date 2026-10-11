@@ -46,13 +46,13 @@ enum QMKCodes {
     /// C statements for an action inside a dual-function key or tap dance: on press, and on release (nil: nothing).
     /// Nil when the action can't run from user code (a macro, a colour key, a firmware keycode).
     static func statements(_ action: KeyAction) -> (press: String, release: String?)? {
-        switch action.canonicalCode {
+        if action.macro == nil, let mods = heldModifiers(action) {
+            return ("register_mods(\(modBits(mods)));", "unregister_mods(\(modBits(mods)));")
+        }
+        return switch action.canonicalCode {
         case _ where action.macro != nil: nil
         case "MO": action.layer.map { ("layer_on(\($0));", "if (!is_layer_locked(\($0))) { layer_off(\($0)); }") }
         case "TO": action.layer.map { ("layer_move(\($0));", nil) }
-        // Oryx's Hyper and Meh holds; `ALL_T()` and `MEH_T()` need a tap, so hold the plain keycode.
-        case "ALL_T": send(wrap("KC_HYPR", action.modifiers))
-        case "MEH_T": send(wrap("KC_MEH", action.modifiers))
         case _ where isKeycode(action): send(wrap(action.code, action.modifiers))
         default: nil
         }
@@ -60,6 +60,26 @@ enum QMKCodes {
 
     private static func send(_ code: String) -> (press: String, release: String?) {
         ("register_code16(\(code));", "unregister_code16(\(code));")
+    }
+
+    /// Modifiers alone: Oryx's Hyper and Meh holds (`ALL_T()` and `MEH_T()` need a tap) or a chorded modifier keycode.
+    /// `register_code16` would press all but a modifier keycode as weak modifiers, which QMK drops at the next key press,
+    /// so they go down as real ones. A bare modifier keycode stays on `register_code16`, as in Oryx's source.
+    private static func heldModifiers(_ action: KeyAction) -> Modifiers? {
+        guard let own = KeycodeCatalog.modifier(forCode: action.code) else { return nil }
+        let all = own.union(action.modifiers)
+        return all == own && own.rawValue.nonzeroBitCount == 1 ? nil : all
+    }
+
+    /// `MOD_BIT(KC_LEFT_CTRL) | MOD_BIT(KC_LEFT_SHIFT)`: the HID modifier byte, side exact. `Modifiers` uses the HID bit
+    /// order; QMK's `MOD_*` masks are the 5-bit encoding, which can't mix sides.
+    static func modBits(_ modifiers: Modifiers) -> String {
+        let keycodes = [
+            "KC_LEFT_CTRL", "KC_LEFT_SHIFT", "KC_LEFT_ALT", "KC_LEFT_GUI",
+            "KC_RIGHT_CTRL", "KC_RIGHT_SHIFT", "KC_RIGHT_ALT", "KC_RIGHT_GUI",
+        ]
+        let held = keycodes.indices.filter { modifiers.rawValue & (1 << $0) != 0 }
+        return held.map { "MOD_BIT(\(keycodes[$0]))" }.joined(separator: " | ")
     }
 
     /// True for codes `register_code16` can send: HID keycodes (`KC_*`) and the locale codes `i18n.h` defines.

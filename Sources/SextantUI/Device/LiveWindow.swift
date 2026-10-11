@@ -25,8 +25,9 @@ extension LayoutWindowModel {
     }
 
     /// The title of the layout another window is flashing (spec §7.6): this window's Build & Flash waits its turn.
+    /// By run, not layout: a closed window's flash of the layout reopened here is still another window's.
     var flashingElsewhere: String? {
-        guard let id = live?.flashingLayoutID, id != session?.id else { return nil }
+        guard let live, let id = live.flashingLayoutID, live.flashingOwner != buildFlash.map(ObjectIdentifier.init) else { return nil }
         return library.entries.first { $0.id == id }?.title ?? ""
     }
 
@@ -51,7 +52,7 @@ extension LayoutWindowModel {
 
     /// The keyboard's Oryx serial when no library layout came from that Oryx layout: the card offers [Import] (spec §3.6).
     var unknownOryxSerial: String? {
-        guard let serial = live?.firmwareSerial, let slash = serial.firstIndex(of: "/") else { return nil }
+        guard let serial = Self.oryxSerial(live?.firmwareSerial), let slash = serial.firstIndex(of: "/") else { return nil }
         let layoutID = serial[..<slash]
         let known = library.entries.contains { if case let .oryx(id, _) = $0.origin { id == layoutID } else { false } }
         return known ? nil : serial

@@ -25,6 +25,14 @@ struct FirmwareIdentityTests {
         #expect(FirmwareIdentity(layout: layout, libraryID: id, importedLayout: nil).serial.hasPrefix("sx-"), "no baseline, no Oryx serial")
     }
 
+    /// The sidebar's "On keyboard" badge: Oryx's build of the layout's Oryx layout, or any Sextant build of it.
+    @Test func anEntryKnowsItsBuildsOnTheKeyboard() {
+        let oryx = LibraryEntry(id: id, title: "", origin: .oryx(layoutId: "KlgM7", revisionId: "40xJ7M"), modifiedAt: .now)
+        #expect(oryx.isOnKeyboard(serial: "KlgM7/zzzzz") && oryx.isOnKeyboard(serial: "sx-1F3A9C2B-00000001"))
+        let local = LibraryEntry(id: UUID(), title: "", origin: .local, modifiedAt: .now)
+        #expect(!local.isOnKeyboard(serial: "KlgM7/40xJ7M") && !local.isOnKeyboard(serial: "sx-1F3A9C2B-00000001"))
+    }
+
     @Test func serialsMatchByContentThenByLayout() {
         let oryx = FirmwareIdentity(serial: "KlgM7/40xJ7M")
         let ours = FirmwareIdentity(serial: "sx-1F3A9C2B-00000001")

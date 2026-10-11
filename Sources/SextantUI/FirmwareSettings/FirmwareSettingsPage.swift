@@ -75,7 +75,8 @@ struct FirmwareSettingsPage: View {
                     }
                 }
                 .formStyle(.grouped)
-                .onChange(of: model.settingsScrollTarget) {
+                // Initial too: the palette sets a target before the page appears.
+                .onChange(of: model.settingsScrollTarget, initial: true) {
                     guard let target = model.settingsScrollTarget else { return }
                     withAnimation { proxy.scrollTo(target, anchor: .top) }
                     model.settingsScrollTarget = nil

@@ -32,6 +32,15 @@ struct PaletteTests {
         #expect(!model.paletteItems.contains { $0.keycode?.code == "OSM" })
     }
 
+    /// A firmware setting row opens the Firmware Settings page at its section; the palette floats over the page too.
+    @Test func aSettingRowGoesToItsSection() async throws {
+        let model = try await openUserLayout()
+        model.openPalette(query: "tapping term")
+        let row = try #require(model.paletteItems.first { $0.id == "setting-tappingTerm" })
+        model.run(row)
+        #expect(model.palette == nil && model.showsFirmwareSettings && model.settingsScrollTarget == "tapping")
+    }
+
     @Test func holdSuggestsModifiersAndOtherLayers() async throws {
         let model = try await openUserLayout()
         model.session?.select(key: 19, slot: .hold)

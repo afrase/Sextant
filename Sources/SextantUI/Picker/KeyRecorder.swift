@@ -14,6 +14,8 @@ struct KeyRecorder: Equatable {
 
     /// The key being recorded; choosing another key ends recording.
     let target: Int
+    /// The layer it is on, by id: Follow moves the board while a layer key is held, not the key being recorded.
+    var layerID = ""
     /// A modifier pressed on its own; released before any other key, it is the key to assign (Right Shift).
     private var loneModifier: UInt16?
     /// The last key couldn't be mapped; the capsule says so and recording goes on.
@@ -93,7 +95,7 @@ extension LayoutWindowModel {
     public func startRecording() {
         guard let index = session?.selection.keyIndex else { return }
         palette = nil
-        recorder = KeyRecorder(target: index)
+        recorder = KeyRecorder(target: index, layerID: session?.currentLayer?.id ?? "")
     }
 
     func cancelRecording() { recorder = nil }
@@ -111,8 +113,10 @@ extension LayoutWindowModel {
             self.recorder?.cannotMap = true
         case let .assign(code, modifiers)?:
             self.recorder = nil
+            // Gone (deleted while recording): nothing to assign to.
+            guard let session, let layer = session.layout.layers.firstIndex(where: { $0.id == recorder.layerID }) else { break }
             let action = KeyAction(code: code, modifiers: modifiers)
-            session?.setAction(action)
+            session.setAction(action, layer: layer, index: recorder.target)
             let names = modifiers.names + [KeycodeCatalog.entry(for: code)?.name ?? code]
             AccessibilityNotification.Announcement(String(localized: "Assigned \(names.joined(separator: " plus "))")).post()
         case nil:

@@ -82,6 +82,7 @@ struct PackageLibraryTests {
         #expect(try await library.load(entry.id).layout.title == "Work: Main")
         let copy = try await library.duplicate(entry.id)
         #expect(copy.title == "Work: Main Copy" && copy.origin == .local)
+        #expect(try await !library.load(copy.id).hasEditsSinceLastRevision, "the copy opens unedited")
         #expect(try await library.entries().count == 2)
         try await library.trash(entry.id)
         #expect(try await library.entries().map(\.id) == [copy.id])
@@ -166,6 +167,20 @@ struct PackageLibraryTests {
         try await library.saveRecovery(edited, for: entry.id)
         try await library.trash(entry.id)
         #expect(await library.recovery(of: entry.id) == nil, "trashing a layout drops its copy")
+    }
+
+    /// Renaming a layout no window has open rewrites layout.json; the edits only its recovery copy holds survive it.
+    @MainActor @Test func renamingAClosedLayoutKeepsItsRecoveryCopy() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await library.create(layout, origin: .local, firstRevision: nil)
+        var edited = layout
+        edited.updateKey(layer: 0, index: 13) { $0 = Key("KC_Q") }
+        try await library.saveRecovery(edited, for: entry.id)
+        let app = Library(store: library)
+        await app.rename(entry.id, to: "Work")
+        let session = try await app.open(entry.id)
+        #expect(session.recoveredUnsavedChanges && session.layout.title == "Work")
+        #expect(session.layout.key(layer: 0, index: 13) == edited.key(layer: 0, index: 13))
     }
 
     @Test func keepsAnUnreadableRecoveryCopy() async throws {

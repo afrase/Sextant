@@ -36,6 +36,14 @@ public enum FirmwareMatch: Hashable, Sendable {
     }
 }
 
+extension LibraryEntry {
+    /// A keyboard reporting `serial` runs a build of this layout: Oryx's (`layoutId/…`) or Sextant's (`sx-<id>-…`).
+    public func isOnKeyboard(serial: String) -> Bool {
+        if case let .oryx(layoutId, _) = origin, serial.hasPrefix(layoutId + "/") { return true }
+        return serial.hasPrefix(FirmwareIdentity.sextantPrefix(id))
+    }
+}
+
 extension FirmwareIdentity {
     /// The identity a build of `layout` gets.
     /// - Parameter importedLayout: the layout of the latest import revision (``importedLayout(of:revisions:library:)``).

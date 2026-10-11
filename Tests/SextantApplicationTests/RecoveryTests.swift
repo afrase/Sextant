@@ -30,6 +30,20 @@ struct RecoveryTests {
         #expect(await store.recovery(of: session.id) == nil, "a landed save drops the copy")
     }
 
+    /// Try Again and quitting flush: a failed save is still pending, so it is tried again without a new edit.
+    @Test func flushingTriesAFailedSaveAgain() async throws {
+        let session = try await open()
+        await store.failSaves(with: .io("The disk is full."))
+        session.select(key: 13)
+        session.setCode("KC_Q")
+        await session.flush()
+        #expect(session.saveError != nil)
+        await store.failSaves(with: nil)
+        await session.flush()
+        #expect(session.saveError == nil)
+        #expect(await store.layout(session.id) == session.layout)
+    }
+
     @Test func anEditInsideTheAutosaveDelayIsCopiedAtOnce() async throws {
         let session = try await open(autosaveDelay: .seconds(3600))
         session.select(key: 13)

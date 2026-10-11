@@ -59,9 +59,15 @@ public final class Library {
         if sessions[session.id]?.session === session { sessions[session.id] = nil }
     }
 
-    /// Writes every open document's pending edit now (before quitting).
-    public func flushOpenSessions() async {
-        for session in sessions.values.compactMap(\.session) { await session.flush() }
+    /// Writes every open document's pending edit now (before quitting). False when one couldn't be saved.
+    @discardableResult
+    public func flushOpenSessions() async -> Bool {
+        var saved = true
+        for session in sessions.values.compactMap(\.session) {
+            await session.flush()
+            if session.saveError != nil { saved = false }
+        }
+        return saved
     }
 
     /// Imports an Oryx layout JSON file (GraphQL response or bare layout) as a new library layout,
@@ -130,6 +136,20 @@ public final class Library {
         if let session = sessions[id]?.session {
             session.setTitle(t)
             await session.flush()
+        } else if var recovered = await store.recovery(of: id) {
+            // Renaming rewrites layout.json, which would make the copy look stale and drop it: write it again after,
+            // also when the rename fails partway.
+            recovered.title = t
+            await run { () throws(LibraryError) in
+                do throws(LibraryError) {
+                    try await self.store.rename(id, to: t)
+                } catch {
+                    try await self.store.saveRecovery(recovered, for: id)
+                    throw error
+                }
+                try await self.store.saveRecovery(recovered, for: id)
+            }
+            return
         }
         await run { () throws(LibraryError) in try await self.store.rename(id, to: t) }
     }

@@ -1,7 +1,8 @@
 import SextantApplication
 import SwiftUI
 
-/// The library's layouts; the open one is marked (spec §3.6). Each row has Rename…, Duplicate and Move to Trash….
+/// The library's layouts; the open one is marked, and the one the keyboard runs badged (spec §2.3, §3.6). Each row
+/// has Rename…, Duplicate and Move to Trash….
 struct LayoutsSection: View {
     var model: LayoutWindowModel
     @Binding var layoutID: UUID?
@@ -19,6 +20,7 @@ struct LayoutsSection: View {
                         .fontWeight(isOpenHere ? .semibold : .regular)
                 }
                 .buttonStyle(.plain)
+                .badge(model.live?.firmwareSerial.map(entry.isOnKeyboard) == true ? Text("On keyboard") : nil)
                 .accessibilityAddTraits(isOpenHere ? .isSelected : [])
                 .contextMenu {
                     Button("Rename…") { model.layoutPendingRename = entry.id }

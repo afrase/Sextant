@@ -36,6 +36,10 @@ public final class LiveSession {
     /// The library layout whose Build & Flash is waiting for flash mode or flashing (spec §7.6). One at a time,
     /// app-wide: two would race to write different layouts to the same bootloader.
     public private(set) var flashingLayoutID: UUID?
+    /// The Build & Flash run holding flash mode: a reopened window's run for the same layout is another one.
+    public private(set) var flashingOwner: ObjectIdentifier?
+    /// A Build & Flash is validating, erasing or writing the keyboard, which can't be interrupted: quitting waits.
+    public internal(set) var isWritingFirmware = false
     private var pressed: Set<Int> = []
 
     /// Indices of the keys held down; empty while secure input is on.
@@ -92,15 +96,17 @@ public final class LiveSession {
 
     public func stopFollowing() { isFollowing = false }
 
-    /// Claims flash mode for one layout's Build & Flash; false while another layout's holds it.
-    public func claimFlashMode(for layoutID: UUID) -> Bool {
-        guard flashingLayoutID == nil || flashingLayoutID == layoutID else { return false }
-        flashingLayoutID = layoutID
+    /// Claims flash mode for one Build & Flash (`owner`) of a layout; false while another one holds it.
+    public func claimFlashMode(for layoutID: UUID, owner: AnyObject) -> Bool {
+        guard flashingOwner == nil || flashingOwner == ObjectIdentifier(owner) else { return false }
+        (flashingLayoutID, flashingOwner) = (layoutID, ObjectIdentifier(owner))
         return true
     }
 
-    public func releaseFlashMode(for layoutID: UUID) {
-        if flashingLayoutID == layoutID { flashingLayoutID = nil }
+    /// Lets go of flash mode, unless another run holds it now.
+    public func releaseFlashMode(owner: AnyObject) {
+        guard flashingOwner == ObjectIdentifier(owner) else { return }
+        (flashingLayoutID, flashingOwner) = (nil, nil)
     }
 
     /// How the keyboard's firmware relates to a layout; nil when no keyboard reports a serial.

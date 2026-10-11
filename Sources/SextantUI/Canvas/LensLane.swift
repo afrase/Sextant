@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Up to two glass capsules, centred (spec §3.7). Today: the status capsule (an issue, else live Follow).
+/// Up to two glass capsules, centred (spec §3.7). Today: the status capsule (``LayoutWindowModel/laneStatus``).
 struct LensLane: View {
     var model: LayoutWindowModel
     @Environment(\.motion) private var motion
@@ -11,7 +11,7 @@ struct LensLane: View {
                 if model.lens == .lighting, let session = model.session {
                     LightingCapsule(model: model, session: session).glassEffectTransition(.materialize)
                 }
-                // Status by priority: error > recording > live.
+                // Status by priority: an issue > recording > the rest.
                 if model.recorder != nil, model.laneStatus?.isIssue != true {
                     RecordingCapsule(model: model).glassEffectTransition(.materialize)
                 } else if let status = model.laneStatus {
@@ -39,8 +39,12 @@ struct LensLane: View {
                 Button("Stop Following") { model.isFollowing = false }.buttonStyle(.borderless)
             case .recovered:
                 Image(systemName: "clock.arrow.circlepath").foregroundStyle(.secondary)
-                Text("Restored edits that weren't saved when Sextant quit").lineLimit(1)
+                Text(verbatim: LayoutWindowModel.recoveredNotice).lineLimit(1)
                 Button("OK") { model.session?.recoveredUnsavedChanges = false }.buttonStyle(.borderless)
+            case let .saveFailed(reason):
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tokens.danger.color)
+                Text("Sextant couldn’t save: \(reason)").lineLimit(1).help(reason)
+                Button("Try Again") { Task { await model.session?.flush() } }.buttonStyle(.borderless)
             }
         }
         .font(.callout.weight(.medium))

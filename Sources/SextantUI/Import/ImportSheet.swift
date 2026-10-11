@@ -25,7 +25,7 @@ extension LayoutWindowModel {
     }
 
     /// The layout to bring forward in another window after an import, or nil: this window shows it, Open after
-    /// importing is off, or this window is empty and opens the new layout itself (it is the newest; `LayoutWindow`).
+    /// importing is off, or this window is empty and opens the new layout itself (``ImportSheet``'s save).
     func windowToReveal(_ id: UUID, open: Bool) -> UUID? {
         guard open, id != session?.id, session != nil || library.isOpen(id) else { return nil }
         return id
@@ -190,7 +190,11 @@ public struct ImportSheet: View {
                 guard let imported = try await flow.importLayout(asRevision: asRevision) else { return }
                 let reveal = model.windowToReveal(imported.id, open: imported.open)
                 model.importFlow = nil
-                if let reveal { openWindow(id: "layout", value: reveal) }
+                if let reveal {
+                    openWindow(id: "layout", value: reveal)
+                } else if imported.open, model.session == nil {
+                    await model.open(imported.id)
+                }
             } catch {
                 saveError = error
             }

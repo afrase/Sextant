@@ -42,12 +42,19 @@ public struct LayoutWindow: View {
             let opened = await model.open(layoutID)
             if let opened, opened != layoutID { layoutID = opened }
         }
-        // Closing the window ends its layout's Build & Flash and frees the layout for other windows.
+        // Closing the window ends its layout's Build & Flash and frees the layout for other windows; not while it
+        // writes, which can't be stopped (spec §7.4).
+        .windowDismissBehavior(model.buildFlash?.canStop == false ? .disabled : .automatic)
         .onDisappear { Task { await model.close() } }
-        .onChange(of: model.session?.id, initial: true) { model.session?.undoManager = undoManager }
-        .onChange(of: model.library.entries.first?.id) {
-            // A layout arrived while this window had none open (first import): open it.
-            guard model.session == nil else { return }
+        .onChange(of: model.session?.id, initial: true) {
+            model.session?.undoManager = undoManager
+            // The model opened a layout itself (New Layout or an import in an empty window): the window keeps it.
+            if let id = model.session?.id, id != layoutID { layoutID = id }
+        }
+        .onChange(of: model.library.entries.first?.id) { old, _ in
+            // The first layout arrived behind the Welcome (`--import`): open it. Only then: an empty window would
+            // otherwise take a layout made for another window.
+            guard old == nil, model.session == nil, !model.isOpening else { return }
             Task { if let opened = await model.open(layoutID) { layoutID = opened } }
         }
     }

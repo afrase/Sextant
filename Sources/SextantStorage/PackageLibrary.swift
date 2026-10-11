@@ -121,8 +121,11 @@ public actor PackageLibrary: LayoutLibrary {
 
     public func duplicate(_ id: UUID) throws(LibraryError) -> LibraryEntry {
         var layout = try load(id).layout
-        layout.title = String(localized: "\(layout.title) Copy")
-        return try create(layout, origin: .local, firstRevision: nil)
+        let original = layout.title
+        layout.title = String(localized: "\(original) Copy")
+        // A first revision, as a new layout gets, so the copy opens unedited.
+        let first = RevisionDraft(source: .save, message: String(localized: "Duplicated from \(original)"), layout: layout)
+        return try create(layout, origin: .local, firstRevision: first)
     }
 
     public func trash(_ id: UUID) throws(LibraryError) {

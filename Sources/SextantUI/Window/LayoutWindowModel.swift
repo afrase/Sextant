@@ -1,3 +1,4 @@
+import Accessibility
 import AppKit
 import Observation
 import SextantApplication
@@ -21,12 +22,14 @@ enum BuildCommand {
     case build, buildAndFlash, stop, showLog
 }
 
-/// The lens lane's status capsule, by priority: error, then live (spec §3.7).
+/// The lens lane's status capsule, by priority: a failed save, restored edits, an error, then live (spec §3.7).
 enum LaneStatus: Equatable {
     case issue(text: String, key: KeyRef)
     case live(text: String)
     /// The document came back from its recovery copy (ADR 0032).
     case recovered
+    /// The last autosave failed; the edits wait in the recovery copy.
+    case saveFailed(String)
 }
 
 /// Presentation state for one layout window. It owns the open `EditSession` and asks `Library` for layouts.
@@ -170,6 +173,10 @@ public final class LayoutWindowModel {
             session = next
             buildFlash = makeBuildFlash?(next)
             loadError = nil
+            // Choosing a layout is choosing a destination (spec §2.2): its board, not the last layout's settings page.
+            showsFirmwareSettings = false
+            settingsScrollTarget = nil
+            if next.recoveredUnsavedChanges { AccessibilityNotification.Announcement(Self.recoveredNotice).post() }
             return target
         } catch {
             loadError = error
@@ -212,13 +219,18 @@ public final class LayoutWindowModel {
         return map
     }
 
+    /// The restored-edits notice, in the lens lane and for VoiceOver.
+    static var recoveredNotice: String { String(localized: "Restored edits that hadn’t been saved") }
+
     var laneStatus: LaneStatus? {
         guard let session else { return nil }
+        // A failed save, then the restored-edits notice: once saved or dismissed, an error capsule comes back.
+        if let error = session.saveError { return .saveFailed(error.localizedDescription) }
+        if session.recoveredUnsavedChanges { return .recovered }
         if let issue = LayoutIssues.check(session.layout).first(where: { $0.severity == .error && $0.key != nil }), let key = issue.key {
             return .issue(text: KeyText.issueText(issue, layout: session.layout), key: key)
         }
         if let compileError = compileErrorLane { return compileError }
-        if session.recoveredUnsavedChanges { return .recovered }
         guard isFollowing else { return nil }
         // Another layout's layers have other names: the keyboard's layer by number.
         if live != nil, !runsThisLayout { return .live(text: String(localized: "LIVE · Layer \(live?.activeLayer ?? 0)")) }
@@ -244,6 +256,11 @@ public final class LayoutWindowModel {
 
     /// Key commands are off on the Firmware Settings page, where the selected key isn't shown (the selection stays).
     var hasSelectedKey: Bool { !showsFirmwareSettings && session?.selection.keyIndex != nil }
+    /// A text field may have focus (key label, layer rename, palette, import, layout rename): ⌘⌫ and ⇧⌘⌫ reach the menu
+    /// before the field, so they must not edit the selected key.
+    var isEditingText: Bool {
+        isEditingKeyLabel || renamingLayerID != nil || palette != nil || importFlow != nil || layoutPendingRename != nil
+    }
     var canShowPreviousLayer: Bool { (session?.selection.layer ?? 0) > 0 }
     var canShowNextLayer: Bool { session.map { $0.selection.layer < $0.layout.layers.count - 1 } ?? false }
     var canDeleteLayer: Bool { (session?.layout.layers.count ?? 0) > 1 }
@@ -265,19 +282,23 @@ public final class LayoutWindowModel {
 
     // MARK: Actions
 
+    // Layer commands act on the shown layer: from the Firmware Settings page, they show the board first.
     func showAdjacentLayer(_ step: Int) {
         guard let session else { return }
+        showsFirmwareSettings = false
         session.select(layer: session.selection.layer + step)
     }
 
     func moveLayer(by step: Int) {
         guard let session else { return }
+        showsFirmwareSettings = false
         session.moveLayer(from: session.selection.layer, to: session.selection.layer + step)
     }
 
     /// Deletes the shown layer, asking first when keys still switch to it (spec §6.1).
     func requestDeleteLayer() {
         guard let session, canDeleteLayer else { return }
+        showsFirmwareSettings = false
         let layer = session.selection.layer
         if session.layout.keysActivating(layer: layer).isEmpty {
             session.deleteLayer(layer)

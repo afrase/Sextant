@@ -24,7 +24,7 @@ struct KeyMenu: View {
         Divider()
         MakeTransparentItem(window: window)
         Button("Disable Key") { session?.disable() }.keyboardShortcut(.delete, modifiers: [.command, .shift])
-            .disabled(!hasKey || window?.isEditingKeyLabel == true || window?.palette != nil)
+            .disabled(!hasKey || window?.isEditingText == true)
         Button("Override on This Layer") { session?.overrideInherited() }.disabled(window?.canOverrideKey != true)
         Menu("LED Colour") { KeyColourMenu(window: window) }.disabled(!hasKey)
         Divider()

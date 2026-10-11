@@ -30,4 +30,17 @@ struct FlashModeClaimTests {
         second.retry()
         #expect(await eventually { second.phase == .waitingForFlashMode(stillWaiting: false) })
     }
+
+    /// A window closed during its flash and the layout reopened: the new window's run is turned away, and its release
+    /// can't drop the first run's claim.
+    @Test func theClaimBelongsToARunNotALayout() {
+        let live = LiveSession(watcher: FakeDeviceWatcher(), link: FakeKeyboardLink(), secureInputProbe: { false })
+        let (layout, first, second) = (UUID(), NSObject(), NSObject())
+        #expect(live.claimFlashMode(for: layout, owner: first))
+        #expect(!live.claimFlashMode(for: layout, owner: second))
+        live.releaseFlashMode(owner: second)
+        #expect(live.flashingLayoutID == layout && live.flashingOwner == ObjectIdentifier(first))
+        live.releaseFlashMode(owner: first)
+        #expect(live.flashingLayoutID == nil && live.flashingOwner == nil)
+    }
 }

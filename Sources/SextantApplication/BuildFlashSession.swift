@@ -225,11 +225,7 @@ public final class BuildFlashSession {
     private func title(runningSerial serial: String?) async -> String? {
         guard let serial else { return nil }
         let entries = (try? await library.entries()) ?? []
-        return entries.first { entry in
-            if case let .oryx(layoutId, _) = entry.origin, serial.hasPrefix(layoutId + "/") { return true }
-            return serial.hasPrefix(FirmwareIdentity.sextantPrefix(entry.id))
-        }?
-        .title
+        return entries.first { $0.isOnKeyboard(serial: serial) }?.title
     }
 
     private func build(_ layout: KeyboardLayout, as identity: FirmwareIdentity) async -> Bool {
@@ -289,8 +285,8 @@ public final class BuildFlashSession {
     /// back with the build's serial. Device events and timers arrive on one stream, so this reads top to bottom.
     private func flashAndVerify() async {
         guard let artifact, let identity, let builtLayout else { return }
-        guard live?.claimFlashMode(for: session.id) ?? true else { return fail(.flashingElsewhere) }
-        defer { live?.releaseFlashMode(for: session.id) }
+        guard live?.claimFlashMode(for: session.id, owner: self) ?? true else { return fail(.flashingElsewhere) }
+        defer { live?.releaseFlashMode(owner: self) }
         show(.waitingForFlashMode(stillWaiting: false))
         let (inputs, feed) = AsyncStream.makeStream(of: Input.self)
         let forward = Task { for await event in watcher.events(for: board) { feed.yield(.device(event)) } }
@@ -346,6 +342,8 @@ public final class BuildFlashSession {
 
     /// Validates the image for this bootloader, then writes it. Progress reaches the phase in order.
     private func write(_ artifact: BuildArtifact, to device: BootloaderDevice) async -> Bool {
+        live?.isWritingFirmware = true
+        defer { live?.isWritingFirmware = false }
         show(.validating)
         let image = FirmwareImage(data: artifact.image)
         do {

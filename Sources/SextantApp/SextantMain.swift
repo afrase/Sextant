@@ -21,6 +21,7 @@ struct SextantMain: App {
         let services = Self.makeServices()
         _services = State(initialValue: services)
         appDelegate.library = services.library
+        appDelegate.live = services.live
         services.live.start()
         // `--import <oryx.json>`: add an Oryx layout file to the library at launch.
         let args = CommandLine.arguments
@@ -74,9 +75,11 @@ struct SextantMain: App {
     }
 }
 
-/// Quitting waits for open documents' pending autosaves (each lands up to a second after the last edit).
+/// Quitting waits for a firmware write (spec §7.4: it can't be stopped) and for open documents' pending autosaves (each
+/// lands up to a second after the last edit), and asks first when an edit couldn't be saved.
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var library: Library?
+    var live: LiveSession?
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let library else { return .terminateNow }
@@ -85,9 +88,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             // SwiftUI reports the focus change on a later run-loop turn; let one pass first.
             await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
-            await library.flushOpenSessions()
-            sender.reply(toApplicationShouldTerminate: true)
+            // A cut-off write leaves the keyboard in flash mode. The flasher's capped polling and timeouts bound the wait.
+            while live?.isWritingFirmware == true { try? await Task.sleep(for: .milliseconds(200)) }
+            let saved = await library.flushOpenSessions()
+            sender.reply(toApplicationShouldTerminate: saved || Self.quitAnyway())
         }
         return .terminateLater
+    }
+
+    @MainActor private static func quitAnyway() -> Bool {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Sextant couldn’t save your latest edits")
+        alert.informativeText = String(localized: "Quitting now may lose them. The layout’s window says what went wrong.")
+        alert.addButton(withTitle: String(localized: "Don’t Quit"))
+        alert.addButton(withTitle: String(localized: "Quit Anyway"))
+        return alert.runModal() == .alertSecondButtonReturn
     }
 }

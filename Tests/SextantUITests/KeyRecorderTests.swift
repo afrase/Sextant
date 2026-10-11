@@ -67,4 +67,16 @@ struct KeyRecorderTests {
         #expect(model.recorder == nil, "esc cancels")
         #expect(!model.record(keyCode: 0x00, flags: 0, isKeyDown: true), "not recording: events pass through")
     }
+
+    /// Follow can show another layer while a layer key is held for the key being recorded (F1 on a function layer).
+    @MainActor @Test func recordingAssignsToTheLayerItStartedOn() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.select(key: 19)
+        model.startRecording()
+        session.select(layer: 1)
+        model.record(keyCode: 0x7A, flags: 0, isKeyDown: true)
+        #expect(session.layout.key(layer: 0, index: 19)?.tap?.code == "KC_F1")
+        #expect(session.layout.key(layer: 1, index: 19)?.tap?.code != "KC_F1")
+    }
 }

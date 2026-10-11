@@ -614,6 +614,9 @@
     "Done, with a note" : {
 
     },
+    "Don’t Quit" : {
+
+    },
     "Double tap" : {
 
     },
@@ -636,6 +639,9 @@
 
     },
     "Duplicate Layout" : {
+
+    },
+    "Duplicated from %@" : {
 
     },
     "Each layout has one window. Choose one in the sidebar to bring its window forward, or make a new layout (⌘N)." : {
@@ -1312,6 +1318,9 @@
     "Open Sextant" : {
 
     },
+    "Open a layout to follow the keyboard’s layer" : {
+
+    },
     "Open after importing" : {
 
     },
@@ -1402,6 +1411,12 @@
     "QMK Source (.zip)…" : {
 
     },
+    "Quit Anyway" : {
+
+    },
+    "Quitting now may lose them. The layout’s window says what went wrong." : {
+
+    },
     "R" : {
 
     },
@@ -1465,7 +1480,7 @@
     "Reset to Default" : {
 
     },
-    "Restored edits that weren't saved when Sextant quit" : {
+    "Restored edits that hadn’t been saved" : {
 
     },
     "Results" : {
@@ -1567,6 +1582,9 @@
     "Sextant can’t map that key. Try another, or search for it." : {
 
     },
+    "Sextant can’t read the keyboard’s layer" : {
+
+    },
     "Sextant checks the layout before every build. These keys need fixing first." : {
 
     },
@@ -1589,6 +1607,12 @@
 
     },
     "Sextant couldn’t record this flash in History. %@" : {
+
+    },
+    "Sextant couldn’t save your latest edits" : {
+
+    },
+    "Sextant couldn’t save: %@" : {
 
     },
     "Sextant reads the active layer and which key positions are down over the keyboard's raw HID interface. It sees positions, never the characters you type. Key events stay in memory on this Mac and are never written to disk, and the live display pauses while you type in a password field." : {
