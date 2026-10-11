@@ -176,6 +176,10 @@ struct KeymapPlan {
         for code in [action.code] + (action.macro?.steps.map(\.code) ?? []) where code.wholeMatch(of: /[A-Za-z_][A-Za-z0-9_]*/) == nil {
             throw .unsupported(String(localized: "“\(code)”, which isn't a keycode"), ref)
         }
+        // SS_DELAY() blocks the keyboard's main loop: keep to Oryx's 0...5000 ms (research 01 §7).
+        if let step = action.macro?.steps.first(where: { !(0...5000).contains($0.delay) }) {
+            throw .unsupported(String(localized: "a macro pause of \(step.delay) ms"), ref)
+        }
         if KeycodeCatalog.layerFunctions.contains(action.canonicalCode), !layout.layers.indices.contains(action.layer ?? -1) {
             throw .unsupported(String(localized: "a layer key for a layer that doesn't exist"), ref)
         }

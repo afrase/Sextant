@@ -49,8 +49,9 @@ public final class LiveSession {
     @ObservationIgnored private var keyboard: KeyboardDevice?
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
     @ObservationIgnored private var linkTask: Task<Void, Never>?
+    @ObservationIgnored private var secureInputTask: Task<Void, Never>?
 
-    /// - Parameter secureInputProbe: `IsSecureEventInputEnabled`, polled once a second.
+    /// - Parameter secureInputProbe: `IsSecureEventInputEnabled`, polled once a second while a keyboard is connected.
     public init(
         watcher: any DeviceWatcher, link: any KeyboardLink, board: BoardDefinition = .voyager,
         clock: any Clock<Duration> = ContinuousClock(), secureInputProbe: @escaping @Sendable () -> Bool
@@ -72,14 +73,7 @@ public final class LiveSession {
                     guard !Task.isCancelled else { break }
                     handle(event)
                 }
-            },
-            Task {
-                while !Task.isCancelled {
-                    let on = secureInputProbe()
-                    if on != isSecureInputOn { isSecureInputOn = on }
-                    try? await clock.sleep(for: .seconds(1))
-                }
-            },
+            }
         ]
     }
 
@@ -132,11 +126,22 @@ public final class LiveSession {
         firmwareSerial = device.serial
         isFollowing = true
         linkTask = Task { await runLink(device) }
+        // Only presses need hiding, so the probe runs only while a keyboard can send them.
+        secureInputTask = Task {
+            while !Task.isCancelled {
+                let on = secureInputProbe()
+                if on != isSecureInputOn { isSecureInputOn = on }
+                try? await clock.sleep(for: .seconds(1))
+            }
+        }
     }
 
     private func disconnect() {
         linkTask?.cancel()
         linkTask = nil
+        secureInputTask?.cancel()
+        secureInputTask = nil
+        isSecureInputOn = false
         keyboard = nil
         firmwareSerial = nil
         protocolVersion = nil

@@ -104,8 +104,8 @@ struct QMKBuild: Sendable {
         guard let data = try? Data(contentsOf: image), data.count > 16 else {
             return .failed(.failed(String(localized: "The compiler finished without a firmware file.")))
         }
-        // The payload (the file minus its 16-byte DFU suffix) must fit the board's flash window.
-        let over = data.count - 16 - Int(board.flashEnd - board.flashStart)
+        // The payload (the file minus its 16-byte DFU suffix) must fit the linker's application window.
+        let over = data.count - 16 - Int(board.applicationEnd - board.flashStart)
         if over > 0 { return .failed(.tooLarge(overBy: over)) }
         return .finished(BuildArtifact(image: data, usedBytes: output.usedBytes, log: output.lines))
     }

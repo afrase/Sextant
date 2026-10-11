@@ -27,6 +27,36 @@ struct LibraryTests {
         #expect(Library.cleanImportedTitle("  Plain  ") == "Plain")
     }
 
+    /// Closing a window and quitting write the pending edit, and close frees the layout for another window.
+    @Test func closingAndQuittingWritePendingEdits() async throws {
+        let store = InMemoryLibrary()
+        let library = Library(store: store)
+        let entry = try await library.importOryxJSON(Fixtures.userLayoutData)
+        let session = try await library.open(entry.id, autosaveDelay: .seconds(60))
+        #expect(library.isOpen(entry.id))
+        session.select(key: 1)
+        session.setCode("KC_F1")
+        await library.flushOpenSessions()
+        #expect(try await store.load(entry.id).layout.key(layer: 0, index: 1)?.tap?.code == "KC_F1")
+        session.setCode("KC_F2")
+        await library.close(session)
+        #expect(!library.isOpen(entry.id))
+        #expect(try await store.load(entry.id).layout.key(layer: 0, index: 1)?.tap?.code == "KC_F2")
+    }
+
+    /// A document whose window went away still holds its last edit until its autosave: reopening writes it first.
+    @Test func reopeningWritesTheLastDocumentsPendingEditFirst() async throws {
+        let library = Library(store: InMemoryLibrary())
+        let entry = try await library.importOryxJSON(Fixtures.userLayoutData)
+        var session: EditSession? = try await library.open(entry.id, autosaveDelay: .seconds(60))
+        session?.select(key: 1)
+        session?.setCode("KC_F3")
+        session = nil  // its pending save keeps it alive
+        #expect(library.isOpen(entry.id))
+        let reopened = try await library.open(entry.id)
+        #expect(reopened.layout.key(layer: 0, index: 1)?.tap?.code == "KC_F3")
+    }
+
     @Test func managesLayouts() async throws {
         let library = Library(store: InMemoryLibrary())
         let entry = try await library.importOryxJSON(Fixtures.userLayoutData)

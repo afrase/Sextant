@@ -61,7 +61,8 @@ public actor PackageLibrary: LayoutLibrary {
         let folder = try folder(for: id)
         let meta = try readMeta(folder)
         let layout = try decode(KeyboardLayout.self, from: folder.appending(path: "layout.json"))
-        return StoredLayout(entry: meta.entry, layout: layout, contentHash: meta.contentHash, revisions: revisions(in: folder))
+        // Hash what is on disk: meta.json's copy is stale if its write failed after layout.json's.
+        return StoredLayout(entry: meta.entry, layout: layout, contentHash: try Self.contentHash(layout), revisions: revisions(in: folder))
     }
 
     public func create(_ layout: KeyboardLayout, origin: LayoutOrigin, firstRevision: RevisionDraft?) throws(LibraryError) -> LibraryEntry {
@@ -295,7 +296,10 @@ public actor PackageLibrary: LayoutLibrary {
     static func folderName(_ title: String) -> String {
         let cleaned = title.components(separatedBy: CharacterSet(charactersIn: "/:\\\0")).joined(separator: "-")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return String((cleaned.isEmpty ? "Layout" : cleaned).prefix(60))
+        var name = String(cleaned.prefix(60))
+        // APFS names hold 255 UTF-16 units and one Character can take dozens: leave room for "-XXXXXX.sextant".
+        while name.utf16.count > 200 { name.removeLast() }
+        return name.isEmpty ? "Layout" : name
     }
 
     private func write(_ value: some Encodable, to url: URL) throws(LibraryError) {

@@ -76,8 +76,8 @@ public final class BuildFlashSession {
 
     /// Payload bytes of the last build.
     public var usedBytes: Int? { artifact.map { $0.usedBytes ?? max(0, $0.image.count - 16) } }
-    /// The board's flash window, in bytes.
-    public var capacity: Int { Int(board.flashEnd - board.flashStart) }
+    /// The board's application flash (the linker's window, not the wider DFU guard window), in bytes.
+    public var capacity: Int { Int(board.applicationEnd - board.flashStart) }
     /// The failed build's compiler diagnostics, each with its key when the source map knows it (§7.5).
     public var diagnostics: [Diagnostic] {
         if case let .failed(.toolchain(.compileFailed(d))) = phase { d } else { [] }

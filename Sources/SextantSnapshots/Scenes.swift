@@ -145,7 +145,7 @@ enum Scenes {
             ActivityState(device: .connected(serial: nil, matchesLayout: true), status: .heldByAnotherApp("Keymapp")),
             ActivityState(device: connected, status: .issues(count: 2, firstKey: 45)),
             ActivityState(device: connected, status: .building(file: "keymap.c", done: 12, total: 41)),
-            ActivityState(device: connected, status: .built(bytes: 65_786, percentOfFlash: 26)),
+            ActivityState(device: connected, status: .built(bytes: 65_786, percentOfFlash: 54)),
             ActivityState(device: connected, status: .waitingForFlashMode),
             ActivityState(device: .flashMode, status: .writing(fraction: 0.64, bytes: 41_984)),
             ActivityState(device: .flashMode, status: .verifying(fraction: 0.4, bytes: 26_214)),

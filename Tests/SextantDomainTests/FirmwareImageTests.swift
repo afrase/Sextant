@@ -35,6 +35,12 @@ struct FirmwareImageTests {
         #expect(throws: FirmwareImageError.embeddedSuffix) { try dual.validate(forBootloaderPID: 0x1791, board: board) }
     }
 
+    /// Even a well-formed single image whose suffix names the GD32 bootloader: its flash layout is unknown (ADR 0013).
+    @Test func refusesASingleImageForAGD32Bootloader() throws {
+        let image = FirmwareImage.withSuffix(try Self.image("KlgM7-40xJ7M").payload, vendorID: 0x3297, productID: 0x1791)
+        #expect(throws: FirmwareImageError.unsupportedBootloader(0x1791)) { try image.validate(forBootloaderPID: 0x1791, board: board) }
+    }
+
     @Test func refusesAnotherVendor() throws {
         let image = FirmwareImage.withSuffix(try Self.image("KlgM7-40xJ7M").payload, vendorID: 0x1234, productID: 0x0791)
         #expect(throws: FirmwareImageError.wrongVendor(0x1234)) { try image.validate(forBootloaderPID: 0x0791, board: board) }

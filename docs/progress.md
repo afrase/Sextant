@@ -18,11 +18,11 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 
 - **MVP slices merged** (workflow `mvp-slices`, 35 agents, each slice implemented, reviewed by three adversarial lenses, verified, fixed and re-verified; 45 findings fixed): QMK generator with golden tests on all five Oryx samples, container and native toolchains, live issues, flash path (`slice/build`); device watcher, raw-HID link and DFU flasher with every guard tested on fakes (`slice/device`); Oryx client, import use case, stored Oryx firmware (`slice/oryx`); window skeleton, commands, full board (`slice/ui`, spec steps 2–3); `LiveSession`, `BuildFlashSession`, firmware identity, hardware gate (`slice/usecases`). Integration fixes: Add-as-Revision save errors surface; "Edited" uses the stored content hash. ADRs 0019–0025.
 - **Composition root wired:** `SextantServices` (library, live session, import and Build & Flash factories); raw HID and flashing behind `SextantHardwareEnabled` (ADR 0012).
+- **Integration review fixes** (`fix/integration`): one window per layout (a sidebar click on a layout open elsewhere brings that window forward); quitting waits for pending autosaves; an import moves the "Edited" baseline; build size is measured against the 120 KiB linker window; every GD32 (`0x1791`) image is refused; macro pauses are bounded to 0...5000 ms; issue de-duplication is linear; `load` hashes `layout.json` itself; folder names fit APFS's 255 UTF-16 units; the secure-input poll runs only while a keyboard is connected.
 
 ## Next
-1. Integration review of merged `main` (adversarial, cross-slice).
-2. UI for the remaining MVP steps: 4 key inspector, 5 picker/palette/Record Key, 6 layers, 7 lighting, 8 import sheet, 9 device card/popover/Follow/presses, 10 Build & Flash sheet (feeding `ActivityState`, replacing `onBuild` with `BuildFlashSession`), 11 Firmware Settings, 12 Settings scene, empty states, onboarding.
-3. Toolchain setup step (download and verify the VM images) once the user approves the download.
+1. UI for the remaining MVP steps: 4 key inspector, 5 picker/palette/Record Key, 6 layers, 7 lighting, 8 import sheet, 9 device card/popover/Follow/presses, 10 Build & Flash sheet (feeding `ActivityState`, replacing `onBuild` with `BuildFlashSession`), 11 Firmware Settings, 12 Settings scene, empty states, onboarding.
+2. Toolchain setup step (download and verify the VM images) once the user approves the download.
 
 ## Known gaps and notes
 - Security: the generator validates every data-derived token (ADR 0020), after a background security review found C injection; covered by hostile-input tests.
