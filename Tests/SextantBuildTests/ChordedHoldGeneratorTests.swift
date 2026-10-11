@@ -27,10 +27,18 @@ struct ChordedHoldGeneratorTests {
         #expect(block.contains("unregister_code16(LSFT(KC_LEFT_CTRL));"))
     }
 
-    /// Hyper as the editor writes it builds in a tap dance, where Oryx's `ALL_T` can't.
+    /// Hyper as the editor writes it (chorded) builds in a tap dance.
     @Test func chordedHyperBuildsInATapDance() throws {
         let hyper = KeyAction.code("KC_LEFT_CTRL", modifiers: [.leftShift, .leftOption, .leftCommand])
         let lines = try keymap(with: Key(tap: .code("KC_A"), doubleTap: .code("KC_B"), tapHold: hyper))
         #expect(lines.contains { $0.contains("register_code16(LALT(LGUI(LSFT(KC_LEFT_CTRL))))") })
+    }
+
+    /// An imported Oryx Hyper or Meh hold still builds once the tap gets a chord or a double tap.
+    @Test func importedHyperAndMehHoldsBuildBesideAnyTap() throws {
+        let hyper = try keymap(with: Key(tap: .code("KC_A", modifiers: [.leftShift]), hold: .code("ALL_T")))
+        #expect(hyper.contains { $0.contains("register_code16(KC_HYPR);") })
+        let meh = try keymap(with: Key(tap: .code("KC_A"), hold: .code("MEH_T"), doubleTap: .code("KC_B")))
+        #expect(meh.contains { $0.contains("unregister_code16(KC_MEH);") })
     }
 }

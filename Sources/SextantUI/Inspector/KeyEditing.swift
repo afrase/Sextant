@@ -34,9 +34,7 @@ extension KeyAction {
     var heldModifiers: Modifiers { (KeycodeCatalog.modifier(forCode: code) ?? []).union(modifiers) }
 
     /// A hold that presses `modifiers`, or nil for none: its first modifier's keycode chorded with the rest, which the
-    /// generator builds as a dual-function key.
-    /// shortcut: Hyper and Meh are chorded too, not Oryx's `ALL_T` / `MEH_T`, which the generator can't build beside a
-    /// non-basic tap or in a tap dance; use them once `QMKCodes.statements` handles them.
+    /// generator builds as a dual-function key. Hyper and Meh are chorded too, not Oryx's `ALL_T` / `MEH_T`.
     static func holding(_ modifiers: Modifiers) -> KeyAction? {
         let codes: [(Modifiers, String)] = [
             (.leftControl, "KC_LEFT_CTRL"), (.leftShift, "KC_LEFT_SHIFT"), (.leftOption, "KC_LEFT_ALT"), (.leftCommand, "KC_LEFT_GUI"),

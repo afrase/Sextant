@@ -50,10 +50,16 @@ enum QMKCodes {
         case _ where action.macro != nil: nil
         case "MO": action.layer.map { ("layer_on(\($0));", "if (!is_layer_locked(\($0))) { layer_off(\($0)); }") }
         case "TO": action.layer.map { ("layer_move(\($0));", nil) }
-        case _ where isKeycode(action):
-            ("register_code16(\(wrap(action.code, action.modifiers)));", "unregister_code16(\(wrap(action.code, action.modifiers)));")
+        // Oryx's Hyper and Meh holds; `ALL_T()` and `MEH_T()` need a tap, so hold the plain keycode.
+        case "ALL_T": send(wrap("KC_HYPR", action.modifiers))
+        case "MEH_T": send(wrap("KC_MEH", action.modifiers))
+        case _ where isKeycode(action): send(wrap(action.code, action.modifiers))
         default: nil
         }
+    }
+
+    private static func send(_ code: String) -> (press: String, release: String?) {
+        ("register_code16(\(code));", "unregister_code16(\(code));")
     }
 
     /// True for codes `register_code16` can send: HID keycodes (`KC_*`) and the locale codes `i18n.h` defines.

@@ -110,6 +110,21 @@ struct LayoutWindowModelTests {
         #expect(!model.isFollowing && model.laneStatus == nil, "unplugging the keyboard ends Follow")
     }
 
+    /// Edits restored from a recovery copy say so until the notice is dismissed (ADR 0032).
+    @Test func laneSaysWhenEditsWereRecovered() async throws {
+        let store = MemoryLibrary()
+        let library = Library(store: store)
+        let entry = try await library.importOryxJSON(try #require(userLayoutData))
+        var edited = try await store.load(entry.id).layout
+        edited.title = "Edited before the crash"
+        await store.saveRecovery(edited, for: entry.id)
+        let model = LayoutWindowModel(library: library)
+        await model.open(nil)
+        #expect(model.session?.layout.title == "Edited before the crash" && model.laneStatus == .recovered)
+        model.session?.recoveredUnsavedChanges = false  // OK
+        #expect(model.laneStatus == nil)
+    }
+
     @Test func kindKeyListsKindsOnTheShownLayer() async throws {
         let model = try await openUserLayout()
         #expect(model.kindsOnLayer == [.regular, .modifier, .dualFunction])

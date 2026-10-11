@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "" : {
+
+    },
     "%@ B" : {
 
     },
@@ -14,8 +17,63 @@
         }
       }
     },
+    "%@ Choose another layout in the sidebar." : {
+
+    },
     "%@ Copy" : {
 
+    },
+    "%@ Sextant sets them up the first time you build, after you agree to the download." : {
+
+    },
+    "%@ bytes free" : {
+
+    },
+    "%@ bytes over" : {
+
+    },
+    "%@ is below %@, so %@'s own keys still win while both are on." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ is below %2$@, so %3$@'s own keys still win while both are on."
+          }
+        }
+      }
+    },
+    "%@ key %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ key %2$lld"
+          }
+        }
+      }
+    },
+    "%@ layer" : {
+
+    },
+    "%@ of %@ bytes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ of %2$@ bytes"
+          }
+        }
+      }
+    },
+    "%@ of %@ bytes · %lld%%" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ of %2$@ bytes · %3$lld%%"
+          }
+        }
+      }
     },
     "%@ on %@" : {
       "localizations" : {
@@ -27,7 +85,20 @@
         }
       }
     },
+    "%@ sends %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ sends %2$@."
+          }
+        }
+      }
+    },
     "%@ · Edited" : {
+
+    },
+    "%@ · changed" : {
 
     },
     "%@ · hold %@" : {
@@ -36,6 +107,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ · hold %2$@"
+          }
+        }
+      }
+    },
+    "%@ · key %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · key %2$lld"
           }
         }
       }
@@ -60,6 +141,32 @@
         }
       }
     },
+    "%@: %@ (%@)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@ (%3$@)."
+          }
+        }
+      }
+    },
+    "%@: %@, default %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@, default %3$@"
+          }
+        }
+      }
+    },
+    "%lld changed" : {
+
+    },
+    "%lld changed from defaults" : {
+
+    },
     "%lld custom labels are shown in Sextant only." : {
 
     },
@@ -73,6 +180,9 @@
 
     },
     "%lld issues" : {
+
+    },
+    "%lld keys down" : {
 
     },
     "%lld keys switch to %@: %@. They will do nothing." : {
@@ -121,6 +231,22 @@
         }
       }
     },
+    "%lld · %@ (this layer)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld · %2$@ (this layer)"
+          }
+        }
+      }
+    },
+    "%lld%%" : {
+
+    },
+    "%lld/10 · Shown in Sextant only; not sent to the keyboard." : {
+
+    },
     ", hold %@" : {
 
     },
@@ -133,6 +259,9 @@
     "1 issue" : {
 
     },
+    "1 key down" : {
+
+    },
     "1 key switches to %@: %@. It will do nothing." : {
       "localizations" : {
         "en" : {
@@ -143,13 +272,69 @@
         }
       }
     },
-    "Actions available." : {
+    "1 year" : {
+
+    },
+    "30 days" : {
+
+    },
+    "90 days" : {
+
+    },
+    "= %lld in binary" : {
 
     },
     "Add Layer" : {
 
     },
+    "Add a Reset key (QK_BOOT) to a layer to flash without a paperclip." : {
+
+    },
+    "Add as Revision of ‘%@’" : {
+
+    },
+    "Add double tap" : {
+
+    },
+    "Add tap" : {
+
+    },
+    "Another window is flashing the keyboard. Try again when it finishes." : {
+
+    },
+    "Apple container (recommended)" : {
+
+    },
+    "Assign to %@ %@…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Assign to %1$@ %2$@…"
+          }
+        }
+      }
+    },
+    "Assigned %@" : {
+
+    },
+    "Assigning to key %lld %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Assigning to key %1$lld %2$@"
+          }
+        }
+      }
+    },
+    "Base layer" : {
+
+    },
     "Before importing from Oryx" : {
+
+    },
+    "Behaviour" : {
 
     },
     "Board" : {
@@ -161,25 +346,76 @@
     "Bring your layout to Sextant" : {
 
     },
+    "Brush" : {
+
+    },
+    "Brush colour %@" : {
+
+    },
     "Build" : {
 
     },
     "Build & Flash" : {
 
     },
+    "Build & Flash stopped" : {
+
+    },
     "Build Failed" : {
+
+    },
+    "Build error on %@" : {
+
+    },
+    "Build failed" : {
+
+    },
+    "Build failed: %lld errors" : {
 
     },
     "Build failed: %lld errors." : {
 
     },
+    "Build failed: 1 error" : {
+
+    },
+    "Build succeeded" : {
+
+    },
     "Build the firmware and flash the keyboard (⌘R)" : {
+
+    },
+    "Build tools" : {
+
+    },
+    "Build tools needed" : {
+
+    },
+    "Building firmware" : {
 
     },
     "Built" : {
 
     },
+    "Built into the firmware · %lld changed from defaults" : {
+
+    },
+    "Built into the firmware · 1 changed from defaults" : {
+
+    },
+    "Built without flashing. Flash it now, or any time with Build & Flash (⌘R)." : {
+
+    },
     "Cancel" : {
+
+    },
+    "Can’t stop while writing. If the cable comes out, the keyboard stays in flash mode and you can simply flash again." : {
+
+    },
+    "Change %@" : {
+
+    },
+    "Change Hold" : {
 
     },
     "Change Keycode…" : {
@@ -191,13 +427,46 @@
     "Change Setting" : {
 
     },
+    "Change Tap" : {
+
+    },
+    "Changed" : {
+
+    },
+    "Changed (%lld)" : {
+
+    },
+    "Change…" : {
+
+    },
     "Check firmware" : {
+
+    },
+    "Checking" : {
+
+    },
+    "Checking the build tools…" : {
+
+    },
+    "Chord" : {
+
+    },
+    "Clear" : {
 
     },
     "Clear %@" : {
 
     },
+    "Clear %@?" : {
+
+    },
     "Clear Key Colour" : {
+
+    },
+    "Clear Key Colours" : {
+
+    },
+    "Clear Key Colours…" : {
 
     },
     "Clear Label" : {
@@ -209,10 +478,31 @@
     "Clear Layer…" : {
 
     },
+    "Clear the key colours on %@?" : {
+
+    },
+    "Clear…" : {
+
+    },
+    "Close" : {
+
+    },
     "Colour" : {
 
     },
+    "Colour for %@" : {
+
+    },
     "Command Palette" : {
+
+    },
+    "Command palette" : {
+
+    },
+    "Commands" : {
+
+    },
+    "Compile" : {
 
     },
     "Compiling %@" : {
@@ -221,7 +511,22 @@
     "Connect only one keyboard in flash mode." : {
 
     },
+    "Connect your Voyager with a USB cable." : {
+
+    },
     "Connect your keyboard to follow its layer" : {
+
+    },
+    "Connected Keyboard" : {
+
+    },
+    "Connected over USB" : {
+
+    },
+    "Connected · USB" : {
+
+    },
+    "Connected · live access is off" : {
 
     },
     "Convert" : {
@@ -233,10 +538,41 @@
     "Copy Layer To…" : {
 
     },
+    "Copy Log" : {
+
+    },
     "Copy QMK Expression" : {
 
     },
-    "Couldn't open this layout" : {
+    "Copy To…" : {
+
+    },
+    "Current value" : {
+
+    },
+    "Custom" : {
+
+    },
+    "Custom Brush Colour" : {
+
+    },
+    "Custom colour" : {
+
+    },
+    "Custom…" : {
+
+    },
+    "DFU status %lld at %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "DFU status %1$lld at %2$@"
+          }
+        }
+      }
+    },
+    "Default %@" : {
 
     },
     "Delete Layer" : {
@@ -260,16 +596,34 @@
     "Disable Key" : {
 
     },
+    "Disable Key (⇧⌘⌫)" : {
+
+    },
     "Disabled" : {
 
     },
     "Disabled. No action." : {
 
     },
+    "Do nothing" : {
+
+    },
+    "Done" : {
+
+    },
+    "Done, with a note" : {
+
+    },
     "Double tap" : {
 
     },
     "Double tap sends %@." : {
+
+    },
+    "Download and Build" : {
+
+    },
+    "Downloading the build tools isn’t available in this version yet." : {
 
     },
     "Dual-function" : {
@@ -284,7 +638,7 @@
     "Duplicate Layout" : {
 
     },
-    "Each layout has one window. Choose one in the sidebar to bring its window forward." : {
+    "Each layout has one window. Choose one in the sidebar to bring its window forward, or make a new layout (⌘N)." : {
 
     },
     "Edit Key" : {
@@ -293,13 +647,49 @@
     "Edit Slot" : {
 
     },
+    "Empty" : {
+
+    },
     "Empty combo" : {
 
     },
-    "Every layout is open" : {
+    "Erase" : {
+
+    },
+    "Eraser" : {
+
+    },
+    "Eraser · no own colour" : {
+
+    },
+    "Eraser: keys go back to the layer colour" : {
+
+    },
+    "Erases the key's own colour." : {
+
+    },
+    "Erasing" : {
+
+    },
+    "Erasing · %lld%%" : {
+
+    },
+    "Every key on this layer becomes transparent and loses its own colour. You can undo this." : {
+
+    },
+    "Every layout is open in another window" : {
+
+    },
+    "Every setting has its default value." : {
 
     },
     "Export" : {
+
+    },
+    "Failed" : {
+
+    },
+    "Fetch" : {
 
     },
     "Fetch layout" : {
@@ -308,7 +698,25 @@
     "Find Key…" : {
 
     },
+    "Find a key by name" : {
+
+    },
+    "Firmware" : {
+
+    },
     "Firmware (.bin)…" : {
+
+    },
+    "Firmware Settings" : {
+
+    },
+    "Firmware Settings · Edited" : {
+
+    },
+    "Firmware built" : {
+
+    },
+    "Firmware is %@ bytes too large" : {
 
     },
     "Firmware is %lld bytes too large." : {
@@ -317,13 +725,37 @@
     "Firmware is near the size limit" : {
 
     },
+    "Firmware settings" : {
+
+    },
+    "Firmware source" : {
+
+    },
+    "Fix %lld issues before building" : {
+
+    },
+    "Fix 1 issue before building" : {
+
+    },
     "Flash Oryx’s Build of This Revision…" : {
+
+    },
+    "Flash mode" : {
+
+    },
+    "Flash mode (bootloader)" : {
 
     },
     "Flashed" : {
 
     },
     "Flashed %@" : {
+
+    },
+    "Flashed, but not saved in History" : {
+
+    },
+    "Flashing" : {
 
     },
     "Flashing Help" : {
@@ -335,20 +767,85 @@
     "Flashing didn't finish. Nothing is broken: put the keyboard in flash mode again to retry." : {
 
     },
+    "Flashing didn’t finish" : {
+
+    },
+    "Flashing from ‘%@’" : {
+
+    },
+    "Flashing is off" : {
+
+    },
     "Flashing is off until you approve hardware access." : {
+
+    },
+    "Flashing, %lld percent" : {
+
+    },
+    "Flash…" : {
 
     },
     "Follow Keyboard" : {
 
     },
+    "Follow the keyboard’s layer" : {
+
+    },
     "Follow the keyboard’s layer (⌘L)" : {
+
+    },
+    "Found" : {
+
+    },
+    "General" : {
+
+    },
+    "Generate source" : {
+
+    },
+    "Generating source" : {
+
+    },
+    "Go to" : {
+
+    },
+    "Heatmap" : {
+
+    },
+    "Hide" : {
 
     },
     "Hide Inspector" : {
 
     },
+    "Hide Sidebar" : {
+
+    },
     "Hold" : {
 
+    },
+    "Hold %@ (key %lld), which keeps %@ active" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hold %1$@ (key %2$lld), which keeps %3$@ active"
+          }
+        }
+      }
+    },
+    "Hold + mods" : {
+
+    },
+    "Hold activates %@ (%@)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hold activates %1$@ (%2$@)."
+          }
+        }
+      }
     },
     "Hold activates layer %lld, %@." : {
       "localizations" : {
@@ -360,10 +857,28 @@
         }
       }
     },
+    "Hold for %@." : {
+
+    },
+    "Hold for a modifier or a layer." : {
+
+    },
     "Hold sends %@." : {
 
     },
-    "Import a layout from Oryx to get started." : {
+    "Holding" : {
+
+    },
+    "Hyper" : {
+
+    },
+    "Identity" : {
+
+    },
+    "Import" : {
+
+    },
+    "Import as New Layout" : {
 
     },
     "Import from Connected Keyboard" : {
@@ -375,10 +890,28 @@
     "Import from Oryx…" : {
 
     },
+    "Import from your Voyager" : {
+
+    },
+    "Imports a public layout from configure.zsa.io. Oryx stays read-only; Sextant keeps its own copy." : {
+
+    },
+    "In flash mode, ready for Build & Flash. Unplug it and plug it back in to leave flash mode." : {
+
+    },
+    "In progress" : {
+
+    },
     "In use by %@" : {
 
     },
+    "In use by Keymapp" : {
+
+    },
     "In use by Keymapp. Quit Keymapp or disconnect it there; Sextant connects automatically." : {
+
+    },
+    "Index" : {
 
     },
     "Inherits %@" : {
@@ -390,6 +923,15 @@
     "Issues" : {
 
     },
+    "It reconnected and reported %@ ✓." : {
+
+    },
+    "Keep presses for" : {
+
+    },
+    "Keep the keyboard connected until this finishes." : {
+
+    },
     "Key" : {
 
     },
@@ -399,6 +941,9 @@
     "Key Numbers" : {
 
     },
+    "Key events stay in memory on this Mac and are never written to disk. Live display pauses while you type in a password field." : {
+
+    },
     "Key kinds" : {
 
     },
@@ -406,6 +951,12 @@
 
     },
     "Keyboard Shortcuts" : {
+
+    },
+    "Keyboard connected" : {
+
+    },
+    "Keyboard in flash mode" : {
 
     },
     "Keyboard runs another layout" : {
@@ -421,7 +972,32 @@
         }
       }
     },
+    "Keycode" : {
+
+    },
+    "Keycode picker" : {
+
+    },
+    "Keycode: %@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keycode: %1$@, %2$@"
+          }
+        }
+      }
+    },
+    "Keycodes" : {
+
+    },
     "Keys" : {
+
+    },
+    "Keys down" : {
+
+    },
+    "Keys in this layout" : {
 
     },
     "L" : {
@@ -430,7 +1006,13 @@
     "LED Colour" : {
 
     },
+    "LED colour" : {
+
+    },
     "LIVE" : {
+
+    },
+    "LIVE · Layer %lld" : {
 
     },
     "LIVE · following the keyboard" : {
@@ -474,10 +1056,29 @@
         }
       }
     },
+    "Layer %lld, %@, the keyboard’s layer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Layer %1$lld, %2$@, the keyboard’s layer"
+          }
+        }
+      }
+    },
     "Layer 0 · base · %lld keys" : {
 
     },
     "Layer Colour" : {
+
+    },
+    "Layer colour" : {
+
+    },
+    "Layer colour %@" : {
+
+    },
+    "Layer name" : {
 
     },
     "Layer: %@" : {
@@ -495,6 +1096,9 @@
     "Layouts" : {
 
     },
+    "Left" : {
+
+    },
     "Left hand" : {
 
     },
@@ -504,16 +1108,46 @@
     "Legends" : {
 
     },
+    "Legends: %@" : {
+
+    },
     "Legends: symbols, QMK codes (⌥⌘C) or key numbers (⌥⌘N)" : {
 
     },
     "Lens" : {
 
     },
+    "Lens: %@" : {
+
+    },
     "Lighting" : {
 
     },
+    "Lights" : {
+
+    },
+    "Link" : {
+
+    },
+    "Linking" : {
+
+    },
+    "Listening for a key… esc cancels" : {
+
+    },
+    "Live" : {
+
+    },
+    "Live keyboard" : {
+
+    },
     "Live keyboard access is off." : {
+
+    },
+    "Live keyboard access is off. Sextant sees the keyboard and its layout, but not its layer or keys." : {
+
+    },
+    "Loading" : {
 
     },
     "Macro" : {
@@ -522,13 +1156,31 @@
     "Macro has %lld steps" : {
 
     },
+    "Main" : {
+
+    },
     "Main Window" : {
 
     },
     "Make Transparent" : {
 
     },
+    "Make Transparent (⌘⌫)" : {
+
+    },
+    "Managed toolchain on this Mac" : {
+
+    },
+    "Matches the connected keyboard" : {
+
+    },
+    "Meh" : {
+
+    },
     "Modifier" : {
+
+    },
+    "Modifiers" : {
 
     },
     "Move Down" : {
@@ -549,6 +1201,18 @@
     "Move Up" : {
 
     },
+    "Move to Trash" : {
+
+    },
+    "Move to Trash…" : {
+
+    },
+    "Move “%@” to the Trash?" : {
+
+    },
+    "Name" : {
+
+    },
     "Navigator %@ found on the left half; its settings come along." : {
 
     },
@@ -564,7 +1228,16 @@
     "New Layout" : {
 
     },
+    "New Window" : {
+
+    },
+    "New layout" : {
+
+    },
     "Next Issue" : {
+
+    },
+    "No Colour" : {
 
     },
     "No colour" : {
@@ -573,16 +1246,79 @@
     "No keyboard" : {
 
     },
+    "No keyboard · Connect it with a USB cable" : {
+
+    },
     "No keyboard." : {
 
     },
     "No layout open" : {
 
     },
+    "No results" : {
+
+    },
+    "None" : {
+
+    },
+    "None — shows the keycode" : {
+
+    },
+    "Not connected. Connect your keyboard with a USB cable." : {
+
+    },
     "Not on keyboard" : {
 
     },
+    "Not saved in History" : {
+
+    },
+    "Not started" : {
+
+    },
+    "Nothing" : {
+
+    },
+    "Nothing is broken: the bootloader can’t be overwritten, so you can always try again. Put the keyboard in flash mode again to retry." : {
+
+    },
+    "Notify when a flash finishes" : {
+
+    },
+    "Now %@" : {
+
+    },
+    "Now empty" : {
+
+    },
+    "OK" : {
+
+    },
+    "Off" : {
+
+    },
+    "Off unless you turn it on. Counts presses per key position on this Mac, to show which keys you use most." : {
+
+    },
     "On keyboard" : {
+
+    },
+    "One layer, authored by Sextant, ready to build on." : {
+
+    },
+    "One-shot" : {
+
+    },
+    "Open Sextant" : {
+
+    },
+    "Open after importing" : {
+
+    },
+    "Opens the keycode picker." : {
+
+    },
+    "Oryx link" : {
 
     },
     "Oryx reported a problem: %@" : {
@@ -600,13 +1336,49 @@
     "Override Key" : {
 
     },
+    "Override on %@" : {
+
+    },
     "Override on This Layer" : {
+
+    },
+    "Own colour %@" : {
 
     },
     "Paint %lld Keys" : {
 
     },
+    "Painted keys" : {
+
+    },
+    "Painted on %@" : {
+
+    },
+    "Painting %@" : {
+
+    },
+    "Paints with the brush." : {
+
+    },
+    "Paste a configure.zsa.io link, or a layout ID such as KlgM7/40xJ7M." : {
+
+    },
+    "Paste an Oryx link" : {
+
+    },
+    "Paused: secure input is on" : {
+
+    },
+    "Press Reset (key %lld)" : {
+
+    },
+    "Press Return to change. Actions available." : {
+
+    },
     "Press the reset pinhole" : {
+
+    },
+    "Press the reset pinhole on the top edge of the left half, near the cable, once with a paperclip." : {
 
     },
     "Preview Lighting on Keyboard" : {
@@ -621,6 +1393,9 @@
     "Privacy" : {
 
     },
+    "Put the keyboard in flash mode" : {
+
+    },
     "QMK Codes" : {
 
     },
@@ -633,13 +1408,28 @@
     "Read link" : {
 
     },
+    "Reads the layout ID from the keyboard and downloads it from Oryx, read-only." : {
+
+    },
+    "Recent commands" : {
+
+    },
+    "Reconnecting" : {
+
+    },
     "Record Key" : {
+
+    },
+    "Record a heatmap of key presses" : {
 
     },
     "Redo" : {
 
     },
     "Regular" : {
+
+    },
+    "Rename" : {
 
     },
     "Rename Layer" : {
@@ -654,7 +1444,37 @@
     "Rename Layout…" : {
 
     },
+    "Rename…" : {
+
+    },
+    "Replace and Flash" : {
+
+    },
+    "Replace the layout on this keyboard?" : {
+
+    },
+    "Reset All" : {
+
+    },
+    "Reset All to Defaults…" : {
+
+    },
+    "Reset every firmware setting to its default?" : {
+
+    },
+    "Reset to Default" : {
+
+    },
+    "Restored edits that weren't saved when Sextant quit" : {
+
+    },
+    "Results" : {
+
+    },
     "Revision" : {
+
+    },
+    "Right" : {
 
     },
     "Right hand" : {
@@ -663,25 +1483,49 @@
     "Right thumb" : {
 
     },
+    "Runs %@ · not in your library" : {
+
+    },
     "Save Revision…" : {
+
+    },
+    "Saved as a revision in History." : {
 
     },
     "Search" : {
 
     },
+    "Search %lld keycodes, or type a character" : {
+
+    },
+    "Search commands, keys, layers and settings" : {
+
+    },
     "Search commands, keys, layers and settings (⌘K)" : {
+
+    },
+    "Search keycodes" : {
+
+    },
+    "Sections" : {
 
     },
     "Select Key by Pressing It" : {
 
     },
-    "Select a key to see it on every layer" : {
+    "Select a key to see it on every layer · ⏎ edits · ⌘K finds anything" : {
+
+    },
+    "Send a key when tapped" : {
 
     },
     "Sends %@." : {
 
     },
     "Set %@" : {
+
+    },
+    "Set Colour" : {
 
     },
     "Set Key Colour" : {
@@ -693,7 +1537,22 @@
     "Set Layer Colour" : {
 
     },
+    "Set up" : {
+
+    },
+    "Set up the build tools" : {
+
+    },
+    "Settings take effect after you build and flash. Values equal to the default aren't stored." : {
+
+    },
     "Sextant Help" : {
+
+    },
+    "Sextant builds firmware with the compiler ZSA uses, in a small Linux virtual machine on this Mac. It needs a one-time download of about 1 GB, kept in Application Support." : {
+
+    },
+    "Sextant builds the firmware on this Mac, then writes it once you put the keyboard in flash mode." : {
 
     },
     "Sextant can't build firmware for %@ yet." : {
@@ -705,7 +1564,19 @@
     "Sextant can't flash GD32 keyboards yet." : {
 
     },
+    "Sextant can’t map that key. Try another, or search for it." : {
+
+    },
+    "Sextant checks the layout before every build. These keys need fixing first." : {
+
+    },
+    "Sextant couldn't change the library" : {
+
+    },
     "Sextant couldn't download Oryx's firmware for this revision. The layout imported fine." : {
+
+    },
+    "Sextant couldn't open this layout" : {
 
     },
     "Sextant couldn't reach Oryx. Check your connection and try again." : {
@@ -717,13 +1588,31 @@
     "Sextant couldn't save or load the layout. Check that the disk has space and try again." : {
 
     },
+    "Sextant couldn’t record this flash in History. %@" : {
+
+    },
+    "Sextant reads the active layer and which key positions are down over the keyboard's raw HID interface. It sees positions, never the characters you type. Key events stay in memory on this Mac and are never written to disk, and the live display pauses while you type in a password field." : {
+
+    },
+    "Sextant shows the keyboard’s layer and the keys you hold as they happen. Nothing is recorded." : {
+
+    },
     "Sextant won't flash this image: %@" : {
 
     },
     "Sextant won't flash this image: its checksum doesn't match the build." : {
 
     },
+    "Sextant won’t flash this image" : {
+
+    },
+    "Sextant writes only to the keyboard’s bootloader (%@) and checks the image first." : {
+
+    },
     "Show Build Log" : {
+
+    },
+    "Show Details" : {
 
     },
     "Show Grid Behind Keyboard" : {
@@ -735,6 +1624,9 @@
     "Show Key" : {
 
     },
+    "Show Log" : {
+
+    },
     "Show Next Layer" : {
 
     },
@@ -744,10 +1636,50 @@
     "Show Previous Layer" : {
 
     },
+    "Show Sidebar" : {
+
+    },
+    "Show grid behind the keyboard" : {
+
+    },
     "Show in Finder" : {
 
     },
     "Show on Other Layers" : {
+
+    },
+    "Shows the Device popover" : {
+
+    },
+    "Side" : {
+
+    },
+    "Slots" : {
+
+    },
+    "Source" : {
+
+    },
+    "Start from a blank QWERTY layout" : {
+
+    },
+    "Status lights show layer %lld" : {
+
+    },
+    "Step %lld of 3: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Step %1$lld of 3: %2$@"
+          }
+        }
+      }
+    },
+    "Step %lld of 5" : {
+
+    },
+    "Still waiting? Connect the cable straight to this Mac rather than through a hub, then press the pinhole once more." : {
 
     },
     "Stop" : {
@@ -757,6 +1689,12 @@
 
     },
     "Stop Following" : {
+
+    },
+    "Suggested" : {
+
+    },
+    "Suggested for the selected key" : {
 
     },
     "Swap Keys" : {
@@ -780,7 +1718,19 @@
     "Tap then hold" : {
 
     },
+    "Tap then hold for %@." : {
+
+    },
     "Tap then hold sends %@." : {
+
+    },
+    "Tap twice quickly to send another key" : {
+
+    },
+    "Tap, then hold, for a modifier or a layer." : {
+
+    },
+    "Tap-toggle" : {
 
     },
     "The DFU suffix checksum is wrong (%@, expected %@)." : {
@@ -793,6 +1743,9 @@
         }
       }
     },
+    "The bootloader stopped answering at %@" : {
+
+    },
     "The build didn't finish. %@" : {
 
     },
@@ -803,6 +1756,12 @@
 
     },
     "The build was stopped." : {
+
+    },
+    "The compiler reported an error Sextant couldn’t place on a key." : {
+
+    },
+    "The container builds in a small Linux VM with ZSA's compiler; the managed toolchain builds on this Mac." : {
 
     },
     "The file has no DFU suffix." : {
@@ -855,7 +1814,48 @@
     "The keyboard reconnected without a serial. Put it in flash mode to try again." : {
 
     },
+    "The keyboard restarts with the new firmware. Sextant waits for it to report its new serial." : {
+
+    },
+    "The keyboard’s lights go dark and it disconnects while in flash mode. That’s expected. Sextant starts writing as soon as it sees the bootloader." : {
+
+    },
+    "The layer colour is also its LED colour on the keyboard." : {
+
+    },
+    "These keys go back to the layer colour. You can undo this." : {
+
+    },
     "This is a %@ layout. Sextant supports the ZSA Voyager for now." : {
+
+    },
+    "This is the key's own layer, so the key changes nothing." : {
+
+    },
+    "This keyboard runs %@, a layout that isn’t in your library. Flashing replaces it with ‘%@’." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This keyboard runs %1$@, a layout that isn’t in your library. Flashing replaces it with ‘%2$@’."
+          }
+        }
+      }
+    },
+    "This keyboard runs a layout Sextant built, so there is no Oryx layout to fetch." : {
+
+    },
+    "This keyboard runs ‘%@’ (%@). Flashing replaces it with ‘%@’. You can flash the old one back from History." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This keyboard runs ‘%1$@’ (%2$@). Flashing replaces it with ‘%3$@’. You can flash the old one back from History."
+          }
+        }
+      }
+    },
+    "This keyboard’s firmware doesn’t say which layout it runs. Flashing replaces it with ‘%@’." : {
 
     },
     "This layout is no longer in your library." : {
@@ -867,8 +1867,31 @@
     "This layout was saved by a newer version of Sextant. Update Sextant to open it." : {
 
     },
+    "Toggle" : {
+
+    },
     "Transparent" : {
 
+    },
+    "Transparent on %@. Acts as %@ (hold %@) from %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Transparent on %1$@. Acts as %2$@ (hold %3$@) from %4$@."
+          }
+        }
+      }
+    },
+    "Transparent on %@. Acts as %@ from %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Transparent on %1$@. Acts as %2$@ from %3$@."
+          }
+        }
+      }
     },
     "Transparent on %@. Acts as %@, from %@." : {
       "localizations" : {
@@ -880,10 +1903,19 @@
         }
       }
     },
+    "Transparent on %@. Nothing below it, so it does nothing." : {
+
+    },
     "Transparent on %@. Nothing below it." : {
 
     },
+    "Try Again" : {
+
+    },
     "Try again" : {
+
+    },
+    "Turn off features you don’t use in Firmware Settings, such as RGB animations, then build again." : {
 
     },
     "Undo" : {
@@ -895,10 +1927,34 @@
     "Untitled Layout" : {
 
     },
-    "Verifying · %lld%%" : {
+    "Use Brush" : {
+
+    },
+    "Use Oryx's build when the layout is unchanged since import" : {
+
+    },
+    "Verify" : {
+
+    },
+    "Verifying" : {
+
+    },
+    "Waiting" : {
 
     },
     "Waiting for flash mode" : {
+
+    },
+    "Waiting for the keyboard to enter flash mode…" : {
+
+    },
+    "When the keyboard connects" : {
+
+    },
+    "Write" : {
+
+    },
+    "Writing" : {
 
     },
     "Writing · %lld%%" : {
@@ -907,13 +1963,67 @@
     "Writing…" : {
 
     },
+    "You can put it back from the Trash in Finder." : {
+
+    },
+    "You can undo this." : {
+
+    },
+    "Your %@ is running ‘%@’, revision %lld." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your %1$@ is running ‘%2$@’, revision %3$lld."
+          }
+        }
+      }
+    },
+    "Your %@ is running ‘%@’." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your %1$@ is running ‘%2$@’."
+          }
+        }
+      }
+    },
+    "Your Voyager reports %@. Sextant fetches that layout from Oryx, read-only." : {
+
+    },
+    "ZSA fork %@, modules %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "ZSA fork %1$@, modules %2$@"
+          }
+        }
+      }
+    },
     "bottom row" : {
+
+    },
+    "colour keys" : {
 
     },
     "column %lld" : {
 
     },
     "connected" : {
+
+    },
+    "different layout" : {
+
+    },
+    "dual-function" : {
+
+    },
+    "earlier version of this layout" : {
+
+    },
+    "empty" : {
 
     },
     "go to" : {
@@ -960,10 +2070,34 @@
         }
       }
     },
+    "keys" : {
+
+    },
     "knob" : {
 
     },
+    "labels" : {
+
+    },
+    "layer %lld" : {
+
+    },
+    "layers" : {
+
+    },
+    "macros" : {
+
+    },
+    "matches" : {
+
+    },
+    "matches this layout" : {
+
+    },
     "not connected" : {
+
+    },
+    "off" : {
 
     },
     "one-shot" : {
@@ -979,6 +2113,9 @@
         }
       }
     },
+    "protocol %u" : {
+
+    },
     "reached by %@ (key %lld)" : {
       "localizations" : {
         "en" : {
@@ -989,6 +2126,9 @@
         }
       }
     },
+    "revision %lld" : {
+
+    },
     "row %lld" : {
 
     },
@@ -996,6 +2136,9 @@
 
     },
     "tap-toggle" : {
+
+    },
+    "the key" : {
 
     },
     "toggle" : {
@@ -1018,6 +2161,25 @@
 
     },
     "trackpad" : {
+
+    },
+    "› %@ on %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "› %1$@ on %2$@"
+          }
+        }
+      }
+    },
+    "↑↓ move · ⏎ assign · ⌘⏎ assign & next · ⇥ category · ⇧⌘R record · esc close" : {
+
+    },
+    "↑↓ move · ⏎ run · esc close" : {
+
+    },
+    "⏎ assign · ⌘⏎ & next · esc close" : {
 
     }
   },

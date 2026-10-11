@@ -39,6 +39,10 @@ enum Scenes {
 
         // Honest minimums (spec §3.2): both columns at 1120×640, neither at 640×640.
         window("window-min-both", await model(f, layer: 1, key: 19), size: CGSize(width: 1120, height: 640))
+        // Edits restored from the recovery copy (ADR 0032), at the minimum width.
+        let recovered = await model(f, layer: 1, key: 19)
+        recovered.session?.recoveredUnsavedChanges = true
+        window("window-recovered-min", recovered, size: CGSize(width: 1120, height: 640), light: true)
         let bare = await model(f, layer: 1, key: 19)
         bare.columnVisibility = .detailOnly
         bare.showsInspector = false

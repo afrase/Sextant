@@ -42,7 +42,8 @@ public final class EditSession {
     /// The last autosave failure, if any (cleared by the next successful save).
     public private(set) var saveError: LibraryError?
     /// The document was restored from a recovery copy: edits that hadn't reached the library before Sextant quit.
-    public private(set) var recoveredUnsavedChanges = false
+    /// The window clears it when its notice is dismissed.
+    public var recoveredUnsavedChanges = false
     /// The layout as of the last revision, for "Edited" in the window subtitle (spec §3.4). Nil when the stored
     /// working copy already differed from its last revision at open: edited until the next revision.
     private var revisionBaseline: KeyboardLayout?

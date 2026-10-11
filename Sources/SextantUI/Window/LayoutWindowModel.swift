@@ -25,6 +25,8 @@ enum BuildCommand {
 enum LaneStatus: Equatable {
     case issue(text: String, key: KeyRef)
     case live(text: String)
+    /// The document came back from its recovery copy (ADR 0032).
+    case recovered
 }
 
 /// Presentation state for one layout window. It owns the open `EditSession` and asks `Library` for layouts.
@@ -216,6 +218,7 @@ public final class LayoutWindowModel {
             return .issue(text: KeyText.issueText(issue, layout: session.layout), key: key)
         }
         if let compileError = compileErrorLane { return compileError }
+        if session.recoveredUnsavedChanges { return .recovered }
         guard isFollowing else { return nil }
         // Another layout's layers have other names: the keyboard's layer by number.
         if live != nil, !runsThisLayout { return .live(text: String(localized: "LIVE · Layer \(live?.activeLayer ?? 0)")) }

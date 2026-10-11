@@ -28,26 +28,24 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 - Commit only when `scripts/check` passes; never push.
 
 - **Window split for parallel work:** sidebar sections, detail and inspector routing, presentations, canvas bands and menu groups each have a file; the window gets `SextantServices`; `openKeycodePicker()` / `openImport(_:)` are the cross-slice hooks. Snapshot windows each get their own `Library` (one window per layout had left every window scene after the first empty).
-- **Never lose work (ADR 0032, the user's request):** every change is copied at once to `<library>/.recovery/<id>.json` until its autosave lands; opening a layout restores a newer copy.
+- **Never lose work (ADR 0032, the user's request):** every change is copied at once to `<library>/.recovery/<id>.json` until its autosave lands; opening a layout restores a newer copy, and the lens lane says so until OK.
+- **Phase B merged (MVP steps 4–12)** (workflow `phase-b-slices`, 35 agents; each slice implemented, reviewed by three lenses, verified, fixed and re-verified; 63 confirmed findings): the key editor with drag to swap (ADR 0027); the command palette, keycode picker and Record Key (ADR 0028); layer management and the Lighting lens (ADR 0029); the import sheet, Firmware Settings page, Settings scene, layout Rename/Duplicate/Trash, New Layout (blank QWERTY) and the Welcome (ADR 0030); the device card, Device popover, Follow, live presses and the Build & Flash sheet over `BuildFlashSession` (ADR 0031). Merge fixes: one `HexColor(Color)`; Key ▸ LED Colour swatches; the context strip scrolls to the current layer; the layer inspector uses the shared row style; the open layout can't be trashed while its flash writes; the generator builds Oryx's `ALL_T`/`MEH_T` holds in dual-function keys and tap dances; quitting ends text editing before the last save.
 
 ## In flight
-- Workflow `phase-b-slices` (run `wf_e71379a7-1ae`, base `b1892b3`): branches `slice/inspector`, `slice/picker`, `slice/layers`, `slice/import`, `slice/device`, each implemented, reviewed by three lenses, verified, fixed and re-verified. ADR numbers 0027–0031 are reserved for them.
+- The Phase B integration review (cross-slice lenses, verify, fix, re-verify).
 
 ## Next
-1. Merge the Phase B slices, sync the String Catalog, then an integration review. Check against the user's notes (2026-10-11): an empty first launch must not look blank (§12.1 Welcome with the three cards, including Start from a blank QWERTY layout); a connected keyboard whose layout isn't in the library must be offered for import (Welcome card, device card [Import], Import from Connected Keyboard); the window must say when it restored unsaved changes (`EditSession.recoveredUnsavedChanges`).
-2. Phase B fan-out (in flight, see above), five UI slices: (a) key inspector, step 4; (b) palette, keycode picker and Record Key, step 5; (c) layers management and the Lighting lens, steps 6–7; (d) import sheet, Firmware Settings page, Settings scene, empty states and onboarding, steps 8, 11, 12; (e) device card, Device popover, Follow and presses, and the Build & Flash sheet over `LiveSession` / `BuildFlashSession` (replacing the `onBuild` hook), steps 9–10. Remaining MVP steps in detail: 4 key inspector, 5 picker/palette/Record Key, 6 layers, 7 lighting, 8 import sheet, 9 device card/popover/Follow/presses, 10 Build & Flash sheet (feeding `ActivityState`, replacing `onBuild` with `BuildFlashSession`), 11 Firmware Settings, 12 Settings scene, empty states, onboarding.
-3. Toolchain setup step (download and verify the VM images) once the user approves the download.
-4. Final report per `docs/prompts/lead-architect.md` (what works, milestones, decisions, deviations, what waits on the user, the ponytail-debt ledger via `ponytail:ponytail-debt`).
+1. Finish the integration review. Check against the user's notes (2026-10-11): an empty first launch must not look blank (§12.1 Welcome with the three cards, including Start from a blank QWERTY layout); a connected keyboard whose layout isn't in the library must be offered for import (Welcome card, device card [Import], Import from Connected Keyboard); the window must say when it restored unsaved changes (`EditSession.recoveredUnsavedChanges`).
+2. Toolchain setup step (download and verify the VM images) once the user approves the download.
+3. Final report per `docs/prompts/lead-architect.md` (what works, milestones, decisions, deviations, what waits on the user, the ponytail-debt ledger via `ponytail:ponytail-debt`).
 
 ## Known gaps and notes
 - Security: the generator validates every data-derived token (ADR 0020), after a background security review found C injection; covered by hostile-input tests.
 - Build slice leftovers: the Navigator `sensitivity` (trackball CPI) has no range check (still integer-only, so no injection); a cancelled build can leave a uniquely named temp folder behind (`shortcut:`); the VM path is compiled but has never booted.
 - Device slice: an interface seized by another app after pairing goes unnoticed (reports just stop; `shortcut:`); `IOHIDDeviceSetReport` has no timeout.
-- `BuildFlashSession.stop()` must be called when a document closes (a waiting run would otherwise flash the next keyboard put in flash mode); the UI's `.stop` on window close does this once Build & Flash is wired.
 - The "hold" marker crowds the signal bar on hold-only keys (board step).
-- `Library.rename`, `duplicate` and `trash` bypass an open `EditSession`; route renames of open layouts through `EditSession.setTitle` when the sidebar menu is built (step 6).
 - Domain keycode names and legends are English data, not localized (ADR 0016).
-- The `.app` was built and signature-checked, not launched by the agent; the UI was checked with offscreen snapshots.
+- The `.app` was built and signature-checked, not launched by the agent; the UI was checked with offscreen snapshots. Not checkable offscreen, so try them in the app: a Lighting-lens drag across keys paints and never swaps; the context strip scrolls to the current layer at 1120×640; a label typed and not committed survives ⌘Q; dark-mode contrast of controls inside the inspector (the offscreen renderer draws them wrongly).
 
 ## Blocked / waiting on the user
 - **Hardware (ADR 0012):** raw-HID writes (pairing for the live layer) and flashing. Built against fakes; wired off by default.
@@ -57,3 +55,4 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 - All-null keys render transparent, not Disabled (ADR 0015): Oryx's generated firmware makes them `KC_TRANSPARENT`.
 - `layer.display` for #00F0FF is #00A3AD, not "about #00959E": the spec's own 3:1 rule stops there.
 - Cap size uses the board's own size in pitch units (ADR 0017); for the Voyager this is the spec's formula.
+- Drag to swap is a gesture, not `.draggable`/`.dropDestination`, and the source cap doesn't lift (ADR 0027). A layer key's behaviour and target are pop-up menus, not a segmented control and chips; the inspector's LED row is a colour well plus No Colour, with the swatches in Key ▸ LED Colour (ADR 0027).

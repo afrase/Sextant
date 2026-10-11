@@ -37,6 +37,10 @@ struct LensLane: View {
                 Text(down == 0 ? text : "\(text) · \(down == 1 ? String(localized: "1 key down") : String(localized: "\(down) keys down"))")
                     .lineLimit(1)
                 Button("Stop Following") { model.isFollowing = false }.buttonStyle(.borderless)
+            case .recovered:
+                Image(systemName: "clock.arrow.circlepath").foregroundStyle(.secondary)
+                Text("Restored edits that weren't saved when Sextant quit").lineLimit(1)
+                Button("OK") { model.session?.recoveredUnsavedChanges = false }.buttonStyle(.borderless)
             }
         }
         .font(.callout.weight(.medium))

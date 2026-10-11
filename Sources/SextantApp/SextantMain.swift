@@ -80,7 +80,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let library else { return .terminateNow }
+        // End text editing so a typed label commits (its field commits when focus leaves) before the last save.
+        for window in sender.windows { window.makeFirstResponder(nil) }
         Task {
+            // SwiftUI reports the focus change on a later run-loop turn; let one pass first.
+            await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
             await library.flushOpenSessions()
             sender.reply(toApplicationShouldTerminate: true)
         }
