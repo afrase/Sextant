@@ -1,6 +1,6 @@
 # Sextant UI specification
 
-Version 1.0 · 2026-10-11 · Status: the chosen direction for MVP and v1. Open questions are listed at the end of the design-phase report and summarised in §14.
+Version 1.0 · 2026-10-11 · Status: the chosen direction for MVP and v1. The user decided all nine taste calls on 2026-10-11 (§14).
 
 **Inputs**
 - `docs/design/brief.md`
@@ -170,7 +170,7 @@ The main complaints about Instrument can all be fixed without changing its struc
 
 ### 2.3 Document and library model
 
-**Library (recommended; see the open questions)**
+**Library (decided, §14 item 7)**
 - Sextant manages a library at `~/Library/Application Support/Sextant/Library/`.
 - Each layout is a `.sextant` package: a folder of plain, git-friendly JSON. It holds `layout.json`, `revisions/<n>-<id>.json` (append-only), `firmware/<rev>.bin` and `.md5`, and `meta.json` (UUID, content hash, origin).
 - The document model is a lossless superset of Oryx's revision JSON (research §2.3). It has stable UUIDs and content hashes from day one, so sync can be added later (Future).
@@ -1334,7 +1334,7 @@ Esc never switches lens or destination.
 - ⌘0 and ⌥⌘0 are not used for the sidebar or inspector.
 - ⌃1–⌃4 are left to Mission Control.
 - Bare letters work only when the board has focus.
-- ⌘R and ⌘B follow Xcode's "Run" and "Build". The user is an Xcode user. Whether to keep this is an open question.
+- ⌘R and ⌘B follow Xcode's "Run" and "Build". The user is an Xcode user. Decided (§14 item 3).
 
 ---
 
@@ -1738,17 +1738,18 @@ All of these were confirmed in the macOS 27 SDK during this session.
 
 ---
 
-## 14. Open questions (taste calls for the user)
+## 14. Taste calls (decided 2026-10-11)
 
-Each question is listed with options and a recommendation in the design-phase output. In summary:
-1. Sidebar shown or hidden by default (board size).
-2. How much identity the bench carries.
-3. ⌘R or ⌘B for Build & Flash.
-4. The flash progress visual.
-5. The heatmap palette.
-6. Live and heatmap privacy defaults.
-7. Library or per-file storage.
-8. The contents of the menu bar extra.
-9. HUD tint.
+The user picked the recommended option for all nine, with no notes. The spec above already follows these answers.
 
-The spec above uses the recommended answers. Each choice is local to the section it names.
+1. **Sidebar:** shown by default and remembered per window; ⌃⌘S hides it. Caps are about 52 pt at 1440 pt wide.
+2. **Bench:** a plain bench, plus a faint precision grid at key pitch and a subtle layer-colour wash on non-base layers. The grid can be turned off in Settings.
+3. **Shortcuts:** ⌘R Build & Flash, ⌘B Build only, ⌘. Stop, as in Xcode.
+4. **Flash progress:** the graduated sextant-bezel ring with the phase percentage, plus a small Erase/Write/Verify segmented bar and the facts.
+5. **Heatmap:** a single-hue blue ramp, log-scaled, light to dark in light mode and flipped in dark mode.
+6. **Privacy:** live press highlights are on by default. They show positions only, stay in memory and pause during secure input. Heatmap recording is off until the user opts in.
+7. **Storage:** a Sextant-managed library of `.sextant` packages (plain JSON) in Application Support. It is listed in the sidebar, with Show in Finder and Export.
+8. **Menu bar extra:** lit layer tiles, a live mini map, the app-rule and overlay switches, and native rows (Build & Flash ⌘R, Open, Settings, Quit). It shows no typing stats unless heatmap recording is on.
+9. **Overlay HUD:** neutral Liquid Glass, with keys ringed in the layer colour. "Tint with layer colour" is an option in Settings.
+
+Source: the review page's answer store (`answers/q1`–`q9`); the questions are in `open-questions.json`.

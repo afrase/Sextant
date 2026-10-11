@@ -7,6 +7,8 @@
 | 3 | 2026-10-11 | Minimum OS: **macOS 26** | Liquid Glass design language, current SwiftUI, Apple Containerization as the build backend. |
 | 4 | 2026-10-11 | UI design scope: **design every surface, build in phases** | Editor, live layer/key view, menu bar item, floating overlay/HUD, heatmap and app-aware layers are all designed now. Build order: editor, then live view (MVP), then the rest (v1). |
 
+UI taste calls: all nine decided 2026-10-11 (ui-spec §14).
+
 Still open (00 §9): build-backend default (pending the Phase 0 spike), firmware identity/serial, licence and distribution, Phase 0 hardware approval.
 
 ## Future ideas (not scheduled)
