@@ -334,7 +334,7 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
 - **Live badge.** A `dot.radiowaves.left.and.right` badge marks the layer the physical keyboard is on.
 - **Add Layer.** A final row, "Add Layer", with a `plus` symbol (⇧⌘N).
 - **Reordering.** Drag to reorder with `.onMove`. Layer references follow the move, as one undo step: "Move Layer".
-- **Context menu:** Rename… (or double-click to edit inline), Colour ▸ (layout swatches, Custom…, No Colour), Duplicate, Move Up / Move Down, Copy Layer To… (v1), Clear Layer…, Delete Layer….
+- **Context menu:** Rename… (edits the name in place; no double-click, which held every click's selection until it timed out), Colour ▸ (layout swatches, Custom…, No Colour), Duplicate, Move Up / Move Down, Copy Layer To… (v1), Clear Layer…, Delete Layer….
 
 **3. Layout**
 - Combos, Macros, App Layers and History each carry a count badge.
@@ -1261,7 +1261,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 |---|---|
 | New Layer | ⇧⌘N |
 | Duplicate Layer | ⇧⌘D |
-| Rename Layer… | — (double-click in the sidebar) |
+| Rename Layer… | — (or the sidebar row's context menu) |
 | Layer Colour ▸ | — |
 | Move Layer Up / Down | ⌥⌘↑ / ⌥⌘↓ |
 | Copy Layer To… (v1) · Clear Layer… · Delete Layer… | — |
@@ -1508,7 +1508,7 @@ Modifiers on caps and in hints are text glyphs (⌃ ⌥ ⇧ ⌘ ⇪ ⌫ ⌦ ⏎ 
 | Moment | Spec | Reduce Motion |
 |---|---|---|
 | Selection ring moves | `snappy` | Instant |
-| Layer change | Caps crossfade over 0.18 s. A ripple runs from the thumb that holds the layer (or the board centre), staggered 6 ms per pitch unit up to 90 ms, with scale 0.98 → 1 | Crossfade only |
+| Layer change | Caps crossfade over 0.18 s, ease-out (an ease-in start looked late after a click). A ripple runs from the thumb that holds the layer (or the board centre), staggered 6 ms per pitch unit up to 90 ms, with scale 0.98 → 1 | Crossfade only |
 | Layer atmosphere | Linear crossfade, 0.3 s | Same |
 | Palette and picker appear | Fade plus scale 0.98 → 1, 0.16 s ease-out. The palette morphs into the picker with `standard` | Fade, 0.12 s |
 | Lens-lane capsule | `.materialize` | Fade |
