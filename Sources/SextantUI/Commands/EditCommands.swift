@@ -7,8 +7,9 @@ struct EditItems: View {
     var body: some View {
         Divider()
         MakeTransparentItem(window: window)
-        Button("Find Key…") {}.keyboardShortcut("f").disabled(true)
-        Button("Command Palette") {}.keyboardShortcut("k").disabled(true)
+        Button("Find Key…") { window?.openPalette(.keys) }.keyboardShortcut("f").disabled(window?.session == nil)
+        // ⇧⌘O also opens it (the window's hidden alias button; a menu item takes one shortcut).
+        Button("Command Palette") { window?.openPalette() }.keyboardShortcut("k").disabled(window?.session == nil)
     }
 }
 

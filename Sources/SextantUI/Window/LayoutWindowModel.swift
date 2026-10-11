@@ -63,6 +63,14 @@ public final class LayoutWindowModel {
     @ObservationIgnored let makeImport: (@MainActor () -> ImportFromOryx)?
     /// The Build & Flash state machine for the open layout; nil where building is off (tests, snapshots).
     @ObservationIgnored let makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)?
+    // MARK: picker
+    /// The open command palette or keycode picker (spec §5.6, §5.7); nil when closed.
+    var palette: Palette?
+    /// Record Key while it listens for the next key on the Mac's keyboard (spec §5.8); nil when off.
+    var recorder: KeyRecorder?
+    /// Keycodes assigned from the picker and commands run from the palette, newest first (Suggested, Recent).
+    var recentKeycodes: [KeyAction] = []
+    var recentCommands: [String] = []
 
     public init(
         library: Library, onBuild: BuildHandler? = nil, live: LiveSession? = nil,

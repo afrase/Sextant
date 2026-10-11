@@ -23,6 +23,7 @@ public struct BoardView: View {
     @Namespace private var rotors
     @Environment(\.motion) private var motion
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.layoutWindow) private var window
 
     public init(
         session: EditSession, mode: LegendMode = .symbols, issues: [KeyRef: LayoutIssue.Severity] = [:], pressed: PressedKeys? = nil,
@@ -85,7 +86,7 @@ public struct BoardView: View {
             session.makeTransparent()
             return .handled
         }
-        // shortcut: ⏎ and typing open the keycode picker once it exists (spec step 5); until then they pass through.
+        .modifier(BoardPickerKeys(session: session, isFocused: $isFocused))
         .onExitCommand { session.select(key: nil) }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
@@ -129,8 +130,7 @@ public struct BoardView: View {
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(KeyText.label(model.legend, index: frame.index))
                         .accessibilityValue(value)
-                        // shortcut: "Press Return to change." joins this hint when ⏎ opens the picker (spec step 5).
-                        .accessibilityHint(Text("Actions available."))
+                        .accessibilityHint(Text("Press Return to change. Actions available."))
                         .accessibilityAction { select(frame.index) }
                         .accessibilityAddTraits(frame.index == session.selection.keyIndex ? [.isButton, .isSelected] : .isButton)
                         .accessibilitySortPriority(order[safe: frame.index] ?? 0)
@@ -139,13 +139,28 @@ public struct BoardView: View {
                 }
             }
             selectionRing(board, cap: cap)
+            PickerCapOverlay(board: board, cap: cap)
         }
         .animation(SextantMotion.layerChange, value: layer)
     }
 
-    /// VoiceOver custom actions (spec §4.11). Change Tap, Change Hold and Record Key arrive with the picker.
+    /// VoiceOver custom actions (spec §4.11).
     @ViewBuilder private func keyActions(_ model: KeyCapModel) -> some View {
         let index = model.index
+        if let window {
+            Button("Change Tap") {
+                session.select(key: index, slot: .tap)
+                window.openKeycodePicker()
+            }
+            Button("Change Hold") {
+                session.select(key: index, slot: .hold)
+                window.openKeycodePicker()
+            }
+            Button("Record Key") {
+                session.select(key: index)
+                window.startRecording()
+            }
+        }
         if !model.isGhost { Button("Make Transparent") { session.makeTransparent(index: index) } }
         if model.legend.ownKind != .disabled { Button("Disable") { session.disable(index: index) } }
         if model.legend.isInherited { Button("Override on This Layer") { session.overrideInherited(index: index) } }

@@ -8,13 +8,17 @@ struct LensLane: View {
     var body: some View {
         GlassEffectContainer(spacing: 8) {
             HStack(spacing: 8) {
-                if let status = model.laneStatus {
+                // Status by priority: error > recording > live.
+                if model.recorder != nil, model.laneStatus?.isIssue != true {
+                    RecordingCapsule(model: model).glassEffectTransition(.materialize)
+                } else if let status = model.laneStatus {
                     capsule(status)
                         .glassEffectTransition(.materialize)
                 }
             }
         }
         .animation(motion.standard, value: model.laneStatus)
+        .animation(motion.standard, value: model.recorder != nil)
     }
 
     @ViewBuilder private func capsule(_ status: LaneStatus) -> some View {

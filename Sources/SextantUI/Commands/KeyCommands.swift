@@ -7,8 +7,8 @@ struct KeyMenu: View {
     var body: some View {
         let session = window?.session
         let hasKey = window?.hasSelectedKey == true
-        Button("Change Keycode…") {}.disabled(true)
-        Button("Record Key") {}.keyboardShortcut("r", modifiers: [.command, .shift]).disabled(true)
+        Button("Change Keycode…") { window?.openKeycodePicker() }.disabled(!hasKey)
+        Button("Record Key") { window?.startRecording() }.keyboardShortcut("r", modifiers: [.command, .shift]).disabled(!hasKey)
         Menu("Edit Slot") {
             ForEach(Array(KeySlot.allCases.enumerated()), id: \.element) { n, slot in
                 Toggle(
