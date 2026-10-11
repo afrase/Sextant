@@ -21,6 +21,7 @@ struct LayoutsSection: View {
                 }
                 .buttonStyle(.plain)
                 .badge(model.live?.firmwareSerial.map(entry.isOnKeyboard) == true ? Text("On keyboard") : nil)
+                .badgeProminence(.decreased)
                 .accessibilityAddTraits(isOpenHere ? .isSelected : [])
                 .contextMenu {
                     Button("Rename…") { model.layoutPendingRename = entry.id }

@@ -33,8 +33,8 @@ The index of settled decisions. From decision 6 on, each has an ADR in [`adr/`](
 | 27 | 2026-10-11 | Key inspector: drag to swap as a gesture, chorded modifier holds, commit rules | [ADR 0027](adr/0027-key-inspector.md). Deviates from spec §13.2 (no `.draggable`). Since the merge the generator also builds Oryx's `ALL_T`/`MEH_T` holds in dual-function keys and tap dances, so the chording is a choice now, not a workaround. |
 | 28 | 2026-10-11 | One floating panel for the palette and picker; positional Record Key | [ADR 0028](adr/0028-palette-picker-record-key.md). |
 | 29 | 2026-10-11 | Layers and Lighting lens UI | [ADR 0029](adr/0029-layers-and-lighting-ui.md). Gesture gating corrected at merge. |
-| 30 | 2026-10-11 | Import sheet, firmware settings storage, library management, app settings | [ADR 0030](adr/0030-import-settings-and-library-ui.md). Welcome, not an automatic default layout (the user's call). |
-| 31 | 2026-10-11 | Device and Build & Flash in the window | [ADR 0031](adr/0031-device-and-build-flash-ui.md). |
+| 30 | 2026-10-11 | Import sheet, firmware settings storage, library management, app settings | [ADR 0030](adr/0030-import-settings-and-library-ui.md). Welcome, not an automatic default layout (the user's call). Since the integration review New Window has no shortcut (⌥⌘N is Legends ▸ Key Numbers, spec §9.1). |
+| 31 | 2026-10-11 | Device and Build & Flash in the window | [ADR 0031](adr/0031-device-and-build-flash-ui.md). Since the integration review flash mode is claimed per run (`claimFlashMode(for:owner:)`), and quitting or closing a window waits while a flash writes. |
 | 32 | 2026-10-11 | A recovery copy of every change until its autosave lands | [ADR 0032](adr/0032-recovery-copy.md). The user's request: never lose work. The window says when edits were restored. |
 
 UI taste calls: all nine decided 2026-10-11 (ui-spec §14).

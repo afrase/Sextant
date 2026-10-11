@@ -8,7 +8,13 @@ struct WindowDetail: View {
     var body: some View {
         content
             // Choosing a layer by number or menu returns from a page to the board; Follow's layer changes don't.
-            .onChange(of: model.session?.selection.layer) { if !model.isFollowing { model.showsFirmwareSettings = false } }
+            .onChange(of: model.session?.selection.layer) {
+                // A layer picked by hand ends Record Key too: it would assign to the layer it started on, now hidden.
+                if !model.isFollowing {
+                    model.showsFirmwareSettings = false
+                    model.recorder = nil
+                }
+            }
             // The page doesn't show the key Record Key would assign to.
             .onChange(of: model.showsFirmwareSettings) { model.recorder = nil }
             // One alert, in the key window: every window shares the library.
