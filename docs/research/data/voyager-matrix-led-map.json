@@ -1,0 +1,3524 @@
+{
+ "_meta": {
+  "title": "ZSA Voyager: Oryx key index -> QMK matrix -> RGB LED index -> electrical map",
+  "generated": "2026-10-11",
+  "generator": "scratchpad/scripts/build_voyager_matrix_led_map.py (parses the sources below; no hand-typed tables)",
+  "sources": {
+   "keyboard_json": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json (layouts.LAYOUT lines 160-216, rgb_matrix.layout lines 102-155). Identical key/LED data in qmk/qmk_firmware@master@7a1bbf37c5c07da4ea0a162bb139083a46ef40a1 keyboards/zsa/voyager/keyboard.json lines 99-211.",
+   "voyager_c": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c (g_is31fl3731_leds lines 133-197, hand_swap_config lines 204-219)",
+   "matrix_c": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/matrix.c (pins 61-75, right-half strobe/read 133-196, transpose 199-204)",
+   "config_h": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/config.h (MATRIX_COLS 7 / MATRIX_ROWS 12 lines 7-8; IS31 addresses lines 12-13)",
+   "voyager_h": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.h (MCP23018 address line 12; STATUS_LED_1..4 lines 14-17)",
+   "is31fl3731_h": "qmk/qmk_firmware@master@7a1bbf37c5c07da4ea0a162bb139083a46ef40a1 drivers/led/issi/is31fl3731.h (I2C addresses lines 53-56; Cx_y defines lines 100-260)",
+   "keypos_t": "qmk/qmk_firmware@master@7a1bbf37c5c07da4ea0a162bb139083a46ef40a1 quantum/keyboard.h lines 30-33 (keypos_t is {col,row})",
+   "led_flags": "qmk/qmk_firmware@master@7a1bbf37c5c07da4ea0a162bb139083a46ef40a1 quantum/rgb_matrix/rgb_matrix_types.h lines 63-68",
+   "user_layout": "oryx/layout.json (KlgM7 / 40xJ7M, layer 0 'Main') - used only as a cross-check column",
+   "independent_confirmation": "jpds/rmk-zsa-voyager@69527d634003f7e88fe4d7bfa84431ac5d8e4309 src/mcp23018.rs lines 1-10 (same transpose: row = 11 - GPB bit, col = 6 - GPA bit) and src/is31fl3731.rs lines 2-3, 19-20 (0x74 left, 0x77 right)"
+  },
+  "rules": [
+   "Oryx key index N == QMK label kNN == RGB LED index N (verified programmatically for all 52 keys: rgb_matrix.layout[N].matrix == matrix of label kNN).",
+   "LAYOUT()/LAYOUT_voyager() argument order is row-interleaved (left row, right row, ...), so layout_macro_arg_index != oryx_index. Oryx's generated keymap.c emits LAYOUT_voyager args in that interleaved order.",
+   "Matrix is 12 rows x 7 cols: rows 0-5 = left half (MCU GPIO), rows 6-11 = right half (MCP23018). 84 cells, 52 populated; 32 cells are unused but still occupy 2 bytes each in a VIA dynamic keymap layer (168 bytes per layer).",
+   "IS31 pwm_offset is the Cx_y constant from is31fl3731.h; the driver writes PWM register (0x24 + offset) on the frame page (INFERRED from QMK driver convention; not needed by a host app).",
+   "electrical.* is derived from matrix.c; right-half mapping: matrix row R <- MCP23018 GPB(11-R), matrix col C <- MCP23018 GPA(6-C)."
+  ]
+ },
+ "summary": {
+  "matrix_rows": 12,
+  "matrix_cols": 7,
+  "keys": 52,
+  "keys_per_half": 26,
+  "rgb_leds": 52,
+  "led_drivers": [
+   {
+    "index": 0,
+    "part": "IS31FL3731",
+    "i2c_address": "0x74 (ADDR=GND)",
+    "leds": "0-25 (left half)"
+   },
+   {
+    "index": 1,
+    "part": "IS31FL3731",
+    "i2c_address": "0x77 (ADDR=VCC)",
+    "leds": "26-51 (right half)"
+   }
+  ],
+  "io_expander": {
+   "part": "MCP23018",
+   "i2c_address": "0x20",
+   "port_a": "GPA0-6 row strobes (outputs)",
+   "port_b": "GPB0-5 column senses (inputs); GPB6 = STATUS_LED_4, GPB7 = STATUS_LED_3 (active LOW)"
+  },
+  "i2c_bus": "I2C1 on PB6 (SCL) / PB7 (SDA), alternate function 4, open-drain (matrix.c 46-50; mcuconf.h STM32_I2C_USE_I2C1)",
+  "status_leds": [
+   {
+    "name": "STATUS_LED_1",
+    "drive": "MCU B5 (active high)",
+    "position": "top-most LED, left half"
+   },
+   {
+    "name": "STATUS_LED_2",
+    "drive": "MCU B4 (active high)",
+    "position": "left half"
+   },
+   {
+    "name": "STATUS_LED_3",
+    "drive": "MCP23018 GPB7 (active low)",
+    "position": "right half"
+   },
+   {
+    "name": "STATUS_LED_4",
+    "drive": "MCP23018 GPB6 (active low)",
+    "position": "bottom-most LED, right half"
+   }
+  ]
+ },
+ "matrix_grid_oryx_index": [
+  [
+   null,
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  [
+   null,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11
+  ],
+  [
+   null,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17
+  ],
+  [
+   null,
+   18,
+   19,
+   20,
+   21,
+   22,
+   null
+  ],
+  [
+   null,
+   null,
+   null,
+   null,
+   23,
+   null,
+   null
+  ],
+  [
+   24,
+   25,
+   null,
+   null,
+   null,
+   null,
+   null
+  ],
+  [
+   26,
+   27,
+   28,
+   29,
+   30,
+   31,
+   null
+  ],
+  [
+   32,
+   33,
+   34,
+   35,
+   36,
+   37,
+   null
+  ],
+  [
+   38,
+   39,
+   40,
+   41,
+   42,
+   43,
+   null
+  ],
+  [
+   null,
+   45,
+   46,
+   47,
+   48,
+   49,
+   null
+  ],
+  [
+   null,
+   null,
+   44,
+   null,
+   null,
+   null,
+   null
+  ],
+  [
+   null,
+   null,
+   null,
+   null,
+   null,
+   50,
+   51
+  ]
+ ],
+ "layout_macro_order_oryx_index": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  26,
+  27,
+  28,
+  29,
+  30,
+  31,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  32,
+  33,
+  34,
+  35,
+  36,
+  37,
+  12,
+  13,
+  14,
+  15,
+  16,
+  17,
+  38,
+  39,
+  40,
+  41,
+  42,
+  43,
+  18,
+  19,
+  20,
+  21,
+  22,
+  23,
+  44,
+  45,
+  46,
+  47,
+  48,
+  49,
+  24,
+  25,
+  50,
+  51
+ ],
+ "keys": [
+  {
+   "oryx_index": 0,
+   "qmk_label": "k00",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 0,
+   "visual_col_left_to_right": 0,
+   "matrix": [
+    0,
+    1
+   ],
+   "layout_macro_arg_index": 0,
+   "led_index": 0,
+   "led_flags": 1,
+   "led_flags_meaning": "LED_FLAG_MODIFIER",
+   "led_point_xy_0_224_by_0_64": [
+    0,
+    10
+   ],
+   "kle_xy_units": [
+    0,
+    0.5
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C2_2",
+     "pwm_offset": "0x11"
+    },
+    "green": {
+     "cs_sw": "C1_2",
+     "pwm_offset": "0x01"
+    },
+    "blue": {
+     "cs_sw": "C4_3",
+     "pwm_offset": "0x32"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:140"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B10",
+    "col_sense_input": "A1",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    6,
+    5
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 2,
+   "special": [
+    "bootmagic key (keyboard.json bootmagic.matrix [0,1])"
+   ],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:163",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:103",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:206"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_EQUAL",
+    "hold": "KC_ESCAPE"
+   },
+   "swap_hands_target_oryx_index": 31
+  },
+  {
+   "oryx_index": 1,
+   "qmk_label": "k01",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 0,
+   "visual_col_left_to_right": 1,
+   "matrix": [
+    0,
+    2
+   ],
+   "layout_macro_arg_index": 1,
+   "led_index": 1,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    17,
+    10
+   ],
+   "kle_xy_units": [
+    1,
+    0.5
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C2_3",
+     "pwm_offset": "0x12"
+    },
+    "green": {
+     "cs_sw": "C1_3",
+     "pwm_offset": "0x02"
+    },
+    "blue": {
+     "cs_sw": "C3_3",
+     "pwm_offset": "0x22"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:141"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B10",
+    "col_sense_input": "A2",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    6,
+    4
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 4,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:164",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:104",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:206"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_1",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 30
+  },
+  {
+   "oryx_index": 2,
+   "qmk_label": "k02",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 0,
+   "visual_col_left_to_right": 2,
+   "matrix": [
+    0,
+    3
+   ],
+   "layout_macro_arg_index": 2,
+   "led_index": 2,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    34,
+    8
+   ],
+   "kle_xy_units": [
+    2,
+    0.25
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C2_4",
+     "pwm_offset": "0x13"
+    },
+    "green": {
+     "cs_sw": "C1_4",
+     "pwm_offset": "0x03"
+    },
+    "blue": {
+     "cs_sw": "C3_4",
+     "pwm_offset": "0x23"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:142"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B10",
+    "col_sense_input": "A3",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    6,
+    3
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 6,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:165",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:105",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:206"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_2",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 29
+  },
+  {
+   "oryx_index": 3,
+   "qmk_label": "k03",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 0,
+   "visual_col_left_to_right": 3,
+   "matrix": [
+    0,
+    4
+   ],
+   "layout_macro_arg_index": 3,
+   "led_index": 3,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    52,
+    5
+   ],
+   "kle_xy_units": [
+    3,
+    0
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C2_5",
+     "pwm_offset": "0x14"
+    },
+    "green": {
+     "cs_sw": "C1_5",
+     "pwm_offset": "0x04"
+    },
+    "blue": {
+     "cs_sw": "C3_5",
+     "pwm_offset": "0x24"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:143"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B10",
+    "col_sense_input": "A6",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    6,
+    2
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 8,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:166",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:106",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:206"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_3",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 28
+  },
+  {
+   "oryx_index": 4,
+   "qmk_label": "k04",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 0,
+   "visual_col_left_to_right": 4,
+   "matrix": [
+    0,
+    5
+   ],
+   "layout_macro_arg_index": 4,
+   "led_index": 4,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    69,
+    8
+   ],
+   "kle_xy_units": [
+    4,
+    0.25
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C2_6",
+     "pwm_offset": "0x15"
+    },
+    "green": {
+     "cs_sw": "C1_6",
+     "pwm_offset": "0x05"
+    },
+    "blue": {
+     "cs_sw": "C3_6",
+     "pwm_offset": "0x25"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:144"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B10",
+    "col_sense_input": "A7",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    6,
+    1
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 10,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:167",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:107",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:206"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_4",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 27
+  },
+  {
+   "oryx_index": 5,
+   "qmk_label": "k05",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 0,
+   "visual_col_left_to_right": 5,
+   "matrix": [
+    0,
+    6
+   ],
+   "layout_macro_arg_index": 5,
+   "led_index": 5,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    86,
+    10
+   ],
+   "kle_xy_units": [
+    5,
+    0.5
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C2_7",
+     "pwm_offset": "0x16"
+    },
+    "green": {
+     "cs_sw": "C1_7",
+     "pwm_offset": "0x06"
+    },
+    "blue": {
+     "cs_sw": "C3_7",
+     "pwm_offset": "0x26"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:145"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B10",
+    "col_sense_input": "B0",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    6,
+    0
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 12,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:168",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:108",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:206"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_5",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 26
+  },
+  {
+   "oryx_index": 6,
+   "qmk_label": "k06",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 1,
+   "visual_col_left_to_right": 0,
+   "matrix": [
+    1,
+    1
+   ],
+   "layout_macro_arg_index": 12,
+   "led_index": 6,
+   "led_flags": 1,
+   "led_flags_meaning": "LED_FLAG_MODIFIER",
+   "led_point_xy_0_224_by_0_64": [
+    0,
+    21
+   ],
+   "kle_xy_units": [
+    0,
+    1.5
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C2_8",
+     "pwm_offset": "0x17"
+    },
+    "green": {
+     "cs_sw": "C1_8",
+     "pwm_offset": "0x07"
+    },
+    "blue": {
+     "cs_sw": "C3_8",
+     "pwm_offset": "0x27"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:146"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B11",
+    "col_sense_input": "A1",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    7,
+    5
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 16,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:175",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:109",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:207"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_TAB",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 37
+  },
+  {
+   "oryx_index": 7,
+   "qmk_label": "k07",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 1,
+   "visual_col_left_to_right": 1,
+   "matrix": [
+    1,
+    2
+   ],
+   "layout_macro_arg_index": 13,
+   "led_index": 7,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    17,
+    21
+   ],
+   "kle_xy_units": [
+    1,
+    1.5
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C8_1",
+     "pwm_offset": "0x70"
+    },
+    "green": {
+     "cs_sw": "C7_1",
+     "pwm_offset": "0x60"
+    },
+    "blue": {
+     "cs_sw": "C9_1",
+     "pwm_offset": "0x80"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:147"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B11",
+    "col_sense_input": "A2",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    7,
+    4
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 18,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:176",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:110",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:207"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_Q",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 36
+  },
+  {
+   "oryx_index": 8,
+   "qmk_label": "k08",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 1,
+   "visual_col_left_to_right": 2,
+   "matrix": [
+    1,
+    3
+   ],
+   "layout_macro_arg_index": 14,
+   "led_index": 8,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    34,
+    19
+   ],
+   "kle_xy_units": [
+    2,
+    1.25
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C8_2",
+     "pwm_offset": "0x71"
+    },
+    "green": {
+     "cs_sw": "C7_2",
+     "pwm_offset": "0x61"
+    },
+    "blue": {
+     "cs_sw": "C9_2",
+     "pwm_offset": "0x81"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:148"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B11",
+    "col_sense_input": "A3",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    7,
+    3
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 20,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:177",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:111",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:207"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_W",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 35
+  },
+  {
+   "oryx_index": 9,
+   "qmk_label": "k09",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 1,
+   "visual_col_left_to_right": 3,
+   "matrix": [
+    1,
+    4
+   ],
+   "layout_macro_arg_index": 15,
+   "led_index": 9,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    52,
+    17
+   ],
+   "kle_xy_units": [
+    3,
+    1
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C8_3",
+     "pwm_offset": "0x72"
+    },
+    "green": {
+     "cs_sw": "C7_3",
+     "pwm_offset": "0x62"
+    },
+    "blue": {
+     "cs_sw": "C9_3",
+     "pwm_offset": "0x82"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:149"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B11",
+    "col_sense_input": "A6",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    7,
+    2
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 22,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:178",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:112",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:207"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_E",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 34
+  },
+  {
+   "oryx_index": 10,
+   "qmk_label": "k10",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 1,
+   "visual_col_left_to_right": 4,
+   "matrix": [
+    1,
+    5
+   ],
+   "layout_macro_arg_index": 16,
+   "led_index": 10,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    69,
+    19
+   ],
+   "kle_xy_units": [
+    4,
+    1.25
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C8_4",
+     "pwm_offset": "0x73"
+    },
+    "green": {
+     "cs_sw": "C7_4",
+     "pwm_offset": "0x63"
+    },
+    "blue": {
+     "cs_sw": "C9_4",
+     "pwm_offset": "0x83"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:150"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B11",
+    "col_sense_input": "A7",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    7,
+    1
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 24,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:179",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:113",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:207"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_R",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 33
+  },
+  {
+   "oryx_index": 11,
+   "qmk_label": "k11",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 1,
+   "visual_col_left_to_right": 5,
+   "matrix": [
+    1,
+    6
+   ],
+   "layout_macro_arg_index": 17,
+   "led_index": 11,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    86,
+    21
+   ],
+   "kle_xy_units": [
+    5,
+    1.5
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C8_5",
+     "pwm_offset": "0x74"
+    },
+    "green": {
+     "cs_sw": "C7_5",
+     "pwm_offset": "0x64"
+    },
+    "blue": {
+     "cs_sw": "C9_5",
+     "pwm_offset": "0x84"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:151"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B11",
+    "col_sense_input": "B0",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    7,
+    0
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 26,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:180",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:114",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:207"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_T",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 32
+  },
+  {
+   "oryx_index": 12,
+   "qmk_label": "k12",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 2,
+   "visual_col_left_to_right": 0,
+   "matrix": [
+    2,
+    1
+   ],
+   "layout_macro_arg_index": 24,
+   "led_index": 12,
+   "led_flags": 1,
+   "led_flags_meaning": "LED_FLAG_MODIFIER",
+   "led_point_xy_0_224_by_0_64": [
+    0,
+    32
+   ],
+   "kle_xy_units": [
+    0,
+    2.5
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C8_6",
+     "pwm_offset": "0x75"
+    },
+    "green": {
+     "cs_sw": "C7_6",
+     "pwm_offset": "0x65"
+    },
+    "blue": {
+     "cs_sw": "C9_6",
+     "pwm_offset": "0x85"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:152"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B12",
+    "col_sense_input": "A1",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    8,
+    5
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 30,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:187",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:115",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:208"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_LEFT_SHIFT",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 43
+  },
+  {
+   "oryx_index": 13,
+   "qmk_label": "k13",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 2,
+   "visual_col_left_to_right": 1,
+   "matrix": [
+    2,
+    2
+   ],
+   "layout_macro_arg_index": 25,
+   "led_index": 13,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    17,
+    32
+   ],
+   "kle_xy_units": [
+    1,
+    2.5
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C2_10",
+     "pwm_offset": "0x19"
+    },
+    "green": {
+     "cs_sw": "C1_10",
+     "pwm_offset": "0x09"
+    },
+    "blue": {
+     "cs_sw": "C4_11",
+     "pwm_offset": "0x3A"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:153"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B12",
+    "col_sense_input": "A2",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    8,
+    4
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 32,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:188",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:116",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:208"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_A",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 42
+  },
+  {
+   "oryx_index": 14,
+   "qmk_label": "k14",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 2,
+   "visual_col_left_to_right": 2,
+   "matrix": [
+    2,
+    3
+   ],
+   "layout_macro_arg_index": 26,
+   "led_index": 14,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    34,
+    30
+   ],
+   "kle_xy_units": [
+    2,
+    2.25
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C2_11",
+     "pwm_offset": "0x1A"
+    },
+    "green": {
+     "cs_sw": "C1_11",
+     "pwm_offset": "0x0A"
+    },
+    "blue": {
+     "cs_sw": "C3_11",
+     "pwm_offset": "0x2A"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:154"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B12",
+    "col_sense_input": "A3",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    8,
+    3
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 34,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:189",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:117",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:208"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_S",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 41
+  },
+  {
+   "oryx_index": 15,
+   "qmk_label": "k15",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 2,
+   "visual_col_left_to_right": 3,
+   "matrix": [
+    2,
+    4
+   ],
+   "layout_macro_arg_index": 27,
+   "led_index": 15,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    52,
+    28
+   ],
+   "kle_xy_units": [
+    3,
+    2
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C2_12",
+     "pwm_offset": "0x1B"
+    },
+    "green": {
+     "cs_sw": "C1_12",
+     "pwm_offset": "0x0B"
+    },
+    "blue": {
+     "cs_sw": "C3_12",
+     "pwm_offset": "0x2B"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:155"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B12",
+    "col_sense_input": "A6",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    8,
+    2
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 36,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:190",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:118",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:208"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_D",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 40
+  },
+  {
+   "oryx_index": 16,
+   "qmk_label": "k16",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 2,
+   "visual_col_left_to_right": 4,
+   "matrix": [
+    2,
+    5
+   ],
+   "layout_macro_arg_index": 28,
+   "led_index": 16,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    69,
+    30
+   ],
+   "kle_xy_units": [
+    4,
+    2.25
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C2_13",
+     "pwm_offset": "0x1C"
+    },
+    "green": {
+     "cs_sw": "C1_13",
+     "pwm_offset": "0x0C"
+    },
+    "blue": {
+     "cs_sw": "C3_13",
+     "pwm_offset": "0x2C"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:156"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B12",
+    "col_sense_input": "A7",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    8,
+    1
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 38,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:191",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:119",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:208"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_F",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 39
+  },
+  {
+   "oryx_index": 17,
+   "qmk_label": "k17",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 2,
+   "visual_col_left_to_right": 5,
+   "matrix": [
+    2,
+    6
+   ],
+   "layout_macro_arg_index": 29,
+   "led_index": 17,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    86,
+    32
+   ],
+   "kle_xy_units": [
+    5,
+    2.5
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C2_14",
+     "pwm_offset": "0x1D"
+    },
+    "green": {
+     "cs_sw": "C1_14",
+     "pwm_offset": "0x0D"
+    },
+    "blue": {
+     "cs_sw": "C3_14",
+     "pwm_offset": "0x2D"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:157"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B12",
+    "col_sense_input": "B0",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    8,
+    0
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 40,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:192",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:120",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:208"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_G",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 38
+  },
+  {
+   "oryx_index": 18,
+   "qmk_label": "k18",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 3,
+   "visual_col_left_to_right": 0,
+   "matrix": [
+    3,
+    1
+   ],
+   "layout_macro_arg_index": 36,
+   "led_index": 18,
+   "led_flags": 1,
+   "led_flags_meaning": "LED_FLAG_MODIFIER",
+   "led_point_xy_0_224_by_0_64": [
+    0,
+    43
+   ],
+   "kle_xy_units": [
+    0,
+    3.5
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C2_15",
+     "pwm_offset": "0x1E"
+    },
+    "green": {
+     "cs_sw": "C1_15",
+     "pwm_offset": "0x0E"
+    },
+    "blue": {
+     "cs_sw": "C3_15",
+     "pwm_offset": "0x2E"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:158"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B13",
+    "col_sense_input": "A1",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    9,
+    5
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 44,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:199",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:121",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:209"
+   },
+   "user_layout_layer0_check": {
+    "tap": null,
+    "hold": "KC_LEFT_CTRL"
+   },
+   "swap_hands_target_oryx_index": 49
+  },
+  {
+   "oryx_index": 19,
+   "qmk_label": "k19",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 3,
+   "visual_col_left_to_right": 1,
+   "matrix": [
+    3,
+    2
+   ],
+   "layout_macro_arg_index": 37,
+   "led_index": 19,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    17,
+    43
+   ],
+   "kle_xy_units": [
+    1,
+    3.5
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C2_16",
+     "pwm_offset": "0x1F"
+    },
+    "green": {
+     "cs_sw": "C1_16",
+     "pwm_offset": "0x0F"
+    },
+    "blue": {
+     "cs_sw": "C3_16",
+     "pwm_offset": "0x2F"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:159"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B13",
+    "col_sense_input": "A2",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    9,
+    4
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 46,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:200",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:122",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:209"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_Z",
+    "hold": "KC_LEFT_ALT"
+   },
+   "swap_hands_target_oryx_index": 48
+  },
+  {
+   "oryx_index": 20,
+   "qmk_label": "k20",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 3,
+   "visual_col_left_to_right": 2,
+   "matrix": [
+    3,
+    3
+   ],
+   "layout_macro_arg_index": 38,
+   "led_index": 20,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    34,
+    41
+   ],
+   "kle_xy_units": [
+    2,
+    3.25
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C8_9",
+     "pwm_offset": "0x78"
+    },
+    "green": {
+     "cs_sw": "C7_9",
+     "pwm_offset": "0x68"
+    },
+    "blue": {
+     "cs_sw": "C9_9",
+     "pwm_offset": "0x88"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:160"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B13",
+    "col_sense_input": "A3",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    9,
+    3
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 48,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:201",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:123",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:209"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_X",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 47
+  },
+  {
+   "oryx_index": 21,
+   "qmk_label": "k21",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 3,
+   "visual_col_left_to_right": 3,
+   "matrix": [
+    3,
+    4
+   ],
+   "layout_macro_arg_index": 39,
+   "led_index": 21,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    52,
+    39
+   ],
+   "kle_xy_units": [
+    3,
+    3
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C8_10",
+     "pwm_offset": "0x79"
+    },
+    "green": {
+     "cs_sw": "C7_10",
+     "pwm_offset": "0x69"
+    },
+    "blue": {
+     "cs_sw": "C9_10",
+     "pwm_offset": "0x89"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:161"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B13",
+    "col_sense_input": "A6",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    9,
+    2
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 50,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:202",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:124",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:209"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_C",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 46
+  },
+  {
+   "oryx_index": 22,
+   "qmk_label": "k22",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 3,
+   "visual_col_left_to_right": 4,
+   "matrix": [
+    3,
+    5
+   ],
+   "layout_macro_arg_index": 40,
+   "led_index": 22,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    69,
+    41
+   ],
+   "kle_xy_units": [
+    4,
+    3.25
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C8_11",
+     "pwm_offset": "0x7A"
+    },
+    "green": {
+     "cs_sw": "C7_11",
+     "pwm_offset": "0x6A"
+    },
+    "blue": {
+     "cs_sw": "C9_11",
+     "pwm_offset": "0x8A"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:162"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B13",
+    "col_sense_input": "A7",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    9,
+    1
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 52,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:203",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:125",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:209"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_V",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 45
+  },
+  {
+   "oryx_index": 23,
+   "qmk_label": "k23",
+   "hand": "left",
+   "cluster": "main",
+   "visual_row": 3,
+   "visual_col_left_to_right": 5,
+   "matrix": [
+    4,
+    4
+   ],
+   "layout_macro_arg_index": 41,
+   "led_index": 23,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    86,
+    43
+   ],
+   "kle_xy_units": [
+    5,
+    3.5
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C8_12",
+     "pwm_offset": "0x7B"
+    },
+    "green": {
+     "cs_sw": "C7_12",
+     "pwm_offset": "0x6B"
+    },
+    "blue": {
+     "cs_sw": "C9_12",
+     "pwm_offset": "0x8B"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:163"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B14",
+    "col_sense_input": "A6",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    10,
+    2
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 64,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:204",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:126",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:210"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_B",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 44
+  },
+  {
+   "oryx_index": 24,
+   "qmk_label": "k24",
+   "hand": "left",
+   "cluster": "thumb",
+   "visual_row": 4,
+   "visual_col_left_to_right": 0,
+   "matrix": [
+    5,
+    0
+   ],
+   "layout_macro_arg_index": 48,
+   "led_index": 24,
+   "led_flags": 1,
+   "led_flags_meaning": "LED_FLAG_MODIFIER",
+   "led_point_xy_0_224_by_0_64": [
+    86,
+    53
+   ],
+   "kle_xy_units": [
+    5,
+    4.5
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C8_13",
+     "pwm_offset": "0x7C"
+    },
+    "green": {
+     "cs_sw": "C7_13",
+     "pwm_offset": "0x6C"
+    },
+    "blue": {
+     "cs_sw": "C9_13",
+     "pwm_offset": "0x8C"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:164"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B15",
+    "col_sense_input": "A0",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    11,
+    6
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 70,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:211",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:127",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:211"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_ENTER",
+    "hold": "MO(1)"
+   },
+   "swap_hands_target_oryx_index": 51
+  },
+  {
+   "oryx_index": 25,
+   "qmk_label": "k25",
+   "hand": "left",
+   "cluster": "thumb",
+   "visual_row": 4,
+   "visual_col_left_to_right": 1,
+   "matrix": [
+    5,
+    1
+   ],
+   "layout_macro_arg_index": 49,
+   "led_index": 25,
+   "led_flags": 1,
+   "led_flags_meaning": "LED_FLAG_MODIFIER",
+   "led_point_xy_0_224_by_0_64": [
+    96,
+    58
+   ],
+   "kle_xy_units": [
+    6,
+    4.75
+   ],
+   "is31fl3731": {
+    "driver_index": 0,
+    "i2c_address": "0x74",
+    "red": {
+     "cs_sw": "C8_14",
+     "pwm_offset": "0x7D"
+    },
+    "green": {
+     "cs_sw": "C7_14",
+     "pwm_offset": "0x6D"
+    },
+    "blue": {
+     "cs_sw": "C9_14",
+     "pwm_offset": "0x8D"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:165"
+   },
+   "electrical": {
+    "side": "left (MCU GPIO)",
+    "row_strobe_output": "B15",
+    "col_sense_input": "A1",
+    "scan": "row pin driven HIGH, column read with pull-down (gpio_set_pin_input_low)"
+   },
+   "swap_hands_target_matrix": [
+    11,
+    5
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 72,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:212",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:128",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:211"
+   },
+   "user_layout_layer0_check": {
+    "tap": null,
+    "hold": "KC_LEFT_GUI"
+   },
+   "swap_hands_target_oryx_index": 50
+  },
+  {
+   "oryx_index": 26,
+   "qmk_label": "k26",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 0,
+   "visual_col_left_to_right": 0,
+   "matrix": [
+    6,
+    0
+   ],
+   "layout_macro_arg_index": 6,
+   "led_index": 26,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    138,
+    10
+   ],
+   "kle_xy_units": [
+    10,
+    0.5
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C2_7",
+     "pwm_offset": "0x16"
+    },
+    "green": {
+     "cs_sw": "C1_7",
+     "pwm_offset": "0x06"
+    },
+    "blue": {
+     "cs_sw": "C3_7",
+     "pwm_offset": "0x26"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:167"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA6",
+    "sense_input": "GPB5",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    0,
+    6
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 84,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:169",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:129",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:213"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_6",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 5
+  },
+  {
+   "oryx_index": 27,
+   "qmk_label": "k27",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 0,
+   "visual_col_left_to_right": 1,
+   "matrix": [
+    6,
+    1
+   ],
+   "layout_macro_arg_index": 7,
+   "led_index": 27,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    155,
+    10
+   ],
+   "kle_xy_units": [
+    11,
+    0.25
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C2_6",
+     "pwm_offset": "0x15"
+    },
+    "green": {
+     "cs_sw": "C1_6",
+     "pwm_offset": "0x05"
+    },
+    "blue": {
+     "cs_sw": "C3_6",
+     "pwm_offset": "0x25"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:168"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA5",
+    "sense_input": "GPB5",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    0,
+    5
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 86,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:170",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:130",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:213"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_7",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 4
+  },
+  {
+   "oryx_index": 28,
+   "qmk_label": "k28",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 0,
+   "visual_col_left_to_right": 2,
+   "matrix": [
+    6,
+    2
+   ],
+   "layout_macro_arg_index": 8,
+   "led_index": 28,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    172,
+    8
+   ],
+   "kle_xy_units": [
+    12,
+    0
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C2_5",
+     "pwm_offset": "0x14"
+    },
+    "green": {
+     "cs_sw": "C1_5",
+     "pwm_offset": "0x04"
+    },
+    "blue": {
+     "cs_sw": "C3_5",
+     "pwm_offset": "0x24"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:169"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA4",
+    "sense_input": "GPB5",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    0,
+    4
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 88,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:171",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:131",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:213"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_8",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 3
+  },
+  {
+   "oryx_index": 29,
+   "qmk_label": "k29",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 0,
+   "visual_col_left_to_right": 3,
+   "matrix": [
+    6,
+    3
+   ],
+   "layout_macro_arg_index": 9,
+   "led_index": 29,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    190,
+    5
+   ],
+   "kle_xy_units": [
+    13,
+    0.25
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C2_4",
+     "pwm_offset": "0x13"
+    },
+    "green": {
+     "cs_sw": "C1_4",
+     "pwm_offset": "0x03"
+    },
+    "blue": {
+     "cs_sw": "C3_4",
+     "pwm_offset": "0x23"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:170"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA3",
+    "sense_input": "GPB5",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    0,
+    3
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 90,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:172",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:132",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:213"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_9",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 2
+  },
+  {
+   "oryx_index": 30,
+   "qmk_label": "k30",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 0,
+   "visual_col_left_to_right": 4,
+   "matrix": [
+    6,
+    4
+   ],
+   "layout_macro_arg_index": 10,
+   "led_index": 30,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    207,
+    8
+   ],
+   "kle_xy_units": [
+    14,
+    0.5
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C2_3",
+     "pwm_offset": "0x12"
+    },
+    "green": {
+     "cs_sw": "C1_3",
+     "pwm_offset": "0x02"
+    },
+    "blue": {
+     "cs_sw": "C3_3",
+     "pwm_offset": "0x22"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:171"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA2",
+    "sense_input": "GPB5",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    0,
+    2
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 92,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:173",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:133",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:213"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_0",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 1
+  },
+  {
+   "oryx_index": 31,
+   "qmk_label": "k31",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 0,
+   "visual_col_left_to_right": 5,
+   "matrix": [
+    6,
+    5
+   ],
+   "layout_macro_arg_index": 11,
+   "led_index": 31,
+   "led_flags": 1,
+   "led_flags_meaning": "LED_FLAG_MODIFIER",
+   "led_point_xy_0_224_by_0_64": [
+    224,
+    10
+   ],
+   "kle_xy_units": [
+    15,
+    0.5
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C2_2",
+     "pwm_offset": "0x11"
+    },
+    "green": {
+     "cs_sw": "C1_2",
+     "pwm_offset": "0x01"
+    },
+    "blue": {
+     "cs_sw": "C4_3",
+     "pwm_offset": "0x32"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:172"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA1",
+    "sense_input": "GPB5",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    0,
+    1
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 94,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:174",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:134",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:213"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_MINUS",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 0
+  },
+  {
+   "oryx_index": 32,
+   "qmk_label": "k32",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 1,
+   "visual_col_left_to_right": 0,
+   "matrix": [
+    7,
+    0
+   ],
+   "layout_macro_arg_index": 18,
+   "led_index": 32,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    138,
+    21
+   ],
+   "kle_xy_units": [
+    10,
+    1.5
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C8_5",
+     "pwm_offset": "0x74"
+    },
+    "green": {
+     "cs_sw": "C7_5",
+     "pwm_offset": "0x64"
+    },
+    "blue": {
+     "cs_sw": "C9_5",
+     "pwm_offset": "0x84"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:174"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA6",
+    "sense_input": "GPB4",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    1,
+    6
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 98,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:181",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:135",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:214"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_Y",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 11
+  },
+  {
+   "oryx_index": 33,
+   "qmk_label": "k33",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 1,
+   "visual_col_left_to_right": 1,
+   "matrix": [
+    7,
+    1
+   ],
+   "layout_macro_arg_index": 19,
+   "led_index": 33,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    155,
+    21
+   ],
+   "kle_xy_units": [
+    11,
+    1.25
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C8_4",
+     "pwm_offset": "0x73"
+    },
+    "green": {
+     "cs_sw": "C7_4",
+     "pwm_offset": "0x63"
+    },
+    "blue": {
+     "cs_sw": "C9_4",
+     "pwm_offset": "0x83"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:175"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA5",
+    "sense_input": "GPB4",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    1,
+    5
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 100,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:182",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:136",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:214"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_U",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 10
+  },
+  {
+   "oryx_index": 34,
+   "qmk_label": "k34",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 1,
+   "visual_col_left_to_right": 2,
+   "matrix": [
+    7,
+    2
+   ],
+   "layout_macro_arg_index": 20,
+   "led_index": 34,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    172,
+    19
+   ],
+   "kle_xy_units": [
+    12,
+    1
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C8_3",
+     "pwm_offset": "0x72"
+    },
+    "green": {
+     "cs_sw": "C7_3",
+     "pwm_offset": "0x62"
+    },
+    "blue": {
+     "cs_sw": "C9_3",
+     "pwm_offset": "0x82"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:176"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA4",
+    "sense_input": "GPB4",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    1,
+    4
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 102,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:183",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:137",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:214"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_I",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 9
+  },
+  {
+   "oryx_index": 35,
+   "qmk_label": "k35",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 1,
+   "visual_col_left_to_right": 3,
+   "matrix": [
+    7,
+    3
+   ],
+   "layout_macro_arg_index": 21,
+   "led_index": 35,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    190,
+    17
+   ],
+   "kle_xy_units": [
+    13,
+    1.25
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C8_2",
+     "pwm_offset": "0x71"
+    },
+    "green": {
+     "cs_sw": "C7_2",
+     "pwm_offset": "0x61"
+    },
+    "blue": {
+     "cs_sw": "C9_2",
+     "pwm_offset": "0x81"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:177"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA3",
+    "sense_input": "GPB4",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    1,
+    3
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 104,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:184",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:138",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:214"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_O",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 8
+  },
+  {
+   "oryx_index": 36,
+   "qmk_label": "k36",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 1,
+   "visual_col_left_to_right": 4,
+   "matrix": [
+    7,
+    4
+   ],
+   "layout_macro_arg_index": 22,
+   "led_index": 36,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    207,
+    19
+   ],
+   "kle_xy_units": [
+    14,
+    1.5
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C8_1",
+     "pwm_offset": "0x70"
+    },
+    "green": {
+     "cs_sw": "C7_1",
+     "pwm_offset": "0x60"
+    },
+    "blue": {
+     "cs_sw": "C9_1",
+     "pwm_offset": "0x80"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:178"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA2",
+    "sense_input": "GPB4",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    1,
+    2
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 106,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:185",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:139",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:214"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_P",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 7
+  },
+  {
+   "oryx_index": 37,
+   "qmk_label": "k37",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 1,
+   "visual_col_left_to_right": 5,
+   "matrix": [
+    7,
+    5
+   ],
+   "layout_macro_arg_index": 23,
+   "led_index": 37,
+   "led_flags": 1,
+   "led_flags_meaning": "LED_FLAG_MODIFIER",
+   "led_point_xy_0_224_by_0_64": [
+    224,
+    21
+   ],
+   "kle_xy_units": [
+    15,
+    1.5
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C2_8",
+     "pwm_offset": "0x17"
+    },
+    "green": {
+     "cs_sw": "C1_8",
+     "pwm_offset": "0x07"
+    },
+    "blue": {
+     "cs_sw": "C3_8",
+     "pwm_offset": "0x27"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:179"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA1",
+    "sense_input": "GPB4",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    1,
+    1
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 108,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:186",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:140",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:214"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_BSLS",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 6
+  },
+  {
+   "oryx_index": 38,
+   "qmk_label": "k38",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 2,
+   "visual_col_left_to_right": 0,
+   "matrix": [
+    8,
+    0
+   ],
+   "layout_macro_arg_index": 30,
+   "led_index": 38,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    138,
+    32
+   ],
+   "kle_xy_units": [
+    10,
+    2.5
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C2_14",
+     "pwm_offset": "0x1D"
+    },
+    "green": {
+     "cs_sw": "C1_14",
+     "pwm_offset": "0x0D"
+    },
+    "blue": {
+     "cs_sw": "C3_14",
+     "pwm_offset": "0x2D"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:181"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA6",
+    "sense_input": "GPB3",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    2,
+    6
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 112,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:193",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:141",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:215"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_H",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 17
+  },
+  {
+   "oryx_index": 39,
+   "qmk_label": "k39",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 2,
+   "visual_col_left_to_right": 1,
+   "matrix": [
+    8,
+    1
+   ],
+   "layout_macro_arg_index": 31,
+   "led_index": 39,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    155,
+    32
+   ],
+   "kle_xy_units": [
+    11,
+    2.25
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C2_13",
+     "pwm_offset": "0x1C"
+    },
+    "green": {
+     "cs_sw": "C1_13",
+     "pwm_offset": "0x0C"
+    },
+    "blue": {
+     "cs_sw": "C3_13",
+     "pwm_offset": "0x2C"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:182"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA5",
+    "sense_input": "GPB3",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    2,
+    5
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 114,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:194",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:142",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:215"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_J",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 16
+  },
+  {
+   "oryx_index": 40,
+   "qmk_label": "k40",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 2,
+   "visual_col_left_to_right": 2,
+   "matrix": [
+    8,
+    2
+   ],
+   "layout_macro_arg_index": 32,
+   "led_index": 40,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    172,
+    30
+   ],
+   "kle_xy_units": [
+    12,
+    2
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C2_12",
+     "pwm_offset": "0x1B"
+    },
+    "green": {
+     "cs_sw": "C1_12",
+     "pwm_offset": "0x0B"
+    },
+    "blue": {
+     "cs_sw": "C3_12",
+     "pwm_offset": "0x2B"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:183"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA4",
+    "sense_input": "GPB3",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    2,
+    4
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 116,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:195",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:143",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:215"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_K",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 15
+  },
+  {
+   "oryx_index": 41,
+   "qmk_label": "k41",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 2,
+   "visual_col_left_to_right": 3,
+   "matrix": [
+    8,
+    3
+   ],
+   "layout_macro_arg_index": 33,
+   "led_index": 41,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    190,
+    28
+   ],
+   "kle_xy_units": [
+    13,
+    2.25
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C2_11",
+     "pwm_offset": "0x1A"
+    },
+    "green": {
+     "cs_sw": "C1_11",
+     "pwm_offset": "0x0A"
+    },
+    "blue": {
+     "cs_sw": "C3_11",
+     "pwm_offset": "0x2A"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:184"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA3",
+    "sense_input": "GPB3",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    2,
+    3
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 118,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:196",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:144",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:215"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_L",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 14
+  },
+  {
+   "oryx_index": 42,
+   "qmk_label": "k42",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 2,
+   "visual_col_left_to_right": 4,
+   "matrix": [
+    8,
+    4
+   ],
+   "layout_macro_arg_index": 34,
+   "led_index": 42,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    207,
+    30
+   ],
+   "kle_xy_units": [
+    14,
+    2.5
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C2_10",
+     "pwm_offset": "0x19"
+    },
+    "green": {
+     "cs_sw": "C1_10",
+     "pwm_offset": "0x09"
+    },
+    "blue": {
+     "cs_sw": "C4_11",
+     "pwm_offset": "0x3A"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:185"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA2",
+    "sense_input": "GPB3",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    2,
+    2
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 120,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:197",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:145",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:215"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_SCLN",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 13
+  },
+  {
+   "oryx_index": 43,
+   "qmk_label": "k43",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 2,
+   "visual_col_left_to_right": 5,
+   "matrix": [
+    8,
+    5
+   ],
+   "layout_macro_arg_index": 35,
+   "led_index": 43,
+   "led_flags": 1,
+   "led_flags_meaning": "LED_FLAG_MODIFIER",
+   "led_point_xy_0_224_by_0_64": [
+    224,
+    32
+   ],
+   "kle_xy_units": [
+    15,
+    2.5
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C8_6",
+     "pwm_offset": "0x75"
+    },
+    "green": {
+     "cs_sw": "C7_6",
+     "pwm_offset": "0x65"
+    },
+    "blue": {
+     "cs_sw": "C9_6",
+     "pwm_offset": "0x85"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:186"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA1",
+    "sense_input": "GPB3",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    2,
+    1
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 122,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:198",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:146",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:215"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_QUOTE",
+    "hold": "KC_RIGHT_SHIFT"
+   },
+   "swap_hands_target_oryx_index": 12
+  },
+  {
+   "oryx_index": 44,
+   "qmk_label": "k44",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 3,
+   "visual_col_left_to_right": 0,
+   "matrix": [
+    10,
+    2
+   ],
+   "layout_macro_arg_index": 42,
+   "led_index": 44,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    138,
+    43
+   ],
+   "kle_xy_units": [
+    10,
+    3.5
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C8_12",
+     "pwm_offset": "0x7B"
+    },
+    "green": {
+     "cs_sw": "C7_12",
+     "pwm_offset": "0x6B"
+    },
+    "blue": {
+     "cs_sw": "C9_12",
+     "pwm_offset": "0x8B"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:188"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA4",
+    "sense_input": "GPB1",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    4,
+    4
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 144,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:205",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:147",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:217"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_N",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 23
+  },
+  {
+   "oryx_index": 45,
+   "qmk_label": "k45",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 3,
+   "visual_col_left_to_right": 1,
+   "matrix": [
+    9,
+    1
+   ],
+   "layout_macro_arg_index": 43,
+   "led_index": 45,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    155,
+    43
+   ],
+   "kle_xy_units": [
+    11,
+    3.25
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C8_11",
+     "pwm_offset": "0x7A"
+    },
+    "green": {
+     "cs_sw": "C7_11",
+     "pwm_offset": "0x6A"
+    },
+    "blue": {
+     "cs_sw": "C9_11",
+     "pwm_offset": "0x8A"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:189"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA5",
+    "sense_input": "GPB2",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    3,
+    5
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 128,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:206",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:148",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:216"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_M",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 22
+  },
+  {
+   "oryx_index": 46,
+   "qmk_label": "k46",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 3,
+   "visual_col_left_to_right": 2,
+   "matrix": [
+    9,
+    2
+   ],
+   "layout_macro_arg_index": 44,
+   "led_index": 46,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    172,
+    41
+   ],
+   "kle_xy_units": [
+    12,
+    3
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C8_10",
+     "pwm_offset": "0x79"
+    },
+    "green": {
+     "cs_sw": "C7_10",
+     "pwm_offset": "0x69"
+    },
+    "blue": {
+     "cs_sw": "C9_10",
+     "pwm_offset": "0x89"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:190"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA4",
+    "sense_input": "GPB2",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    3,
+    4
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 130,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:207",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:149",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:216"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_COMMA",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 21
+  },
+  {
+   "oryx_index": 47,
+   "qmk_label": "k47",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 3,
+   "visual_col_left_to_right": 3,
+   "matrix": [
+    9,
+    3
+   ],
+   "layout_macro_arg_index": 45,
+   "led_index": 47,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    190,
+    39
+   ],
+   "kle_xy_units": [
+    13,
+    3.25
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C8_9",
+     "pwm_offset": "0x78"
+    },
+    "green": {
+     "cs_sw": "C7_9",
+     "pwm_offset": "0x68"
+    },
+    "blue": {
+     "cs_sw": "C9_9",
+     "pwm_offset": "0x88"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:191"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA3",
+    "sense_input": "GPB2",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    3,
+    3
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 132,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:208",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:150",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:216"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_DOT",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 20
+  },
+  {
+   "oryx_index": 48,
+   "qmk_label": "k48",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 3,
+   "visual_col_left_to_right": 4,
+   "matrix": [
+    9,
+    4
+   ],
+   "layout_macro_arg_index": 46,
+   "led_index": 48,
+   "led_flags": 4,
+   "led_flags_meaning": "LED_FLAG_KEYLIGHT",
+   "led_point_xy_0_224_by_0_64": [
+    207,
+    41
+   ],
+   "kle_xy_units": [
+    14,
+    3.5
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C2_16",
+     "pwm_offset": "0x1F"
+    },
+    "green": {
+     "cs_sw": "C1_16",
+     "pwm_offset": "0x0F"
+    },
+    "blue": {
+     "cs_sw": "C3_16",
+     "pwm_offset": "0x2F"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:192"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA2",
+    "sense_input": "GPB2",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    3,
+    2
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 134,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:209",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:151",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:216"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_SLASH",
+    "hold": "KC_RIGHT_ALT"
+   },
+   "swap_hands_target_oryx_index": 19
+  },
+  {
+   "oryx_index": 49,
+   "qmk_label": "k49",
+   "hand": "right",
+   "cluster": "main",
+   "visual_row": 3,
+   "visual_col_left_to_right": 5,
+   "matrix": [
+    9,
+    5
+   ],
+   "layout_macro_arg_index": 47,
+   "led_index": 49,
+   "led_flags": 1,
+   "led_flags_meaning": "LED_FLAG_MODIFIER",
+   "led_point_xy_0_224_by_0_64": [
+    224,
+    43
+   ],
+   "kle_xy_units": [
+    15,
+    3.5
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C2_15",
+     "pwm_offset": "0x1E"
+    },
+    "green": {
+     "cs_sw": "C1_15",
+     "pwm_offset": "0x0E"
+    },
+    "blue": {
+     "cs_sw": "C3_15",
+     "pwm_offset": "0x2E"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:193"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA1",
+    "sense_input": "GPB2",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    3,
+    1
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 136,
+   "special": [],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:210",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:152",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:216"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_RIGHT_CTRL",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 18
+  },
+  {
+   "oryx_index": 50,
+   "qmk_label": "k50",
+   "hand": "right",
+   "cluster": "thumb",
+   "visual_row": 4,
+   "visual_col_left_to_right": 0,
+   "matrix": [
+    11,
+    5
+   ],
+   "layout_macro_arg_index": 50,
+   "led_index": 50,
+   "led_flags": 1,
+   "led_flags_meaning": "LED_FLAG_MODIFIER",
+   "led_point_xy_0_224_by_0_64": [
+    128,
+    58
+   ],
+   "kle_xy_units": [
+    9,
+    4.75
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C8_14",
+     "pwm_offset": "0x7D"
+    },
+    "green": {
+     "cs_sw": "C7_14",
+     "pwm_offset": "0x6D"
+    },
+    "blue": {
+     "cs_sw": "C9_14",
+     "pwm_offset": "0x8D"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:195"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA1",
+    "sense_input": "GPB0",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    5,
+    1
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 164,
+   "special": [
+    "vial-qmk Voyager unlock combo key (keymaps/vial/config.h)"
+   ],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:213",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:153",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:218"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_BSPC",
+    "hold": null
+   },
+   "swap_hands_target_oryx_index": 25
+  },
+  {
+   "oryx_index": 51,
+   "qmk_label": "k51",
+   "hand": "right",
+   "cluster": "thumb",
+   "visual_row": 4,
+   "visual_col_left_to_right": 1,
+   "matrix": [
+    11,
+    6
+   ],
+   "layout_macro_arg_index": 51,
+   "led_index": 51,
+   "led_flags": 1,
+   "led_flags_meaning": "LED_FLAG_MODIFIER",
+   "led_point_xy_0_224_by_0_64": [
+    138,
+    53
+   ],
+   "kle_xy_units": [
+    10,
+    4.5
+   ],
+   "is31fl3731": {
+    "driver_index": 1,
+    "i2c_address": "0x77",
+    "red": {
+     "cs_sw": "C8_13",
+     "pwm_offset": "0x7C"
+    },
+    "green": {
+     "cs_sw": "C7_13",
+     "pwm_offset": "0x6C"
+    },
+    "blue": {
+     "cs_sw": "C9_13",
+     "pwm_offset": "0x8C"
+    },
+    "source_line": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:196"
+   },
+   "electrical": {
+    "side": "right (MCP23018 @ I2C 0x20)",
+    "strobe_output": "GPA0",
+    "sense_input": "GPB0",
+    "scan": "GPA bit driven LOW (PORTA = 0x7F & ~(1<<n)), GPB0..5 read and inverted; result transposed into matrix rows 6..11"
+   },
+   "swap_hands_target_matrix": [
+    5,
+    0
+   ],
+   "via_dynamic_keymap_offset_in_layer_bytes": 166,
+   "special": [
+    "vial-qmk Voyager unlock combo key (keymaps/vial/config.h)"
+   ],
+   "sources": {
+    "layout_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:214",
+    "rgb_matrix_entry": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/keyboard.json:154",
+    "swap_hands_row": "zsa/qmk_firmware@firmware25@93b2b9ec3368f86c5eb5a2e3f934049f8daef885 keyboards/zsa/voyager/voyager.c:218"
+   },
+   "user_layout_layer0_check": {
+    "tap": "KC_SPACE",
+    "hold": "MO(2)"
+   },
+   "swap_hands_target_oryx_index": 24
+  }
+ ]
+}

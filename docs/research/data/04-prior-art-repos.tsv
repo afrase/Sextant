@@ -1,0 +1,71 @@
+# GitHub repository metadata fetched 2026-10-11 via gh api repos/<owner>/<repo>. license_spdx is GitHub's detection (NOASSERTION/- means not detected; read the LICENSE file).
+repo	stars	language	license_spdx	created	pushed	archived	is_fork	description
+poulainpi/oryx-with-custom-qmk	223	Dockerfile	MIT	2024-09-23	2026-05-14	false	false	Enhance your Oryx layout with advanced QMK features like Achordion, while retaining the ability to edit it via Oryx, then build it seamlessly with GitHub Action
+jonberenguer/oryx-complex-macros	2	Python	MIT	2020-12-23	2021-01-18	true	false	Method to add longer macro keystrokes to oryx layout. Do not put passwords in your persistant macros.
+bogo/probe	3	Swift	MIT	2026-04-30	2026-05-03	false	false	a ZSA Voyager macOS keymap app
+Enriquefft/oryx-bench	6	Rust	MIT	2026-04-07	2026-04-24	false	false	A workbench for ZSA keyboard layouts
+j7j7/voyager-keyboard-helper	1	JavaScript	MIT	2026-09-21	2026-09-21	false	false	Oryx-to-QMK helper for ZSA Voyager: inject firmware behaviour and flash.
+jeprecated/zsa-keymapp-python	23	Python	-	2025-01-16	2026-03-30	false	false	Control your ZSA keyboard using the Keymapp API in Python.
+FireBall1725/LayerLens	3	Swift	GPL-3.0	2026-05-07	2026-08-21	false	false	Native macOS overlay that mirrors the active layers of your QMK / Vial keyboard in real time.
+hello-malek/micromap	9	Swift	NOASSERTION	2026-07-20	2026-07-20	false	false	Native macOS configurator for the Work Louder Figma Creator Micro — map Figma actions to keys, encoders, and lighting over VIA raw HID.
+martinezooo/keyjitsu	26	Rust	NOASSERTION	2026-08-11	2026-10-09	false	false	keyjitsu: Voyager management, a local app
+moosylog/voyago	0	JavaScript	-	2026-05-06	2026-05-08	false	false	ZSA Voyager Oryx layout to MoErgo Go60
+fram74/omarchy-voyager	2	Python	NOASSERTION	2026-08-22	2026-08-26	false	false	This is a plugin to flash the keyboard from the top bar in Omarchy.
+buckleypaul/zmkonfig	0	Swift	MIT	2026-08-09	2026-09-29	false	false	A native macOS keymap editor for ZMK keyboards — edit bindings, commit, watch the build, flash the firmware.
+jpds/rmk-zsa-voyager	7	Rust	Apache-2.0	2026-04-30	2026-09-19	false	false	RMK firmware for the ZSA Voyager
+caksoylar/keymap-drawer	1338	Python	MIT	2022-11-05	2026-08-12	false	false	Visualize keymaps that use advanced features like hold-taps and combos, with automatic parsing
+vial-kb/vial-gui	1430	Python	GPL-2.0	2020-10-15	2026-05-25	false	false	Vial is an open-source cross-platform (Windows, Linux and Mac) GUI and a QMK fork for configuring your keyboard in real time.
+vial-kb/vial-qmk	1395	C	GPL-2.0	2020-10-15	2026-07-26	false	false	QMK fork with Vial-specific features.
+the-via/app	1631	TypeScript	GPL-3.0	2021-07-17	2026-09-22	false	false	
+the-via/releases	2354	null	GPL-3.0	2019-04-02	2023-03-10	false	false	
+zmkfirmware/zmk-studio	322	TypeScript	Apache-2.0	2024-05-17	2026-07-02	false	false	
+nickcoutsos/keymap-editor	2084	JavaScript	MIT	2021-05-03	2026-08-27	false	false	A web based graphical editor of ZMK keymaps.
+qmk/qmk_configurator	849	JavaScript	-	2017-10-20	2026-01-28	false	false	The QMK Configurator
+qmk/qmk_toolbox	3104	C#	MIT	2017-09-01	2026-08-20	false	false	A Toolbox companion for QMK Firmware
+qmk/qmk_firmware	20753	C	GPL-2.0	2014-12-08	2026-10-06	false	false	Open-source keyboard firmware for Atmel AVR and Arm USB families
+ijprest/keyboard-layout-editor	1523	JavaScript	NOASSERTION	2013-09-26	2024-09-17	false	false	Web application to enable the design & editing of keyboard layouts
+pqrs-org/Karabiner-Elements	22934	C++	Unlicense	2016-07-11	2026-10-04	false	false	Karabiner-Elements is a powerful tool for customizing keyboards on macOS
+jtroo/kanata	7991	Rust	LGPL-3.0	2022-04-18	2026-10-10	false	false	Improve keyboard comfort and usability with advanced customization
+foostan/crkbd	7693	Makefile	CC-BY-4.0	2018-03-25	2025-05-10	false	false	Corne keyboard, a split keyboard with 3x6 column staggered keys and 3 thumb keys.
+carrefinho/forager	425	null	CERN-OHL-P-2.0	2024-07-25	2025-11-22	false	false	34-key wireless split keyboard inspired by ZSA Voyager
+tuxedocurly/mantaray_keyboard	70	C	CERN-OHL-S-2.0	2025-01-02	2025-07-30	false	false	An open source ergonomic keyboard design inspired by the ZSA Voyager.
+shoedler/shoedler54	26	C	GPL-3.0	2026-01-08	2026-04-22	false	false	A 54-key, column-staggered, wireless split keyboard, inspired by ZSA Voyager and silakka54
+rmk-rs/rmk	1778	Rust	Apache-2.0	2023-09-06	2026-10-10	false	false	A modern, easy-to-use, and feature-rich keyboard firmware written in Rust.
+zsa/qmk_modules	14	C	GPL-2.0	2025-06-05	2026-08-10	false	false	ZSA's QMK community modules
+zsa/USBDeviceSwift	5	Swift	MIT	2019-09-27	2019-09-27	false	true	wrapper for IOKit.usb and IOKit.hid written on pure Swift that allows you convenient work with USB devices
+Arti3DPlayer/USBDeviceSwift	315	Swift	MIT	2017-06-12	2023-12-19	false	false	wrapper for IOKit.usb and IOKit.hid written on pure Swift that allows you convenient work with USB devices
+getreuer/qmk-keymap	593	C	Apache-2.0	2021-10-30	2026-10-07	false	false	@getreuer's QMK keymap
+zmkfirmware/zmk	4290	C	MIT	2020-06-08	2026-10-09	false	false	ZMK Firmware Repository
+qmk/qmk_userspace	188	Makefile	GPL-2.0	2023-11-22	2026-09-30	false	false	Userspace for the open-source QMK keyboard firmware.
+the-via/qmk_userspace_via	47	C	GPL-2.0	2024-08-25	2026-10-08	false	true	Userspace for the open-source QMK keyboard firmware.
+emileakbarzadeh/keyfinder	0	Swift	GPL-3.0	2026-09-30	2026-10-06	false	false	A performant macOS overlay that reveals your Moonlander or other ZSA keyboard layers.
+nestoralonsovina/zsa-layout-overlay	0	Swift	-	2026-05-02	2026-05-03	false	false	ZSA keyboard layout overlay for macOS
+nt1998/voyager-overlay	0	Python	-	2026-03-14	2026-03-14	false	false	Interactive keyboard layout overlay for ZSA Voyager on Hyprland
+ajmasia/gnome-shell-extension-zsa-helper	0	TypeScript	GPL-3.0	2026-09-26	2026-09-28	false	false	Floating overlay with the active layer of your ZSA Voyager, for GNOME Shell.
+pmaxhogan/starview	0	Rust	MIT	2026-06-10	2026-07-31	false	false	Windows overlay for ZSA keyboards (Moonlander) that shows your active QMK/Oryx layer's keymap in a screen corner, transparent, click-through, and out of Alt-Tab
+dmweis/ergodox-live-training-driver	0	Rust	Apache-2.0	2020-11-13	2021-10-14	false	false	
+eshaan-mehta/zsa-typer-tui	0	Rust	MIT	2026-10-09	2026-10-09	false	false	Terminal Typing Game for the ZSA Voyager. Learn to type or just practice, where you already work. Compatible with any layout 
+AlexWorland/zsa-voyager-rgb	0	C	MIT	2026-02-13	2026-02-25	false	false	Programmatic per-key, per-layer RGB color scheme generator for the ZSA Voyager keyboard via Oryx API + QMK
+ickc/unified-keyboard-config	0	Python	BSD-3-Clause	2025-11-20	2026-10-06	false	false	
+sdistefano/moonlander-configurator	0	Python	-	2022-05-19	2024-02-19	false	false	
+Phoscur/oryx-macro-hax	7	TypeScript	-	2021-12-27	2025-04-25	false	false	A hack to get around the 5-button max Macro limit in Oryx for Ergodox / Moonlander keyboards.
+ai-ecoverse/skills	1	Java	Apache-2.0	2026-03-23	2026-10-10	false	false	
+ito-rafael/keebab	1	C	-	2024-12-17	2026-10-07	false	false	⌨️ Keyboard-related dotfiles and docs/info for some tools and devices I daily drive.
+srwi/keypeek	200	Rust	GPL-3.0	2024-09-17	2026-10-08	false	false	Live on-screen keyboard overlay that mirrors your active QMK/Vial/ZMK layers in real time.
+nickcoutsos/keymap-editor-contrib	9	JavaScript	-	2023-10-08	2024-07-06	false	false	Community provided/maintained layout data
+jeprecated/zsa-keymapp-talon	0	Python	-	2025-01-22	2025-04-03	false	false	Control your ZSA keyboard using the Keymapp API in Talon.
+Phoscur/oryx-layer-inserter	0	TypeScript	-	2023-04-23	2023-04-30	false	false	Set up NEO layers easily in no-time
+nivekmai/oryx-build-extension	9	TypeScript	MIT	2025-01-20	2026-05-04	false	false	Extension for super-charging ZSA's Oryx
+luanzeba/dotfiles	0	TypeScript	MIT	2021-08-08	2026-10-05	false	false	Personal dotfiles for macOS and Omarchy (Arch Linux)
+jyn514/dotfiles	0	Python	Unlicense	2017-12-14	2026-10-10	false	false	Personal dotfiles. You know how hard it is to keep track of those things? Not to mention all the package maintainers trying to change them constantly. Real nigh
+johnstegeman/my_custom_oryx	4	Shell	-	2025-02-23	2025-02-24	false	false	
+unindented/zsa-voyager-keymaps	0	C	-	2024-12-03	2026-10-08	false	false	Keymaps for my ZSA Voyager.
+sammyhenningsson/kibard	4	Python	-	2026-03-14	2026-10-10	false	false	
+YiftahCooper/ZSA_Moonlander_with_Custom_QMK	0	C	MIT	2026-01-29	2026-02-01	true	false	Enhance your Oryx layout with advanced QMK features like Achordion, while retaining the ability to edit it via Oryx, then build it seamlessly with GitHub Action
+KyleRoarty/oryx-with-custom-qmk	0	C	MIT	2026-04-17	2026-04-17	false	false	Enhance your Oryx layout with advanced QMK features like Achordion, while retaining the ability to edit it via Oryx, then build it seamlessly with GitHub Action
+zsa/kontroll	263	Rust	MIT	2024-05-22	2025-02-22	false	false	Kontroll demonstates how to control the Keymapp API, making it easy to control your ZSA keyboard from the command line and scripts.
+zsa/wally	695	Go	NOASSERTION	2019-05-14	2024-08-21	false	false	The Flash(ing tool)
+zsa/wally-cli	108	Go	NOASSERTION	2020-09-25	2024-08-21	true	false	Flash your ZSA Keyboard the EZ way.
+zsa/zapp	209	Rust	NOASSERTION	2026-04-06	2026-07-09	false	false	Flash ZSA keyboards from your terminal.
+zsa/qmk_firmware	399	C	GPL-2.0	2019-03-29	2026-09-02	false	true	QMK, forked for ZSA's Oryx Configurator (to safeguard stability)
+zsa/oryx-with-custom-qmk	4	null	MIT	2025-04-17	2025-02-06	false	true	Enhance your Oryx layout with advanced QMK features like Achordion, while retaining the ability to edit it via Oryx, then build it seamlessly with GitHub Action

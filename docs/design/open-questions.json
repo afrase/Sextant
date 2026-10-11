@@ -1,0 +1,123 @@
+[
+  {
+    "question": "Should the sidebar (layouts, layers, documents, device card) be shown by default? It costs board size. At 1440×900 with both sidebar and inspector showing, caps are about 52 pt. With the sidebar hidden they are about 66 pt, close to Chart Table's hero board.",
+    "options": [
+      "Shown by default, ⌃⌘S to hide (more discoverable; ~52 pt caps at 1440 pt)",
+      "Hidden by default, ⌃⌘S to show (bigger board; ~66 pt caps; layers via the canvas jump menu and ⌘1–9)",
+      "Shown on windows ≥ 1600 pt wide, hidden below that, then remembered per window"
+    ],
+    "recommendation": "Shown by default and remembered per window. The task-flow judge rated Instrument's sidebar the most discoverable surface, and one ⌃⌘S gives the hero board when you want it.",
+    "snapshotRefs": [
+      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/01-main-dark.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/01-main-dark.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/01-main-dark.png"
+    ]
+  },
+  {
+    "question": "How much 'Sextant' identity should the bench behind the board carry?",
+    "options": [
+      "Plain porcelain/graphite bench with a soft lift (Instrument)",
+      "Bench plus a faint key-pitch precision grid and a subtle layer-colour wash on non-base layers (recommended hybrid)",
+      "Full nautical chart: isobaths, compass rose, graduated margins, serif annotations (Chart Table)"
+    ],
+    "recommendation": "The hybrid. It keeps the precision-instrument feel and lets you feel the layer change, while avoiding the themed look the visual judge said could tip into gimmick. You can still turn the grid off in Settings.",
+    "snapshotRefs": [
+      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/02-main-light.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/02-main-light.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/05-layer-symnum.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/05-layer-symnum.png"
+    ]
+  },
+  {
+    "question": "Which shortcut should run Build & Flash?",
+    "options": [
+      "⌘R for Build & Flash, ⌘B for Build only, ⌘. for Stop (Xcode's Run/Build/Stop)",
+      "⌘B for Build & Flash (Console and Chart Table), with ⇧⌘R left for Record Key"
+    ],
+    "recommendation": "⌘R / ⌘B / ⌘. as in Xcode. You live in Xcode, and it keeps a fast 'just build and check the size' action separate from flashing.",
+    "snapshotRefs": [
+      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/07-flash-guide.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/11-menubar.png"
+    ]
+  },
+  {
+    "question": "What should the Write/Verify step of flashing look like?",
+    "options": [
+      "A graduated sextant-bezel ring with the phase percentage, plus a small Erase/Write/Verify segmented bar and facts (recommended)",
+      "Segmented Erase/Write/Verify bar with target, speed and time left only (Instrument)",
+      "A large ring only (Chart Table)"
+    ],
+    "recommendation": "The ring plus the segmented bar. The ring is Sextant's signature moment. The bar and facts keep the progress honest, showing one labelled number per phase.",
+    "snapshotRefs": [
+      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/08-flash-progress.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/08-flash-progress.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/08-flash-progress.png"
+    ]
+  },
+  {
+    "question": "Which colour ramp should the heatmap use?",
+    "options": [
+      "Single-hue blue, log-scaled, light→dark on light mode and flipped on dark (Chart Table)",
+      "Magma-like violet→magenta→orange→yellow (Instrument, Console)"
+    ],
+    "recommendation": "Single-hue. The visual judge found it far more refined, and it doesn't fight the layer colours or the calm chrome.",
+    "snapshotRefs": [
+      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/13-heatmap.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/13-heatmap.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/13-heatmap.png"
+    ]
+  },
+  {
+    "question": "What should the privacy defaults for live data be? Raw HID sees every physical key press, in any app.",
+    "options": [
+      "Live press highlights on by default (positions only, in memory, paused during secure input); heatmap recording off until you opt in (recommended)",
+      "Both on by default",
+      "Both off until you opt in"
+    ],
+    "recommendation": "Highlights on, heatmap opt-in. The brief asks for live by default. Highlights are transient and never show letters, but a heatmap stores history, so it should be your explicit choice.",
+    "snapshotRefs": [
+      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/10-live.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/10-live.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/10-live.png"
+    ]
+  },
+  {
+    "question": "How should layouts be stored?",
+    "options": [
+      "A Sextant-managed library of .sextant packages (plain JSON, git-friendly) in Application Support, listed in the sidebar, with Show in Finder and Export (recommended)",
+      "Standard per-file documents you save anywhere (DocumentGroup: Finder, Open Recent, File ▸ Save)"
+    ],
+    "recommendation": "The managed library. It lets Sextant match a connected keyboard's serial to its layout instantly, keeps append-only history together, and makes the future sync server much simpler. Packages stay plain JSON you can still version with git.",
+    "snapshotRefs": [
+      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/01-main-dark.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/15-history-diff.png"
+    ]
+  },
+  {
+    "question": "What should the menu bar extra panel show?",
+    "options": [
+      "Lit layer tiles, a live mini map, the app rule and overlay switches, and native rows (Build & Flash ⌘R, Open, Settings, Quit). No typing stats unless heatmap recording is on (recommended)",
+      "The same plus always-on WPM sparkline and today's count (Console)",
+      "A plain list of layer rows with ⌃⌥ shortcuts (Instrument)"
+    ],
+    "recommendation": "The tiles and native rows, without default typing stats. The task-flow judge called the stats decorative, and they come from keystroke data.",
+    "snapshotRefs": [
+      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/11-menubar.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/11-menubar.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/11-menubar.png"
+    ]
+  },
+  {
+    "question": "What should the overlay HUD look like by default?",
+    "options": [
+      "Neutral Liquid Glass with keys ringed in the layer colour (Instrument)",
+      "Glass tinted with the held layer's colour (Console)"
+    ],
+    "recommendation": "Neutral glass by default, with 'Tint with layer colour' as a Settings option. It stays legible over any wallpaper or app, and the rings already carry the layer colour.",
+    "snapshotRefs": [
+      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/12-overlay-hud.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/12-overlay-hud.png",
+      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/12-overlay-hud.png"
+    ]
+  }
+]

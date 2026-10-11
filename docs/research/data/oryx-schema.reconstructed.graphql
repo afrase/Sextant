@@ -1,0 +1,188 @@
+# Oryx GraphQL schema, RECONSTRUCTED (introspection is disabled on https://oryx.zsa.io/graphql).
+# Assembled 2026-10-11 from the 73 documents compiled into configure.zsa.io/assets/index-xhNfd6BI.js
+# (md5 34fbb4d676e5dd056e2acf1999f26dae) and its lazy chunks; see study/oryx-graphql-operations.json.
+# Field names/arguments are as used by the client. Nullability and scalar types not visible in the
+# documents are INFERRED. Json is a custom scalar carrying arbitrary JSON.
+
+scalar Json
+
+# Values seen in client calls only; the server enum may contain more.
+enum TrackingEvent { training download_hex download_zip }
+# Values passed by Legend-LTsHAjDy.js ("Move left / Move to beginning / Move right / Move to end").
+enum LayerReorderDirection { left right beginning end }
+
+type Query {
+  # revisionId may be "latest"; hashId "default" + geometry selects the stock layout; model used only by dead code.
+  layout(hashId: String!, revisionId: String!, geometry: String, model: String): Layout
+  searchLayouts(start: Int!, limit: Int!, tags: [String!]!, geometry: String, anonymous: Boolean, withTour: Boolean): LayoutSearchResult
+  getDeletedLayers(revisionHashId: String!): [Layer!]
+  getTour(hashId: String!): Tour
+  currentUser: User
+  myLayouts: [MyLayout!]
+  authenticate(authToken: String!): AuthPayload
+  loginWithEmail(email: String!, password: String!): AuthPayload
+  otp: OtpSetup
+  statsExport: Json
+  tags(limit: Int, filter: String): [Tag!]
+  searchLayerTemplates(term: String!, tags: [String!]!, geometry: String!, os: [String!]!): [LayerTemplate!]
+  layerTemplate(hashId: String!): LayerTemplateDetail
+  layerTemplatesForLayer(layerHashId: String!): [LayerTemplate!]
+  getLayoutIdByLegacyId(legacyId: String!): Layout      # dead code in this build
+  orderData(orderId: String!): OrderData                # factory QC, dead code
+}
+
+type Layout {
+  hashId: String!
+  title: String
+  geometry: String!            # ergodox-ez | ergodox-ez-st | planck-ez | moonlander | voyager | halfmoon
+  privacy: Boolean!            # true = private
+  isDefault: Boolean
+  parent: Layout
+  tags: [Tag!]
+  user: LayoutUser
+  revision: Revision
+  lastRevisionCompiled: Boolean
+  isLatestRevision: Boolean
+}
+type LayoutUser { annotation: Boolean annotationPublic: Boolean name: String hashId: String pictureUrl: String }
+type Tag { id: ID hashId: String name: String! }
+
+type Revision {
+  hashId: String!
+  title: String                # "commit message"
+  createdAt: String            # "2026-09-16 05:05:39 UTC"
+  model: String!               # voyager: "v1"
+  qmkVersion: String           # null => draft (editable); e.g. "25.0" once compiled
+  qmkUptodate: Boolean
+  md5: String
+  altMd5: String
+  hexUrl: String               # ActiveStorage redirect; client instead builds https://oryx.zsa.io/firmware/<hashId>
+  zipUrl: String               # ActiveStorage redirect; client instead builds https://oryx.zsa.io/source/<hashId>
+  config: Json                 # sparse; see study/oryx-config-settings.json
+  swatch: Json                 # { colors: [10 x "#rrggbb"] }
+  navigators: Json             # { left?: Navigator, right?: Navigator }
+  hasDeletedLayers: Boolean
+  alternates: [RevisionAlternate!]
+  combos: [Combo!]             # null => combos disabled
+  tour: Tour
+  layers: [Layer!]!
+  mcuAlternateRevisionHash: String
+  mcuAlternateLayoutHash: String
+  # selected only in the compileRevision payload:
+  buildErrorLog: String
+  buildSource: String
+  buildConfig: String
+  buildRules: String
+}
+type RevisionAlternate { hashId: String! model: String! }
+type Layer {
+  hashId: String!
+  title: String
+  position: Int!
+  color: String                # "#RRGGBB" or null
+  keys: Json!                  # array of N key objects (voyager N = 52): {tap,hold,doubleTap,tapHold: KeyStep|null,
+                               #   customLabel, icon, emoji, glowColor, lockGlowColor, tappingTerm}; KeyStep =
+                               #   {code, layer, modifier, modifiers{leftCtrl..rightGui}, macro{keys[{code,modifiers,delay}],name,endEnter,applyAlt}, color, description}
+  builtIn: String              # adjust | raise | lower | base | null (legacy Planck)
+  automouse: Boolean
+  prevHashId: String
+}
+type Combo { name: String! layerIdx: Int! keyIndices: [Int!]! trigger: Json }
+type Tour { hashId: String url: String tourSteps: [TourStep!] }
+type TourStep {
+  hashId: String!
+  position: Int!
+  content: String
+  intro: Boolean!
+  outro: Boolean!
+  keyIndex: Int
+  comboIndex: Int
+  keyIndices: [Int!]
+  layer: Layer                 # selected as { hashId position }
+}
+type LayoutSearchResult { totalCount: Int! layouts: [LayoutSearchItem!]! }
+type LayoutSearchItem {
+  geometry: String hashId: String title: String tags: [String] hasTour: Boolean
+  lastUpdate: String commitMessage: String aboutIntro: String username: String
+}
+type User {
+  admin: Boolean annotation: Boolean email: String hashId: String identity: String name: String
+  pictureUrl: String qc: Boolean has2fa: Boolean needs2fa: Boolean ackMacroRisks: Boolean
+}
+type AuthPayload { token: String! user: User! }
+type OtpSetup { url: String secret: String }
+type MyLayout { title: String hashId: String! createdAt: String geometry: String privacy: Boolean revisions: [MyRevision!] }
+type MyRevision { title: String hashId: String createdAt: String qmkVersion: String hasTour: Boolean }
+type LayerTemplate {
+  hashId: String name: String windows: Boolean macos: Boolean linux: Boolean geometry: String
+  description: String createdAt: String updatedAt: String tags: [String] author: String username: String learnMore: String
+}
+type LayerTemplateDetail { layerTemplateData: LayerTemplate layerData: Layer revisionHashId: String layoutHashId: String }
+type OrderData { color: String model: String switches: String }
+type Status { status: String }
+type SuccessPayload { success: Boolean }
+type ComboIdxPayload { comboIdx: Int }
+type SequencePayload { sequence: [Int!] }
+type ReorderLayersPayload { newIndex: Int }
+type SwapKeysPayload { layers: [Layer!] }
+type TourPayload { tour: Tour }
+type TemplateHashPayload { templateHashId: String }
+type DeletedTemplatePayload { deletedHashId: String }
+type EmailPayload { email: String }
+type OtpChallengePayload { status: String recoveryCodes: [String!] }
+
+# All mutations require a JWT (INFERRED; none were called during the study).
+type Mutation {
+  createLayout(title: String!, revisionHashId: String!, geometry: String!, parentHashId: String, mcuAlternate: Boolean): Layout
+  updateLayoutTitle(hashId: String!, title: String!): Layout
+  updateLayoutTags(hashId: String!, tagIds: [String!]!): Layout
+  updateLayoutPrivacy(hashId: String!, privacy: Boolean!): Layout
+  updateLayoutMcu(hashId: String!, mcu: String!): Layout                    # dead code
+  deleteLayout(hashId: String!): Layout
+  migrateLegacyLayout(legacyId: String!): Layout                            # dead code
+  saveLayoutSnapshot(layout: Json!): Status
+  compileRevision(hashId: String!): Revision                                # synchronous build, no polling
+  updateRevisionModel(hashId: String!, model: String!): Revision
+  updateRevisionConfig(hashId: String!, config: Json!): Revision
+  updateRevisionSwatch(hashId: String!, swatch: Json!): Revision
+  updateRevisionTitle(hashId: String!, title: String!): Revision
+  updateRevisionIntro(hashId: String!, intro: String!): Revision
+  updateRevisionOutro(hashId: String!, outro: String!): Revision
+  updateRevisionAutomouse(revisionHash: String!, layerPosition: Int!, automouse: Boolean!): Status
+  updateNavigators(revisionHash: String!, navigators: Json): Revision
+  forkRevision(hashId: String!): Revision
+  deleteRevision(hashId: String!): Revision
+  reportRevision(hashId: String!): Revision                                 # dead code
+  publishTour(hashId: String!): Revision
+  createLayer(newKeys: Json!, revisionHashId: String!, position: Int!, title: String, automouse: Boolean): Layer
+  updateLayer(hashId: String!, newKeys: Json, position: Int, title: String): Layer
+  updateLayerColor(hashId: String!, color: String): Layer
+  reorderLayers(hashId: String!, direction: LayerReorderDirection!): ReorderLayersPayload
+  deleteLayer(hashId: String!): Layer
+  restoreLayer(layerHashId: String!): Layer
+  updateKey(hashId: String!, keyData: Json!, position: Int!): Status        # hashId = LAYER hashId, position = key index
+  swapKeys(targetLayerId: String!, sourceLayerId: String!, targetPosition: Int!, sourcePosition: Int!): SwapKeysPayload
+  upsertCombo(revisionHashId: String!, comboIdx: Int, name: String!, layerIdx: Int!, keyIndices: [Int!]!, trigger: Json!): ComboIdxPayload
+  deleteCombo(revisionHashId: String!, comboIdx: Int!): ComboIdxPayload
+  reorderCombos(revisionHashId: String!, sequence: [Int!]!): SequencePayload
+  updateTourStep(layerHashId: String!, tourStepHashId: String, position: Int!, keyIndex: Int, comboIndex: Int,
+                 keyIndices: [Int!], content: String, intro: Boolean!, outro: Boolean!): TourPayload
+  reorderTourStep(tourHashId: String!, sequence: [String!]!): TourPayload
+  trackEvent(event: TrackingEvent!, payload: Json): SuccessPayload
+  signupWithEmail(email: String!, name: String!, password: String!): AuthPayload
+  requestPasswordReset(email: String!): Status
+  resetPassword(token: String!, password: String!): Status
+  updateUsername(name: String!): Status
+  emailChangeRequest(email: String!): Status
+  changeEmailWithToken(token: String!): EmailPayload
+  deleteAccount: Status
+  ackMacroRisks: Status
+  toggleAnnotationsGrant(hashId: String!): Status
+  otpChallenge(otp: String!): OtpChallengePayload
+  disable2fa(otp: String!): Status
+  createOrUpdateLayerTemplate(hashId: String, name: String!, layerHashId: String!, geometry: String!, description: String,
+                              author: String, learnMore: String, osSupport: [String!]!, tags: [String!]!): TemplateHashPayload
+  deleteLayerTemplate(hashId: String!): DeletedTemplatePayload
+  createTag(name: String!): Tag
+  submitQcReport(report: Json!): Status
+}

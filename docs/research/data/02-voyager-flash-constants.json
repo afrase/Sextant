@@ -1,0 +1,66 @@
+{
+  "_about": "Machine-readable constants for flashing a ZSA Voyager from Sextant. Companion to 02-firmware-and-flashing.md. Every value cites its source in the report (section in brackets). INFERRED values are marked.",
+  "_generated": "2026-10-11",
+  "usb": {
+    "vendor_id": "0x3297",
+    "normal_mode_pids": {"0x1977": "Voyager (QMK keyboard.json usb.pid) [6.2]", "0x1978": "Voyager (listed by zapp ids.rs identify_keyboard; meaning unknown) [8.1]"},
+    "bootloader_pids": {
+      "0x0791": "Ignition bootloader, STM32 MCU [8.1]",
+      "0x1791": "Ignition bootloader, GD32 MCU [8.1]"
+    },
+    "other_zsa_bootloaders_for_reference": {
+      "0483:DF11": "STM32 ROM DFU (Moonlander rev A, Planck EZ). Flash base 0x08000000.",
+      "3297:2000": "Ergodox EZ Glow (Ignition)",
+      "3297:2001": "Ergodox EZ Shine (Ignition)",
+      "3297:2002": "Ergodox EZ Original (Ignition)",
+      "3297:2003": "Moonlander rev B (Ignition), needs ?alt=true firmware",
+      "16C0:0478": "HalfKay (Teensy Ergodox EZ)"
+    }
+  },
+  "dfu": {
+    "configuration": 1,
+    "interface": 0,
+    "alt_setting": 0,
+    "block_size": 2048,
+    "erase_page_size": 2048,
+    "app_start_address": "0x08002000",
+    "bootloader_region": "0x08000000-0x08001FFF (INFERRED from linker origin; never erase)",
+    "flasher_max_end_address": "0x08042000 (Oryx web Qj, zapp IGNITION_END_ADDRESS)",
+    "linker_app_window": "0x08002000 + 0x1E000 (120 KiB) per keyboards/zsa/voyager/ld/voyager.ld",
+    "requests": {
+      "DFU_DNLOAD":    {"bmRequestType": "0x21", "bRequest": "0x01", "wValue": "0 = DfuSe command, 2 = data block at address pointer", "wIndex": 0},
+      "DFU_GETSTATUS": {"bmRequestType": "0xA1", "bRequest": "0x03", "wValue": 0, "wIndex": 0, "wLength": 6},
+      "DFU_CLRSTATUS": {"bmRequestType": "0x21", "bRequest": "0x04", "wValue": 0, "wIndex": 0, "wLength": 0},
+      "DFU_GETSTATE":  {"bmRequestType": "0xA1", "bRequest": "0x05", "wValue": 0, "wIndex": 0, "wLength": 1}
+    },
+    "dfuse_commands": {
+      "SET_ADDRESS_POINTER": "21 <addr LE32>",
+      "ERASE_PAGE": "41 <addr LE32>",
+      "MASS_ERASE_DO_NOT_USE": "41"
+    },
+    "getstatus_layout": ["bStatus", "bwPollTimeout[0]", "bwPollTimeout[1]", "bwPollTimeout[2]", "bState", "iString"],
+    "states": {"2": "dfuIDLE", "3": "dfuDNLOAD-SYNC", "4": "dfuDNBUSY", "5": "dfuDNLOAD-IDLE", "6": "dfuMANIFEST-SYNC", "7": "dfuMANIFEST", "8": "dfuMANIFEST-WAIT-RESET", "10": "dfuERROR"},
+    "leave": "DNLOAD SET_ADDRESS(0x08002000), then DNLOAD wValue=2 wLength=0, then GETSTATUS (device may disconnect)"
+  },
+  "firmware_file": {
+    "format": "raw binary image linked at 0x08002000 + 16-byte DFU 1.0 suffix",
+    "suffix_layout_le": ["bcdDevice u16 (0xFFFF)", "idProduct u16 (0x0791)", "idVendor u16 (0x3297)", "bcdDFU u16 (0x0100)", "'U','F','D'", "bLength u8 (16)", "dwCRC u32 = ~crc32(all preceding bytes)"],
+    "dual_image": "image1 + suffix(PID in [0x0791,0x2000..0x2003]) + image2 + suffix(PID 0x1791). Select image by bootloader PID.",
+    "user_build": {"file": "zsa_voyager_KlgM7_40xJ7M_my-macos-layout-fork.bin", "bytes": 65804, "payload_bytes": 65788, "md5": "4d59bb3dba601672ecefd27e2641561c", "suffix_offset": "0x100FC", "crc": "0x2E4F09FD", "initial_msp": "0x20000400", "reset_vector": "0x080022BD", "write_blocks": 33, "last_block_bytes": 252}
+  },
+  "oryx_endpoints_read_only": {
+    "firmware": "https://oryx.zsa.io/firmware/{revisionHashId}  (?alt=true for alternate MCU, ?collate=true for Moonlander/Halfmoon)",
+    "source_zip": "https://oryx.zsa.io/source/{revisionHashId}",
+    "latest_revision": "https://oryx.zsa.io/firmware/latest/{layoutHashId}  -> {\"latest\": \"<revisionHashId>\"} (per zapp-oryx)",
+    "integrity": "revision.md5 == md5(.bin as downloaded, suffix included)"
+  },
+  "qmk": {
+    "repo": "https://github.com/zsa/qmk_firmware",
+    "branch": "firmware25",
+    "commit_at_study": "93b2b9ec3368f86c5eb5a2e3f934049f8daef885",
+    "submodules_needed_for_voyager": {"lib/chibios": "be44b3305f9a9fe5f2f49a4e7b978db322dc463e", "lib/printf": "c2e3b4e10d281e7f0f694d3ecbd9f320977288cc", "modules/zsa": "13890cd7856175de20798689d15ba6a46bf0c5c7"},
+    "zsa_build_compiler": "arm-none-eabi-gcc 12.2.1 20221205 (Debian package 15:12.2.rel1-1)",
+    "make_command": "gmake --jobs=8 --output-sync=target -r -R -f builddefs/build_keyboard.mk -s KEYBOARD=zsa/voyager KEYMAP=<km> KEYBOARD_FILESAFE=zsa_voyager TARGET=zsa_voyager_<km> VERBOSE=false COLOR=false SILENT=false QMK_BIN=qmk",
+    "dfu_util_command": "dfu-util -d 3297:0791 -a 0 -s 0x08002000:leave -D zsa_voyager_<km>.bin"
+  }
+}
