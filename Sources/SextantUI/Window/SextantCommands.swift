@@ -27,15 +27,14 @@ struct SextantCommands: Commands {
                 Button("Firmware (.bin)…") {}
             }
             .disabled(true)
-            Button("Show in Finder") { Task { await window?.showInFinder() } }.disabled(window?.session == nil)
+            ShowInFinderItem(window: window)
         }
         CommandGroup(replacing: .printItem) {
             Button("Print Layout…") {}.keyboardShortcut("p").disabled(true)
         }
         CommandGroup(after: .pasteboard) {
             Divider()
-            Button("Make Transparent") { window?.session?.makeTransparent() }
-                .keyboardShortcut(.delete).disabled(window?.hasSelectedKey != true)
+            MakeTransparentItem(window: window)
             Button("Find Key…") {}.keyboardShortcut("f").disabled(true)
             Button("Command Palette") {}.keyboardShortcut("k").disabled(true)
         }
@@ -51,6 +50,24 @@ struct SextantCommands: Commands {
             Button("Flashing Help") {}.disabled(true)
             Button("Privacy") {}.disabled(true)
         }
+    }
+}
+
+private struct ShowInFinderItem: View {
+    var window: LayoutWindowModel?
+
+    var body: some View {
+        Button("Show in Finder") { Task { await window?.showInFinder() } }.disabled(window?.session == nil)
+    }
+}
+
+/// Edit ▸ Make Transparent (also in the Key menu, as the spec lists it in both).
+private struct MakeTransparentItem: View {
+    var window: LayoutWindowModel?
+
+    var body: some View {
+        Button("Make Transparent") { window?.session?.makeTransparent() }
+            .keyboardShortcut(.delete).disabled(window?.hasSelectedKey != true)
     }
 }
 
@@ -145,7 +162,7 @@ private struct KeyMenu: View {
         }
         .disabled(!hasKey)
         Divider()
-        Button("Make Transparent") { session?.makeTransparent() }.keyboardShortcut(.delete).disabled(!hasKey)
+        MakeTransparentItem(window: window)
         Button("Disable Key") { session?.disable() }.keyboardShortcut(.delete, modifiers: [.command, .shift]).disabled(!hasKey)
         Button("Override on This Layer") { session?.overrideInherited() }.disabled(window?.canOverrideKey != true)
         Menu("LED Colour") {}.disabled(true)

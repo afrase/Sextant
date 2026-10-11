@@ -93,10 +93,9 @@ public struct BoardView: View {
             String(localized: "Keyboard, \(layout.layers[safe: layer]?.title ?? "") layer, \(layout.keyCount) keys")
         )
         .accessibilityRotor(Text("Layers")) {
-            ForEach(Array(layout.layers.enumerated()), id: \.offset) { index, item in
-                AccessibilityRotorEntry(Text(verbatim: item.title), id: session.selection.keyIndex ?? 0, in: rotors) {
-                    session.select(layer: index)
-                }
+            // Each entry needs its own target, so entry n lands on key n of the layer it switches to.
+            ForEach(Array(layout.layers.prefix(layout.keyCount).enumerated()), id: \.offset) { index, item in
+                AccessibilityRotorEntry(Text(verbatim: item.title), id: index, in: rotors) { session.select(layer: index) }
             }
         }
         .accessibilityRotor(Text("Key kinds")) {

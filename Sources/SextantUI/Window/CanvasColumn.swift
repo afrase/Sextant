@@ -234,12 +234,14 @@ private struct BoardFooter: View {
                         .contentShape(Rectangle())
                         // Hovering or pressing a kind dims every other key (spec §3.7).
                         .onHover { model.highlightedKind = $0 ? kind : nil }
-                        .onLongPressGesture(minimumDuration: 0, perform: {}, onPressingChanged: { model.highlightedKind = $0 ? kind : nil })
+                        .onLongPressGesture(minimumDuration: 0, perform: {}, onPressingChanged: { if $0 { model.highlightedKind = kind } })
                         .accessibilityElement(children: .combine)
                     }
                 }
             }
             .scrollIndicators(.never)
+            // A kind can vanish under the pointer (another layer has none) without a hover exit.
+            .onChange(of: model.kindsOnLayer) { model.highlightedKind = nil }
             GlassEffectContainer(spacing: 8) {
                 Picker("Legends", selection: $model.legendMode) {
                     Text(verbatim: "Aa").tag(LegendMode.symbols).accessibilityLabel(LegendMode.symbols.title)

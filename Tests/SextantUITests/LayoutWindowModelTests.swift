@@ -75,6 +75,10 @@ struct LayoutWindowModelTests {
         #expect(commands == [.buildAndFlash])
         model.activity = ActivityState(device: .connected(serial: nil, matchesLayout: true), status: .waitingForFlashMode)
         #expect(!model.canBuild && model.canStop && model.canFollow, "busy: Stop instead of Build; a keyboard allows Follow")
+        model.activity.status = .writing(fraction: 0.4, bytes: 1)
+        #expect(!model.canStop && !model.canBuild, "nothing interrupts a flash while it writes")
+        model.activity.status = .verifying(fraction: 0.4, bytes: 1)
+        #expect(!model.canStop)
     }
 
     /// Spec §6.1: deleting a layer other keys switch to asks first; an unreferenced layer goes at once.
@@ -87,6 +91,8 @@ struct LayoutWindowModelTests {
         #expect(session.layout.layers.count == 3, "nothing is deleted before the answer")
         #expect(model.deletionMessage(for: 2) == "1 key switches to Brd+Sys: key 51 on Main. It will do nothing.")
         model.layerPendingDeletion = nil
+        session.setKey(Key(tap: .toggle(2), hold: .momentary(2)), layer: 0, index: 5)
+        #expect(model.deletionMessage(for: 2).hasPrefix("2 keys switch to Brd+Sys: key 5 on Main, key 51 on Main."), "one entry per key")
         session.addLayer()
         model.requestDeleteLayer()
         #expect(model.layerPendingDeletion == nil && session.layout.layers.count == 3, "a layer nothing reaches goes at once")

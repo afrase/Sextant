@@ -54,7 +54,8 @@ public final class LayoutWindowModel {
     var highlightedKind: KeyKind?
     /// A layer whose deletion waits for confirmation because keys still switch to it (spec §6.1).
     var layerPendingDeletion: Int?
-    @ObservationIgnored let onBuild: BuildHandler?
+    /// Runs the build commands; nil until the composition root wires Build & Flash.
+    @ObservationIgnored public var onBuild: BuildHandler?
 
     public init(library: Library, onBuild: BuildHandler? = nil) {
         self.library = library
@@ -147,7 +148,14 @@ public final class LayoutWindowModel {
     }
     var canFollow: Bool { session != nil && activity.isKeyboardConnected }
     var canBuild: Bool { onBuild != nil && session != nil && !activity.isBusy }
-    var canStop: Bool { onBuild != nil && activity.isBusy }
+    /// Stop is for building and waiting only: flashing can't be interrupted once it writes (spec §7.4).
+    var canStop: Bool {
+        guard onBuild != nil else { return false }
+        switch activity.status {
+        case .building, .waitingForFlashMode: return true
+        default: return false
+        }
+    }
 
     // MARK: Actions
 
@@ -175,7 +183,8 @@ public final class LayoutWindowModel {
     /// The alert's message: "3 keys switch to Brd+Sys: key 51 on Main…".
     func deletionMessage(for layer: Int) -> String {
         guard let session else { return "" }
-        let refs = session.layout.keysActivating(layer: layer)
+        var seen = Set<KeyRef>()
+        let refs = session.layout.keysActivating(layer: layer).filter { seen.insert(KeyRef(layer: $0.layer, index: $0.index)).inserted }
         let name = session.layout.layers[safe: layer]?.title ?? ""
         let list = refs.prefix(3).map { String(localized: "key \($0.index) on \(session.layout.layers[safe: $0.layer]?.title ?? "")") }
         let more = refs.count > 3 ? "…" : ""

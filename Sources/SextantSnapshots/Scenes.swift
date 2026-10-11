@@ -22,9 +22,8 @@ enum Scenes {
         main.activity = ActivityState(device: connected, status: .notOnKeyboard(edits: 5))
         window("window", main)
 
-        // Each layer. Sym+Num with ⏎ selected shows the context strip; an edit adds " · Edited" and an LED dot.
+        // Each layer. Sym+Num with ⏎ selected shows the context strip; an edit (made last, below) adds " · Edited".
         let symNum = await model(f, layer: 1, key: 24)
-        symNum.session?.setColor(HexColor(hex: "#FF9500"), layer: 1, index: 30)
         window("window-symnum", symNum)
         window("window-brdsys", await model(f, layer: 2))
 
@@ -57,16 +56,15 @@ enum Scenes {
 
         scenes += await boards(f)
         scenes += SnapshotScene.pair("activity", size: CGSize(width: 480, height: 14 * 40 + 16), chrome: .content) { activityStates }
+        // After every model has loaded, so the autosave of this edit can't leak into other scenes.
+        symNum.session?.setColor(HexColor(hex: "#FF9500"), layer: 1, index: 30)
         return scenes
     }
 
-    /// A window model with the user's layout open on `layer`, and `key` selected. Build & Flash is wired to a
-    /// no-op so it draws enabled.
+    /// The fixtures' window model with Build & Flash wired to a no-op, so it draws enabled.
     static func model(_ f: Fixtures, layer: Int = 0, key: Int? = nil) async -> LayoutWindowModel {
-        let model = LayoutWindowModel(library: f.library, onBuild: { _, _ in })
-        await model.open(f.entry.id)
-        model.session?.select(layer: layer)
-        model.session?.select(key: key)
+        let model = await f.windowModel(layer: layer, key: key)
+        model.onBuild = { _, _ in }
         return model
     }
 
