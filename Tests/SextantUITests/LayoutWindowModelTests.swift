@@ -42,6 +42,7 @@ private actor MemoryLibrary: LayoutLibrary {
     func appendRevision(_ draft: RevisionDraft, to id: UUID) -> RevisionSummary {
         RevisionSummary(id: "1", number: 1, createdAt: Date(), source: draft.source, message: nil, contentHash: "")
     }
+    func layout(ofRevision revisionID: String, in id: UUID) throws(LibraryError) -> KeyboardLayout { throw .notFound(id) }
     func rename(_ id: UUID, to title: String) {}
     func duplicate(_ id: UUID) throws(LibraryError) -> LibraryEntry { throw .notFound(id) }
     func trash(_ id: UUID) {}

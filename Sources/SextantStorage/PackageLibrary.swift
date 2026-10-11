@@ -93,6 +93,16 @@ public actor PackageLibrary: LayoutLibrary {
         try appendRevision(draft, in: folder(for: id))
     }
 
+    public func layout(ofRevision revisionID: String, in id: UUID) throws(LibraryError) -> KeyboardLayout {
+        // The id names a file: refuse anything that could leave the revisions folder.
+        guard !revisionID.isEmpty, !revisionID.contains("/"), !revisionID.hasPrefix(".") else {
+            throw .unreadable("Bad revision id \(revisionID)")
+        }
+        let file = try folder(for: id).appending(path: "revisions/\(revisionID).json")
+        guard let layout = try decode(StoredRevision.self, from: file).layout else { throw .unreadable("\(revisionID) has no layout") }
+        return layout
+    }
+
     public func rename(_ id: UUID, to title: String) throws(LibraryError) {
         let folder = try folder(for: id)
         var layout = try decode(KeyboardLayout.self, from: folder.appending(path: "layout.json"))

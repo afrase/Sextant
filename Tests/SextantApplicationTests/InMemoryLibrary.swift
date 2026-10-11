@@ -8,6 +8,7 @@ actor InMemoryLibrary: LayoutLibrary {
         var entry: LibraryEntry
         var layout: KeyboardLayout
         var revisions: [RevisionSummary] = []
+        var revisionLayouts: [String: KeyboardLayout] = [:]
     }
 
     private(set) var items: [UUID: Item] = [:]
@@ -40,7 +41,13 @@ actor InMemoryLibrary: LayoutLibrary {
         let s = RevisionSummary(
             id: "\(n)", number: n, createdAt: Date(), source: draft.source, message: draft.message, contentHash: "h\(n)")
         items[id]?.revisions.append(s)
+        items[id]?.revisionLayouts[s.id] = draft.layout
         return s
+    }
+
+    func layout(ofRevision revisionID: String, in id: UUID) throws(LibraryError) -> KeyboardLayout {
+        guard let layout = items[id]?.revisionLayouts[revisionID] else { throw .notFound(id) }
+        return layout
     }
 
     func rename(_ id: UUID, to title: String) throws(LibraryError) {

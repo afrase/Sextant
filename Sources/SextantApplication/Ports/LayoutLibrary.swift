@@ -107,6 +107,8 @@ public protocol LayoutLibrary: Sendable {
     /// Overwrites the working copy (autosave).
     func save(_ layout: KeyboardLayout, to id: UUID) async throws(LibraryError)
     func appendRevision(_ draft: RevisionDraft, to id: UUID) async throws(LibraryError) -> RevisionSummary
+    /// The layout a revision recorded (the firmware identity rule compares against the latest import).
+    func layout(ofRevision revisionID: String, in id: UUID) async throws(LibraryError) -> KeyboardLayout
     func rename(_ id: UUID, to title: String) async throws(LibraryError)
     func duplicate(_ id: UUID) async throws(LibraryError) -> LibraryEntry
     /// Moves the layout to the Trash.
