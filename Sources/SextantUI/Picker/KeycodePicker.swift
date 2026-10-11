@@ -93,7 +93,9 @@ extension LayoutWindowModel {
 
     func moveHighlight(by step: Int) {
         guard let highlight = palette?.highlight else { return }
-        palette?.highlight = min(max(highlight + step, 0), max(paletteItems.count - 1, 0))
+        // Count first: reading the items inside the write to `palette` would be an exclusivity violation.
+        let last = max(paletteItems.count - 1, 0)
+        palette?.highlight = min(max(highlight + step, 0), last)
     }
 
     /// ⏎ runs the highlighted result; ⌘⏎ on a keycode assigns it and moves to the next key.
@@ -119,6 +121,7 @@ extension LayoutWindowModel {
         let slots = KeySlot.allCases
         let at = slots.firstIndex(of: session.selection.slot) ?? 0
         session.select(key: key, slot: slots[(at + 1) % slots.count])
+        palette?.highlight = 0  // Suggested differs per slot
     }
 
     /// ⌫ on an empty field removes the target token: the picker becomes the general palette.
@@ -128,8 +131,8 @@ extension LayoutWindowModel {
 
     // MARK: Assigning
 
-    /// Assigns a keycode to the selected slot as one undo step. A plain keycode keeps the slot's chord modifiers and
-    /// colour, as `EditSession.setCode` does. With `advance` (⌘⏎) the selection moves to the next key in reading
+    /// Assigns a keycode to the selected slot as one undo step. A plain keycode replacing a plain keycode keeps its
+    /// chord modifiers and colour, as `EditSession.setCode` does. With `advance` (⌘⏎) the selection moves to the next key in reading
     /// order and the picker stays open; otherwise it closes.
     func assign(_ action: KeyAction, advance: Bool = false) {
         guard let session, let index = session.selection.keyIndex else { return }
@@ -146,7 +149,10 @@ extension LayoutWindowModel {
     }
 
     private func assigned(_ action: KeyAction) -> KeyAction {
-        guard !action.isLayerAction, !action.isTransparent, !action.isNone, let existing = session?.selectedAction else { return action }
+        // OSM and LM keep their modifiers in the same field, but they aren't a chord for the keycode replacing them.
+        guard !action.isLayerAction, !action.isTransparent, !action.isNone, let existing = session?.selectedAction,
+            !existing.isLayerAction, KeycodeCatalog.entry(for: existing.code)?.needsModifiers != true
+        else { return action }
         return KeyAction(code: action.code, modifiers: existing.modifiers, color: existing.color)
     }
 

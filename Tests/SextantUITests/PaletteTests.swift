@@ -59,6 +59,28 @@ struct PaletteTests {
         #expect(session.layout.key(layer: 0, index: 19)?.tap?.code == "KC_ESCAPE")
         #expect(session.selection.keyIndex == 20, "the next key in reading order")
         #expect(model.palette?.query.isEmpty == true, "⌘⏎ keeps the picker open for the next key")
+
+        // A one-shot modifier's modifiers aren't a chord for the keycode that replaces it.
+        session.setAction(KeyAction(code: "OSM", modifiers: [.leftShift]))
+        model.openKeycodePicker("a")
+        model.runHighlighted()
+        #expect(session.selectedAction == KeyAction(code: "KC_A"))
+    }
+
+    @Test func arrowsTabAndOptionTabNavigate() async throws {
+        let model = try await openUserLayout()
+        model.session?.select(key: 19, slot: .hold)
+        model.openKeycodePicker()
+        model.moveHighlight(by: 100)
+        #expect(model.palette?.highlight == model.paletteItems.count - 1, "↓ stops at the last result")
+        model.cycleSlot()
+        #expect(model.session?.selection.slot == .doubleTap)
+        #expect(model.palette?.highlight == 0, "Suggested differs per slot")
+        #expect(model.pickerPreview != nil)
+        model.cycleCategory(back: true)
+        #expect(model.palette?.category == KeycodeCategory.allCases.last, "⇧⇥ from Suggested wraps")
+        model.cycleCategory(back: false)
+        #expect(model.palette?.category == nil)
     }
 
     @Test func paletteRunsCommandsAndRemembersThem() async throws {
