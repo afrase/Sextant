@@ -95,6 +95,31 @@ struct ToolchainInstallerTests {
         #expect(!FileManager.default.fileExists(atPath: downloads.path), "downloads go once installed")
     }
 
+    /// A second window's Download and Build, or a stale one, finds the tools installed: nothing is cleared or fetched.
+    @Test func anInstalledSetIsLeftAlone() async throws {
+        defer { try? FileManager.default.removeItem(at: home) }
+        let downloader = served()
+        let runner = Runner()
+        #expect(await events(installer(downloader, runner)).last == .finished)
+        let build = home.appending(path: "qmk_firmware/.build/sextant_1a2b3c4d.o")
+        try FileManager.default.createDirectory(at: build.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("object".utf8).write(to: build)
+        let commands = runner.commands.withLock { $0.count }
+        #expect(await events(installer(downloader, runner)) == [.finished])
+        #expect(downloader.requests.withLock { $0 } == 2 && runner.commands.withLock { $0.count } == commands)
+        #expect(FileManager.default.fileExists(atPath: build.path), "a build in progress keeps its files")
+    }
+
+    /// A release that changes how an artifact unpacks reinstalls, though its pins are the same.
+    @Test func theMarkerCoversHowArtifactsUnpack() async throws {
+        defer { try? FileManager.default.removeItem(at: home) }
+        #expect(await events(installer(served(), Runner())).last == .finished)
+        var repacked = compiler
+        repacked.unpack[0].include.append("*/lib/*")
+        #expect(!installer(served(), Runner(), artifacts: [repacked, wheel]).isInstalled)
+        #expect(installer(served(), Runner()).isInstalled)
+    }
+
     @Test func refusesAFileThatDoesntMatchItsPin() async throws {
         defer { try? FileManager.default.removeItem(at: home) }
         let runner = Runner()
@@ -172,7 +197,7 @@ struct ToolchainInstallerTests {
     }
 
     /// The build sandbox, enforced by the real `sandbox-exec`: no reads in the home folder outside the toolchain, no
-    /// writes outside the build's folders and image.
+    /// writes outside the build's folders and image, and no Mach services (the pasteboard, LaunchServices).
     @Test func theSandboxKeepsBuildsToTheirFolders() async throws {
         let root = home.appending(path: "user", directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: home) }
@@ -189,13 +214,18 @@ struct ToolchainInstallerTests {
 
         func exit(_ script: String) async throws -> Int32 {
             let command = BuildCommand(
-                arguments: sandbox.command + ["/bin/sh", "-c", script], environment: [:], workingDirectory: home.path)
+                arguments: sandbox.command + ["/bin/sh", "-c", script], environment: ["PATH": "/usr/bin:/bin"],
+                workingDirectory: home.path)
             var status: Int32 = -1
             for try await case let .exit(code) in ProcessRunner().run(command) { status = code }
             return status
         }
         #expect(try await exit("cat '\(toolchain.path)/readable.txt'") == 0)
         #expect(try await exit("cat '\(root.path)/secret.txt'") != 0, "the user's files can't be read")
+        #expect(try await exit("stat '\(root.path)/secret.txt'") != 0, "nor even seen")
+        #expect(try await exit("/bin/realpath '\(toolchain.path)'") == 0, "the way to the toolchain resolves")
+        // Without Mach services `open` can't launch anything outside the sandbox; the pasteboard is the harmless probe.
+        #expect(try await exit("/usr/bin/pbpaste") != 0, "no Mach services")
         #expect(try await exit("echo x > '\(build.path)/out.o'") == 0)
         #expect(try await exit("echo x > '\(toolchain.path)/qmk_firmware/zsa_voyager_sextant_1a2b3c4d.bin'") == 0)
         #expect(try await exit("echo x > '\(toolchain.path)/readable.txt'") != 0, "the toolchain stays as installed")

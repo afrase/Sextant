@@ -76,7 +76,10 @@ struct QMKBuild: Sendable {
         // Sextant writes the DFU suffix itself (`FirmwareImage.withSuffix`), so `dfu-suffix` isn't needed.
         let command = BuildCommand(
             arguments: qmk + [
-                "compile", "-j", "8", "-e", "BUILD_DIR=\(buildDirectory)", "-e", "DFU_SUFFIX=true", "-kb", keyboard, "-km", keymap,
+                "compile", "-j", "8", "-e", "BUILD_DIR=\(buildDirectory)", "-e", "DFU_SUFFIX=true",
+                // platform.mk adds this only when a probe link without -mcpu works, which the pruned compiler's
+                // missing default multilib fails; the ChibiOS linker scripts would warn on every link without it.
+                "-e", "EXTRALDFLAGS=-Wl,--no-warn-rwx-segments", "-kb", keyboard, "-km", keymap,
             ],
             environment: environment.merging(["QMK_HOME": commandHome, "SKIP_GIT": "yes"]) { $1 },
             workingDirectory: commandHome)
@@ -117,7 +120,8 @@ struct QMKBuild: Sendable {
     }
 }
 
-/// Runs a command as a Mac process (swift-subprocess); the first argument is the executable.
+/// Runs a command as a Mac process (swift-subprocess) with only the command's environment; the first argument is the
+/// executable.
 struct ProcessRunner: CommandRunner {
     func run(_ command: BuildCommand) -> AsyncThrowingStream<CommandOutput, any Error> {
         AsyncThrowingStream { continuation in
@@ -130,7 +134,8 @@ struct ProcessRunner: CommandRunner {
                     let result = try await Subprocess.run(
                         executable.hasPrefix("/") ? .path(FilePath(executable)) : .name(executable),
                         arguments: Arguments(Array(command.arguments.dropFirst())),
-                        environment: .inherit.updating(
+                        // Only the command's own variables: nothing of the app's environment (MAKEFLAGS, CFLAGS, …).
+                        environment: .custom(
                             Dictionary(
                                 uniqueKeysWithValues: command.environment.compactMap { k, v in Environment.Key(rawValue: k).map { ($0, v) }
                                 })),

@@ -193,6 +193,7 @@ enum BuildFlashText {
             return count == 1 ? String(localized: "Build failed: 1 error") : String(localized: "Build failed: \(count) errors")
         case let .toolchain(.tooLarge(over)): return String(localized: "Firmware is \(over.formatted()) bytes too large")
         case .generator, .toolchain: return String(localized: "Build failed")
+        case .setup: return String(localized: "Couldn’t set up the build tools")
         case .flash(.imageRejected), .flash(.checksumMismatch): return String(localized: "Sextant won’t flash this image")
         case .flash(.hardwareAccessOff): return String(localized: "Flashing is off")
         case .flash: return String(localized: "Flashing didn’t finish")

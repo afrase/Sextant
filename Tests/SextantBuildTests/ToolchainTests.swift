@@ -114,8 +114,8 @@ struct ToolchainTests {
             command
                 == BuildCommand(
                     arguments: [
-                        "qmk", "compile", "-j", "8", "-e", "BUILD_DIR=.build/\(keymap)", "-e", "DFU_SUFFIX=true", "-kb", "zsa/voyager",
-                        "-km", keymap,
+                        "qmk", "compile", "-j", "8", "-e", "BUILD_DIR=.build/\(keymap)", "-e", "DFU_SUFFIX=true", "-e",
+                        "EXTRALDFLAGS=-Wl,--no-warn-rwx-segments", "-kb", "zsa/voyager", "-km", keymap,
                     ],
                     environment: ["QMK_HOME": "/qmk", "SKIP_GIT": "yes"], workingDirectory: "/qmk"))
         // The keymap folder and image are gone, so builds don't pile up in the checkout.

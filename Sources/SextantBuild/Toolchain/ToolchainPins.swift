@@ -51,7 +51,8 @@ public enum ToolchainPins {
                         "*/bin/*", "*/libexec/*", "*/lib/gcc/arm-none-eabi/12.2.1/include/*",
                         "*/lib/gcc/arm-none-eabi/12.2.1/include-fixed/*", "*/lib/gcc/arm-none-eabi/12.2.1/thumb/v7e-m+fp/hard/*",
                         "*/arm-none-eabi/include/*", "*/arm-none-eabi/lib/thumb/v7e-m+fp/hard/*", "*/arm-none-eabi/lib/ldscripts/*",
-                        "*/lib/bfd-plugins/*",
+                        // GCC looks up --specs files before it picks the multilib folder, so QMK's link needs this one.
+                        "*/arm-none-eabi/lib/nano.specs", "*/lib/bfd-plugins/*",
                     ],
                     exclude: ["*gdb*", "*/cc1plus", "*c++*", "*/arm-none-eabi/include/c++/*"])
             ]),

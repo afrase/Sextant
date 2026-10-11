@@ -78,6 +78,19 @@ struct DeviceAndBuildTests {
         #expect(model.buildFlash == nil)
     }
 
+    /// The build tools' download stops from the toolbar and ⌘., like a build.
+    @Test func settingUpCanBeStopped() async throws {
+        let model = try await window(toolchain: HeldSetup())
+        let build = try #require(model.buildFlash)
+        model.build(.buildAndFlash)
+        #expect(await eventually { if case .needsSetup = build.phase { true } else { false } })
+        build.setUpBuildTools()
+        #expect(await eventually { model.activity.status == .settingUp(fraction: 0.5) })
+        #expect(model.canStop && !model.canBuild)
+        model.build(.stop)
+        #expect(build.phase == .idle)
+    }
+
     /// Leaving a layout stops its Build & Flash: a waiting run has no time limit and would flash the next keyboard.
     @Test func switchingLayoutsStopsTheOldLayoutsBuild() async throws {
         let library = Library(store: MemoryLibrary())
@@ -252,6 +265,7 @@ struct DeviceAndBuildTests {
         #expect(status(.failed(.toolchain(.compileFailed([warning, unmapped, mapped])))) == .buildFailed(errors: 2, key: 45))
         #expect(status(.failed(.toolchain(.tooLarge(overBy: 10)))) == .buildFailed(errors: 1, key: nil))
         #expect(status(.failed(.flash(.dfuError(status: 10, address: 0x0800_2000)))) == .flashFailed)
+        #expect(status(.failed(.setup(.failed("offline")))) == .needsSetup, "a failed download isn't a failed build")
         let revision = RevisionSummary(id: "2", number: 2, createdAt: .now, source: .flash, message: nil, contentHash: "")
         #expect(status(.done(revision: revision, saveError: nil)) == .flashed(revision: "revision 2"))
         #expect(status(.done(revision: nil, saveError: .io("disk full"))) == .flashedNotSaved, "the capsule keeps the failure")
@@ -288,6 +302,7 @@ struct DeviceAndBuildTests {
         #expect(BuildFlashText.step(.failed(.notReconnected)) == 4)
         #expect(BuildFlashText.title(.failed(.toolchain(.tooLarge(overBy: 3_214)))) == "Firmware is 3,214 bytes too large")
         #expect(BuildFlashText.title(.failed(.flash(.imageRejected(.missingSuffix)))) == "Sextant won’t flash this image")
+        #expect(BuildFlashText.title(.failed(.setup(.failed("offline")))) == "Couldn’t set up the build tools")
         let say = BuildFlashText.announcement
         #expect(say(.writing(done: 20, total: 100), .writing(done: 30, total: 100)) == "Flashing, 25 percent")
         #expect(say(.writing(done: 30, total: 100), .writing(done: 40, total: 100)) == nil, "once per quarter")
@@ -369,6 +384,13 @@ private struct Builds: Toolchain {
             continuation.finish()
         }
     }
+}
+
+/// Needs the one-time setup, whose download holds at half until stopped.
+private struct HeldSetup: Toolchain {
+    func status() async -> ToolchainStatus { .needsSetup("test") }
+    func setUp() -> AsyncStream<SetupEvent> { AsyncStream { $0.yield(.downloading(received: 5, total: 10)) } }
+    func build(_ source: GeneratedSource, board: BoardDefinition) -> AsyncStream<BuildEvent> { AsyncStream { $0.finish() } }
 }
 
 /// A build that fails with `diagnostics`.

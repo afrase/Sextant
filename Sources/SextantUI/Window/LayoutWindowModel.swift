@@ -271,11 +271,11 @@ public final class LayoutWindowModel {
     /// Follow needs a keyboard that reports its layer.
     var canFollow: Bool { session != nil && (live.map { $0.activeLayer != nil } ?? activity.isKeyboardConnected) }
     var canBuild: Bool { buildFlash != nil && session != nil && !activity.isBusy && flashingElsewhere == nil }
-    /// Stop is for building and waiting only: flashing can't be interrupted once it writes (spec §7.4).
+    /// Stop is for setting up, building and waiting only: flashing can't be interrupted once it writes (spec §7.4).
     var canStop: Bool {
         guard buildFlash != nil else { return false }
         switch activity.status {
-        case .generating, .building, .linking, .waitingForFlashMode: return true
+        case .settingUp, .generating, .building, .linking, .waitingForFlashMode: return true
         default: return false
         }
     }

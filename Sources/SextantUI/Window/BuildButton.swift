@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// The primary action (spec §3.4): Build & Flash, Stop while building or waiting, Writing… while flashing.
+/// The primary action (spec §3.4): Build & Flash, Stop while setting up, building or waiting, Writing… while flashing.
 struct BuildButton: View {
     var model: LayoutWindowModel
 
     var body: some View {
         switch model.activity.status {
-        case .generating, .building, .linking, .waitingForFlashMode:
+        case .settingUp, .generating, .building, .linking, .waitingForFlashMode:
             Button {
                 model.build(.stop)
             } label: {

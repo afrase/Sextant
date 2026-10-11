@@ -43,7 +43,7 @@ public actor ToolchainInstaller {
     nonisolated var marker: URL { home.appending(path: ".pins") }
     nonisolated var downloads: URL { home.appending(path: "downloads", directoryHint: .isDirectory) }
 
-    /// The pinned set is installed: the marker the setup writes last names exactly these artifacts.
+    /// The pinned set is installed: the marker the setup writes last names exactly these artifacts, unpacked this way.
     nonisolated var isInstalled: Bool {
         (try? String(contentsOf: marker, encoding: .utf8)) == Self.identity(of: artifacts)
     }
@@ -51,8 +51,11 @@ public actor ToolchainInstaller {
     /// Bytes the setup downloads.
     nonisolated var downloadSize: Int64 { artifacts.reduce(0) { $0 + $1.size } }
 
+    /// Bump when the install steps change in a way the artifacts' pins and unpack passes don't show (the pip command).
+    static let recipe = 1
+
     static func identity(of artifacts: [Artifact]) -> String {
-        artifacts.map { "\($0.name) \($0.sha256)" }.joined(separator: "\n")
+        (["recipe \(recipe)"] + artifacts.map { "\($0.name) \($0.sha256) \($0.unpack)" }).joined(separator: "\n")
     }
 
     nonisolated public func setUp() -> AsyncStream<SetupEvent> {
@@ -74,6 +77,8 @@ public actor ToolchainInstaller {
         guard !running else {
             throw .failed(String(localized: "The build tools are already being set up in another window."))
         }
+        // Another window or an earlier run finished it; clearing the folder now would break builds in progress.
+        if isInstalled { return }
         guard artifacts.allSatisfy({ $0.sha256.count == 64 && $0.size > 0 }) else {
             throw .failed(String(localized: "This version of Sextant can't set up the build tools yet."))
         }
@@ -147,7 +152,9 @@ public actor ToolchainInstaller {
         var status: Int32 = -1
         var lines: [String] = []
         do {
-            for try await event in runner.run(BuildCommand(arguments: arguments, environment: [:], workingDirectory: home.path)) {
+            for try await event in runner.run(
+                BuildCommand(arguments: arguments, environment: ["PATH": "/usr/bin:/bin"], workingDirectory: home.path))
+            {
                 switch event {
                 case let .line(line): lines = Array((lines + [line]).suffix(5))
                 case let .exit(code): status = code

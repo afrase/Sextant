@@ -8,6 +8,8 @@ public enum BuildFlashError: Error, Equatable, Sendable, LocalizedError {
     case generator(GeneratorError)
     /// Compile errors (with their keys), too large, or a toolchain failure.
     case toolchain(ToolchainError)
+    /// The build tools' one-time setup didn't finish (spec §7.3).
+    case setup(ToolchainError)
     case multipleBootloaders
     /// Includes `.imageRejected`: the image failed validation for the connected bootloader, with no override.
     case flash(FlashError)
@@ -22,6 +24,9 @@ public enum BuildFlashError: Error, Equatable, Sendable, LocalizedError {
         switch self {
         case let .generator(e): e.localizedDescription
         case let .toolchain(e): e.localizedDescription
+        // The detail alone: the toolchain's own wording says the build didn't finish.
+        case let .setup(.failed(detail)): detail
+        case let .setup(e): e.localizedDescription
         case .multipleBootloaders: String(localized: "Connect only one keyboard in flash mode.")
         case let .flash(e): e.localizedDescription
         case .notReconnected:
@@ -184,7 +189,7 @@ public final class BuildFlashSession {
                 case .installing:
                     if case let .settingUp(_, total) = phase { show(.settingUp(received: total, total: total)) }
                 case .finished: installed = true
-                case let .failed(error): fail(.toolchain(error))
+                case let .failed(error): fail(.setup(error))
                 }
             }
             guard runID == id else { return }

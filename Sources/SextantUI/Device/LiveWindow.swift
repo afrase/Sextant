@@ -159,6 +159,8 @@ extension ActivityState.Status {
             self = .buildFailed(errors: max(errors.count, 1), key: errors.lazy.compactMap(\.key).first?.index)
         case let .failed(.generator(.unsupported(_, key))): self = .buildFailed(errors: 1, key: key?.index)
         case .failed(.generator), .failed(.toolchain): self = .buildFailed(errors: 1, key: nil)
+        // Try Again goes back through the setup question.
+        case .failed(.setup): self = .needsSetup
         case .failed: self = .flashFailed
         }
     }

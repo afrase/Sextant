@@ -47,11 +47,13 @@ public struct NativeToolchain: Toolchain {
     public func setUp() -> AsyncStream<SetupEvent> { installer.setUp() }
 }
 
-/// A `sandbox-exec` profile for a build (ADR 0033): no network, no reads in the home folder outside the toolchain, and
-/// writes only to the build's folders and its firmware image. A layout that got past the generator's validation can't
-/// read the user's files into the firmware, send anything anywhere, or change the toolchain for later builds.
+/// A `sandbox-exec` profile for a build (ADR 0033): no network, no Mach services (so nothing can be launched outside the
+/// sandbox through LaunchServices, and the pasteboard stays out of reach), no devices, no reads of user data outside the
+/// toolchain, and writes only to the build's folders and its firmware image. A layout that got past the generator's
+/// validation can't read the user's files into the firmware, send anything anywhere, or change the toolchain for later
+/// builds. If a real build turns out to need a Mach service, allow back only that `(global-name …)`.
 struct Sandbox {
-    /// The toolchain folder, the only part of the home folder a build reads.
+    /// The toolchain folder, the only user data a build reads.
     var readable: URL
     var writable: [URL]
     /// The QMK home, where `qmk compile` copies the finished `.bin`.
@@ -63,15 +65,35 @@ struct Sandbox {
     var profile: String {
         let writes = writable.map { "(subpath \(Self.quoted($0)))" }.joined(separator: " ")
         let image = "^" + NSRegularExpression.escapedPattern(for: Self.canonical(images)) + "/zsa_[a-z0-9_]+\\.bin$"
+        let toToolchain = folders.map { "(literal \(Self.quoted($0)))" }.joined(separator: " ")
+        let home = Self.quoted(home), readable = Self.quoted(readable)
+        // Rules for an operation by name win over `file-read*`, so the reads are named, not wildcarded.
         return """
             (version 1)
             (allow default)
             (deny network*)
+            (deny mach-lookup)
+            (deny lsopen)
+            (deny iokit-open)
             (deny file-write*)
             (allow file-write* \(writes) (regex #"\(image)") (literal "/dev/null") (literal "/dev/dtracehelper"))
-            (deny file-read-data (subpath \(Self.quoted(home))))
-            (allow file-read-data (subpath \(Self.quoted(readable))))
+            (deny file-read-data (subpath "/Users") (subpath "/Volumes") (subpath "/private/var/folders") (subpath \(home)))
+            (deny file-read-metadata (subpath \(home)))
+            (allow file-read-metadata \(toToolchain))
+            (allow file-read-data file-read-metadata (subpath \(readable)))
             """
+    }
+
+    /// The home folder and the folders in it down to the toolchain: `realpath` needs their metadata to reach it.
+    private var folders: [String] {
+        let home = Self.canonical(home)
+        var folder = URL(filePath: Self.canonical(readable)).deletingLastPathComponent()
+        var paths = [home]
+        while folder.path.hasPrefix(home + "/") {
+            paths.append(folder.path)
+            folder.deleteLastPathComponent()
+        }
+        return paths
     }
 
     /// The real path: sandbox rules match resolved paths (`/private/var`, not `/var`).
@@ -81,7 +103,9 @@ struct Sandbox {
         return String(cString: resolved)
     }
 
-    private static func quoted(_ url: URL) -> String {
-        "\"" + canonical(url).replacing("\\", with: "\\\\").replacing("\"", with: "\\\"") + "\""
+    private static func quoted(_ url: URL) -> String { quoted(canonical(url)) }
+
+    private static func quoted(_ path: String) -> String {
+        "\"" + path.replacing("\\", with: "\\\\").replacing("\"", with: "\\\"") + "\""
     }
 }
