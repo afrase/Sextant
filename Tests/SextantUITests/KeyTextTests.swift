@@ -44,8 +44,33 @@ struct KeyTextTests {
 
     @Test func positions() {
         #expect(KeyText.position(geometry.key(51), in: geometry) == "Right thumb")
-        #expect(KeyText.position(geometry.key(0), in: geometry) == "Left hand, top row, column 1")
+        #expect(KeyText.position(geometry.key(0), in: geometry) == "Left hand, top row, far left")
         #expect(KeyText.position(geometry.key(14), in: geometry) == "Left hand, home row, column 3")
+        #expect(KeyText.position(geometry.key(26), in: geometry) == "Right hand, top row, column 1")
+        #expect(KeyText.position(geometry.key(31), in: geometry) == "Right hand, top row, far right")
+    }
+
+    /// Spec §7.3: the flash-mode cards name keys by what they show on Main and where they are, never by index.
+    @Test func flashModeCards() throws {
+        #expect(KeyText.resetButtonPlace(layout: layout, geometry: geometry) == "on the top edge of the left half, above the 3 key")
+        let path = try #require(FlashPath.find(in: layout))
+        let hold = KeyText.flashStep(path.holds[0], isHold: true, layout: layout, geometry: geometry)
+        #expect(hold == ("Hold Space", "Right thumb"))
+        let reset = KeyText.flashStep(path.reset, isHold: false, layout: layout, geometry: geometry)
+        #expect(reset == ("Press the key that types “-” on Main", "Right hand, top row, far right"))
+
+        // Nothing under the button on the base layer, a plain layer key, and a Reset key over an empty base key.
+        var bare = KeyboardLayout(title: "T", layers: [.transparent(title: "Base"), .transparent(title: "Nav")])
+        #expect(
+            KeyText.resetButtonPlace(layout: bare, geometry: geometry)
+                == "on the top edge of the left half, above the top-row key in column 4")
+        bare.updateKey(layer: 0, index: 24) { $0 = Key(tap: .momentary(1)) }
+        bare.updateKey(layer: 1, index: 5) { $0 = Key(tap: .code("QK_BOOT")) }
+        #expect(
+            KeyText.flashStep(KeyRef(layer: 0, index: 24, slot: .tap), isHold: true, layout: bare, geometry: geometry).text == "Hold Nav")
+        #expect(
+            KeyText.flashStep(KeyRef(layer: 1, index: 5, slot: .tap), isHold: false, layout: bare, geometry: geometry)
+                == ("Press the key", "Left hand, top row, column 6"))
     }
 
     /// Spec §4.11: the left half row by row, its thumbs, then the right half and its thumbs.

@@ -922,14 +922,19 @@ The picker is the command palette component in **assign scope**.
 | Build failed | "Build failed: 1 error" | The issue list, each with message, location and key. Each row has [Show Key] (it closes the sheet and selects the key) and [Fix] | [Close] [Fix & Rebuild] |
 | Flash failed | "Flashing didn't finish" | "Nothing is broken: the bootloader can't be overwritten, so you can always try again. Put the keyboard in flash mode again to retry." [Show Details] (DFU status, step, address) | [Close] [Try Again] |
 
+Both cards show the same small top-down drawing of the board, drawn by Sextant from the board's own key shapes: blank keys on a case that follows them, thumb clusters joined to their halves, no product art. The cards are equally tall. Steps never name keys by index; key numbers meant nothing to the user (2026-10-11).
+
 **Flash mode, card A: the reset button**
-- The `button.horizontal.top.press` symbol, large, in the accent colour. (An abstract drawing of the half's top edge confused the user, 2026-10-11.)
-- Copy: "Press the small reset button on the left half once." (The Voyager has a button, not a pinhole; the user confirmed on hardware, 2026-10-11.)
-- Verify the exact button position on hardware before release (research 02 §8.7).
+- Title: "Use the reset button".
+- The drawing marks the reset button on the case's top edge above the key the board definition names (`resetButtonKey`: the Voyager's key 3, "near the '3' key in the default layout", zsa.io/go): an accent pill in a ring, with a halo that pulses outward (held still under Reduce Motion). That key shows its Main legend. (A symbol alone, and before it an abstract drawing of the half's top edge, confused the user, 2026-10-11; Oryx's site points at the button on a top-down picture.)
+- Copy: "Press the reset button on the top edge of the left half, above the 3 key." The key is named by its Main legend; with nothing there, "above the top-row key in column 4". (The Voyager has a button, not a pinhole; the user confirmed on hardware, 2026-10-11.)
+- VoiceOver: the drawing reads "Keyboard drawing with the reset button marked on the top edge of the left half, above the 3 key".
 
 **Flash mode, card B: the Reset key (Console graft)**
-- A rendered close-up of the user's own board on the layer that holds `QK_BOOT`.
-- Numbered callouts on the real keys: 1 "Hold Space (key 51), which keeps Brd+Sys active"; 2 "Press Reset (key 31)".
+- Title: "Or use your Reset key".
+- The drawing fills the keys to press in the accent colour, each with its step number: one per hold, then the Reset key.
+- Steps name each key by what it shows on Main, with its place below (`KeyText.position`): 1 "Hold Space" / "Right thumb"; 2 "Press the key that types “-” on Main" / "Right hand, top row, far right". A key acting on Main is named by its own legend ("Hold Space", "Hold Nav"); a key with nothing on Main is "the key".
+- VoiceOver: the drawing reads "Keyboard drawing with the keys to press numbered. 1: Right thumb; 2: Right hand, top row, far right".
 - The path is computed: find the `QK_BOOT` key, then the chain of `MO` or `LT` holds from layer 0 that reaches its layer.
 - If there is no reachable `QK_BOOT`, card B is replaced by the tip "Add a Reset key (QK_BOOT) to a layer to enter flash mode from the keyboard."
 
@@ -1508,7 +1513,7 @@ Modifiers on caps and in hints are text glyphs (⌃ ⌥ ⇧ ⌘ ⇪ ⌫ ⌦ ⏎ 
 | Lens-lane capsule | `.materialize` | Fade |
 | Pressed key | Instant on; fade 0.12 s on release; scale 0.96 | No scale |
 | Recording ring | Opacity pulse, 0.9 s, repeating | Static |
-| Waiting for flash mode | Arc shimmer, 2.4 s per turn | Static, with the status text only |
+| Waiting for flash mode | Arc shimmer, 2.4 s per turn; reset-button halo pulse, 1.6 s | Static, with the status text only; the halo holds still |
 | Flash ring progress | Linear interpolation, 0.25 s | Same |
 | Done seal | `symbolEffect(.bounce)` once | None |
 | HUD | In 0.12 s with an 8 pt rise; out 0.18 s | Fade |

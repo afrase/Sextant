@@ -52,6 +52,8 @@ public struct BoardDefinition: Hashable, Sendable {
     public var flashPageSize: Int
     /// RAM range an image's initial stack pointer must fall in.
     public var ramRange: ClosedRange<UInt32>
+    /// The key the reset button sits above, on the case's top edge (spec §7.3, flash-mode card A).
+    public var resetButtonKey: Int
 
     public var keyCount: Int { keys.count }
 
@@ -83,5 +85,7 @@ public struct BoardDefinition: Hashable, Sendable {
         flashEnd: 0x0804_2000,
         applicationEnd: 0x0802_0000,
         flashPageSize: 2048,
-        ramRange: 0x2000_0000...0x2000_8000)
+        ramRange: 0x2000_0000...0x2000_8000,
+        // zsa.io/go: "a dedicated reset button, on the top edge, near the '3' key in the default layout".
+        resetButtonKey: 3)
 }

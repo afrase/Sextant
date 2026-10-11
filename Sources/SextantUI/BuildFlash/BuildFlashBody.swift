@@ -66,7 +66,7 @@ struct BuildFlashBody: View {
             Text("Built without flashing. Flash it now, or any time with Build & Flash (⌘R).").foregroundStyle(.secondary)
             log
         case let .waitingForFlashMode(stillWaiting):
-            FlashModeCards(layout: model.session?.layout)
+            if let session = model.session { FlashModeCards(layout: session.layout, geometry: session.geometry) }
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
                 Text("Waiting for the keyboard to enter flash mode…")
