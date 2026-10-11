@@ -891,7 +891,7 @@ The picker is the command palette component in **assign scope**.
 
 ### 7.2 Sheet anatomy
 
-**Size.** 640 pt wide, sized to content up to 640 pt high (`.presentationSizing(.fitted)`).
+**Size.** 640 pt wide, sized to content up to 640 pt high: default sheet sizing with `.frame(maxHeight: 640)`. The header and footer stay put and the body scrolls past the cap. Not `.presentationSizing(.fitted)`, which freezes the sheet at its first height.
 
 **Header**
 - An accent tile with `bolt.fill`.
@@ -1659,7 +1659,7 @@ All of these were confirmed in the macOS 27 SDK during this session.
   - `WindowGroup(id:for:)`, `Settings`, and `MenuBarExtra(isInserted:)` with `.menuBarExtraStyle(.window)`.
   - From the menu bar, `openWindow` followed by `NSApp.activate()`.
   - `.restorationBehavior`, `.defaultSize`, `.windowResizability(.contentMinSize)`.
-- **Sheets and popovers.** `.sheet` with `.presentationSizing(.fitted)`. `.popover(isPresented:arrowEdge:)` for the Device popover.
+- **Sheets and popovers.** `.sheet` with its default sizing, a pinned header and footer around a `ScrollView`, and a `maxHeight` cap (§7.2). `.popover(isPresented:arrowEdge:)` for the Device popover.
 - **Drag to swap.** `.draggable` and `.dropDestination` on caps, with a payload of a key reference within the same window.
 - **No-TCC device and system APIs.**
   - Raw HID on usage page `0xFF60`.
