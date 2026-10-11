@@ -55,6 +55,7 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 - The "hold" marker crowds the signal bar on hold-only keys (board step).
 - Domain keycode names and legends are English data, not localized (ADR 0016).
 - Integration review leftovers: the keycode picker still assigns to the layer the board shows when Follow moves it (its preview and scope token move with it, so the user sees where it lands); two Welcome windows can race for a layout one of them made (the other may open it first).
+- Flash mode card A marks the reset button above the key 3 position from ZSA's page (zsa.io/go), not a measurement: confirm the marker's place on the hardware.
 - The `.app` was built and signature-checked, not launched by the agent; the UI was checked with offscreen snapshots. Not checkable offscreen, so try them in the app: a Lighting-lens drag across keys paints and never swaps; the context strip scrolls to the current layer at 1120×640; a label typed and not committed survives ⌘Q; dark-mode contrast of controls inside the inspector (the offscreen renderer draws them wrongly).
 
 ## Blocked / waiting on the user

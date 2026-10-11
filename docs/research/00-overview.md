@@ -49,7 +49,7 @@ Conventions:
  |         GET https://oryx.zsa.io/source/{revisionHashId}       -> zip: 4 sources, build.log, .bin, .bin.md5, README
  |         GET https://oryx.zsa.io/firmware/latest/{layoutHashId} -> {"latest": "<revisionHashId>"}
  v
- FLASH     user enters the bootloader: reset pinhole (top edge, left half) | QK_BOOT key | Bootmagic (top-left key; wipes EEPROM)
+ FLASH     user enters the bootloader: reset button (top edge, left half, above the 3 key) | QK_BOOT key | Bootmagic (top-left key; wipes EEPROM)
  |         Ignition bootloader enumerates as 3297:0791 (STM32) or 3297:1791 (GD32)
  |         flasher: Oryx WebUSB (Chromium only) | Keymapp | zapp CLI | dfu-util
  |         DFU 1.1 + ST DfuSe over EP0: erase 2 KiB pages from 0x08002000, write 2 KiB blocks, leave
@@ -193,7 +193,7 @@ The full Oryx inventory is 04 §2. User pain points are 04 §6. Tiers assume arc
 - [ ] Navigator trackpad and trackball settings carried into generation. The user has a trackpad, and it must not regress (02 §4.7).
 - [ ] Generator producing `keymap.c`/`config.h`/`rules.mk`/`keymap.json` with Oryx semantics, with golden tests against the 5 JSON/source pairs. This is the heart of the local build path (02 §4).
 - [ ] Local build backend pinned to fork commit `93b2b9e` + `modules/zsa` `13890cd`, with progress and error display (02 §7).
-- [ ] Native DFU flasher with hard safety guards, bootloader detection, and reset-pinhole UX. Replaces WebUSB, Keymapp and zapp (02 §8, §10.3).
+- [ ] Native DFU flasher with hard safety guards, bootloader detection, and reset-button UX. Replaces WebUSB, Keymapp and zapp (02 §8, §10.3).
 - [ ] Download and flash the **Oryx-compiled** `.bin` of an imported revision, with md5 verified at download time. A zero-toolchain fallback and a reference image.
 - [ ] Device panel: presence, serial, protocol version, active layer over raw HID. It confirms what is flashed and costs little (03 §3).
 
@@ -244,7 +244,7 @@ The native editor, document model and DFU flasher are common to every option. Th
 |---|---|---|---|---|
 | Feasibility | Proven technically: jyn514's `oryx_sync.py` replays mutations with a Bearer token (04 §3.3). But there is no sanctioned third-party auth, the mutations are undocumented, and introspection is off. | High. The generator is specified empirically from 5 JSON/source pairs (02 §4), the fork and modules are public GPL-2.0, and toolchains exist (02 §7). | Medium. The Vial and RMK ports prove the MCU and bootloader can do it (03 §7.2), but **both drop the Navigator, the Oryx protocol and per-layer LED maps**. A hybrid that keeps them does not exist. The default 1 KB EEPROM fits about 4-5 layers (03 §7.6). | High: the union of (b) and the read-only half of (a) |
 | Effort | M (sync mapping and login) | L: generator M-L, build backend M, flasher S-M | XL: custom firmware plus a VIA/Vial driver plus upkeep at every ZSA firmware bump | L |
-| Risk | **High policy and breakage risk**: no ToS, unannounced writes, App Store 5.2.2 needs authorization, any Oryx deploy can break it. Brick risk: low, same as Oryx. | Generator divergence on unobserved rules (02 §12.5); about 1 GB toolchain management; fork drift (`firmware26`). Brick risk: low. The target is always `zsa/voyager`, linked at 0x08002000, and the pinhole always reaches Ignition (02 §8.7). | Firmware maintenance; a `raw_hid_receive` clash and command-ID collisions to solve (03 §7.1); EEPROM bitfield differences between the ZSA fork and upstream (05 verification O6). Brick risk: soft-brick possible, still recoverable via the pinhole. | as (b) |
+| Risk | **High policy and breakage risk**: no ToS, unannounced writes, App Store 5.2.2 needs authorization, any Oryx deploy can break it. Brick risk: low, same as Oryx. | Generator divergence on unobserved rules (02 §12.5); about 1 GB toolchain management; fork drift (`firmware26`). Brick risk: low. The target is always `zsa/voyager`, linked at 0x08002000, and the reset button always reaches Ignition (02 §8.7). | Firmware maintenance; a `raw_hid_receive` clash and command-ID collisions to solve (03 §7.1); EEPROM bitfield differences between the ZSA fork and upstream (05 verification O6). Brick risk: soft-brick possible, still recoverable via the reset button. | as (b) |
 | Fidelity to Oryx | 100 %, but capped at Oryx's features | High, and can exceed Oryx (QMK extras). Keeps the Oryx live protocol and Navigator modules. | Partial unless reimplemented (per-layer RGB, DUAL_FUNC, Navigator); gains instant remap | High; Oryx's own binary is available for imported revisions |
 | Offline | No | Yes, after a one-time fork and toolchain download | Yes | Yes; import needs the network once |
 | ZSA services / ToS | Total dependence; ToS-grey writes | GitHub repos only; no Oryx at runtime | None | Read-only Oryx endpoints, precedented by zapp; ask ZSA (04 §5.1) |
@@ -354,7 +354,7 @@ Not legal advice. This digests 04 §5 and its verification.
 | 6 | Keystroke telemetry: pairing never ends | In-memory only; privacy text; pair only while a live view is open (INFERRED) |
 | 7 | Toolchain weight (about 1 GB) and the pre-1.0 Containerization API | Pluggable `BuildBackend` with a native fallback; pin image digests and the fork commit |
 | 8 | The sandbox USB API is uncertain | Ship non-sandboxed first (section 6) |
-| 9 | Bricking | Low: Ignition sits in `0x08000000-0x08001FFF` and is never touched, and the pinhole always works (02 §8.7). Enforce the guard list in section 4. True brick recovery would need SWD plus a non-public Ignition image. |
+| 9 | Bricking | Low: Ignition sits in `0x08000000-0x08001FFF` and is never touched, and the reset button always works (02 §8.7). Enforce the guard list in section 4. True brick recovery would need SWD plus a non-public Ignition image. |
 | 10 | EEPROM survives reflash; Bootmagic formats it. Moving between ZSA and upstream/Vial firmware can misread `keyboard_config` bits. | Document it; offer an "EEPROM reset" key; avoid cross-firmware hops without a reset (05 verification O6) |
 
 **ZSA terms and API use**
@@ -446,7 +446,7 @@ The GPL firmware still documents the hardware well (05 §2.2-§2.3):
 | 8 | Multi-board | Voyager-only code; board-agnostic model with Voyager-only features; full multi-board now | **Board-agnostic model, Voyager-only features until v1** |
 | 9 | Keymapp replacement scope | editor only; editor + live view; plus overlay, heatmap and app-aware layers | **Live view in MVP; overlay, heatmap and app-aware layers in v1** |
 | 10 | Name | keep "Sextant"; rename | **Keep for development.** Distinct store or marketing name and professional clearance before any paid launch. |
-| 11 | Phase 0 hardware actions | approve or deny: read-only USB captures in bootloader mode; one re-flash of the user's current Oryx `.bin` with Sextant's flasher | **Approve both.** The re-flash restores the same firmware and is recoverable via the pinhole. |
+| 11 | Phase 0 hardware actions | approve or deny: read-only USB captures in bootloader mode; one re-flash of the user's current Oryx `.bin` with Sextant's flasher | **Approve both.** The re-flash restores the same firmware and is recoverable via the reset button. |
 
 ---
 
@@ -465,7 +465,7 @@ The GPL firmware still documents the hardware well (05 §2.2-§2.3):
 
 3. Which bootloader PID the user's board has (`0791` STM32 vs `1791` GD32), and the Ignition DFU descriptors: `wTransferSize`, `bcdDFUVersion`, `bmAttributes`, the alt-setting string, whether `DFU_UPLOAD` read-back works (02 §12 items 1-2).
 4. Normal-mode HID properties as macOS sees them (`hidutil list | grep 0x3297`), and the meaning of runtime PID `0x1978` (03 verification O1).
-5. Whether the reset pinhole is wired to A8 or NRST. Ignition's behaviour on MASS_ERASE and below-0x08002000 writes is unknown. **Do not test it.**
+5. Whether the reset button is wired to A8 or NRST. Ignition's behaviour on MASS_ERASE and below-0x08002000 writes is unknown. **Do not test it.**
 
 **C. Oryx and firmware behaviour**
 

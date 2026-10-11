@@ -868,15 +868,8 @@
     "Hold" : {
 
     },
-    "Hold %@ (key %lld), which keeps %@ active" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Hold %1$@ (key %2$lld), which keeps %3$@ active"
-          }
-        }
-      }
+    "Hold %@" : {
+
     },
     "Hold + mods" : {
 
@@ -909,6 +902,19 @@
     },
     "Hold sends %@." : {
 
+    },
+    "Hold the key" : {
+
+    },
+    "Hold the key that shows “%@” on %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hold the key that shows “%1$@” on %2$@"
+          }
+        }
+      }
     },
     "Holding" : {
 
@@ -1004,6 +1010,12 @@
 
     },
     "Keyboard connected" : {
+
+    },
+    "Keyboard drawing with the keys to press numbered. %@" : {
+
+    },
+    "Keyboard drawing with the reset button marked %@" : {
 
     },
     "Keyboard in flash mode" : {
@@ -1155,7 +1167,10 @@
     "Left hand" : {
 
     },
-    "Left thumb" : {
+    "Left thumb, inner key" : {
+
+    },
+    "Left thumb, outer key" : {
 
     },
     "Legends" : {
@@ -1392,6 +1407,9 @@
     "Opens the keycode picker." : {
 
     },
+    "Or use your Reset key" : {
+
+    },
     "Oryx link" : {
 
     },
@@ -1443,16 +1461,29 @@
     "Paused: secure input is on" : {
 
     },
-    "Press Reset (key %lld)" : {
+    "Press %@" : {
 
     },
     "Press Return to change. Actions available." : {
 
     },
+    "Press the key" : {
+
+    },
+    "Press the key that shows “%@” on %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Press the key that shows “%1$@” on %2$@"
+          }
+        }
+      }
+    },
     "Press the reset button" : {
 
     },
-    "Press the small reset button on the left half once." : {
+    "Press the reset button %@." : {
 
     },
     "Preview Lighting on Keyboard" : {
@@ -1560,7 +1591,10 @@
     "Right hand" : {
 
     },
-    "Right thumb" : {
+    "Right thumb, inner key" : {
+
+    },
+    "Right thumb, outer key" : {
 
     },
     "Runs %@ · not in your library" : {
@@ -2043,6 +2077,9 @@
     "Use Oryx's build when the layout is unchanged since import" : {
 
     },
+    "Use the reset button" : {
+
+    },
     "Verify" : {
 
     },
@@ -2139,6 +2176,12 @@
     "empty" : {
 
     },
+    "far left" : {
+
+    },
+    "far right" : {
+
+    },
     "go to" : {
 
     },
@@ -2198,6 +2241,9 @@
     "layers" : {
 
     },
+    "left half" : {
+
+    },
     "macros" : {
 
     },
@@ -2211,6 +2257,29 @@
 
     },
     "off" : {
+
+    },
+    "on the top edge of the %@, above the %@ key" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "on the top edge of the %1$@, above the %2$@ key"
+          }
+        }
+      }
+    },
+    "on the top edge of the %@, above the top-row key in column %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "on the top edge of the %1$@, above the top-row key in column %2$lld"
+          }
+        }
+      }
+    },
+    "on the top edge of the keyboard" : {
 
     },
     "one-shot" : {
@@ -2242,6 +2311,9 @@
     "revision %lld" : {
 
     },
+    "right half" : {
+
+    },
     "row %lld" : {
 
     },
@@ -2249,9 +2321,6 @@
 
     },
     "tap-toggle" : {
-
-    },
-    "the key" : {
 
     },
     "toggle" : {

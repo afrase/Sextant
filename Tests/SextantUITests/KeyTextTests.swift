@@ -34,7 +34,7 @@ struct KeyTextTests {
         #expect(KeyText.label(enter, index: 24) == "Return, hold for Sym+Num")
         #expect(
             KeyText.value(enter, layout: layout, layer: 0, index: 24, geometry: geometry)
-                == "Dual-function. Tap sends Return. Hold activates layer 1, Sym+Num. Left thumb, key 24.")
+                == "Dual-function. Tap sends Return. Hold activates layer 1, Sym+Num. Left thumb, outer key, key 24.")
         let z = Legends.legend(layout: layout, layer: 1, index: 19)
         #expect(KeyText.label(z, index: 19).hasSuffix(", inherited"))
         let value = KeyText.value(z, layout: layout, layer: 1, index: 19, geometry: geometry)
@@ -43,9 +43,47 @@ struct KeyTextTests {
     }
 
     @Test func positions() {
-        #expect(KeyText.position(geometry.key(51), in: geometry) == "Right thumb")
-        #expect(KeyText.position(geometry.key(0), in: geometry) == "Left hand, top row, column 1")
+        #expect(KeyText.position(geometry.key(51), in: geometry) == "Right thumb, outer key")
+        #expect(KeyText.position(geometry.key(50), in: geometry) == "Right thumb, inner key")
+        #expect(KeyText.position(geometry.key(24), in: geometry) == "Left thumb, outer key")
+        #expect(KeyText.position(geometry.key(25), in: geometry) == "Left thumb, inner key")
+        #expect(KeyText.position(geometry.key(12), in: geometry) == "Left hand, home row, far left")
+        #expect(KeyText.position(geometry.key(43), in: geometry) == "Right hand, home row, far right")
+        #expect(KeyText.position(geometry.key(0), in: geometry) == "Left hand, top row, far left")
         #expect(KeyText.position(geometry.key(14), in: geometry) == "Left hand, home row, column 3")
+        #expect(KeyText.position(geometry.key(26), in: geometry) == "Right hand, top row, column 1")
+        #expect(KeyText.position(geometry.key(31), in: geometry) == "Right hand, top row, far right")
+    }
+
+    /// Spec §7.3: the flash-mode cards name keys by what they show on Main and where they are, never by index.
+    @Test func flashModeCards() throws {
+        #expect(KeyText.resetButtonPlace(layout: layout, geometry: geometry) == "on the top edge of the left half, above the 3 key")
+        let path = try #require(FlashPath.find(in: layout))
+        let hold = KeyText.flashStep(path.holds[0], isHold: true, layout: layout, geometry: geometry)
+        #expect(hold == ("Hold Space", "Right thumb, outer key"))
+        let reset = KeyText.flashStep(path.reset, isHold: false, layout: layout, geometry: geometry)
+        #expect(reset == ("Press the key that shows “-” on Main", "Right hand, top row, far right"))
+
+        // Nothing under the button on the base layer, a plain layer key, and a Reset key over an empty base key.
+        var bare = KeyboardLayout(title: "T", layers: [.transparent(title: "Base"), .transparent(title: "Nav")])
+        #expect(
+            KeyText.resetButtonPlace(layout: bare, geometry: geometry)
+                == "on the top edge of the left half, above the top-row key in column 4")
+        bare.updateKey(layer: 0, index: 24) { $0 = Key(tap: .momentary(1)) }
+        bare.updateKey(layer: 1, index: 5) { $0 = Key(tap: .code("QK_BOOT")) }
+        #expect(
+            KeyText.flashStep(KeyRef(layer: 0, index: 24, slot: .tap), isHold: true, layout: bare, geometry: geometry).text == "Hold Nav")
+        #expect(
+            KeyText.flashStep(KeyRef(layer: 1, index: 5, slot: .tap), isHold: false, layout: bare, geometry: geometry)
+                == ("Press the key", "Left hand, top row, column 6"))
+
+        // A layer key is named by the layer it shows, in the text and under the button alike.
+        bare.updateKey(layer: 0, index: 5) { $0 = Key(tap: .momentary(1)) }
+        bare.updateKey(layer: 0, index: 3) { $0 = Key(tap: .momentary(1)) }
+        #expect(
+            KeyText.flashStep(KeyRef(layer: 1, index: 5, slot: .tap), isHold: false, layout: bare, geometry: geometry).text
+                == "Press the key that shows “Nav” on Base")
+        #expect(KeyText.resetButtonPlace(layout: bare, geometry: geometry) == "on the top edge of the left half, above the Nav key")
     }
 
     /// Spec §4.11: the left half row by row, its thumbs, then the right half and its thumbs.

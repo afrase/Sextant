@@ -132,59 +132,173 @@ struct SextantRing: View {
     }
 }
 
-/// Card A, the reset button, and card B, the Reset key on the user's own board (spec §7.3).
+/// Card A, the reset button, and card B, the Reset key, each on a small drawing of the user's own board (spec §7.3).
 struct FlashModeCards: View {
-    var layout: KeyboardLayout?
+    var layout: KeyboardLayout
+    var geometry: BoardGeometry
 
     var body: some View {
+        let place = KeyText.resetButtonPlace(layout: layout, geometry: geometry)
         HStack(alignment: .top, spacing: 12) {
-            card {
-                Image(systemName: "button.horizontal.top.press").font(.largeTitle).foregroundStyle(.tint).accessibilityHidden(true)
-                Text("Press the small reset button on the left half once.")
+            card(String(localized: "Use the reset button")) {
+                MiniBoard(geometry: geometry, layout: layout, button: (layout.board ?? .voyager).resetButtonKey)
+                    .accessibilityLabel(String(localized: "Keyboard drawing with the reset button marked \(place)"))
+                Text("Press the reset button \(place).").fixedSize(horizontal: false, vertical: true)
             }
-            card {
-                if let layout, let path = FlashPath.find(in: layout) {
-                    ForEach(Array(path.holds.enumerated()), id: \.offset) { n, hold in
-                        let target = (n + 1 < path.holds.count ? path.holds[n + 1].layer : path.reset.layer)
-                        step(n + 1, key: hold, in: layout, text: holdText(hold, target: target, in: layout))
-                    }
-                    step(
-                        path.holds.count + 1, key: path.reset, in: layout, text: String(localized: "Press Reset (key \(path.reset.index))"))
-                } else {
+            if let path = FlashPath.find(in: layout) {
+                let keys = path.holds.map { ($0, true) } + [(path.reset, false)]
+                let steps = keys.map { KeyText.flashStep($0, isHold: $1, layout: layout, geometry: geometry) }
+                let marks = Dictionary(keys.enumerated().map { ($1.0.index, $0 + 1) }) { first, _ in first }
+                let spoken = steps.enumerated().map { "\($0 + 1): \($1.position)" }.joined(separator: "; ")
+                card(String(localized: "Or use your Reset key")) {
+                    MiniBoard(geometry: geometry, layout: layout, marks: marks)
+                        .accessibilityLabel(String(localized: "Keyboard drawing with the keys to press numbered. \(spoken)"))
+                    ForEach(steps.indices, id: \.self) { n in step(n + 1, steps[n]) }
+                }
+            } else {
+                card(nil) {
                     Label("Add a Reset key (QK_BOOT) to a layer to enter flash mode from the keyboard.", systemImage: "info.circle")
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
+        .fixedSize(horizontal: false, vertical: true)  // both cards as tall as the taller one
         .font(.callout)
     }
 
-    private func card(@ViewBuilder _ content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 10) { content() }
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(12)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
+    private func card(_ title: String?, @ViewBuilder _ content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let title { Text(title).font(.headline).accessibilityAddTraits(.isHeader) }
+            content()
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
     }
 
-    private func step(_ number: Int, key: KeyRef, in layout: KeyboardLayout, text: String) -> some View {
-        HStack(spacing: 10) {
+    private func step(_ number: Int, _ step: (text: String, position: String)) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(verbatim: "\(number)")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.white)
                 .frame(width: 18, height: 18)
                 .background(Circle().fill(Color.accentColor))
-            KeyCap(model: KeyCapModel(layout: layout, layer: key.layer, index: key.index), u: 32).frame(width: 32, height: 32)
-                .accessibilityHidden(true)
-            Text(text).fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(step.text)
+                Text(step.position).font(.caption).foregroundStyle(.secondary)
+            }
+            .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
     }
+}
 
-    /// "Hold Space (key 51), which keeps Brd+Sys active".
-    private func holdText(_ hold: KeyRef, target: Int, in layout: KeyboardLayout) -> String {
-        let primary = Legends.legend(layout: layout, layer: hold.layer, index: hold.index).legend.primary
-        let name = primary.flatMap { $0.layer == nil ? $0.name : nil } ?? String(localized: "the key")
-        let layer = layout.layers[safe: target]?.title ?? String(localized: "Layer \(target)")
-        return String(localized: "Hold \(name) (key \(hold.index)), which keeps \(layer) active")
+/// A small top-down drawing of the board from its own key shapes (no product art): the case follows the keys, `marks`
+/// numbers keys, and `button` marks the reset button on the case's top edge above that key.
+private struct MiniBoard: View {
+    var geometry: BoardGeometry
+    var layout: KeyboardLayout
+    var marks: [Int: Int] = [:]
+    var button: Int?
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// Margin around the keys in key units: room for the button's halo.
+    private static let margin = 0.8
+
+    var body: some View {
+        let bounds = geometry.bounds
+        GeometryReader { proxy in
+            let pitch = proxy.size.width / (bounds.width + 2 * Self.margin)
+            let spacing = pitch * 0.16
+            let board = geometry.layout(keySize: pitch - spacing, spacing: spacing, padding: pitch * Self.margin + spacing / 2)
+            let rim = pitch * 0.2
+            ZStack(alignment: .topLeading) {
+                // One opaque shape per key, plus a bridge to each thumb cluster, faded as a group so overlaps don't show.
+                ZStack(alignment: .topLeading) {
+                    BoardCanvas(layout: board) { _ in RoundedRectangle(cornerRadius: rim * 1.5, style: .continuous).padding(-rim) }
+                    ForEach(bridges(board), id: \.minX) { bridge in
+                        Rectangle().frame(width: bridge.width, height: bridge.height).position(x: bridge.midX, y: bridge.midY)
+                    }
+                }
+                .foregroundStyle(colorScheme == .dark ? Color.black : Color.primary)
+                .compositingGroup()
+                .opacity(colorScheme == .dark ? 0.5 : 0.13)
+                // Under the keys, so the halo shows above the edge and the key keeps its legend.
+                if let button, board.frames.indices.contains(button) {
+                    let frame = board.frame(button)
+                    ResetButtonMarker(pitch: pitch).position(x: frame.center.x, y: frame.boundingBox.minY - rim)
+                }
+                BoardCanvas(layout: board) { frame in key(frame, pitch: pitch) }
+            }
+        }
+        .aspectRatio((bounds.width + 2 * Self.margin) / (bounds.height + 2 * Self.margin), contentMode: .fit)
+        .accessibilityElement(children: .ignore)
+    }
+
+    /// Per half, the case between the main keys and the thumb cluster: under the columns the thumbs sit beneath, from
+    /// the bottom row down to the thumbs' middle.
+    private func bridges(_ board: BoardLayout) -> [CGRect] {
+        BoardGeometry.Hand.allCases.compactMap { hand in
+            func box(_ cluster: BoardGeometry.Cluster) -> CGRect {
+                board.frames.filter { $0.hand == hand && geometry.keys[safe: $0.index]?.cluster == cluster }.map(\.boundingBox)
+                    .reduce(CGRect.null) { $0.union($1) }
+            }
+            let main = box(.main), thumbs = box(.thumb)
+            guard !main.isNull, !thumbs.isNull else { return nil }
+            let minX = max(main.minX, thumbs.minX), maxX = min(main.maxX, thumbs.maxX)
+            let top = main.maxY - board.pitch / 2
+            guard maxX > minX, thumbs.midY > top else { return nil }
+            return CGRect(x: minX, y: top, width: maxX - minX, height: thumbs.midY - top)
+        }
+    }
+
+    @ViewBuilder private func key(_ frame: BoardLayout.KeyFrame, pitch: CGFloat) -> some View {
+        let shape = RoundedRectangle(cornerRadius: pitch * 0.14, style: .continuous)
+        if let number = marks[frame.index] {
+            shape.fill(Color.accentColor)
+                .overlay {
+                    Text(verbatim: "\(number)").font(.system(size: pitch * 0.5, weight: .bold)).foregroundStyle(.white)
+                        .rotationEffect(.degrees(-frame.rotation))
+                }
+        } else {
+            shape.fill(Tokens.capTop.color)
+                .overlay { shape.strokeBorder(Tokens.capEdge.color, lineWidth: 0.5) }
+                .overlay {
+                    // The key under the button shows its legend, so "above the 3 key" has a 3 to find.
+                    if frame.index == button, let name = KeyText.baseName(layout: layout, index: frame.index) {
+                        Text(name).font(.system(size: pitch * 0.55, weight: .semibold))
+                            .foregroundStyle(Tokens.capLegend.color).minimumScaleFactor(0.5).lineLimit(1)
+                    }
+                }
+        }
+    }
+}
+
+/// The reset button on the case edge: an accent pill in a ring, with a halo that pulses outward (held still under
+/// Reduce Motion, and in snapshots so renders match).
+private struct ResetButtonMarker: View {
+    var pitch: CGFloat
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isSnapshot) private var isSnapshot
+
+    var body: some View {
+        ZStack {
+            if reduceMotion || isSnapshot {
+                halo(0.35)
+            } else {
+                TimelineView(.animation) { context in
+                    // One pulse every 1.6 s.
+                    halo(context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.6) / 1.6)
+                }
+            }
+            Circle().strokeBorder(Color.accentColor, lineWidth: 1.5).frame(width: pitch * 1.1, height: pitch * 1.1)
+            Capsule().fill(Color.accentColor).frame(width: pitch * 0.7, height: pitch * 0.3)
+        }
+        .frame(width: pitch * 1.8, height: pitch * 1.8)
+    }
+
+    private func halo(_ phase: Double) -> some View {
+        Circle().fill(Color.accentColor.opacity(0.4 * (1 - phase))).frame(
+            width: pitch * (1.1 + 0.7 * phase), height: pitch * (1.1 + 0.7 * phase))
     }
 }
