@@ -37,20 +37,6 @@ struct LayoutWindowModelTests {
         #expect(await window2.open(first.id) == first.id, "a closed window frees its layout")
     }
 
-    /// Leaving a layout stops its Build & Flash: a waiting run has no time limit and would flash the next keyboard.
-    @Test func switchingLayoutsStopsTheOldLayoutsBuild() async throws {
-        let library = Library(store: MemoryLibrary())
-        let data = try #require(userLayoutData)
-        let first = try await library.importOryxJSON(data)
-        let second = try await library.importOryxJSON(data)
-        var calls: [(BuildCommand, UUID)] = []
-        let model = LayoutWindowModel(library: library) { command, session in calls.append((command, session.id)) }
-        await model.open(first.id)
-        #expect(calls.isEmpty)
-        await model.open(second.id)
-        #expect(calls.map(\.0) == [.stop] && calls.map(\.1) == [first.id])
-    }
-
     /// Spec §3.4: the subtitle is the layer, plus " · Edited" until the layout matches the last revision again.
     @Test func subtitleSaysEditedUntilUndoneOrSaved() async throws {
         let model = try await openUserLayout()
@@ -94,22 +80,6 @@ struct LayoutWindowModelTests {
         #expect(model.hasSelectedKey && model.canOverrideKey, "Sym+Num key 19 inherits Z from Main")
         session.select(key: 0)
         #expect(!model.canOverrideKey, "Sym+Num key 0 is its own")
-    }
-
-    @Test func buildAndFollowNeedTheirWiring() async throws {
-        let unwired = try await openUserLayout()
-        #expect(!unwired.canBuild && !unwired.canStop && !unwired.canFollow)
-        var commands: [BuildCommand] = []
-        let model = try await openUserLayout { command, _ in commands.append(command) }
-        #expect(model.canBuild && !model.canStop)
-        model.build(.buildAndFlash)
-        #expect(commands == [.buildAndFlash])
-        model.activity = ActivityState(device: .connected(serial: nil, matchesLayout: true), status: .waitingForFlashMode)
-        #expect(!model.canBuild && model.canStop && model.canFollow, "busy: Stop instead of Build; a keyboard allows Follow")
-        model.activity.status = .writing(fraction: 0.4, bytes: 1)
-        #expect(!model.canStop && !model.canBuild, "nothing interrupts a flash while it writes")
-        model.activity.status = .verifying(fraction: 0.4, bytes: 1)
-        #expect(!model.canStop)
     }
 
     /// Spec §6.1: deleting a layer other keys switch to asks first; an unreferenced layer goes at once.

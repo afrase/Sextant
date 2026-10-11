@@ -8,7 +8,7 @@ struct KeyboardMenu: View {
         Button("Build & Flash") { window?.build(.buildAndFlash) }.keyboardShortcut("r").disabled(window?.canBuild != true)
         Button("Stop") { window?.build(.stop) }.keyboardShortcut(".").disabled(window?.canStop != true)
         Button("Show Build Log") { window?.build(.showLog) }
-            .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(window?.onBuild == nil || window?.session == nil)
+            .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(window?.buildFlash == nil)
         Divider()
         Button("Next Issue") {}.keyboardShortcut("'").disabled(true)
         Button("Previous Issue") {}.keyboardShortcut("'", modifiers: [.command, .shift]).disabled(true)
@@ -19,7 +19,8 @@ struct KeyboardMenu: View {
         Button("Preview Lighting on Keyboard") {}.disabled(true)
         Button("Show Overlay While Holding a Layer") {}.disabled(true)
         Divider()
-        Button("Device Info…") {}.disabled(true)
+        Button("Device Info…") { window?.devicePopover = .capsule }.disabled(window?.live == nil)
+        // shortcut: BuildFlashSession has no path to flash a stored Oryx image yet; enable when it gets one (spec §7.1).
         Button("Flash Oryx’s Build of This Revision…") {}.disabled(true)
     }
 }

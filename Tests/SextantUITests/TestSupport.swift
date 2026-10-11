@@ -11,11 +11,11 @@ let userLayoutData = try? Data(
 
 /// A window model with the user's layout open.
 @MainActor
-func openUserLayout(onBuild: BuildHandler? = nil) async throws -> LayoutWindowModel {
+func openUserLayout() async throws -> LayoutWindowModel {
     let library = Library(store: MemoryLibrary())
     let data = try userLayoutData ?? { throw CocoaError(.fileNoSuchFile) }()
     _ = try await library.importOryxJSON(data)
-    let model = LayoutWindowModel(library: library, onBuild: onBuild)
+    let model = LayoutWindowModel(library: library)
     await model.open(nil)
     return model
 }
@@ -42,7 +42,10 @@ actor MemoryLibrary: LayoutLibrary {
     func rename(_ id: UUID, to title: String) {}
     func duplicate(_ id: UUID) throws(LibraryError) -> LibraryEntry { throw .notFound(id) }
     func trash(_ id: UUID) {}
-    func layout(ofRevision revisionID: String, in id: UUID) throws(LibraryError) -> KeyboardLayout { throw .notFound(id) }
+    func layout(ofRevision revisionID: String, in id: UUID) throws(LibraryError) -> KeyboardLayout {
+        guard let (_, l) = items[id] else { throw .notFound(id) }
+        return l  // `save` keeps nothing, so the stored layout is still the import
+    }
     func storeFirmware(_ data: Data, md5: String, revisionID: String, to id: UUID) {}
     func firmware(revisionID: String, of id: UUID) -> (data: Data, md5: String)? { nil }
     func location(of id: UUID) -> URL? { nil }

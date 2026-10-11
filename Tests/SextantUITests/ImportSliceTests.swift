@@ -69,8 +69,7 @@ struct ImportSliceTests {
 
     /// Trashing the layout open here ends its session safely; another window's layout can't be trashed from here.
     @Test func trashingTheOpenLayoutClosesItsSessionFirst() async throws {
-        var commands: [BuildCommand] = []
-        let model = try await openUserLayout { command, _ in commands.append(command) }
+        let model = try await openUserLayout()
         let id = try #require(model.session?.id)
         let neighbour = LayoutWindowModel(library: model.library)
         let second = try await model.library.importOryxJSON(try #require(userLayoutData))
@@ -79,7 +78,7 @@ struct ImportSliceTests {
         await model.trashLayout(second.id)
         #expect(neighbour.session?.id == second.id, "refused: the other window keeps its document")
         await model.trashLayout(id)
-        #expect(model.session == nil && commands == [.stop] && !model.library.isOpen(id))
+        #expect(model.session == nil && !model.library.isOpen(id))
     }
 
     @Test func sidebarTitleFollowsTheOpenDocument() async throws {

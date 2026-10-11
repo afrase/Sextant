@@ -15,6 +15,8 @@ public enum BuildFlashError: Error, Equatable, Sendable, LocalizedError {
     case notReconnected
     /// The keyboard came back reporting another serial than the build's.
     case unexpectedSerial(String?)
+    /// Another layout's Build & Flash holds flash mode (spec §7.6).
+    case flashingElsewhere
 
     public var errorDescription: String? {
         switch self {
@@ -28,6 +30,7 @@ public enum BuildFlashError: Error, Equatable, Sendable, LocalizedError {
             String(localized: "The keyboard reconnected as \(serial), not the new firmware. Put it in flash mode to try again.")
         case .unexpectedSerial(nil):
             String(localized: "The keyboard reconnected without a serial. Put it in flash mode to try again.")
+        case .flashingElsewhere: String(localized: "Another window is flashing the keyboard. Try again when it finishes.")
         }
     }
 }
@@ -109,6 +112,7 @@ public final class BuildFlashSession {
     @ObservationIgnored private let clock: any Clock<Duration>
     @ObservationIgnored private let issues: @Sendable (KeyboardLayout) -> [LayoutIssue]
     @ObservationIgnored private let board: BoardDefinition
+    @ObservationIgnored private let live: LiveSession?
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private var runID = 0
     @ObservationIgnored private var request: Request?
@@ -119,11 +123,12 @@ public final class BuildFlashSession {
     /// - Parameters:
     ///   - md5: hex md5 of an image, recorded at build time for the flasher's check (ADR 0013).
     ///   - issues: the live-issue check (the domain's, unless a test injects one).
+    ///   - live: the app-wide live session, which lets one Build & Flash at a time wait for flash mode and write.
     public init(
         session: EditSession, library: any LayoutLibrary, generator: any FirmwareGenerator, toolchain: any Toolchain,
         watcher: any DeviceWatcher, flasher: any Flasher, md5: @escaping @Sendable (Data) -> String,
         clock: any Clock<Duration> = ContinuousClock(),
-        issues: @escaping @Sendable (KeyboardLayout) -> [LayoutIssue] = LayoutIssues.check
+        issues: @escaping @Sendable (KeyboardLayout) -> [LayoutIssue] = LayoutIssues.check, live: LiveSession? = nil
     ) {
         self.session = session
         self.library = library
@@ -134,6 +139,7 @@ public final class BuildFlashSession {
         self.md5 = md5
         self.clock = clock
         self.issues = issues
+        self.live = live
         board = session.layout.board ?? .voyager
     }
 
@@ -149,6 +155,12 @@ public final class BuildFlashSession {
     public func flash(connectedKeyboard: KeyboardDevice?) {
         guard artifact != nil else { return }
         begin(.flash, keyboard: connectedKeyboard)
+    }
+
+    /// The layout of the open layout's latest import revision: what a build's identity, and so
+    /// ``LiveSession/match(_:libraryID:importedLayout:)``, compares against (ADR 0019).
+    public func importedLayout() async -> KeyboardLayout? {
+        await FirmwareIdentity.importedLayout(of: session.id, revisions: session.revisions, library: library)
     }
 
     public func confirmReplace() {
@@ -192,8 +204,7 @@ public final class BuildFlashSession {
             layout = session.layout
             let errors = issues(layout).filter { $0.severity == .error }
             guard errors.isEmpty else { return show(.blocked(errors)) }
-            let imported = await FirmwareIdentity.importedLayout(of: session.id, revisions: session.revisions, library: library)
-            expected = FirmwareIdentity(layout: layout, libraryID: session.id, importedLayout: imported)
+            expected = FirmwareIdentity(layout: layout, libraryID: session.id, importedLayout: await importedLayout())
         }
         if request != .build, !confirmed, let keyboard,
             (keyboard.serial.map {
@@ -278,6 +289,8 @@ public final class BuildFlashSession {
     /// back with the build's serial. Device events and timers arrive on one stream, so this reads top to bottom.
     private func flashAndVerify() async {
         guard let artifact, let identity, let builtLayout else { return }
+        guard live?.claimFlashMode(for: session.id) ?? true else { return fail(.flashingElsewhere) }
+        defer { live?.releaseFlashMode(for: session.id) }
         show(.waitingForFlashMode(stillWaiting: false))
         let (inputs, feed) = AsyncStream.makeStream(of: Input.self)
         let forward = Task { for await event in watcher.events(for: board) { feed.yield(.device(event)) } }

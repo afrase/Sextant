@@ -403,7 +403,7 @@ extension LayoutWindowModel {
         add(String(localized: "Build & Flash"), "⌘R", if: canBuild) { self.build(.buildAndFlash) }
         add(String(localized: "Build"), "⌘B", if: canBuild) { self.build(.build) }
         add(String(localized: "Stop"), "⌘.", if: canStop) { self.build(.stop) }
-        add(String(localized: "Show Build Log"), "⇧⌘B", if: onBuild != nil) { self.build(.showLog) }
+        add(String(localized: "Show Build Log"), "⇧⌘B", if: buildFlash != nil) { self.build(.showLog) }
         add(isFollowing ? String(localized: "Stop Following") : String(localized: "Follow Keyboard"), "⌘L", key: "follow", if: canFollow) {
             self.isFollowing.toggle()
         }

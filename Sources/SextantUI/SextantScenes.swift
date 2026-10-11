@@ -4,25 +4,19 @@ import SwiftUI
 /// Sextant's scenes (spec §2.1). The composition root passes in the use cases that outlive windows.
 public struct SextantScenes: Scene {
     private let services: SextantServices
-    private let onBuild: BuildHandler?
     private let buildToolsStatus: BuildToolsStatus?
     private let firmwareSource: FirmwareSource?
 
-    /// `onBuild` runs the build commands; until Build & Flash is presented it is nil and they stay disabled.
     /// `buildToolsStatus` fills Settings › Build's status line, and `firmwareSource` its pinned commits.
-    public init(
-        services: SextantServices, onBuild: BuildHandler? = nil, buildToolsStatus: BuildToolsStatus? = nil,
-        firmwareSource: FirmwareSource? = nil
-    ) {
+    public init(services: SextantServices, buildToolsStatus: BuildToolsStatus? = nil, firmwareSource: FirmwareSource? = nil) {
         self.services = services
-        self.onBuild = onBuild
         self.buildToolsStatus = buildToolsStatus
         self.firmwareSource = firmwareSource
     }
 
     public var body: some Scene {
         WindowGroup(id: "layout", for: UUID.self) { $layoutID in
-            LayoutWindow(services: services, layoutID: $layoutID, onBuild: onBuild)
+            LayoutWindow(services: services, layoutID: $layoutID)
         }
         // 1440×900, or 1600×1000 on displays at least 1728 pt wide, clamped to the screen (spec §3.2).
         .defaultWindowPlacement { _, context in

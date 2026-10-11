@@ -20,6 +20,7 @@ struct MakeTransparentItem: View {
     var body: some View {
         // Off while a panel is open: ⌘⌫ in its field reaches the menu before the field and would edit the hidden target.
         Button("Make Transparent") { window?.session?.makeTransparent() }
-            .keyboardShortcut(.delete).disabled(window?.hasSelectedKey != true || window?.isEditingKeyLabel == true || window?.palette != nil)
+            .keyboardShortcut(.delete)
+            .disabled(window?.hasSelectedKey != true || window?.isEditingKeyLabel == true || window?.palette != nil)
     }
 }

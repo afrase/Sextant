@@ -69,7 +69,7 @@ struct SextantMain: App {
                 // ADR 0018: container builds by default; Settings › Build can pick the native fallback.
                 BuildFlashSession(
                     session: session, library: store, generator: generator, toolchain: toolchain(.current), watcher: watcher,
-                    flasher: flasher, md5: md5)
+                    flasher: flasher, md5: md5, live: live)
             })
     }
 }

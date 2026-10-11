@@ -14,12 +14,14 @@ struct WindowToolbar: CustomizableToolbarContent {
         ToolbarItem(id: "activity", placement: .principal) {
             ActivityCapsule(
                 state: model.activity, boardName: model.session?.layout.board?.displayName ?? "",
-                onShowLog: model.onBuild == nil ? nil : { model.build(.showLog) },
+                onShowDevice: model.live == nil ? nil : { model.devicePopover = .capsule },
+                onShowLog: model.buildFlash == nil ? nil : { model.showsBuildSheet = true },
                 // The toolbar sizes items by their ideal width: at the narrowest, the trailing items need the room.
                 idealWidth: windowWidth >= 1280 ? 440 : 280
             )
             // A new identity when the width changes, so the toolbar measures the item again.
             .id(windowWidth >= 1280)
+            .devicePopover(model, from: .capsule)
         }
         ToolbarSpacer(.flexible)
         ToolbarItem(id: "undo", placement: .primaryAction) {

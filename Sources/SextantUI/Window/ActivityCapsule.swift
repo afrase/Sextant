@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// What the toolbar's activity capsule shows (spec §3.5). The device and build steps feed it; the window draws it.
+/// What the toolbar's activity capsule shows (spec §3.5). The window derives it from the live session and Build & Flash.
 public struct ActivityState: Hashable, Sendable {
     public enum Device: Hashable, Sendable {
         case absent
@@ -11,17 +11,32 @@ public struct ActivityState: Hashable, Sendable {
 
     public enum Status: Hashable, Sendable {
         case noKeyboard
+        /// A keyboard, with no layout open to compare it with.
+        case keyboardConnected
         case onKeyboard(revisionDate: Date)
-        case notOnKeyboard(edits: Int)
+        /// An earlier build of this layout is on the keyboard; `edits` when Sextant can count them.
+        case notOnKeyboard(edits: Int?)
         case otherLayout(serial: String)
         case heldByAnotherApp(String)
+        /// The keyboard sits in flash mode with no flash running.
+        case inFlashMode
         case issues(count: Int, firstKey: Int?)
+        /// The build tools need their one-time setup (spec §7.3).
+        case needsSetup
+        case generating
         case building(file: String, done: Int, total: Int)
+        case linking
         case built(bytes: Int, percentOfFlash: Int)
         case waitingForFlashMode
+        case erasing(fraction: Double)
         case writing(fraction: Double, bytes: Int)
-        case verifying(fraction: Double, bytes: Int)
+        /// Waiting for the keyboard to come back with the new firmware; it has no percentage.
+        case verifying
         case flashed(revision: String)
+        /// Flashed, but the flash couldn't be recorded in History; the sheet says why.
+        case flashedNotSaved
+        /// Another window's Build & Flash holds flash mode (spec §7.6).
+        case flashingElsewhere(layout: String)
         case buildFailed(errors: Int, key: Int?)
         case flashFailed
     }
@@ -41,7 +56,7 @@ public struct ActivityState: Hashable, Sendable {
     /// A build or flash is running, so Build & Flash becomes Stop or Writing… (spec §3.4).
     var isBusy: Bool {
         switch status {
-        case .building, .waitingForFlashMode, .writing, .verifying: true
+        case .generating, .building, .linking, .waitingForFlashMode, .erasing, .writing, .verifying: true
         default: false
         }
     }
@@ -64,6 +79,8 @@ extension ActivityState.Status {
         switch self {
         case .noKeyboard:
             ActivityLook(symbol: "circle.fill", tone: .secondary, text: String(localized: "No keyboard"))
+        case .keyboardConnected:
+            ActivityLook(symbol: "keyboard", tone: .secondary, text: String(localized: "Keyboard connected"))
         case let .onKeyboard(date):
             ActivityLook(
                 symbol: "checkmark.circle.fill", tone: .success, text: String(localized: "On keyboard"),
@@ -71,23 +88,32 @@ extension ActivityState.Status {
         case let .notOnKeyboard(edits):
             ActivityLook(
                 symbol: "arrow.up.circle", tone: .warning, text: String(localized: "Not on keyboard"),
-                detail: edits == 1 ? String(localized: "1 edit") : String(localized: "\(edits) edits"))
+                detail: edits.map { $0 == 1 ? String(localized: "1 edit") : String(localized: "\($0) edits") })
         case let .otherLayout(serial):
             ActivityLook(
                 symbol: "exclamationmark.triangle.fill", tone: .warning, text: String(localized: "Keyboard runs another layout"),
-                detail: serial)
+                detail: serial.isEmpty ? nil : serial)
         case let .heldByAnotherApp(app):
             ActivityLook(symbol: "lock.fill", tone: .secondary, text: String(localized: "In use by \(app)"))
+        case .inFlashMode:
+            ActivityLook(symbol: "paperclip", tone: .warning, text: String(localized: "Keyboard in flash mode"))
         case let .issues(count, key):
             ActivityLook(
                 symbol: "exclamationmark.triangle.fill", tone: .warning,
                 text: count == 1 ? String(localized: "1 issue") : String(localized: "\(count) issues"),
                 detail: key.map { String(localized: "key \($0)") })
+        case .needsSetup:
+            ActivityLook(
+                symbol: "hammer.fill", tone: .warning, text: String(localized: "Build tools needed"), detail: String(localized: "Set up"))
+        case .generating:
+            ActivityLook(symbol: nil, tone: .secondary, text: String(localized: "Generating source"), progress: .indeterminate)
         case let .building(file, done, total):
             ActivityLook(
                 symbol: nil, tone: .secondary, text: String(localized: "Compiling \(file)"),
                 detail: String(localized: "\(done) of \(total)"),
                 progress: .determinate(total > 0 ? Double(done) / Double(total) : 0))
+        case .linking:
+            ActivityLook(symbol: nil, tone: .secondary, text: String(localized: "Linking"), progress: .indeterminate)
         case let .built(bytes, percent):
             ActivityLook(
                 symbol: "checkmark.circle.fill", tone: .success, text: String(localized: "Built"),
@@ -96,16 +122,26 @@ extension ActivityState.Status {
             ActivityLook(
                 symbol: "paperclip", tone: .warning, text: String(localized: "Waiting for flash mode"),
                 detail: String(localized: "Press the reset pinhole"), progress: .indeterminate)
+        case let .erasing(fraction):
+            ActivityLook(
+                symbol: nil, tone: .secondary, text: String(localized: "Erasing · \(Int((fraction * 100).rounded()))%"),
+                progress: .determinate(fraction))
         case let .writing(fraction, bytes):
             ActivityLook(
                 symbol: nil, tone: .secondary, text: String(localized: "Writing · \(Int((fraction * 100).rounded()))%"),
                 detail: String(localized: "\(bytes.formatted()) B"), progress: .determinate(fraction))
-        case let .verifying(fraction, bytes):
+        case .verifying:
             ActivityLook(
-                symbol: nil, tone: .secondary, text: String(localized: "Verifying · \(Int((fraction * 100).rounded()))%"),
-                detail: String(localized: "\(bytes.formatted()) B"), progress: .determinate(fraction))
+                symbol: nil, tone: .secondary, text: String(localized: "Verifying"), detail: String(localized: "Reconnecting"),
+                progress: .indeterminate)
         case let .flashed(revision):
             ActivityLook(symbol: "checkmark.seal.fill", tone: .success, text: String(localized: "Flashed"), detail: revision)
+        case .flashedNotSaved:
+            ActivityLook(
+                symbol: "checkmark.seal.fill", tone: .warning, text: String(localized: "Flashed"),
+                detail: String(localized: "Not saved in History"))
+        case let .flashingElsewhere(layout):
+            ActivityLook(symbol: "bolt.fill", tone: .secondary, text: String(localized: "Flashing from ‘\(layout)’"))
         case let .buildFailed(errors, key):
             ActivityLook(
                 symbol: "xmark.octagon.fill", tone: .danger, text: String(localized: "Build Failed"),
@@ -123,19 +159,25 @@ extension ActivityState.Status {
 }
 
 /// The toolbar's centre capsule: `[● Voyager KlgM7/40xJ7M] │ [icon status … detail]` with a progress hairline
-/// (spec §3.5). Two VoiceOver elements, one per segment.
+/// (spec §3.5). Two buttons, one per segment, each with its own VoiceOver label.
 public struct ActivityCapsule: View {
     var state: ActivityState
     var boardName: String
-    /// Opens the build log or sheet; nil until Build & Flash is wired.
+    /// Opens the Device popover; nil where there is no live session.
+    var onShowDevice: (() -> Void)?
+    /// Opens the Build & Flash sheet; nil where building is off.
     var onShowLog: (() -> Void)?
     /// Narrower in small windows, so the toolbar's trailing items stay out of its overflow menu.
     var idealWidth: CGFloat
     @State private var width: CGFloat = 440
 
-    public init(state: ActivityState, boardName: String, onShowLog: (() -> Void)? = nil, idealWidth: CGFloat = 440) {
+    public init(
+        state: ActivityState, boardName: String, onShowDevice: (() -> Void)? = nil, onShowLog: (() -> Void)? = nil,
+        idealWidth: CGFloat = 440
+    ) {
         self.state = state
         self.boardName = boardName
+        self.onShowDevice = onShowDevice
         self.onShowLog = onShowLog
         self.idealWidth = idealWidth
     }
@@ -144,26 +186,22 @@ public struct ActivityCapsule: View {
         let look = state.status.look
         let compact = width < 360
         HStack(spacing: 0) {
-            deviceSegment(compact: compact)
-                .padding(.horizontal, 12)
+            segment(onShowDevice) { deviceSegment(compact: compact) }
             Divider().frame(height: 16)
-            Button {
-                onShowLog?()
-            } label: {
-                statusSegment(look, compact: compact)
-                    .padding(.horizontal, 12)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(onShowLog == nil)
-            .accessibilityLabel([look.text, look.detail].compactMap { $0 }.joined(separator: ", "))
+            segment(onShowLog) { statusSegment(look, compact: compact) }
+                .accessibilityLabel([look.text, look.detail].compactMap { $0 }.joined(separator: ", "))
         }
         .frame(minWidth: 280, idealWidth: idealWidth, maxWidth: 520, minHeight: 28)
-        .overlay(alignment: .bottom) { hairline(look.progress) }
+        .overlay(alignment: .bottom) { ProgressHairline(progress: look.progress) }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { width = $0 })
     }
 
-    // shortcut: the device segment becomes a button when the Device popover exists (spec step 9).
+    /// A button when there is something to open, else just its label.
+    @ViewBuilder private func segment(_ action: (() -> Void)?, @ViewBuilder label: () -> some View) -> some View {
+        let content = label().padding(.horizontal, 12).contentShape(Rectangle())
+        if let action { Button(action: action) { content }.buttonStyle(.plain) } else { content }
+    }
+
     private func deviceSegment(compact: Bool) -> some View {
         let (dot, serial, mismatch): (Color, String?, Bool) =
             switch state.device {
@@ -212,7 +250,23 @@ public struct ActivityCapsule: View {
         }
     }
 
-    @ViewBuilder private func hairline(_ progress: ActivityLook.Progress) -> some View {
+    private func color(_ tone: ActivityLook.Tone) -> Color {
+        switch tone {
+        case .secondary: .secondary
+        case .success: Tokens.success.color
+        case .warning: Tokens.warning.color
+        case .danger: Tokens.danger.color
+        }
+    }
+}
+
+/// The capsule's 2 pt progress line: a fill for a known fraction, a shimmer while waiting (static under Reduce
+/// Motion, spec §10.6).
+private struct ProgressHairline: View {
+    var progress: ActivityLook.Progress
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
         switch progress {
         case .none: EmptyView()
         case let .determinate(fraction):
@@ -222,17 +276,21 @@ public struct ActivityCapsule: View {
             .frame(height: 2)
             .padding(.horizontal, 14)
         case .indeterminate:
-            // shortcut: a static line (the Reduce Motion look); the shimmer comes with the flash step (spec §10.6).
-            Capsule().fill(Color.accentColor.opacity(0.4)).frame(height: 2).padding(.horizontal, 14)
-        }
-    }
-
-    private func color(_ tone: ActivityLook.Tone) -> Color {
-        switch tone {
-        case .secondary: .secondary
-        case .success: Tokens.success.color
-        case .warning: Tokens.warning.color
-        case .danger: Tokens.danger.color
+            Capsule().fill(Color.accentColor.opacity(0.3)).frame(height: 2)
+                .overlay {
+                    if !reduceMotion {
+                        TimelineView(.animation) { context in
+                            GeometryReader { proxy in
+                                // One sweep every 2.4 s.
+                                let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 2.4) / 2.4
+                                Capsule().fill(Color.accentColor).frame(width: proxy.size.width / 4, height: 2)
+                                    .offset(x: (proxy.size.width * 1.25) * phase - proxy.size.width / 4)
+                            }
+                        }
+                        .clipShape(Capsule())
+                    }
+                }
+                .padding(.horizontal, 14)
         }
     }
 }

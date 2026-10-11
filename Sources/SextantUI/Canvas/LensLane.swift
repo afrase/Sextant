@@ -32,8 +32,10 @@ struct LensLane: View {
                 Text(text).lineLimit(1)
                 Button("Show Key") { model.showIssue(key) }.buttonStyle(.borderless)
             case let .live(text):
+                let down = model.live?.pressedKeys.count ?? 0
                 Circle().fill(Tokens.success.color).frame(width: 7, height: 7)
-                Text(text).lineLimit(1)
+                Text(down == 0 ? text : "\(text) · \(down == 1 ? String(localized: "1 key down") : String(localized: "\(down) keys down"))")
+                    .lineLimit(1)
                 Button("Stop Following") { model.isFollowing = false }.buttonStyle(.borderless)
             }
         }

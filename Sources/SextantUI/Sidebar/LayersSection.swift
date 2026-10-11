@@ -9,9 +9,11 @@ struct LayersSection: View {
     var session: EditSession
 
     var body: some View {
+        // Another layout's layer numbers mean other layers.
+        let liveLayer = model.runsThisLayout ? model.live?.activeLayer : nil
         Section("Layers") {
             ForEach(Array(session.layout.layers.enumerated()), id: \.element.id) { index, layer in
-                LayerRow(model: model, index: index, layer: layer, isSelected: index == session.selection.layer)
+                LayerRow(model: model, index: index, layer: layer, isSelected: index == session.selection.layer, isLive: liveLayer == index)
                     .tag(Destination.layer(index))
                     // Item-based menus (`contextMenu(forSelectionType:)`) only work on the List itself, not inside it.
                     .contextMenu { LayerContextMenu(model: model, session: session, index: index) }
@@ -57,6 +59,8 @@ private struct LayerRow: View {
     var index: Int
     var layer: Layer
     var isSelected: Bool
+    /// The keyboard is on this layer (spec §3.6 live badge).
+    var isLive = false
     @State private var draft = ""
     @FocusState private var isEditing: Bool
 
@@ -80,6 +84,7 @@ private struct LayerRow: View {
             } else {
                 Text(layer.title)
             }
+            if isLive { Image(systemName: "dot.radiowaves.left.and.right").foregroundStyle(Tokens.success.color) }
         }
         // The whole row takes the double-click, not just its text; while renaming, the field gets it (word selection).
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -87,6 +92,9 @@ private struct LayerRow: View {
         .gesture(TapGesture(count: 2).onEnded { model.startRenaming(layer: index) }, isEnabled: !renaming)
         .badge(Text(verbatim: "\(layer.keys.filter { !$0.isTransparent }.count)").foregroundStyle(detail))
         .accessibilityElement(children: renaming ? .contain : .combine)
-        .accessibilityLabel(String(localized: "Layer \(index), \(layer.title)"))
+        .accessibilityLabel(
+            isLive
+                ? String(localized: "Layer \(index), \(layer.title), the keyboard’s layer")
+                : String(localized: "Layer \(index), \(layer.title)"))
     }
 }
