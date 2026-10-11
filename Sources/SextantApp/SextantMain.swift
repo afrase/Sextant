@@ -47,15 +47,19 @@ struct SextantMain: App {
     }
 
     /// Builds every adapter and use case. Raw-HID writes and flashing stay off until the user sets the
-    /// `SextantHardwareEnabled` default by hand (ADR 0012); read-only USB presence is always on.
+    /// defaults by hand (ADR 0012, 0034): `SextantFlashingEnabled` for writing firmware, `SextantLiveAccessEnabled` for the
+    /// raw-HID link (its pairing request writes to the keyboard), `SextantHardwareEnabled` for both. Read-only USB
+    /// presence is always on.
     @MainActor
     static func makeServices(toolchain: NativeToolchain) -> SextantServices {
-        let hardwareEnabled = UserDefaults.standard.bool(forKey: "SextantHardwareEnabled")
+        let defaults = UserDefaults.standard, both = defaults.bool(forKey: "SextantHardwareEnabled")
+        let liveAccessEnabled = both || defaults.bool(forKey: "SextantLiveAccessEnabled")
+        let flashingEnabled = both || defaults.bool(forKey: "SextantFlashingEnabled")
         let store = PackageLibrary(root: PackageLibrary.defaultRoot())
         let library = Library(store: store)
         let watcher = IOKitDeviceWatcher()
-        let link: any KeyboardLink = hardwareEnabled ? RawHIDLink() : RefusingKeyboardLink()
-        let flasher: any Flasher = hardwareEnabled ? DFUFlasher() : RefusingFlasher()
+        let link: any KeyboardLink = liveAccessEnabled ? RawHIDLink() : RefusingKeyboardLink()
+        let flasher: any Flasher = flashingEnabled ? DFUFlasher() : RefusingFlasher()
         let live = LiveSession(watcher: watcher, link: link, secureInputProbe: SecureInputProbe.isEnabled)
         let oryx = OryxClient()
         let generator = QMKGenerator()

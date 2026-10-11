@@ -17,7 +17,7 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 - **Security fix:** imported numbers could crash Sextant (`Int(Double)` traps); fixed and tested.
 
 - **MVP slices merged** (workflow `mvp-slices`, 35 agents, each slice implemented, reviewed by three adversarial lenses, verified, fixed and re-verified; 45 findings fixed): QMK generator with golden tests on all five Oryx samples, container and native toolchains, live issues, flash path (`slice/build`); device watcher, raw-HID link and DFU flasher with every guard tested on fakes (`slice/device`); Oryx client, import use case, stored Oryx firmware (`slice/oryx`); window skeleton, commands, full board (`slice/ui`, spec steps 2–3); `LiveSession`, `BuildFlashSession`, firmware identity, hardware gate (`slice/usecases`). Integration fixes: Add-as-Revision save errors surface; "Edited" uses the stored content hash. ADRs 0019–0025.
-- **Composition root wired:** `SextantServices` (library, live session, import and Build & Flash factories); raw HID and flashing behind `SextantHardwareEnabled` (ADR 0012).
+- **Composition root wired:** `SextantServices` (library, live session, import and Build & Flash factories); raw HID and flashing behind user defaults (ADRs 0012, 0034).
 - **Integration review** (workflow `integration-review`, 10 agents: four cross-slice lenses, verify, fix, re-verify; 10 of 24 findings confirmed and fixed): one window per layout (a sidebar click on a layout open elsewhere brings that window forward); quitting waits for pending autosaves; an import moves the "Edited" baseline; build size is measured against the 120 KiB linker window; every GD32 (`0x1791`) image is refused; macro pauses are bounded to 0...5000 ms; issue de-duplication is linear; `load` hashes `layout.json` itself; folder names fit APFS's 255 UTF-16 units; the secure-input poll runs only while a keyboard is connected.
 
 ## How we work (agreed with the user)
@@ -56,7 +56,7 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 - The `.app` was built and signature-checked, not launched by the agent; the UI was checked with offscreen snapshots. Not checkable offscreen, so try them in the app: a Lighting-lens drag across keys paints and never swaps; the context strip scrolls to the current layer at 1120×640; a label typed and not committed survives ⌘Q; dark-mode contrast of controls inside the inspector (the offscreen renderer draws them wrongly).
 
 ## Blocked / waiting on the user
-- **Hardware (ADR 0012):** raw-HID writes (pairing for the live layer) and flashing. Built against fakes; wired off by default.
+- **Live access (ADRs 0012, 0034):** raw-HID pairing for the live layer, Follow and key presses stays off; the user approved flashing only (2026-10-11, `SextantFlashingEnabled`).
 
 ## Deviations from the spec
 - All-null keys render transparent, not Disabled (ADR 0015): Oryx's generated firmware makes them `KC_TRANSPARENT`.

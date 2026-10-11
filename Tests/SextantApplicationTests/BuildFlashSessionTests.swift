@@ -125,6 +125,22 @@ struct BuildFlashSessionTests {
         #expect(toolchain.buildCount == 0)
     }
 
+    /// An unchanged layout reuses its last build; an edit builds again.
+    @Test func anUnchangedLayoutIsntCompiledAgain() async throws {
+        let toolchain = FakeToolchain()
+        let (session, document) = try await make(toolchain: toolchain)
+        session.build()
+        #expect(await eventually { session.phase == .built })
+        session.stop()
+        session.build()
+        #expect(await eventually { session.phase == .built })
+        #expect(toolchain.buildCount == 1, "nothing changed, so nothing was compiled")
+        session.stop()
+        document.setLabel("X", layer: 0, index: 0)
+        session.build()
+        #expect(await eventually { session.phase == .built && toolchain.buildCount == 2 }, "an edit builds again")
+    }
+
     /// With flashing switched off, Build & Flash builds and stops before asking for flash mode.
     @Test func neverAsksForFlashModeWhenFlashingIsOff() async throws {
         let (session, _) = try await make(flasher: FakeFlasher(isEnabled: false))

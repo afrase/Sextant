@@ -247,7 +247,9 @@ public final class BuildFlashSession {
             return show(.confirmingReplace(serial: keyboard.serial, title: await title(runningSerial: keyboard.serial)))
         }
         guard !Task.isCancelled else { return }
-        if request != .flash {
+        // The layout hasn't changed since the last build: use that build rather than compile it again.
+        let reusable = artifact != nil && builtLayout == layout && identity == expected
+        if request != .flash, !reusable {
             guard await build(layout, as: expected) else { return }
         }
         if request == .build { return show(.built) }

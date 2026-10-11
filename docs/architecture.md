@@ -119,7 +119,7 @@ Small things that are not worth a port are injected as values: an `any Clock<Dur
 
 ### 3.3 Hardware gate
 
-Raw-HID writes (pairing, protocol query) and flashing need the user's explicit hardware approval (CLAUDE.md). Until it is given, the composition root wires `KeyboardLink` and `Flasher` to refusing implementations, and the real adapters are reachable only when the `SextantHardwareEnabled` user default is set by hand. Read-only enumeration (`IOKitDeviceWatcher`) is always on. See ADR 0012.
+Raw-HID writes (pairing, protocol query) and flashing need the user's explicit hardware approval (CLAUDE.md). Until it is given, the composition root wires `KeyboardLink` and `Flasher` to refusing implementations, and the real adapters are reachable only when their user defaults are set by hand: `SextantFlashingEnabled` (the flasher) and `SextantLiveAccessEnabled` (the raw-HID link), or `SextantHardwareEnabled` for both. Read-only enumeration (`IOKitDeviceWatcher`) is always on. See ADRs 0012 and 0034.
 
 ## 4. Adapters
 
@@ -134,7 +134,7 @@ Raw-HID writes (pairing, protocol query) and flashing need the user's explicit h
 
 ### 4.1 Composition root (`SextantApp`)
 
-`@main struct SextantMain` builds the concrete adapters (the raw-HID link and flasher only when `SextantHardwareEnabled` is set, ADR 0012), starts `LiveSession`, and hands `SextantUI` a `SextantServices` value: `Library`, `LiveSession`, and factories for `ImportFromOryx` and `BuildFlashSession`. The UI never sees an adapter. Command-line flag: `--import <oryx.json>` imports a layout file into the library at launch. Snapshots are a separate tool: `swift run SextantSnapshots <dir> [--only a,b]`. No singletons: everything flows from `SextantMain`.
+`@main struct SextantMain` builds the concrete adapters (the raw-HID link and the flasher only when their defaults are set, ADRs 0012 and 0034), starts `LiveSession`, and hands `SextantUI` a `SextantServices` value: `Library`, `LiveSession`, and factories for `ImportFromOryx` and `BuildFlashSession`. The UI never sees an adapter. Command-line flag: `--import <oryx.json>` imports a layout file into the library at launch. Snapshots are a separate tool: `swift run SextantSnapshots <dir> [--only a,b]`. No singletons: everything flows from `SextantMain`.
 
 ## 5. Concurrency
 
