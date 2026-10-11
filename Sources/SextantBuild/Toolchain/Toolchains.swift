@@ -46,10 +46,7 @@ public struct ContainerToolchain: Toolchain {
 
     public func status() async -> ToolchainStatus {
         let files = [home.kernel, home.initfs, home.rootfs]
-        guard files.allSatisfy({ FileManager.default.fileExists(atPath: $0.path) }),
-            Self.checkedOut(home.firmware.appending(path: ".git/HEAD")) == Pins.firmwareCommit,
-            Self.checkedOut(home.firmware.appending(path: ".git/modules/modules/zsa/HEAD")) == Pins.modulesCommit
-        else {
+        guard files.allSatisfy({ FileManager.default.fileExists(atPath: $0.path) }), Self.isPinned(firmware: home.firmware) else {
             return .needsSetup(String(localized: "Building firmware needs a one-time download of the build tools (about 1 GB)."))
         }
         return .ready(String(localized: "Linux build VM with ZSA's compiler and QMK firmware 25"))
@@ -59,9 +56,12 @@ public struct ContainerToolchain: Toolchain {
         QMKBuild(hostHome: home.firmware, commandHome: VirtualMachineRunner.firmwareMount, runner: runner).run(source, board: board)
     }
 
-    /// The commit a detached checkout's `HEAD` file names.
-    static func checkedOut(_ head: URL) -> String? {
-        (try? String(contentsOf: head, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
+    /// True when a firmware checkout and its ZSA modules submodule are detached at the pinned commits.
+    static func isPinned(firmware: URL) -> Bool {
+        func head(_ path: String) -> String? {
+            (try? String(contentsOf: firmware.appending(path: path), encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return head(".git/HEAD") == Pins.firmwareCommit && head(".git/modules/modules/zsa/HEAD") == Pins.modulesCommit
     }
 }
 
@@ -88,7 +88,7 @@ public struct NativeToolchain: Toolchain {
     public func status() async -> ToolchainStatus {
         guard FileManager.default.isExecutableFile(atPath: qmk.path),
             FileManager.default.fileExists(atPath: tools.appending(path: "arm-none-eabi-gcc").path),
-            ContainerToolchain.checkedOut(firmware.appending(path: ".git/HEAD")) == ContainerToolchain.Pins.firmwareCommit
+            ContainerToolchain.isPinned(firmware: firmware)
         else { return .needsSetup(String(localized: "Building firmware needs a one-time download of the build tools.")) }
         return .ready(String(localized: "QMK on this Mac"))
     }
@@ -100,8 +100,9 @@ public struct NativeToolchain: Toolchain {
     }
 }
 
-/// Runs a build command in a throwaway Linux VM: the pinned root filesystem read-only, the firmware checkout shared
-/// read-write at ``firmwareMount``, no network.
+/// Runs a build command in a throwaway Linux VM: a per-build APFS clone of the pinned root filesystem (Containerization
+/// attaches the root filesystem read-write whatever its options say, so the pinned image itself is never attached),
+/// the firmware checkout shared read-write at ``firmwareMount``, no network.
 struct VirtualMachineRunner: CommandRunner {
     static let firmwareMount = "/qmk"
     let home: ContainerToolchain.Home
@@ -109,9 +110,16 @@ struct VirtualMachineRunner: CommandRunner {
     func run(_ command: BuildCommand) -> AsyncThrowingStream<CommandOutput, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
+                var scratch: URL?
+                defer { if let scratch { try? FileManager.default.removeItem(at: scratch) } }  // after the VM stopped
                 do {
+                    let directory = try FileManager.default.url(
+                        for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: home.root, create: true)
+                    scratch = directory
+                    let rootfs = directory.appending(path: "rootfs.ext4")
+                    try FileManager.default.copyItem(at: home.rootfs, to: rootfs)  // same volume: an instant APFS clone
                     let output = LineWriter { continuation.yield(.line($0)) }
-                    let container = try makeContainer(command, output: output)
+                    let container = try makeContainer(command, rootfs: rootfs, output: output)
                     try await container.create()
                     let status: ExitStatus
                     do {
@@ -137,14 +145,14 @@ struct VirtualMachineRunner: CommandRunner {
         }
     }
 
-    private func makeContainer(_ command: BuildCommand, output: LineWriter) throws -> LinuxContainer {
+    private func makeContainer(_ command: BuildCommand, rootfs: URL, output: LineWriter) throws -> LinuxContainer {
         let vmm = VZVirtualMachineManager(
             kernel: Kernel(path: home.kernel, platform: .linuxArm),
             initialFilesystem: .block(format: "ext4", source: home.initfs.path, destination: "/", options: ["ro"]))
         let id = "sextant-build-\(UUID().uuidString.prefix(8).lowercased())"
         let cpus = min(8, ProcessInfo.processInfo.activeProcessorCount)
         return try LinuxContainer(
-            id, rootfs: .block(format: "ext4", source: home.rootfs.path, destination: "/", options: ["ro"]), vmm: vmm,
+            id, rootfs: .block(format: "ext4", source: rootfs.path, destination: "/", options: ["ro"]), vmm: vmm,
             vm: VMResources(cpus: cpus, memoryInBytes: 3 << 30)
         ) { config in
             config.cpus = cpus

@@ -83,5 +83,10 @@ struct FlashPathTests {
         layout.updateKey(layer: 0, index: 24) { $0 = Key(tap: .momentary(1)) }
         layout.updateKey(layer: 1, index: 24) { $0 = Key(tap: .code("QK_BOOT")) }
         #expect(FlashPath.find(in: layout) == nil)
+        // A second thumb that also holds layer 1 frees key 24.
+        layout.updateKey(layer: 0, index: 50) { $0 = Key(tap: .momentary(1)) }
+        #expect(
+            FlashPath.find(in: layout)
+                == FlashPath(holds: [KeyRef(layer: 0, index: 50, slot: .tap)], reset: KeyRef(layer: 1, index: 24, slot: .tap)))
     }
 }

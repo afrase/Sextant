@@ -18,7 +18,11 @@ struct Features {
         try Self.refuseUnsupportedSettings(plan.layout.settings)
         if let navigator = plan.layout.navigator {
             pointing = try Self.pointing(navigator)
-            automouseLayer = navigator.options["automouseLayer"]?.doubleValue.flatMap { Int(exactly: $0) }
+            let layer = navigator.options["automouseLayer"].map { $0.doubleValue.flatMap { Int(exactly: $0) } ?? -1 }
+            if let layer, !plan.layout.layers.indices.contains(layer) {
+                throw .unsupported(String(localized: "a Navigator automouse layer that doesn't exist"), nil)
+            }
+            automouseLayer = layer
         } else {
             pointing = nil
             automouseLayer = nil
@@ -138,6 +142,7 @@ struct Features {
     func keymapJSON() -> String {
         var modules = ["zsa/oryx"]
         if usesJiggler { modules.append("zsa/mousejiggler") }
+        if plan.codes.contains("KC_MS_DBL_CLICK") { modules.append("zsa/doubleclick") }
         if pointing == .trackpad {
             modules.append("zsa/navigator_trackpad")
             if automouseLayer != nil { modules.append("zsa/automouse") }
@@ -189,9 +194,12 @@ struct Features {
             written.formUnion(["sensitivity", "invertScrollX", "invertScrollY"])
         case .knob: throw .unsupported(String(localized: "the Navigator knob"), nil)
         }
-        for (id, value) in navigator.options.sorted(by: { $0.key < $1.key })
-        where !written.contains(id) && quietOptions[id] != value && SettingsCatalog.voyager.setting(id: id)?.defaultValue != value {
-            throw .unsupported(String(localized: "the Navigator's “\(id)” option"), nil)
+        // Written numbers feed C defines, so they must be in the option's range, like settings.
+        for (id, value) in navigator.options.sorted(by: { $0.key < $1.key }) {
+            let setting = SettingsCatalog.voyager.setting(id: id)
+            let outOfRange = value.doubleValue.map { v in setting?.range.map { !$0.contains(v) } ?? false } ?? false
+            let unwritten = !written.contains(id) && quietOptions[id] != value && setting?.defaultValue != value
+            if outOfRange || unwritten { throw .unsupported(String(localized: "the Navigator's “\(id)” option"), nil) }
         }
         return kind
     }

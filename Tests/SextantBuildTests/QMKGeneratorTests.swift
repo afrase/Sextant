@@ -71,5 +71,54 @@ struct QMKGeneratorTests {
         layout = clean
         layout.updateKey(layer: 0, index: 24) { $0.tappingTerm = .min }
         #expect(throws: GeneratorError.self) { try QMKGenerator().generate(layout, identity: identity) }
+        // zsa/oryx's version reply holds 30 serial characters.
+        let long = FirmwareIdentity(serial: String(repeating: "a", count: 31))
+        #expect(throws: GeneratorError.unsupported("the firmware serial “\(long.serial)”", nil)) {
+            try QMKGenerator().generate(clean, identity: long)
+        }
+        _ = try QMKGenerator().generate(clean, identity: FirmwareIdentity(serial: String(repeating: "a", count: 30)))
+        // LM() keeps 4 bits of the layer.
+        layout = clean
+        layout.layers += (layout.layers.count...16).map { .transparent(title: "\($0)") }
+        layout.updateKey(layer: 0, index: 1) { $0 = Key(tap: KeyAction(code: "LM", layer: 16, modifiers: .leftShift)) }
+        #expect(throws: GeneratorError.self) { try QMKGenerator().generate(layout, identity: identity) }
+        layout.updateKey(layer: 0, index: 1) { $0 = Key(tap: KeyAction(code: "LM", layer: 15, modifiers: .leftShift)) }
+        _ = try QMKGenerator().generate(layout, identity: identity)
+        // Navigator options feed C defines too.
+        for (id, value) in [("automouseLayer", 40.0), ("automouseLayer", 1.5), ("automouseTime", 0), ("automouseThreshold", 101)] {
+            layout = clean
+            layout.navigator?.options[id] = .number(value)
+            #expect(throws: GeneratorError.self, "\(id) \(value)") { try QMKGenerator().generate(layout, identity: identity) }
+        }
+    }
+
+    /// Catalog keys the generator would otherwise write as undeclared or dead keys.
+    @Test func refusesCatalogKeysTheFirmwareWouldntDefineOrRun() throws {
+        let clean = try userLayout()
+        for code in ["MAC_SPOTLIGHT", "MAC_MISSION_CONTROL", "ORYX_SL_TOGG", "SC_LSPO", "KC_LSPO", "AS_TOGG"] {
+            var layout = clean
+            layout.updateKey(layer: 0, index: 1) { $0 = Key(code) }
+            #expect(throws: GeneratorError.self, "\(code)") { try QMKGenerator().generate(layout, identity: identity) }
+        }
+        var layout = clean
+        layout.settings["autoshift"] = .bool(true)
+        layout.updateKey(layer: 0, index: 1) { $0 = Key("AS_TOGG") }
+        #expect(try QMKGenerator().generate(layout, identity: identity).files["rules.mk"]?.contains("AUTO_SHIFT_ENABLE = yes") == true)
+        layout = clean
+        layout.updateKey(layer: 0, index: 1) { $0 = Key("KC_MS_DBL_CLICK") }
+        #expect(try QMKGenerator().generate(layout, identity: identity).files["keymap.json"]?.contains("\"zsa/doubleclick\"") == true)
+    }
+
+    /// `ALL_T`/`MEH_T` are function-like macros; alone, Hyper and Meh are `KC_HYPR` and `KC_MEH`.
+    @Test func writesALoneHyperOrMehAsItsKeycode() throws {
+        var layout = try userLayout()
+        layout.updateKey(layer: 0, index: 1) { $0 = Key(tap: .code("ALL_T")) }
+        layout.updateKey(layer: 0, index: 2) { $0 = Key(hold: .code("KC_MEH")) }
+        layout.combos = [Combo(keyIndices: [1, 2], layer: 0, output: .code("HYPR_T"))]
+        let source = try QMKGenerator().generate(layout, identity: identity)
+        let keymap = try #require(source.files["keymap.c"])
+        #expect(keymap.contains("KC_HYPR, KC_MEH,"))
+        #expect(keymap.contains("COMBO(combo0, KC_HYPR)"))
+        #expect(!keymap.contains(/(ALL|MEH|HYPR)_T[^(]/))
     }
 }

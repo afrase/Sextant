@@ -7,24 +7,36 @@ import Testing
 
 /// The shared build pipeline and output parsers, against fake command runners and Oryx's real build logs.
 struct ToolchainTests {
-    /// A runner that replays canned output and, like `qmk compile`, may leave an image in the QMK home.
+    /// A runner that replays canned output and, like `qmk compile`, may leave an image named for the keymap (the last
+    /// argument) in the QMK home.
     struct FakeRunner: CommandRunner {
         var output: [CommandOutput]
-        var image: (URL, Data)?
+        var image: (home: URL, data: Data)?
         var fails = false
+        /// Runs before the output, while the build waits on the command.
+        var during: @Sendable () async -> Void = {}
         let commands = Commands()
 
         final class Commands: @unchecked Sendable {
             var all: [BuildCommand] = []
+            /// `keymap.c` as the command found it.
+            var keymaps: [String] = []
         }
 
         func run(_ command: BuildCommand) -> AsyncThrowingStream<CommandOutput, any Error> {
             commands.all.append(command)
-            if let (url, data) = image { try? data.write(to: url) }
-            return AsyncThrowingStream { continuation in
+            if let (home, data) = image, let keymap = command.arguments.last {
+                let source = home.appending(path: "keyboards/zsa/voyager/keymaps/\(keymap)/keymap.c")
+                commands.keymaps.append((try? String(contentsOf: source, encoding: .utf8)) ?? "")
+                try? data.write(to: home.appending(path: "zsa_voyager_\(keymap).bin"))
+            }
+            let (stream, continuation) = AsyncThrowingStream<CommandOutput, any Error>.makeStream()
+            Task { [output, fails, during] in
+                await during()
                 output.forEach { continuation.yield($0) }
                 continuation.finish(throwing: fails ? CocoaError(.executableNotLoadable) : nil)
             }
+            return stream
         }
     }
 
@@ -33,7 +45,6 @@ struct ToolchainTests {
     let source = GeneratedSource(
         files: ["keymap.c": "// keymap\n", "rules.mk": "", "config.h": "", "keymap.json": "{}"],
         sourceMap: [21: KeyRef(layer: 1, index: 4, slot: .tap)])
-    var imageURL: URL { home.appending(path: "zsa_voyager_sextant.bin") }
 
     /// Runs a build against `runner`, in a QMK home that has the Voyager's keyboard folder unless `checkout` is false.
     func events(_ runner: FakeRunner, checkout: Bool = true) async -> [BuildEvent] {
@@ -87,20 +98,45 @@ struct ToolchainTests {
                 .line("Size after:"), .line("   text\t   data\t    bss\t    dec\t    hex\tfilename"),
                 .line("      0\t   1000\t      0\t   1000\t    3e8\tzsa_voyager_sextant.bin"), .exit(0),
             ],
-            image: (imageURL, image))
+            image: (home, image))
         let events = await events(runner)
         #expect(events.first == .output("Compiling: keyboards/zsa/voyager/keymaps/sextant/keymap.c [OK]"))
         #expect(events.contains(.compiling(file: "keymap.c", done: 1, total: BuildLog.expectedUnits)))
         guard case let .finished(artifact)? = events.last else { Issue.record("no artifact: \(events)"); return }
         #expect(artifact.image == image && artifact.usedBytes == 1000 && artifact.log.count == 5)
-        let keymap = home.appending(path: "keyboards/zsa/voyager/keymaps/sextant/keymap.c")
-        #expect(try String(contentsOf: keymap, encoding: .utf8) == "// keymap\n")
+        #expect(runner.commands.keymaps == ["// keymap\n"])
+        let command = try #require(runner.commands.all.first)
+        let keymap = try #require(command.arguments.last)
+        #expect(keymap.wholeMatch(of: /sextant_[0-9a-f]{8}/) != nil)
         #expect(
-            runner.commands.all == [
-                BuildCommand(
-                    arguments: ["qmk", "compile", "-j", "8", "-kb", "zsa/voyager", "-km", "sextant"],
-                    environment: ["QMK_HOME": "/qmk", "SKIP_GIT": "yes"], workingDirectory: "/qmk")
-            ])
+            command
+                == BuildCommand(
+                    arguments: ["qmk", "compile", "-j", "8", "-e", "BUILD_DIR=.build/\(keymap)", "-kb", "zsa/voyager", "-km", keymap],
+                    environment: ["QMK_HOME": "/qmk", "SKIP_GIT": "yes"], workingDirectory: "/qmk"))
+        // The keymap folder and image are gone, so builds don't pile up in the checkout.
+        #expect(try FileManager.default.contentsOfDirectory(atPath: home.path) == ["keyboards"])
+        #expect(try FileManager.default.contentsOfDirectory(atPath: home.appending(path: "keyboards/zsa/voyager/keymaps").path).isEmpty)
+    }
+
+    /// Two windows can build at once: each build must read back its own image, not the other's.
+    @Test func overlappingBuildsKeepTheirOwnImages() async throws {
+        defer { try? FileManager.default.removeItem(at: home) }
+        let (firstRan, firstRanSignal) = AsyncStream<Void>.makeStream()
+        let (secondRan, secondRanSignal) = AsyncStream<Void>.makeStream()
+        let images = [1, 2].map { FirmwareImage.withSuffix(Data(repeating: $0, count: 100), vendorID: 0x3297, productID: 0x0791).data }
+        // The first command finishes only after the second has written its keymap and image.
+        let first = FakeRunner(output: [.exit(0)], image: (home, images[0])) {
+            firstRanSignal.yield()
+            for await _ in secondRan { return }
+        }
+        let second = FakeRunner(output: [.exit(0)], image: (home, images[1])) { secondRanSignal.yield() }
+        async let firstEvents = events(first)
+        for await _ in firstRan { break }
+        let secondEvents = await events(second)
+        for (events, image) in [(await firstEvents, images[0]), (secondEvents, images[1])] {
+            guard case let .finished(artifact)? = events.last else { Issue.record("no artifact: \(events)"); continue }
+            #expect(artifact.image == image)
+        }
     }
 
     @Test func compileErrorsComeBackMappedToKeys() async {
@@ -115,8 +151,11 @@ struct ToolchainTests {
         defer { try? FileManager.default.removeItem(at: home) }
         let overflow = await events(FakeRunner(output: [.line("ld: region `flash0' overflowed by 1234 bytes"), .exit(2)]))
         #expect(overflow.last == .failed(.tooLarge(overBy: 1234)))
+        // Running out of RAM isn't a flash-size problem.
+        let ram = await events(FakeRunner(output: [.line("ld: region `ram0' overflowed by 99 bytes"), .exit(2)]))
+        #expect(ram.last == .failed(.failed("ld: region `ram0' overflowed by 99 bytes")))
         let window = Int(board.flashEnd - board.flashStart)
-        let big = await events(FakeRunner(output: [.exit(0)], image: (imageURL, Data(count: window + 16 + 5))))
+        let big = await events(FakeRunner(output: [.exit(0)], image: (home, Data(count: window + 16 + 5))))
         #expect(big.last == .failed(.tooLarge(overBy: 5)))
     }
 
@@ -155,10 +194,32 @@ struct ToolchainTests {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try Data(text.utf8).write(to: url)
         }
-        guard case .ready = await container.status() else {
-            Issue.record("the container toolchain should be ready")
+        for (file, text) in [("venv/bin/qmk", ""), ("toolchain/bin/arm-none-eabi-gcc", "")] {
+            let url = home.appending(path: file)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data(text.utf8).write(to: url)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+        }
+        guard case .ready = await container.status(), case .ready = await native.status() else {
+            Issue.record("both toolchains should be ready")
             return
         }
+        // A stale modules checkout needs setup again, in both.
+        try Data("0000000\n".utf8).write(to: home.appending(path: "qmk_firmware/.git/modules/modules/zsa/HEAD"))
+        guard case .needsSetup = await container.status(), case .needsSetup = await native.status() else {
+            Issue.record("an unpinned modules checkout must need setup")
+            return
+        }
+    }
+
+    /// The real process runner, on a harmless shell command: environment, merged stderr and the exit status.
+    @Test func processRunnerStreamsOutputAndExitStatus() async throws {
+        let command = BuildCommand(
+            arguments: ["/bin/sh", "-c", "echo $X; echo err >&2; exit 3"], environment: ["X": "out"],
+            workingDirectory: FileManager.default.temporaryDirectory.path)
+        var output: [CommandOutput] = []
+        for try await event in ProcessRunner().run(command) { output.append(event) }
+        #expect(output == [.line("out"), .line("err"), .exit(3)])
     }
 
     @Test func lineWriterSplitsBytesIntoLines() throws {

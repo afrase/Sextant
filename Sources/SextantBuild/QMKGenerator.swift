@@ -17,8 +17,9 @@ public struct QMKGenerator: FirmwareGenerator {
         guard (1...32).contains(layout.layers.count), layout.layers.allSatisfy({ $0.keys.count == board.keyCount }) else {
             throw .unsupported(String(localized: "this number of layers or keys"), nil)
         }
-        // The serial lands in a C string literal; Oryx's are `layout/revision` ids.
-        guard identity.serial.wholeMatch(of: /[A-Za-z0-9\/._-]+/) != nil else {
+        // The serial lands in a C string literal; Oryx's are `layout/revision` ids. zsa/oryx copies it, its NUL and a
+        // stop byte into a 32-byte reply from offset 1, so it can't exceed 30 characters.
+        guard identity.serial.utf8.count <= 30, identity.serial.wholeMatch(of: /[A-Za-z0-9\/._-]+/) != nil else {
             throw .unsupported(String(localized: "the firmware serial “\(identity.serial)”"), nil)
         }
         let plan = try KeymapPlan(layout)
@@ -148,10 +149,17 @@ struct KeymapPlan {
             return "ST_MACRO_\(macros.count - 1)"
         }
         switch action.canonicalCode {
-        case "MO", "TG", "TO", "TT", "OSL", "DF", "LM":
-            let layer = action.layer ?? 0  // note(_:at:) refused layer keys without a layer
-            return action.canonicalCode == "LM"
-                ? "LM(\(layer),\(QMKCodes.mask(action.modifiers)))" : "\(action.code)(\(layer))"
+        // note(_:at:) refused layer keys without a layer.
+        case "MO", "TG", "TO", "TT", "OSL", "DF": return "\(action.code)(\(action.layer ?? 0))"
+        case "LM":
+            // QMK's LM() keeps only 4 bits of the layer.
+            guard let layer = action.layer, layer < 16 else {
+                throw .unsupported(String(localized: "a layer-with-modifiers key for a layer after the first 16"), ref)
+            }
+            return "LM(\(layer),\(QMKCodes.mask(action.modifiers)))"
+        // ALL_T() and MEH_T() are function-like macros; a lone Hyper or Meh is the plain keycode.
+        case "ALL_T": return QMKCodes.wrap("KC_HYPR", action.modifiers)
+        case "MEH_T": return QMKCodes.wrap("KC_MEH", action.modifiers)
         case "OSM": return "OSM(\(QMKCodes.mask(action.modifiers)))"
         case "RGB":
             guard let color = action.color else { throw .unsupported(String(localized: "a colour key without a colour"), ref) }
@@ -170,6 +178,13 @@ struct KeymapPlan {
         }
         if KeycodeCatalog.layerFunctions.contains(action.canonicalCode), !layout.layers.indices.contains(action.layer ?? -1) {
             throw .unsupported(String(localized: "a layer key for a layer that doesn't exist"), ref)
+        }
+        // Oryx-only codes this generator doesn't define yet, and Space Cadet, whose handler rules.mk compiles out.
+        if action.code.hasPrefix("MAC_") || action.code.hasPrefix("ORYX_SL_") || action.canonicalCode.hasPrefix("SC_") {
+            throw .unsupported(String(localized: "the “\(action.code)” key"), ref)
+        }
+        if action.canonicalCode.hasPrefix("AS_"), layout.settings["autoshift"]?.boolValue != true {
+            throw .unsupported(String(localized: "“\(action.code)” while Auto Shift is off"), ref)
         }
         codes.insert(action.canonicalCode)
         if QMKCodes.locale[action.code] != nil, !localeCodes.contains(action.code) { localeCodes.append(action.code) }

@@ -33,7 +33,7 @@ struct BuildLog {
             events.append(.linking)
         }
         if let d = Self.diagnostic(line, sourceMap: sourceMap) { diagnostics.append(d) }
-        if let m = line.firstMatch(of: /overflowed by (\d+) bytes/) { overflow = Int(m.1) }
+        if let m = line.firstMatch(of: /region .flash0. overflowed by (\d+) bytes/) { overflow = Int(m.1) }  // not RAM
         if line.hasPrefix("Size after") { inSizeReport = true }
         // `arm-none-eabi-size` columns: text, data, bss, dec, hex, filename.
         if inSizeReport, let m = line.wholeMatch(of: /\s*\d+\s+\d+\s+\d+\s+(\d+)\s+[0-9a-f]+\s+\S+/) {

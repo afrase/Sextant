@@ -25,8 +25,6 @@ protocol CommandRunner: Sendable {
 
 /// The build both backends share: write the keymap into a QMK checkout, run `qmk compile`, read the image back.
 struct QMKBuild: Sendable {
-    static let keymapName = "sextant"
-
     /// The QMK checkout on the Mac.
     let hostHome: URL
     /// The same checkout as the command sees it.
@@ -51,16 +49,23 @@ struct QMKBuild: Sendable {
 
     private func build(_ source: GeneratedSource, board: BoardDefinition, emit: (BuildEvent) -> Void) async -> BuildEvent {
         let keyboard = "zsa/\(board.name)"
-        let image = hostHome.appending(path: "zsa_\(board.name)_\(Self.keymapName).bin")
+        // Builds can overlap (several windows, or a rebuild while a cancelled one winds down), so each gets its own
+        // keymap name, and with it its own keymap folder, build folder and image, like Oryx's per-layout builds.
+        let keymap = "sextant_\(UUID().uuidString.prefix(8).lowercased())"
+        let buildDirectory = ".build/\(keymap)"
+        let image = hostHome.appending(path: "zsa_\(board.name)_\(keymap).bin")
         let keyboardFolder = hostHome.appending(path: "keyboards/\(keyboard)", directoryHint: .isDirectory)
+        let folder = keyboardFolder.appending(path: "keymaps/\(keymap)", directoryHint: .isDirectory)
         // Without the checkout, creating folders here would block setup's clone into the same place.
         guard FileManager.default.fileExists(atPath: keyboardFolder.path) else {
             return .failed(.notInstalled(String(localized: "The QMK firmware checkout is missing.")))
         }
+        // shortcut: a cancelled compiler still winding down can recreate files after this cleanup (harmless, the names
+        // are unique); sweep stale sextant_* folders at setup if they ever pile up.
+        defer {
+            for url in [folder, image, hostHome.appending(path: buildDirectory)] { try? FileManager.default.removeItem(at: url) }
+        }
         do {
-            let folder = keyboardFolder.appending(path: "keymaps/\(Self.keymapName)", directoryHint: .isDirectory)
-            try? FileManager.default.removeItem(at: folder)
-            try? FileManager.default.removeItem(at: image)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             for (name, text) in source.files { try Data(text.utf8).write(to: folder.appending(path: name), options: .atomic) }
         } catch {
@@ -69,7 +74,7 @@ struct QMKBuild: Sendable {
         }
 
         let command = BuildCommand(
-            arguments: [qmk, "compile", "-j", "8", "-kb", keyboard, "-km", Self.keymapName],
+            arguments: [qmk, "compile", "-j", "8", "-e", "BUILD_DIR=\(buildDirectory)", "-kb", keyboard, "-km", keymap],
             environment: environment.merging(["QMK_HOME": commandHome, "SKIP_GIT": "yes"]) { $1 },
             workingDirectory: commandHome)
         var output = BuildLog(sourceMap: source.sourceMap)
