@@ -10,10 +10,42 @@ Sextant is a native macOS 26 SwiftUI app for configuring the user's ZSA Voyager.
 
 **Status:** research and UI design are done. Next come the code design and the MVP build.
 
+## Architecture: clean / hexagonal (decision 5)
+
+**The rule:** dependencies point inward only.
+- **Domain:** pure Swift and Foundation only. It holds the layout, layers, keys and actions, the keycode catalog, geometry, legends, validation and diffing. No SwiftUI, AppKit, IOKit, URLSession or file I/O.
+- **Application (use cases):** orchestrates the domain. Editing with undo, Import, Build & Flash and the live session live here. It reaches the outside world only through **ports**, which are protocols defined in this layer. Examples: layout library, Oryx reader, firmware generator, toolchain, flasher, keyboard link, device watcher, clock.
+- **Adapters:** implement the ports. Examples: `.sextant` package storage, Oryx GraphQL over URLSession, the QMK generator and toolchain backends, the IOUSBHost DFU flasher, and IOHID/CoreHID raw HID. Each adapter depends on the application layer, never the reverse.
+- **UI:** a driving adapter. SwiftUI views plus `@Observable` view models that call use cases. Views never touch adapters directly.
+- **Composition root:** the app target, the only place that wires concrete adapters to ports.
+
+**Enforce it with module boundaries,** one SwiftPM target per layer or adapter group, so a wrong import fails to compile. Spec §13.1's target list predates this decision; the code design must reconcile it with these layers.
+
+**Testing follows the layers:**
+- domain and use cases: unit tests with in-memory fakes of the ports;
+- adapters: contract tests;
+- the generator: golden tests against `docs/research/oryx-examples/`.
+
+## Swift and macOS practices
+
+- **Language and concurrency:** Swift 6 language mode with complete strict concurrency.
+  - Domain types are `Sendable` value types (structs and enums).
+  - Device I/O lives in actors.
+  - UI state is `@MainActor`.
+  - Use async/await and `AsyncStream` for device events, with structured concurrency and cancellation.
+- **Design:** inject dependencies through initialisers. No singletons and no global mutable state.
+- **Errors:** typed errors, with `LocalizedError` for anything the user sees. No `try!` or force-unwraps outside tests.
+- **SwiftUI:** use Observation (`@Observable`), not `ObservableObject`. Use the native scenes and controls the spec names: `NavigationSplitView`, `.inspector`, `Commands`, `Settings`, `MenuBarExtra`. Undo goes through `UndoManager`.
+- **Tests:** Swift Testing (`import Testing`, `@Test`, `#expect`).
+- **Logging:** `os.Logger`, with subsystem `com.sextant.app` and a category per layer.
+- **Strings and accessibility:** String Catalogs for user-facing text, plus accessibility labels and VoiceOver on custom views, especially the board.
+- **Packaging:** a real `.app` bundle with hardened runtime and minimal entitlements, Developer ID signed and notarized (00-overview §8). All code lives in the local Swift package; the app target stays a thin shell.
+- **Formatting:** `swift format`, which ships with the toolchain.
+
 ## Code
 
 - **Toolchain:** SwiftPM, Swift 6, macOS 26. No third-party dependencies unless the user agrees.
-- **Module names:** never name a module exactly `Sextant`. Spec §13.1 proposes `SextantKit`, `SextantBoard`, `SextantDevice`, `SextantBuild` and `SextantApp`.
+- **Module names:** never name a module exactly `Sextant`. Prefix every target with `Sextant`.
 - **`design/` is reference, not production code:**
   - `design/PrototypeKit` (model, legends, keycodes, geometry, samples) is the seed for `SextantKit`. Port it; don't depend on it.
   - Don't edit `design/explorations/` or `design/judging/`.
