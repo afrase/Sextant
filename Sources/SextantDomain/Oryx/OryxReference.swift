@@ -22,7 +22,7 @@ public struct OryxReference: Hashable, Sendable {
     public init?(_ string: String) {
         let s = string.trimmingCharacters(in: .whitespacesAndNewlines)
         func isID(_ p: Substring) -> Bool { (3...16).contains(p.count) && p.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber) } }
-        if let url = URL(string: s.contains("://") ? s : "https://\(s)"), let host = url.host(),
+        if let url = URL(string: s.contains("://") ? s : "https://\(s)"), let host = url.host()?.lowercased(),
             host == "zsa.io" || host.hasSuffix(".zsa.io")
         {
             let parts = url.pathComponents.filter { $0 != "/" }
@@ -31,7 +31,7 @@ public struct OryxReference: Hashable, Sendable {
             if let revision, revision != "latest", !isID(Substring(revision)) { return nil }
             self.init(
                 geometry: i > 0 ? parts[i - 1] : nil, layoutID: parts[i + 1], revisionID: revision == "latest" ? nil : revision,
-                layer: parts.indices.contains(i + 3) ? Int(parts[i + 3]) : nil)
+                layer: parts.indices.contains(i + 3) ? Int(parts[i + 3]).flatMap { $0 >= 0 ? $0 : nil } : nil)
             return
         }
         let pieces = s.split(separator: "/", omittingEmptySubsequences: false)

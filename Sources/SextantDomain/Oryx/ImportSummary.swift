@@ -13,6 +13,8 @@ public struct ImportSummary: Hashable, Sendable {
     public var colorKeys: Int
     /// Actions that play a macro.
     public var macros: Int
+    /// Keys with a code the keycode catalog doesn't know (kept as they are and marked unknown on the board).
+    public var unknownCodes: Int
     public var combos: Int
     public var navigator: NavigatorConfig?
 
@@ -24,6 +26,7 @@ public struct ImportSummary: Hashable, Sendable {
         customLabels = keys.count { !($0.customLabel ?? "").isEmpty }
         colorKeys = keys.count { $0.actions.contains { $0.action.canonicalCode == "RGB" } }
         macros = keys.reduce(0) { $0 + $1.actions.count { $0.action.macro != nil } }
+        unknownCodes = keys.count { $0.actions.contains { Legends.legend(for: $0.action).isUnknown } }
         combos = layout.combos.count
         navigator = layout.navigator
     }

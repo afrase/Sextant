@@ -14,6 +14,11 @@ struct OryxReferenceTests {
         ),
         ("https://configure.zsa.io/voyager/layouts/KlgM7/latest/1", OryxReference(geometry: "voyager", layoutID: "KlgM7", layer: 1)),
         ("https://configure.zsa.io/voyager/layouts/KlgM7", OryxReference(geometry: "voyager", layoutID: "KlgM7")),
+        ("https://Configure.ZSA.io/voyager/layouts/KlgM7", OryxReference(geometry: "voyager", layoutID: "KlgM7")),
+        (
+            "https://configure.zsa.io/voyager/layouts/KlgM7/40xJ7M/-1",
+            OryxReference(geometry: "voyager", layoutID: "KlgM7", revisionID: "40xJ7M")
+        ),
         ("configure.zsa.io/moonlander/layouts/abc12/xyz34", OryxReference(geometry: "moonlander", layoutID: "abc12", revisionID: "xyz34")),
         ("  KlgM7/40xJ7M\n", OryxReference(layoutID: "KlgM7", revisionID: "40xJ7M")),
         ("KlgM7/latest", OryxReference(layoutID: "KlgM7")),
@@ -44,6 +49,7 @@ struct ImportSummaryTests {
         #expect(summary.customLabels == 4)
         #expect(summary.colorKeys == 3)
         #expect(summary.macros == 0)
+        #expect(summary.unknownCodes == 0)
         #expect(summary.combos == 0)
         #expect(summary.navigator == nil)
     }
@@ -56,5 +62,12 @@ struct ImportSummaryTests {
         #expect(jr.layers == 12)
         #expect(jr.macros == 66)
         #expect(jr.combos == 32)
+    }
+
+    @Test func countsKeysWithUnknownCodes() throws {
+        var layout = try Fixtures.layout()
+        layout.updateKey(layer: 0, index: 1) { $0 = Key("KC_FUTURE_KEY") }
+        layout.updateKey(layer: 1, index: 2) { $0 = Key("KC_FUTURE_KEY") }
+        #expect(ImportSummary(layout).unknownCodes == 2)
     }
 }

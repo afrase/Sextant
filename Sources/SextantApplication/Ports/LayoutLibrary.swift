@@ -7,6 +7,12 @@ public enum LayoutOrigin: Hashable, Sendable {
     case local
     /// Imported read-only from Oryx.
     case oryx(layoutId: String, revisionId: String)
+
+    /// The origin once `layout` is the working copy: an Oryx origin follows an import of the same Oryx layout.
+    public func following(_ layout: KeyboardLayout) -> Self {
+        guard case let .oryx(layoutId, _) = self, let oryx = layout.oryx, oryx.layoutId == layoutId else { return self }
+        return .oryx(layoutId: layoutId, revisionId: oryx.revisionId)
+    }
 }
 
 /// One layout in the library, as the sidebar lists it.
@@ -67,14 +73,20 @@ public struct RevisionSummary: Identifiable, Hashable, Sendable {
 public struct StoredLayout: Sendable {
     public var entry: LibraryEntry
     public var layout: KeyboardLayout
+    /// The working copy's hash, comparable with ``RevisionSummary/contentHash``.
+    public var contentHash: String
     /// Oldest first.
     public var revisions: [RevisionSummary]
 
-    public init(entry: LibraryEntry, layout: KeyboardLayout, revisions: [RevisionSummary]) {
+    public init(entry: LibraryEntry, layout: KeyboardLayout, contentHash: String, revisions: [RevisionSummary]) {
         self.entry = entry
         self.layout = layout
+        self.contentHash = contentHash
         self.revisions = revisions
     }
+
+    /// Whether the working copy differs from the latest revision.
+    public var hasEditsSinceLastRevision: Bool { contentHash != revisions.last?.contentHash }
 }
 
 /// Errors from the layout library.

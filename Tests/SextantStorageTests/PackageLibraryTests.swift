@@ -28,6 +28,7 @@ struct PackageLibraryTests {
         #expect(stored.revisions.count == 1)
         #expect(stored.revisions[0].id.hasPrefix("0001-"))
         #expect(stored.revisions[0].contentHash.hasPrefix("sha256:"))
+        #expect(!stored.hasEditsSinceLastRevision, "the working copy's hash matches its import revision's")
         let folder = try #require(await library.location(of: entry.id))
         #expect(folder.pathExtension == "sextant")
         for file in ["meta.json", "layout.json", "revisions/\(stored.revisions[0].id).json"] {
@@ -50,6 +51,9 @@ struct PackageLibraryTests {
         #expect(stored.layout == edited)
         #expect(stored.entry.title == "Edited")
         #expect(stored.revisions.map(\.source) == [.save, .flash])
+        #expect(!stored.hasEditsSinceLastRevision)
+        try await library.save(layout, to: entry.id)
+        #expect(try await library.load(entry.id).hasEditsSinceLastRevision)
     }
 
     @Test func renamesDuplicatesAndTrashes() async throws {

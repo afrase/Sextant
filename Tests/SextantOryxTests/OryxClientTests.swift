@@ -67,6 +67,8 @@ struct OryxClientTests {
         #"{"data":{"layout":null}}"#,
         #"{"data":{"layout":null},"errors":[{"message":"NotFound"}]}"#,
         #"{"data":null,"errors":[{"message":"PrivateLayout"}]}"#,
+        // A revision that doesn't exist (captured from Oryx).
+        #"{"errors":[{"message":"Cannot return null for non-nullable field Layout.revision"}],"data":{"layout":null}}"#,
     ])
     func aMissingOrPrivateLayoutIsNotFound(_ reply: String) async {
         StubProtocol.reply(.http(200, Data(reply.utf8)))

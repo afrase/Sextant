@@ -61,7 +61,7 @@ public actor PackageLibrary: LayoutLibrary {
         let folder = try folder(for: id)
         let meta = try readMeta(folder)
         let layout = try decode(KeyboardLayout.self, from: folder.appending(path: "layout.json"))
-        return StoredLayout(entry: meta.entry, layout: layout, revisions: revisions(in: folder))
+        return StoredLayout(entry: meta.entry, layout: layout, contentHash: meta.contentHash, revisions: revisions(in: folder))
     }
 
     public func create(_ layout: KeyboardLayout, origin: LayoutOrigin, firstRevision: RevisionDraft?) throws(LibraryError) -> LibraryEntry {
@@ -87,9 +87,7 @@ public actor PackageLibrary: LayoutLibrary {
         meta.title = layout.title
         meta.modifiedAt = now()
         meta.contentHash = try Self.contentHash(layout)
-        if case let .oryx(layoutId, _) = meta.origin.model, let oryx = layout.oryx, oryx.layoutId == layoutId {
-            meta.origin = Meta.Origin(.oryx(layoutId: layoutId, revisionId: oryx.revisionId))
-        }
+        meta.origin = Meta.Origin(meta.origin.model.following(layout))
         try write(meta, to: folder.appending(path: "meta.json"))
     }
 

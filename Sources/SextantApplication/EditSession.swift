@@ -34,7 +34,7 @@ public final class EditSession {
     public var selection = EditorSelection()
     /// Revisions, oldest first.
     public private(set) var revisions: [RevisionSummary]
-    public let origin: LayoutOrigin
+    public private(set) var origin: LayoutOrigin
     public let geometry: BoardGeometry
     /// Bumped on every change, including undo and redo, so views refresh `canUndo`.
     public private(set) var changeCount = 0
@@ -280,6 +280,27 @@ public final class EditSession {
         }
     }
 
+    // MARK: Import
+
+    /// Records a layout imported from Oryx in History, then makes it the document as one undoable edit that keeps
+    /// the title (spec §8.1). Edits since the last revision are checkpointed first; a failure leaves the document as
+    /// it was.
+    public func applyImport(_ imported: KeyboardLayout) async throws(LibraryError) {
+        await flush()
+        if try await library.load(id).hasEditsSinceLastRevision {
+            try await saveRevision(source: .save, message: String(localized: "Before importing from Oryx"))
+        }
+        var next = imported
+        next.title = layout.title
+        let draft = RevisionDraft(source: .import, message: imported.oryx?.message, layout: next)
+        revisions.append(try await library.appendRevision(draft, to: id))
+        edit(
+            String(localized: "Import from Oryx"),
+            select: { selection, doc in selection.layer = min(selection.layer, max(doc.layers.count - 1, 0)) }
+        ) { $0 = next }
+        await flush()
+    }
+
     // MARK: Saving
 
     /// Writes any pending change now (window close, quit, before a build).
@@ -355,6 +376,7 @@ public final class EditSession {
 
     private func changed() {
         changeCount += 1
+        origin = origin.following(layout)
         scheduleSave()
     }
 

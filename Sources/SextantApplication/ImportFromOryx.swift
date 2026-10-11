@@ -39,6 +39,8 @@ public final class ImportFromOryx {
         public var notes: [String]
         /// The library layout imported from the same Oryx layout, which this import can become a revision of.
         public var existing: LibraryEntry?
+        /// Oryx's md5-verified image for this revision, when it was downloaded.
+        public var firmware: Data?
     }
 
     /// A saved import: the layout, and whether to open it ("Open after importing").
@@ -60,8 +62,6 @@ public final class ImportFromOryx {
 
     @ObservationIgnored private let oryx: any OryxReader
     @ObservationIgnored private let library: Library
-    /// Oryx's md5-verified image for the previewed revision.
-    @ObservationIgnored private var firmware: Data?
     /// Bumped by every reset, so a fetch that finishes after the input changed is dropped.
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private let log = Logger(subsystem: "com.sextant.app", category: "application")
@@ -138,28 +138,33 @@ public final class ImportFromOryx {
         let existing = library.entries.first { entry in
             if case let .oryx(layoutId, _) = entry.origin { layoutId == oryxID } else { false }
         }
-        self.firmware = firmware
-        preview = Preview(layout: layout, summary: summary, notes: notes, existing: existing)
+        preview = Preview(layout: layout, summary: summary, notes: notes, existing: existing, firmware: firmware)
         steps[.convert] = .done
     }
 
     /// Saves the preview as a new layout or, with `asRevision`, as a new revision of ``Preview/existing``.
-    /// Returns nil when there is nothing to save. A preview is saved once; it comes back if saving fails.
+    /// Returns nil when there is nothing to save. A preview is saved once; it comes back if saving fails, unless the
+    /// input changed meanwhile.
     public func importLayout(asRevision: Bool = false) async throws(LibraryError) -> Imported? {
         guard let preview else { return nil }
         self.preview = nil  // a second click while this one saves finds nothing to import
+        let run = generation
         do {
             let entry = try await library.add(
-                imported: preview.layout, asRevisionOf: asRevision ? preview.existing?.id : nil, firmware: firmware)
+                imported: preview.layout, asRevisionOf: asRevision ? preview.existing?.id : nil, firmware: preview.firmware)
             return Imported(id: entry.id, open: openAfterImporting)
         } catch {
-            self.preview = preview
+            if run == generation { self.preview = preview }
             throw error
         }
     }
 
     private static func notes(for summary: ImportSummary) -> [String] {
         var notes: [String] = []
+        if summary.unknownCodes > 0 {
+            notes.append(
+                String(localized: "\(summary.unknownCodes) keys use codes Sextant doesn't know yet. They're kept as they are and marked."))
+        }
         if summary.customLabels > 0 {
             notes.append(String(localized: "\(summary.customLabels) custom labels are shown in Sextant only."))
         }
@@ -186,6 +191,5 @@ public final class ImportFromOryx {
         steps = [:]
         preview = nil
         error = nil
-        firmware = nil
     }
 }

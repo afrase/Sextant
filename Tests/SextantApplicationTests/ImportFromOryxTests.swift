@@ -60,6 +60,14 @@ struct ImportFromOryxTests {
         #expect(await oryx.firmwareRequests == ["40xJ7M 4d59bb3dba601672ecefd27e2641561c"])
     }
 
+    @Test func notesUnknownCodes() async throws {
+        var future = layout
+        future.updateKey(layer: 0, index: 1) { $0 = Key("KC_FUTURE_KEY") }
+        let model = model(FakeOryx(layout: .success(future)))
+        await model.fetch()
+        #expect(model.preview?.notes.first == "1 keys use codes Sextant doesn't know yet. They're kept as they are and marked.")
+    }
+
     @Test func notesTheNavigator() async throws {
         let model = model(FakeOryx(layout: .success(try KeyboardLayout(oryxJSON: Fixtures.data("my-layout-KlgM7-full.json")))))
         await model.fetch()
@@ -185,6 +193,53 @@ struct ImportFromOryxTests {
         #expect(library.entries.count == 1)
     }
 
+    @Test func aNewerRevisionWithoutLocalEditsAddsOnlyTheImport() async throws {
+        let entry = try await library.add(imported: layout)
+        var newer = layout
+        newer.oryx?.revisionId = "N3wRev"
+        let model = model(FakeOryx(layout: .success(newer)), input: "KlgM7")
+        await model.fetch()
+        _ = try await model.importLayout(asRevision: true)
+        #expect(await store.items[entry.id]?.revisions.map(\.source) == [.import, .import])
+    }
+
+    @Test func addingARevisionOfAnOpenLayoutGoesThroughItsDocument() async throws {
+        let entry = try await library.add(imported: layout)
+        let session = try await library.open(entry.id, autosaveDelay: .milliseconds(1))
+        let undo = UndoManager()
+        undo.groupsByEvent = false
+        session.undoManager = undo
+        var newer = layout
+        newer.oryx?.revisionId = "N3wRev"
+        newer.updateKey(layer: 0, index: 1) { $0 = Key("KC_Q") }
+        let model = model(FakeOryx(layout: .success(newer)), input: "KlgM7")
+        await model.fetch()
+        let before = session.layout
+
+        undo.beginUndoGrouping()
+        _ = try await model.importLayout(asRevision: true)
+        undo.endUndoGrouping()
+        #expect(session.layout.key(layer: 0, index: 1)?.tap?.code == "KC_Q" && session.layout.title == before.title)
+        #expect(session.origin == .oryx(layoutId: "KlgM7", revisionId: "N3wRev"))
+        #expect(session.revisions.map(\.source) == [.import, .import])
+        #expect(undo.undoActionName == "Import from Oryx")
+
+        session.select(key: 2)
+        undo.beginUndoGrouping()
+        session.setCode("KC_Z")
+        undo.endUndoGrouping()
+        await session.flush()
+        let stored = try await store.load(entry.id)
+        #expect(stored.layout == session.layout, "the next autosave keeps the import")
+        #expect(stored.layout.key(layer: 0, index: 1)?.tap?.code == "KC_Q")
+        #expect(stored.entry.origin == .oryx(layoutId: "KlgM7", revisionId: "N3wRev"))
+
+        undo.undo()
+        undo.undo()
+        #expect(session.layout == before, "the import is undoable")
+        #expect(session.origin == .oryx(layoutId: "KlgM7", revisionId: "40xJ7M"))
+    }
+
     @Test func reimportingAnUnchangedLayoutAddsOnlyTheImport() async throws {
         let entry = try await library.add(imported: layout)
         let model = model(FakeOryx(layout: .success(layout)))
@@ -200,6 +255,16 @@ struct ImportFromOryxTests {
         await library.trash(entry.id)
         await #expect(throws: LibraryError.notFound(entry.id)) { try await model.importLayout(asRevision: true) }
         #expect(model.preview != nil, "a failed save keeps the preview for another try")
+    }
+
+    @Test func aFailedSaveAfterTheInputChangedDropsThePreview() async throws {
+        let entry = try await library.add(imported: layout)
+        let model = model(FakeOryx(layout: .success(layout)))
+        await model.fetch()
+        await library.trash(entry.id)
+        await store.beforeLoad { await MainActor.run { model.input = "KlgM7/other1" } }
+        await #expect(throws: LibraryError.notFound(entry.id)) { try await model.importLayout(asRevision: true) }
+        #expect(model.preview == nil, "the preview belonged to the old input")
     }
 }
 

@@ -56,9 +56,12 @@ public struct OryxClient: OryxReader {
         guard reply.data?.layout != nil else {
             let messages = reply.errors?.map(\.message) ?? []
             log.error("Oryx has no layout \(reference.layoutID, privacy: .public): \(messages.joined(separator: " "), privacy: .public)")
-            // A private or missing layout comes back as a null layout, with a NotFound or PrivateLayout error.
+            // A private or missing layout or revision comes back as a null layout (a missing revision says only
+            // "Cannot return null…"), or as null data with a NotFound or PrivateLayout error.
             let notFound = ["notfound", "not found", "private"]
-            if messages.isEmpty || messages.contains(where: { m in notFound.contains { m.lowercased().contains($0) } }) {
+            if reply.data != nil || messages.isEmpty
+                || messages.contains(where: { m in notFound.contains { m.lowercased().contains($0) } })
+            {
                 throw .notFound
             }
             throw .server(messages.joined(separator: " "))

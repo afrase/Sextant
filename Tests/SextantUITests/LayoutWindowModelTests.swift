@@ -31,7 +31,7 @@ private actor MemoryLibrary: LayoutLibrary {
     func entries() -> [LibraryEntry] { items.values.map(\.0) }
     func load(_ id: UUID) throws(LibraryError) -> StoredLayout {
         guard let (e, l) = items[id] else { throw .notFound(id) }
-        return StoredLayout(entry: e, layout: l, revisions: [])
+        return StoredLayout(entry: e, layout: l, contentHash: "", revisions: [])
     }
     func create(_ layout: KeyboardLayout, origin: LayoutOrigin, firstRevision: RevisionDraft?) -> LibraryEntry {
         let e = LibraryEntry(id: UUID(), title: layout.title, origin: origin, modifiedAt: Date())
