@@ -33,17 +33,20 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 
 - **Phase B integration review** (cross-slice lenses, verify, fix; 27 confirmed findings, 21 distinct, all fixed): the generator presses Hyper, Meh and chorded modifier holds as real modifiers (`register_mods(MOD_BIT(…))`: `register_code16` made them weak, and QMK drops weak modifiers at the next key press); quitting waits for a firmware write (`LiveSession.isWritingFirmware`) and asks before quitting with an unsaved edit; a window can't close while its flash writes; flash mode is claimed per Build & Flash run, not per layout; a failed autosave shows in the lens lane with Try Again (`flush()` retries it), above the restored-edits notice, which now shows over live errors, is announced to VoiceOver, and reads "Restored edits that hadn't been saved"; renaming a closed layout keeps its recovery copy; Record Key assigns to the layer it started on (Follow can move the board meanwhile); ⌘⌫ / ⇧⌘⌫ are off while any text field may have focus; New Window lost ⌥⌘N, which is Legends ▸ Key Numbers (this amends ADR 0030's "New Window moves to ⌥⌘N"); the palette floats over the Firmware Settings page, and its setting rows open that page at their section; layer commands and opening a layout return to the board; New Layout and imports open in the asking empty window (also one showing a load error), and only a Welcome window picks up a layout that arrives (`--import`); a duplicate starts with a revision, so it opens unedited; the toolbar names the board with no layout open; Follow's tooltip says why it is off; Layouts rows show "On keyboard"; the device card's [Import] needs a real Oryx serial; a late layer-name commit can't reach a layout the window let go.
 
+- **Build tools slimmed (ADR 0033, the user asked why a whole Debian image):** the VM is gone (its kernel and init alone were about 360 MB). `NativeToolchain` builds on the Mac with Arm's GCC 12.2.1, GNU make 4.4.1 and Python 3.12 with `qmk`, every build under `sandbox-exec` (no network, no Mach services or devices, no reads of the user's files, writes only to the build) with only its own environment. The setup step downloads about 190 MB, each artifact pinned by size and SHA-256, and the Build & Flash sheet's Download and Build runs it with progress. Containerization and the virtualization entitlement are removed.
+
 ## In flight
 - Nothing.
 
 ## Next
 1. Done: the integration review checked the user's notes (2026-10-11): the Welcome with three cards, import offers for an unknown keyboard (Welcome card, device card [Import], Import from Connected Keyboard), and the restored-edits notice.
-2. Toolchain setup step (download and verify the VM images) once the user approves the download.
+2. First real build, once the user approves the download (about 190 MB): run setup on this Mac, record the firmware archives' sizes and SHA-256s in `ToolchainPins` (setup refuses until then), build the user's layout, compare with Oryx's binary, tighten the pruning from the build's dependency files, and fix whatever the sandbox denies.
 3. Final report per `docs/prompts/lead-architect.md` (what works, milestones, decisions, deviations, what waits on the user, the ponytail-debt ledger via `ponytail:ponytail-debt`).
 
 ## Known gaps and notes
 - Security: the generator validates every data-derived token (ADR 0020), after a background security review found C injection; covered by hostile-input tests.
-- Build slice leftovers: the Navigator `sensitivity` (trackball CPI) has no range check (still integer-only, so no injection); a cancelled build can leave a uniquely named temp folder behind (`shortcut:`); the VM path is compiled but has never booted.
+- Build slice leftovers: the Navigator `sensitivity` (trackball CPI) has no range check (still integer-only, so no injection); a cancelled build can leave a uniquely named temp folder behind (`shortcut:`).
+- Build tools (ADR 0033): never run for real yet. Unverified until the first build: the compiler's include patterns (list the archive and check each one matches: bsdtar exits 1 on an `--include` that matches nothing; consider a probe link with `--specs=nano.specs` before the marker), ChibiOS and LUFA pruning, that `qmk` starts in a tree without `.git`, the sandbox's write list (tools that ignore `TMPDIR`), that `qmk` and `make` run with no Mach services, no reads under `/Users`, `/Volumes` or `/private/var/folders`, and only `PATH`, `HOME`, `TMPDIR` and the QMK variables in the environment (allow back only the `(global-name …)` a build needs, never LaunchServices or the pasteboard), and that the RWX-segment warning is gone (`EXTRALDFLAGS`).
 - Device slice: an interface seized by another app after pairing goes unnoticed (reports just stop; `shortcut:`); `IOHIDDeviceSetReport` has no timeout.
 - The "hold" marker crowds the signal bar on hold-only keys (board step).
 - Domain keycode names and legends are English data, not localized (ADR 0016).
@@ -52,7 +55,7 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 
 ## Blocked / waiting on the user
 - **Hardware (ADR 0012):** raw-HID writes (pairing for the live layer) and flashing. Built against fakes; wired off by default.
-- **Container image (ADR 0018):** the build backend is container-first; the ~1 GB image downloads only from the first build's setup step, with the user's consent. Not downloaded yet.
+- **Build tools download (ADR 0033):** about 190 MB from Arm, python-build-standalone, Homebrew, PyPI and GitHub, all pinned. Not downloaded yet; needed for the first real build.
 
 ## Deviations from the spec
 - All-null keys render transparent, not Disabled (ADR 0015): Oryx's generated firmware makes them `KC_TRANSPARENT`.

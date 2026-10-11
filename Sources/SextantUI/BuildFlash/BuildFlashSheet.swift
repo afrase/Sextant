@@ -131,8 +131,10 @@ public struct BuildFlashSheet: View {
             Button("Replace and Flash") { build.confirmReplace() }.keyboardShortcut(.defaultAction)
         case .needsSetup:
             Button("Cancel", action: stop).keyboardShortcut(.cancelAction)
-            // shortcut: the setup step that downloads the build tools comes after the user approves the download.
-            Button("Download and Build") {}.disabled(true)
+            Button("Download and Build") { build.setUpBuildTools() }.keyboardShortcut(.defaultAction)
+        case .settingUp:
+            Button("Hide", action: hide).keyboardShortcut(.cancelAction)
+            Button("Stop", action: stop)
         case .generating, .compiling, .linking:
             Button("Hide", action: hide).keyboardShortcut(.cancelAction)
             Button("Stop", action: stop)
@@ -173,6 +175,7 @@ enum BuildFlashText {
         case let .blocked(issues): String(localized: "Fix \(issues.count) issues before building")
         case .confirmingReplace: String(localized: "Replace the layout on this keyboard?")
         case .needsSetup: String(localized: "Set up the build tools")
+        case .settingUp: String(localized: "Setting up the build tools")
         case .generating, .compiling, .linking: String(localized: "Building firmware")
         case .built: String(localized: "Firmware built")
         case .waitingForFlashMode: String(localized: "Put the keyboard in flash mode")
@@ -190,6 +193,7 @@ enum BuildFlashText {
             return count == 1 ? String(localized: "Build failed: 1 error") : String(localized: "Build failed: \(count) errors")
         case let .toolchain(.tooLarge(over)): return String(localized: "Firmware is \(over.formatted()) bytes too large")
         case .generator, .toolchain: return String(localized: "Build failed")
+        case .setup: return String(localized: "Couldn’t set up the build tools")
         case .flash(.imageRejected), .flash(.checksumMismatch): return String(localized: "Sextant won’t flash this image")
         case .flash(.hardwareAccessOff): return String(localized: "Flashing is off")
         case .flash: return String(localized: "Flashing didn’t finish")

@@ -22,22 +22,39 @@ final class FakeGenerator: FirmwareGenerator {
     }
 }
 
-/// Plays scripted build events; with `hangs`, never finishes (until the consumer stops).
+/// Plays scripted build events; with `hangs`, never finishes (until the consumer stops). Setting up plays `setup`
+/// (holding open unless it ends) and is ready afterwards when it ends with `.finished`.
 final class FakeToolchain: Toolchain {
-    private let readiness: ToolchainStatus
+    private let readiness: Mutex<ToolchainStatus>
     private let script: [BuildEvent]
     private let hangs: Bool
+    private let setup: [SetupEvent]
     private let open = Mutex<[AsyncStream<BuildEvent>.Continuation]>([])
+    private let settingUp = Mutex<[AsyncStream<SetupEvent>.Continuation]>([])
 
-    init(readiness: ToolchainStatus = .ready("test"), script: [BuildEvent] = FakeToolchain.success(), hangs: Bool = false) {
-        self.readiness = readiness
+    init(
+        readiness: ToolchainStatus = .ready("test"), script: [BuildEvent] = FakeToolchain.success(), hangs: Bool = false,
+        setup: [SetupEvent] = [.finished]
+    ) {
+        self.readiness = Mutex(readiness)
         self.script = script
         self.hangs = hangs
+        self.setup = setup
     }
 
     var buildCount: Int { open.withLock { $0.count } }
+    var setupCount: Int { settingUp.withLock { $0.count } }
 
-    func status() async -> ToolchainStatus { readiness }
+    func status() async -> ToolchainStatus { readiness.withLock { $0 } }
+
+    func setUp() -> AsyncStream<SetupEvent> {
+        let (stream, continuation) = AsyncStream.makeStream(of: SetupEvent.self)
+        settingUp.withLock { $0.append(continuation) }
+        if setup.last == .finished { readiness.withLock { $0 = .ready("test") } }
+        setup.forEach { continuation.yield($0) }
+        if case .finished? = setup.last { continuation.finish() } else if case .failed? = setup.last { continuation.finish() }
+        return stream
+    }
 
     func build(_ source: GeneratedSource, board: BoardDefinition) -> AsyncStream<BuildEvent> {
         let (stream, continuation) = AsyncStream.makeStream(of: BuildEvent.self)

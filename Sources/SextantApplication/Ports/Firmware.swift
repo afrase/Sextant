@@ -119,9 +119,22 @@ public enum BuildEvent: Hashable, Sendable {
     case failed(ToolchainError)
 }
 
+/// One step of the one-time setup (spec §7.3 "Set up the build tools").
+public enum SetupEvent: Hashable, Sendable {
+    /// Bytes downloaded so far, of the whole setup's download.
+    case downloading(received: Int64, total: Int64)
+    /// Unpacking and installing what was downloaded.
+    case installing
+    case finished
+    case failed(ToolchainError)
+}
+
 /// Compiles generated sources into an image. Cancelling the consuming task stops the build.
 public protocol Toolchain: Sendable {
     func status() async -> ToolchainStatus
     /// Streams progress and ends with `.finished` or `.failed`.
     func build(_ source: GeneratedSource, board: BoardDefinition) -> AsyncStream<BuildEvent>
+    /// Downloads and installs what ``status()`` reports missing; the caller has the user's consent. Streams
+    /// progress and ends with `.finished` or `.failed`. Cancelling the consuming task stops it.
+    func setUp() -> AsyncStream<SetupEvent>
 }

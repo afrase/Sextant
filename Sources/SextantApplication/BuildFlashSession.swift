@@ -8,6 +8,8 @@ public enum BuildFlashError: Error, Equatable, Sendable, LocalizedError {
     case generator(GeneratorError)
     /// Compile errors (with their keys), too large, or a toolchain failure.
     case toolchain(ToolchainError)
+    /// The build tools' one-time setup didn't finish (spec §7.3).
+    case setup(ToolchainError)
     case multipleBootloaders
     /// Includes `.imageRejected`: the image failed validation for the connected bootloader, with no override.
     case flash(FlashError)
@@ -22,6 +24,9 @@ public enum BuildFlashError: Error, Equatable, Sendable, LocalizedError {
         switch self {
         case let .generator(e): e.localizedDescription
         case let .toolchain(e): e.localizedDescription
+        // The detail alone: the toolchain's own wording says the build didn't finish.
+        case let .setup(.failed(detail)): detail
+        case let .setup(e): e.localizedDescription
         case .multipleBootloaders: String(localized: "Connect only one keyboard in flash mode.")
         case let .flash(e): e.localizedDescription
         case .notReconnected:
@@ -51,8 +56,10 @@ public final class BuildFlashSession {
         case blocked([LayoutIssue])
         /// The connected keyboard runs another layout, or firmware with no serial: ``confirmReplace()`` or ``stop()``.
         case confirmingReplace(serial: String?, title: String?)
-        /// The toolchain needs its one-time setup (§7.3 "Set up the build tools").
+        /// The toolchain needs its one-time setup (§7.3 "Set up the build tools"): ``setUpBuildTools()`` or ``stop()``.
         case needsSetup(String)
+        /// Downloading (`received` of `total` bytes), then installing (`received == total`); the build follows.
+        case settingUp(received: Int64, total: Int64)
         case generating
         case compiling(file: String, done: Int, total: Int)
         case linking
@@ -166,6 +173,29 @@ public final class BuildFlashSession {
     public func confirmReplace() {
         guard case .confirmingReplace = phase, let request else { return }
         begin(request, keyboard: nil, confirmed: true)
+    }
+
+    /// Download and Build: runs the toolchain's one-time setup, with the user's consent, then the build it held up.
+    public func setUpBuildTools() {
+        guard case .needsSetup = phase, task == nil, let request else { return }
+        runID += 1
+        let id = runID
+        task = Task {
+            var installed = false
+            for await event in toolchain.setUp() {
+                guard !Task.isCancelled else { break }
+                switch event {
+                case let .downloading(received, total): show(.settingUp(received: received, total: total))
+                case .installing:
+                    if case let .settingUp(_, total) = phase { show(.settingUp(received: total, total: total)) }
+                case .finished: installed = true
+                case let .failed(error): fail(.setup(error))
+                }
+            }
+            guard runID == id else { return }
+            task = nil
+            if installed, !Task.isCancelled { begin(request, keyboard: nil, confirmed: true) }
+        }
     }
 
     /// Stop or Cancel: back to idle. Ignored from validation until the flash is verified.

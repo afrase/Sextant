@@ -16,9 +16,11 @@ import os
 struct SextantMain: App {
     @State private var services: SextantServices
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
+    /// One toolchain, so every window shares its setup (only one runs at a time).
+    private let toolchain = NativeToolchain(installer: ToolchainInstaller())
 
     init() {
-        let services = Self.makeServices()
+        let services = Self.makeServices(toolchain: toolchain)
         _services = State(initialValue: services)
         appDelegate.library = services.library
         appDelegate.live = services.live
@@ -40,19 +42,14 @@ struct SextantMain: App {
 
     var body: some Scene {
         SextantScenes(
-            services: services, buildToolsStatus: { await Self.toolchain($0).status() },
-            firmwareSource: (ContainerToolchain.Pins.firmwareCommit, ContainerToolchain.Pins.modulesCommit))
-    }
-
-    /// The toolchain for Settings › Build's choice. Constructing one only names its folder; status never downloads.
-    static func toolchain(_ backend: BuildBackend) -> any Toolchain {
-        backend == .native ? NativeToolchain() : ContainerToolchain()
+            services: services, buildToolsStatus: { [toolchain] in await toolchain.status() },
+            firmwareSource: (ToolchainPins.firmwareCommit, ToolchainPins.modulesCommit))
     }
 
     /// Builds every adapter and use case. Raw-HID writes and flashing stay off until the user sets the
     /// `SextantHardwareEnabled` default by hand (ADR 0012); read-only USB presence is always on.
     @MainActor
-    static func makeServices() -> SextantServices {
+    static func makeServices(toolchain: NativeToolchain) -> SextantServices {
         let hardwareEnabled = UserDefaults.standard.bool(forKey: "SextantHardwareEnabled")
         let store = PackageLibrary(root: PackageLibrary.defaultRoot())
         let library = Library(store: store)
@@ -67,9 +64,9 @@ struct SextantMain: App {
             library: library, live: live,
             makeImport: { ImportFromOryx(oryx: oryx, library: library) },
             makeBuildFlash: { session in
-                // ADR 0018: container builds by default; Settings › Build can pick the native fallback.
+                // ADR 0033: the native toolchain, every build sandboxed.
                 BuildFlashSession(
-                    session: session, library: store, generator: generator, toolchain: toolchain(.current), watcher: watcher,
+                    session: session, library: store, generator: generator, toolchain: toolchain, watcher: watcher,
                     flasher: flasher, md5: md5, live: live)
             })
     }

@@ -126,11 +126,43 @@ struct BuildFlashSessionTests {
     }
 
     @Test func asksForSetupBeforeTheFirstBuild() async throws {
-        let toolchain = FakeToolchain(readiness: .needsSetup("About 1 GB"))
+        let toolchain = FakeToolchain(readiness: .needsSetup("About 190 MB"))
         let (session, _) = try await make(toolchain: toolchain)
         session.build()
-        #expect(await eventually { session.phase == .needsSetup("About 1 GB") })
-        #expect(toolchain.buildCount == 0)
+        #expect(await eventually { session.phase == .needsSetup("About 190 MB") })
+        #expect(toolchain.buildCount == 0 && toolchain.setupCount == 0, "nothing downloads before the user agrees")
+        session.setUpBuildTools()
+        #expect(await eventually { session.phase == .built }, "the build it held up runs once the tools are in")
+        #expect(toolchain.setupCount == 1 && toolchain.buildCount == 1)
+    }
+
+    @Test func setupShowsItsProgressAndStops() async throws {
+        let toolchain = FakeToolchain(readiness: .needsSetup("About 190 MB"), setup: [.downloading(received: 50, total: 200)])
+        let (session, _) = try await make(toolchain: toolchain)
+        session.setUpBuildTools()
+        #expect(session.phase == .idle, "only from Set Up the Build Tools")
+        session.buildAndFlash(connectedKeyboard: nil)
+        #expect(await eventually { session.phase == .needsSetup("About 190 MB") })
+        session.setUpBuildTools()
+        #expect(await eventually { session.phase == .settingUp(received: 50, total: 200) })
+        #expect(session.canStop)
+        session.stop()
+        #expect(session.phase == .idle && toolchain.buildCount == 0)
+    }
+
+    @Test func aFailedSetupCanBeTriedAgain() async throws {
+        let offline = ToolchainError.failed("Downloading x failed.")
+        let toolchain = FakeToolchain(
+            readiness: .needsSetup("About 190 MB"), setup: [.downloading(received: 0, total: 9), .failed(offline)])
+        let (session, _) = try await make(toolchain: toolchain)
+        session.build()
+        #expect(await eventually { session.phase == .needsSetup("About 190 MB") })
+        session.setUpBuildTools()
+        #expect(await eventually { session.phase == .failed(.setup(offline)) })
+        #expect(BuildFlashError.setup(offline).localizedDescription == "Downloading x failed.", "not a build failure")
+        session.retry()
+        #expect(await eventually { session.phase == .needsSetup("About 190 MB") }, "Try Again asks again; nothing downloads by itself")
+        #expect(toolchain.setupCount == 1 && toolchain.buildCount == 0)
     }
 
     // MARK: Build failures

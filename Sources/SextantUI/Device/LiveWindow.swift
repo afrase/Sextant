@@ -140,6 +140,7 @@ extension ActivityState.Status {
         switch phase {
         case .idle, .blocked, .confirmingReplace, .failed(.flashingElsewhere): return nil
         case .needsSetup: self = .needsSetup
+        case let .settingUp(received, total): self = .settingUp(fraction: total > 0 ? Double(received) / Double(total) : 0)
         case .generating: self = .generating
         case let .compiling(file, done, total): self = .building(file: file, done: done, total: total)
         case .linking: self = .linking
@@ -158,6 +159,8 @@ extension ActivityState.Status {
             self = .buildFailed(errors: max(errors.count, 1), key: errors.lazy.compactMap(\.key).first?.index)
         case let .failed(.generator(.unsupported(_, key))): self = .buildFailed(errors: 1, key: key?.index)
         case .failed(.generator), .failed(.toolchain): self = .buildFailed(errors: 1, key: nil)
+        // Try Again goes back through the setup question.
+        case .failed(.setup): self = .needsSetup
         case .failed: self = .flashFailed
         }
     }
