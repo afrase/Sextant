@@ -11,13 +11,17 @@ struct LensLane: View {
                 if model.lens == .lighting, let session = model.session {
                     LightingCapsule(model: model, session: session).glassEffectTransition(.materialize)
                 }
-                if let status = model.laneStatus {
+                // Status by priority: error > recording > live.
+                if model.recorder != nil, model.laneStatus?.isIssue != true {
+                    RecordingCapsule(model: model).glassEffectTransition(.materialize)
+                } else if let status = model.laneStatus {
                     capsule(status)
                         .glassEffectTransition(.materialize)
                 }
             }
         }
         .animation(motion.standard, value: model.laneStatus)
+        .animation(motion.standard, value: model.recorder != nil)
     }
 
     @ViewBuilder private func capsule(_ status: LaneStatus) -> some View {

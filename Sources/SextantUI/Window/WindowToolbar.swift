@@ -38,8 +38,8 @@ struct WindowToolbar: CustomizableToolbarContent {
             .help(model.canFollow ? Text("Follow the keyboard’s layer (⌘L)") : Text("Connect your keyboard to follow its layer"))
         }
         ToolbarItem(id: "search", placement: .primaryAction) {
-            // shortcut: the command palette (spec step 5) wires this; until then it is shown but off.
             Button {
+                model.openPalette()
             } label: {
                 if windowWidth >= 1280 {
                     // A view, not a Label: toolbars draw Labels as icons only.
@@ -57,7 +57,7 @@ struct WindowToolbar: CustomizableToolbarContent {
             }
             // A new identity when the label changes, so the toolbar measures the item again.
             .id(windowWidth >= 1280)
-            .disabled(true)
+            .disabled(model.session == nil)
             .help(Text("Search commands, keys, layers and settings (⌘K)"))
         }
         ToolbarItem(id: "inspector", placement: .primaryAction) {

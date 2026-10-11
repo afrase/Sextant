@@ -56,6 +56,7 @@ enum Scenes {
 
         scenes += await boards(f)
         scenes += await inspector(f)
+        scenes += await picker(f)
         scenes += SnapshotScene.pair("activity", size: CGSize(width: 480, height: 14 * 40 + 16), chrome: .content) { activityStates }
         scenes += await layers(f)
         // After every model has loaded, so the autosave of this edit can't leak into other scenes.

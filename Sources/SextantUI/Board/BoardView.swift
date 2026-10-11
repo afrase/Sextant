@@ -30,6 +30,7 @@ public struct BoardView: View {
     /// True while a stroke is live. SwiftUI resets it however the stroke ends, so a cancelled one (no `onEnded`) stops
     /// previewing, and the next stroke starts from nothing.
     @GestureState private var isPainting = false
+    @Environment(\.layoutWindow) private var window
 
     public init(
         session: EditSession, mode: LegendMode = .symbols, issues: [KeyRef: LayoutIssue.Severity] = [:], pressed: PressedKeys? = nil,
@@ -95,7 +96,7 @@ public struct BoardView: View {
             session.makeTransparent()
             return .handled
         }
-        // shortcut: ⏎ and typing open the keycode picker once it exists (spec step 5); until then they pass through.
+        .modifier(BoardPickerKeys(session: session, isFocused: $isFocused))
         .onExitCommand { session.select(key: nil) }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
@@ -158,8 +159,7 @@ public struct BoardView: View {
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(KeyText.label(model.legend, index: frame.index))
                         .accessibilityValue(value)
-                        // shortcut: "Press Return to change." joins this hint when ⏎ opens the picker (spec step 5).
-                        .accessibilityHint(Text("Actions available."))
+                        .accessibilityHint(Text("Press Return to change. Actions available."))
                         .accessibilityAction { select(frame.index) }
                         .accessibilityAddTraits(frame.index == session.selection.keyIndex ? [.isButton, .isSelected] : .isButton)
                         .accessibilitySortPriority(order[safe: frame.index] ?? 0)
@@ -168,6 +168,7 @@ public struct BoardView: View {
                 }
             }
             selectionRing(board, cap: cap)
+            PickerCapOverlay(board: board, cap: cap)
         }
         .animation(SextantMotion.layerChange, value: layer)
     }
@@ -186,9 +187,23 @@ public struct BoardView: View {
             }
     }
 
-    /// VoiceOver custom actions (spec §4.11). Change Tap, Change Hold and Record Key arrive with the picker.
+    /// VoiceOver custom actions (spec §4.11).
     @ViewBuilder private func keyActions(_ model: KeyCapModel) -> some View {
         let index = model.index
+        if let window {
+            Button("Change Tap") {
+                session.select(key: index, slot: .tap)
+                window.openKeycodePicker()
+            }
+            Button("Change Hold") {
+                session.select(key: index, slot: .hold)
+                window.openKeycodePicker()
+            }
+            Button("Record Key") {
+                session.select(key: index)
+                window.startRecording()
+            }
+        }
         if !model.isGhost { Button("Make Transparent") { session.makeTransparent(index: index) } }
         if model.legend.ownKind != .disabled { Button("Disable") { session.disable(index: index) } }
         if model.legend.isInherited { Button("Override on This Layer") { session.overrideInherited(index: index) } }
@@ -198,7 +213,10 @@ public struct BoardView: View {
 
     /// One ring that moves between keys, following their rotation (spec §4.7, §10.6).
     @ViewBuilder private func selectionRing(_ board: BoardLayout, cap: CGFloat) -> some View {
-        if let index = session.selection.keyIndex, board.frames.indices.contains(index) {
+        // The picker preview and Record Key draw their own rings instead (§4.7).
+        if let index = session.selection.keyIndex, board.frames.indices.contains(index), window?.pickerPreview == nil,
+            window?.recorder == nil
+        {
             let frame = board.frames[index]
             let quiet = contrast == .increased || motion.reduceMotion
             let width: CGFloat = contrast == .increased || (isFocused && quiet) ? 3 : 2

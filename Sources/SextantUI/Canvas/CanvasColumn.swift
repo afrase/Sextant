@@ -27,6 +27,7 @@ struct CanvasColumn: View {
             BoardFooter(model: model).frame(height: 32)
         }
         .background(Bench())
+        .paletteHost(model)
     }
 }
 

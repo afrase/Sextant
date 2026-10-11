@@ -7,8 +7,8 @@ struct KeyMenu: View {
     var body: some View {
         let session = window?.session
         let hasKey = window?.hasSelectedKey == true
-        Button("Change Keycode…") {}.disabled(true)
-        Button("Record Key") {}.keyboardShortcut("r", modifiers: [.command, .shift]).disabled(true)
+        Button("Change Keycode…") { window?.openKeycodePicker() }.disabled(!hasKey)
+        Button("Record Key") { window?.startRecording() }.keyboardShortcut("r", modifiers: [.command, .shift]).disabled(!hasKey)
         Menu("Edit Slot") {
             ForEach(Array(KeySlot.allCases.enumerated()), id: \.element) { n, slot in
                 Toggle(
@@ -24,7 +24,7 @@ struct KeyMenu: View {
         Divider()
         MakeTransparentItem(window: window)
         Button("Disable Key") { session?.disable() }.keyboardShortcut(.delete, modifiers: [.command, .shift])
-            .disabled(!hasKey || window?.isEditingKeyLabel == true)
+            .disabled(!hasKey || window?.isEditingKeyLabel == true || window?.palette != nil)
         Button("Override on This Layer") { session?.overrideInherited() }.disabled(window?.canOverrideKey != true)
         Menu("LED Colour") { KeyColourMenu(window: window) }.disabled(!hasKey)
         Divider()
