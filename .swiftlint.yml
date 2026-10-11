@@ -131,7 +131,7 @@ custom_rules:
   build_imports:
     name: "Build imports"
     included: "Sources/SextantBuild/.*\\.swift"
-    regex: "^import (?!(Foundation|os|Subprocess|System|SextantApplication|SextantDomain)\\b)\\w+"
+    regex: "^import (?!(Foundation|os|Subprocess|System|Containerization|Synchronization|SextantApplication|SextantDomain)\\b)\\w+"
     message: "The build adapter generates source and runs processes; no UI or device frameworks."
     severity: error
   device_imports:
