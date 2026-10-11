@@ -51,13 +51,20 @@ public actor DFUFlasher: Flasher {
         let digest = Insecure.MD5.hash(data: image.data).map { String(format: "%02x", $0) }.joined()
         guard digest == md5.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() else { throw .checksumMismatch }
 
+        guard !Task.isCancelled else { throw .transfer("Cancelled") }
+
         flashing = true
         defer { flashing = false }
-        // Stopping between erase and write leaves the keyboard without firmware, so the flash runs in its own task
-        // and finishes even if the caller is cancelled.
+        let transport = try await openWhenReady(device, board: board)
+        guard !Task.isCancelled else {
+            transport.close()
+            throw .transfer("Cancelled")
+        }
+        // Until the first erase a cancel leaves the keyboard waiting in flash mode. After it, stopping leaves the
+        // keyboard without firmware, so the write runs in its own task and finishes even if the caller is cancelled.
         let result = await Task { () async -> Result<Void, FlashError> in
             do throws(FlashError) {
-                try await self.write(image.payload, to: device, board: board, clock: self.clock, progress: progress)
+                try await self.write(image.payload, with: transport, board: board, clock: self.clock, progress: progress)
                 return .success(())
             } catch {
                 return .failure(error)
@@ -68,10 +75,9 @@ public actor DFUFlasher: Flasher {
     }
 
     private func write(
-        _ payload: Data, to device: BootloaderDevice, board: BoardDefinition, clock: some Clock<Duration>,
+        _ payload: Data, with transport: any USBControlTransport, board: BoardDefinition, clock: some Clock<Duration>,
         progress: @Sendable (FlashProgress) -> Void
     ) async throws(FlashError) {
-        let transport = try await openWhenReady(device, board: board, clock: clock)
         defer { transport.close() }
         var dfu = DfuSe(transport: transport, board: board, clock: clock)
         try await dfu.write(payload, progress: progress)
@@ -80,13 +86,13 @@ public actor DFUFlasher: Flasher {
     /// The bootloader's interface 0 is published a little after the device the watcher reports (zapp waits 500 ms
     /// after hotplug), so a missing interface is retried for up to a second.
     private func openWhenReady(
-        _ device: BootloaderDevice, board: BoardDefinition, clock: some Clock<Duration>
+        _ device: BootloaderDevice, board: BoardDefinition
     ) async throws(FlashError) -> sending any USBControlTransport {
         for _ in 1..<10 {
             do {
                 return try open(device, board)
             } catch .deviceNotFound {
-                try? await clock.sleep(for: .milliseconds(100))
+                do { try await clock.sleep(for: .milliseconds(100)) } catch { throw .transfer("Cancelled") }
             }
         }
         return try open(device, board)
@@ -94,6 +100,7 @@ public actor DFUFlasher: Flasher {
 }
 
 /// DFU 1.1 and ST DfuSe (AN3156) requests, with the flasher guards on every download.
+/// The async methods are `nonisolated(nonsending)` so their synchronous transfers block the flasher's queue, not the pool.
 struct DfuSe<C: Clock<Duration>> {
     static var dnload: UInt8 { 1 }
     static var getStatus: UInt8 { 3 }
@@ -124,7 +131,7 @@ struct DfuSe<C: Clock<Duration>> {
 
     /// Erases from `flashStart` over the payload rounded up to a page plus one page (capped at `flashEnd`), writes
     /// it in page-sized blocks, then leaves the bootloader (02 §8.5, Sextant's choices).
-    mutating func write(_ payload: Data, progress: @Sendable (FlashProgress) -> Void) async throws(FlashError) {
+    nonisolated(nonsending) mutating func write(_ payload: Data, progress: @Sendable (FlashProgress) -> Void) async throws(FlashError) {
         try clearErrorOnce()
         let page = board.flashPageSize
         let eraseEnd = min(board.flashStart + UInt32((payload.count + page - 1) / page * page + page), board.flashEnd)
@@ -159,7 +166,7 @@ struct DfuSe<C: Clock<Duration>> {
     }
 
     /// A DfuSe command (SET_ADDRESS or ERASE_PAGE), then a wait while the bootloader is busy.
-    mutating func command(_ code: UInt8, at address: UInt32) async throws(FlashError) {
+    nonisolated(nonsending) mutating func command(_ code: UInt8, at address: UInt32) async throws(FlashError) {
         try download(
             value: 0, [code, UInt8(address & 0xFF), UInt8(address >> 8 & 0xFF), UInt8(address >> 16 & 0xFF), UInt8(address >> 24)])
         try await waitWhileBusy(at: address)
@@ -189,7 +196,7 @@ struct DfuSe<C: Clock<Duration>> {
     }
 
     /// GETSTATUS until the bootloader leaves DNBUSY, sleeping its bwPollTimeout (1 ms to 2 s) between polls.
-    func waitWhileBusy(at address: UInt32) async throws(FlashError) {
+    nonisolated(nonsending) func waitWhileBusy(at address: UInt32) async throws(FlashError) {
         let deadline = clock.now.advanced(by: Self.maxWait)
         for _ in 0..<Self.maxPolls {
             let s = try status()

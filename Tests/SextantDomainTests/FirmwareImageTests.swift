@@ -17,10 +17,6 @@ struct FirmwareImageTests {
             try image.validate(forBootloaderPID: 0x1791, board: board)
         }
         #expect(throws: FirmwareImageError.unknownBootloader(0x0792)) { try image.validate(forBootloaderPID: 0x0792, board: board) }
-        // The user's original build has the CRC research 02 §5 recorded; the others are checked against their own suffix.
-        let expected: UInt32 = build == "KlgM7-40xJ7M" ? 0x2E4F_09FD : image.suffixCRC
-        #expect(FirmwareImage.crc(image.data.prefix(image.data.count - 4)) == expected)
-        #expect(image.suffixCRC == expected)
     }
 
     @Test func refusesATamperedCRC() throws {
@@ -29,6 +25,14 @@ struct FirmwareImageTests {
         #expect(throws: FirmwareImageError.badCRC(expected: 0x2E4F_09FD, actual: 0xD14F_09FD)) {
             try FirmwareImage(data: data).validate(forBootloaderPID: 0x0791, board: board)
         }
+    }
+
+    /// An Oryx dual image (research 02 §8.4) whose final suffix names the GD32 bootloader and whose CRC covers the
+    /// whole file: everything else passes, so only the inner STM32 suffix stops it.
+    @Test func refusesADualImageOnAGD32Bootloader() throws {
+        let stm32 = try Self.image("KlgM7-40xJ7M")
+        let dual = FirmwareImage.withSuffix(stm32.data + stm32.payload, vendorID: 0x3297, productID: 0x1791)
+        #expect(throws: FirmwareImageError.embeddedSuffix) { try dual.validate(forBootloaderPID: 0x1791, board: board) }
     }
 
     @Test func refusesAnotherVendor() throws {

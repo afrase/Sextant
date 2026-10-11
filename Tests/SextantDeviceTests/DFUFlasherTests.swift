@@ -121,19 +121,25 @@ struct DFUFlasherTests {
     let opened = Locked(false)
     let progress = Locked<[FlashProgress]>([])
 
+    /// `cancelOnAttempt` cancels the calling task from inside that open attempt; `onProgress` sees every report.
     func flash(
-        _ image: FirmwareImage, md5: String, productID: UInt16 = 0x0791, on fake: FakeDfuSe, notFoundFirst: Int = 0
+        _ image: FirmwareImage, md5: String, productID: UInt16 = 0x0791, on fake: FakeDfuSe, notFoundFirst: Int = 0,
+        cancelOnAttempt: Int? = nil, onProgress: @escaping @Sendable (FlashProgress) -> Void = { _ in }
     ) async throws(FlashError) {
         let opened = opened, progress = progress
         let attempts = Locked(0)
         let flasher = DFUFlasher(clock: ImmediateClock()) { _, _ throws(FlashError) in
             attempts.value += 1
+            if attempts.value == cancelOnAttempt { withUnsafeCurrentTask { $0?.cancel() } }
             guard attempts.value > notFoundFirst else { throw .deviceNotFound }
             opened.value = true
             return fake
         }
         let device = BootloaderDevice(id: 1, productID: productID, kind: .stm32, version: 0x0100)
-        try await flasher.flash(image, md5: md5, to: device, board: .voyager) { progress.value.append($0) }
+        try await flasher.flash(image, md5: md5, to: device, board: .voyager) {
+            progress.value.append($0)
+            onProgress($0)
+        }
     }
 
     @Test func erasesWritesAndLeaves() async throws {
@@ -167,6 +173,37 @@ struct DFUFlasherTests {
         try await flash(image, md5: md5, on: FakeDfuSe(), notFoundFirst: 3)
         #expect(opened.value)
         await #expect(throws: FlashError.deviceNotFound) { try await flash(image, md5: md5, on: FakeDfuSe(), notFoundFirst: 10) }
+    }
+
+    /// Cancelled while waiting for the interface: the wait stops and nothing reaches the keyboard.
+    @Test func cancellingWhileWaitingForTheInterfaceSendsNothing() async {
+        let fake = FakeDfuSe()
+        let (image, md5) = testImage(payload: 5_000)
+        // In a child task: cancelling the test's own task would end the test as cancelled.
+        await #expect(throws: FlashError.transfer("Cancelled")) {
+            try await Task { try await flash(image, md5: md5, on: fake, notFoundFirst: 3, cancelOnAttempt: 1) }.value
+        }
+        #expect(!opened.value)
+        #expect(fake.requests.isEmpty)
+    }
+
+    /// Cancelled after the first erase: stopping would leave the keyboard without firmware, so the flash finishes.
+    @Test func cancellingAfterTheFirstEraseStillFinishesTheFlash() async throws {
+        let fake = FakeDfuSe()
+        let (image, md5) = testImage(payload: 5_000)
+        let caller = Locked<Task<Void, any Error>?>(nil)
+        let (started, start) = AsyncStream.makeStream(of: Void.self)
+        let task = Task {
+            for await _ in started {}  // until `caller` holds this task
+            try await flash(image, md5: md5, on: fake) {
+                if $0 == FlashProgress(phase: .erasing, done: 1, total: 4) { caller.value?.cancel() }
+            }
+        }
+        caller.value = task
+        start.finish()
+        try await task.value
+        #expect(task.isCancelled)
+        #expect(Data(fake.flash.prefix(5_000)) == image.payload)
     }
 
     @Test func aBootloaderThatResetsOnLeaveStillCountsAsFlashed() async throws {
@@ -203,6 +240,16 @@ struct DFUFlasherTests {
         #expect(!opened.value)
     }
 
+    /// An Oryx dual image whose final suffix names the GD32 bootloader is refused before the device is opened.
+    @Test func refusesADualImageOnAGD32Bootloader() async {
+        let (stm32, _) = testImage(payload: 5_000)
+        let dual = FirmwareImage.withSuffix(stm32.data + stm32.payload, vendorID: 0x3297, productID: 0x1791)
+        await #expect(throws: FlashError.imageRejected(.embeddedSuffix)) {
+            try await flash(dual, md5: "", productID: 0x1791, on: FakeDfuSe())
+        }
+        #expect(!opened.value)
+    }
+
     @Test func refusesAnUnknownBootloader() async {
         let (image, md5) = testImage(payload: 5_000, productID: 0x0792)
         await #expect(throws: FlashError.imageRejected(.unknownBootloader(0x0792))) {
@@ -229,10 +276,12 @@ struct DFUFlasherTests {
         }
         #expect(fake.requests.isEmpty)
 
+        try dfu.download(value: 0, command(0x21, start))
+        #expect(throws: FlashError.self) { try dfu.download(value: 2, [UInt8](repeating: 0, count: 2049)) }  // over a page
         try dfu.download(value: 0, command(0x21, end - 1024))
         #expect(throws: FlashError.self) { try dfu.download(value: 2, [UInt8](repeating: 0, count: 2048)) }  // crosses the end
         try dfu.download(value: 2, [UInt8](repeating: 0, count: 1024))
-        #expect(fake.downloads.map(\.data.count) == [5, 1024])
+        #expect(fake.downloads.map(\.data.count) == [5, 5, 1024])
     }
 
     @Test func dfuErrorStopsTheFlash() async {

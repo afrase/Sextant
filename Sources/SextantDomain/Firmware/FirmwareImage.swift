@@ -7,6 +7,7 @@ public enum FirmwareImageError: Error, Equatable, Sendable, LocalizedError {
     case badCRC(expected: UInt32, actual: UInt32)
     case wrongVendor(UInt16)
     case wrongProduct(image: UInt16, bootloader: UInt16)
+    case embeddedSuffix
     case unknownBootloader(UInt16)
     case tooLarge(bytes: Int, limit: Int)
     case badStackPointer(UInt32)
@@ -21,6 +22,7 @@ public enum FirmwareImageError: Error, Equatable, Sendable, LocalizedError {
         case let .wrongVendor(v): String(localized: "The image is for USB vendor \(Self.hex(v)), not this keyboard.")
         case let .wrongProduct(image, bootloader):
             String(localized: "The image is for bootloader \(Self.hex(image)), but the keyboard's is \(Self.hex(bootloader)).")
+        case .embeddedSuffix: String(localized: "The file holds more than one firmware image.")
         case let .unknownBootloader(pid): String(localized: "Bootloader \(Self.hex(pid)) isn't one Sextant knows.")
         case let .tooLarge(bytes, limit): String(localized: "The image is \(bytes) bytes; this keyboard takes at most \(limit).")
         case let .badStackPointer(sp): String(localized: "The image's stack pointer \(Self.hex(sp)) is outside RAM.")
@@ -51,7 +53,8 @@ public struct FirmwareImage: Hashable, Sendable {
     public init(data: Data) { self.data = Data(data) }
 
     /// The checks every flasher guard needs before the first transfer (CLAUDE.md, ADR 0013).
-    /// A single STM32 image on a GD32 bootloader (`0x1791`) fails the product check.
+    /// A single STM32 image on a GD32 bootloader (`0x1791`) fails the product check, and an Oryx dual image
+    /// (STM32 image, its suffix, GD32 image, suffix; research 02 §8.4) fails on its inner suffix.
     public func validate(forBootloaderPID pid: UInt16, board: BoardDefinition) throws(FirmwareImageError) {
         guard data.count > 16 + 8 else { throw .tooShort }
         let s = data.count - 16
@@ -63,6 +66,14 @@ public struct FirmwareImage: Hashable, Sendable {
         guard suffixVendorID == board.vendorID else { throw .wrongVendor(suffixVendorID) }
         guard board.bootloaderProductIDs[pid] != nil else { throw .unknownBootloader(pid) }
         guard suffixProductID == pid else { throw .wrongProduct(image: suffixProductID, bootloader: pid) }
+        // Any "UFD" + bLength 16 in the payload with this board's VID 4 bytes before it is another image's suffix.
+        var rest = payload
+        while let match = rest.range(of: Data([0x55, 0x46, 0x44, 16])) {
+            if match.lowerBound - data.startIndex >= 4, le16(match.lowerBound - data.startIndex - 4) == board.vendorID {
+                throw .embeddedSuffix
+            }
+            rest = rest[match.upperBound...]
+        }
         let limit = Int(board.flashEnd - board.flashStart)
         guard payload.count <= limit else { throw .tooLarge(bytes: payload.count, limit: limit) }
         let sp = le32(0), reset = le32(4)
