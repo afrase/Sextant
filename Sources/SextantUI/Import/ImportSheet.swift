@@ -40,7 +40,7 @@ struct ImportSheetPresenter: ViewModifier {
         content.sheet(isPresented: Binding(get: { model.importFlow != nil }, set: { if !$0 { model.importFlow = nil } })) {
             if let flow = model.importFlow {
                 // A new flow (another Import request) starts a fresh sheet, so its filled-in link is fetched.
-                ImportSheet(flow: flow, model: model).id(ObjectIdentifier(flow)).presentationSizing(.fitted)
+                ImportSheet(flow: flow, model: model).id(ObjectIdentifier(flow))
             }
         }
     }
@@ -67,20 +67,29 @@ public struct ImportSheet: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            header
-            switch source {
-            case .link: linkField
-            case .keyboard: keyboardRow
+        // The header and footer stay put while the rest scrolls, so a tall preview can't push them out of the sheet.
+        VStack(alignment: .leading, spacing: 0) {
+            header.padding([.horizontal, .top], 20)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    switch source {
+                    case .link: linkField
+                    case .keyboard: keyboardRow
+                    }
+                    if !flow.steps.isEmpty { ImportSteps(flow: flow, retry: fetch) }
+                    if let preview = flow.preview { ImportPreview(preview: preview) }
+                    if let saveError { ImportError(text: saveError.localizedDescription) }
+                    Toggle("Open after importing", isOn: $flow.openAfterImporting)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
             }
-            if !flow.steps.isEmpty { ImportSteps(flow: flow, retry: fetch) }
-            if let preview = flow.preview { ImportPreview(preview: preview) }
-            if let saveError { ImportError(text: saveError.localizedDescription) }
-            Toggle("Open after importing", isOn: $flow.openAfterImporting)
-            footer
+            .scrollBounceBehavior(.basedOnSize)
+            footer.padding([.horizontal, .bottom], 20)
         }
-        .padding(20)
         .frame(width: 560)
+        .frame(maxHeight: 640)  // spec §7.2's cap; the middle scrolls past it
         .task(id: fetches) { if fetches > 0 { await flow.fetch() } }
     }
 

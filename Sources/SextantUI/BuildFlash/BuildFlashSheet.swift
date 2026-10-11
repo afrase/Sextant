@@ -72,12 +72,14 @@ public struct BuildFlashSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
                 Divider()
-                BuildFlashBody(model: model, build: build, phase: phase).padding(20)
+                // The header and footer stay put while a tall phase scrolls.
+                ScrollView { BuildFlashBody(model: model, build: build, phase: phase).padding(20) }
+                    .scrollBounceBehavior(.basedOnSize)
                 Divider()
                 footer(phase, build)
             }
             .frame(width: 640)
-            .presentationSizing(.fitted)
+            .frame(maxHeight: 640)  // spec §7.2's cap
         }
     }
 

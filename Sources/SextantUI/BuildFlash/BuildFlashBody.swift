@@ -274,7 +274,7 @@ struct BuildFlashBody: View {
         }
     }
 
-    /// A list that scrolls past about seven rows, so the fitted sheet stays within spec §7.2's 640 pt.
+    /// A list that scrolls past about seven rows, so a long one doesn't bury what follows it.
     private func capped(@ViewBuilder _ rows: () -> some View) -> some View {
         ScrollView { VStack(alignment: .leading, spacing: 14) { rows() } }.scrollBounceBehavior(.basedOnSize).frame(maxHeight: 280)
     }
