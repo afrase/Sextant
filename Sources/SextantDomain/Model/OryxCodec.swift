@@ -64,6 +64,10 @@ extension KeyboardLayout: Codable {
             // shortcut: one Navigator per layout (the Voyager takes one), left wins if Oryx ever sends both.
             navigator = n.left.flatMap { $0.config(side: .left) } ?? n.right.flatMap { $0.config(side: .right) }
         }
+        // Oryx flags the automouse layer on the layer itself; Sextant keeps it as the Navigator's `automouseLayer` option.
+        if navigator?.options["automouseLayer"] == nil, let auto = layers.firstIndex(where: \.automouse) {
+            navigator?.options["automouseLayer"] = .number(Double(auto))
+        }
 
         var oryx: OryxRevisionInfo?
         if let layoutId = try c.decodeIfPresent(String.self, forKey: .hashId),
@@ -118,8 +122,10 @@ extension KeyboardLayout: Codable {
 private struct PositionedLayer: Codable {
     var position: Int
     var layer: Layer
+    /// Oryx's automouse flag, read only (folded into the Navigator's options).
+    var automouse = false
 
-    private enum Keys: String, CodingKey { case hashId, title, color, position, keys }
+    private enum Keys: String, CodingKey { case hashId, title, color, position, keys, automouse }
 
     init(position: Int, layer: Layer) {
         self.position = position
@@ -129,6 +135,7 @@ private struct PositionedLayer: Codable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         position = try c.decodeIfPresent(Int.self, forKey: .position) ?? 0
+        automouse = try c.decodeIfPresent(Bool.self, forKey: .automouse) ?? false
         let keys = try c.decodeIfPresent([Key?].self, forKey: .keys) ?? []
         layer = Layer(
             id: try c.decodeIfPresent(String.self, forKey: .hashId) ?? UUID().uuidString,
