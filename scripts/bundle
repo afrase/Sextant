@@ -16,6 +16,7 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin/SextantApp" "$app/Contents/MacOS/Sextant"
 for bundle in "$bin"/*.bundle; do [ -e "$bundle" ] && cp -R "$bundle" "$app/Contents/Resources/"; done
+cp Resources/AppIcon.icns "$app/Contents/Resources/"
 xcrun xcstringstool compile Resources/Localizable.xcstrings --output-directory "$app/Contents/Resources"
 sed -e "s/@VERSION@/$version/" -e "s/@BUILD@/$build/" Resources/Info.plist > "$app/Contents/Info.plist"
 
