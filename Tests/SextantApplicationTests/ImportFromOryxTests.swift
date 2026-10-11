@@ -148,6 +148,17 @@ struct ImportFromOryxTests {
         #expect(library.entries.map(\.id) == [imported.id])
     }
 
+    @Test func aPreviewIsImportedOnce() async throws {
+        let model = model(FakeOryx(layout: .success(layout)))
+        await model.fetch()
+        async let first = model.importLayout()
+        async let second = model.importLayout()
+        let results = try await [first, second]
+        #expect(results.compactMap(\.self).count == 1, "a double click imports one layout")
+        #expect(library.entries.count == 1)
+        #expect(model.preview == nil)
+    }
+
     @Test func addsARevisionOfTheLayoutImportedBefore() async throws {
         let entry = try await library.add(imported: layout)
         await library.rename(entry.id, to: "Work")
@@ -170,6 +181,7 @@ struct ImportFromOryxTests {
         #expect(item.revisions.map(\.source) == [.import, .save, .import])
         #expect(item.revisionLayouts[1] == before, "the replaced working copy is checkpointed")
         #expect(item.firmware["N3wRev"]?.md5 == "0123456789abcdef0123456789abcdef")
+        #expect(item.entry.origin == .oryx(layoutId: "KlgM7", revisionId: "N3wRev"))
         #expect(library.entries.count == 1)
     }
 
@@ -187,6 +199,7 @@ struct ImportFromOryxTests {
         await model.fetch()
         await library.trash(entry.id)
         await #expect(throws: LibraryError.notFound(entry.id)) { try await model.importLayout(asRevision: true) }
+        #expect(model.preview != nil, "a failed save keeps the preview for another try")
     }
 }
 

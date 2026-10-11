@@ -144,12 +144,18 @@ public final class ImportFromOryx {
     }
 
     /// Saves the preview as a new layout or, with `asRevision`, as a new revision of ``Preview/existing``.
-    /// Returns nil when there is nothing to save.
+    /// Returns nil when there is nothing to save. A preview is saved once; it comes back if saving fails.
     public func importLayout(asRevision: Bool = false) async throws(LibraryError) -> Imported? {
         guard let preview else { return nil }
-        let entry = try await library.add(
-            imported: preview.layout, asRevisionOf: asRevision ? preview.existing?.id : nil, firmware: firmware)
-        return Imported(id: entry.id, open: openAfterImporting)
+        self.preview = nil  // a second click while this one saves finds nothing to import
+        do {
+            let entry = try await library.add(
+                imported: preview.layout, asRevisionOf: asRevision ? preview.existing?.id : nil, firmware: firmware)
+            return Imported(id: entry.id, open: openAfterImporting)
+        } catch {
+            self.preview = preview
+            throw error
+        }
     }
 
     private static func notes(for summary: ImportSummary) -> [String] {

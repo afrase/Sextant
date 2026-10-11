@@ -77,6 +77,23 @@ struct PackageLibraryTests {
         await #expect(throws: LibraryError.newerFormat(2)) { try await library.load(entry.id) }
     }
 
+    @Test func anOryxOriginFollowsTheImportedRevision() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let imported = try await library.create(layout, origin: .oryx(layoutId: "KlgM7", revisionId: "40xJ7M"), firstRevision: nil)
+        let local = try await library.create(layout, origin: .local, firstRevision: nil)
+        var newer = layout
+        newer.oryx?.revisionId = "N3wRev"
+        try await library.save(newer, to: imported.id)
+        try await library.save(newer, to: local.id)
+        #expect(try await library.load(imported.id).entry.origin == .oryx(layoutId: "KlgM7", revisionId: "N3wRev"))
+        #expect(try await library.load(local.id).entry.origin == .local)
+
+        var other = newer
+        other.oryx?.layoutId = "Other1"
+        try await library.save(other, to: imported.id)
+        #expect(try await library.load(imported.id).entry.origin == .oryx(layoutId: "KlgM7", revisionId: "N3wRev"))
+    }
+
     @Test func keepsFirmwarePerRevision() async throws {
         defer { try? FileManager.default.removeItem(at: root) }
         let entry = try await library.create(layout, origin: .local, firstRevision: nil)

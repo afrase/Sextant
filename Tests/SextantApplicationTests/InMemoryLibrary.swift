@@ -34,6 +34,9 @@ actor InMemoryLibrary: LayoutLibrary {
         guard items[id] != nil else { throw .notFound(id) }
         items[id]?.layout = layout
         items[id]?.entry.title = layout.title
+        if case let .oryx(layoutId, _) = items[id]?.entry.origin, let oryx = layout.oryx, oryx.layoutId == layoutId {
+            items[id]?.entry.origin = .oryx(layoutId: layoutId, revisionId: oryx.revisionId)
+        }
         saveCount += 1
     }
 

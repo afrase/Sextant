@@ -87,6 +87,9 @@ public actor PackageLibrary: LayoutLibrary {
         meta.title = layout.title
         meta.modifiedAt = now()
         meta.contentHash = try Self.contentHash(layout)
+        if case let .oryx(layoutId, _) = meta.origin.model, let oryx = layout.oryx, oryx.layoutId == layoutId {
+            meta.origin = Meta.Origin(.oryx(layoutId: layoutId, revisionId: oryx.revisionId))
+        }
         try write(meta, to: folder.appending(path: "meta.json"))
     }
 

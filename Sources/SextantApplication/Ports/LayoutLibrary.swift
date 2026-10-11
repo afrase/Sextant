@@ -104,7 +104,8 @@ public protocol LayoutLibrary: Sendable {
     func load(_ id: UUID) async throws(LibraryError) -> StoredLayout
     /// Adds a layout, optionally with its first revision (an import records one).
     func create(_ layout: KeyboardLayout, origin: LayoutOrigin, firstRevision: RevisionDraft?) async throws(LibraryError) -> LibraryEntry
-    /// Overwrites the working copy (autosave).
+    /// Overwrites the working copy (autosave). An Oryx origin follows the layout's Oryx revision when an import
+    /// of the same Oryx layout replaces the working copy.
     func save(_ layout: KeyboardLayout, to id: UUID) async throws(LibraryError)
     func appendRevision(_ draft: RevisionDraft, to id: UUID) async throws(LibraryError) -> RevisionSummary
     func rename(_ id: UUID, to title: String) async throws(LibraryError)

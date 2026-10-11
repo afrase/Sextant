@@ -8,7 +8,7 @@ import os
 /// credentials and never calls a mutation.
 public struct OryxClient: OryxReader {
     /// Oryx's `getLayout`, trimmed to the fields `KeyboardLayout`'s codec reads (research data/oryx-graphql-operations.json).
-    static let query = """
+    private static let query = """
         query getLayout($hashId: String!, $revisionId: String!, $geometry: String) {
           layout(hashId: $hashId, geometry: $geometry, revisionId: $revisionId) {
             hashId title geometry
@@ -20,7 +20,7 @@ public struct OryxClient: OryxReader {
           }
         }
         """
-    static let userAgent = "Sextant (macOS keyboard configurator; read-only Oryx import)"
+    private static let userAgent = "Sextant (macOS keyboard configurator; read-only Oryx import)"
     private static let offline: [URLError.Code] = [
         .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed, .timedOut,
         .dataNotAllowed, .internationalRoamingOff,
