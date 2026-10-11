@@ -22,6 +22,7 @@ struct BuildButton: View {
                 case let .erasing(fraction), let .writing(fraction, _): fraction
                 default: 1
                 }
+            // A progress display, not a control: a disabled prominent button would keep its tint and fade its label.
             Button {
             } label: {
                 Label {
@@ -33,18 +34,28 @@ struct BuildButton: View {
             }
             .buttonStyle(.glassProminent)
             .controlSize(.large)
-            .disabled(true)
+            .allowsHitTesting(false)
+            .accessibilityRemoveTraits(.isButton)
+            .accessibilityLabel(Text("Writing firmware, \(Int((fraction * 100).rounded())) percent"))
         default:
-            Button {
-                model.build(.buildAndFlash)
-            } label: {
-                Label("Build & Flash", systemImage: "bolt.fill")
-                    .labelStyle(.titleAndIcon)
+            Group {
+                if model.canBuild {
+                    buildAndFlash.buttonStyle(.glassProminent)
+                } else {
+                    // Disabled prominent glass keeps its full tint with a faded label; plain glass reads as off.
+                    buildAndFlash.buttonStyle(.glass).disabled(true)
+                }
             }
-            .buttonStyle(.glassProminent)
             .controlSize(.large)
-            .disabled(!model.canBuild)
             .help(Text("Build the firmware and flash the keyboard (⌘R)"))
+        }
+    }
+
+    private var buildAndFlash: some View {
+        Button {
+            model.build(.buildAndFlash)
+        } label: {
+            Label("Build & Flash", systemImage: "bolt.fill").labelStyle(.titleAndIcon)
         }
     }
 }

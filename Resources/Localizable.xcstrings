@@ -297,6 +297,9 @@
     "Add Layer" : {
 
     },
+    "Add Layout" : {
+
+    },
     "Add a Reset key (QK_BOOT) to a layer to flash without a paperclip." : {
 
     },
@@ -2004,6 +2007,9 @@
 
     },
     "Writing" : {
+
+    },
+    "Writing firmware, %lld percent" : {
 
     },
     "Writing · %lld%%" : {

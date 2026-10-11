@@ -39,6 +39,20 @@ struct LayoutsSection: View {
                     Text("You can put it back from the Trash in Finder.")
                 }
             }
+            // The Welcome's choices once the library has a layout (spec §12.1, File ▸ New and Import).
+            Menu {
+                Button("New Layout") { Task { await addBlankLayout(to: model.library, from: model, openWindow: openWindow) } }
+                Divider()
+                Button("Import from Oryx…") { model.openImport() }.disabled(!model.canImport)
+                Button("Import from Connected Keyboard") { model.openImport(model.connectedOryxSerial) }
+                    .disabled(!model.canImport || model.connectedOryxSerial == nil)
+            } label: {
+                Label("Add Layout", systemImage: "plus")
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .foregroundStyle(.secondary)
         }
     }
 
