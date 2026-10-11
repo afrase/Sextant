@@ -17,12 +17,14 @@ public struct OryxReference: Hashable, Sendable {
         self.layer = layer
     }
 
-    /// Parses `https://configure.zsa.io/voyager/layouts/KlgM7/40xJ7M/0`, `KlgM7/40xJ7M` or `KlgM7`.
-    /// `latest` as a revision means the latest. Returns nil for anything else.
+    /// Parses `https://configure.zsa.io/voyager/layouts/KlgM7/40xJ7M/0` (the scheme is optional), `KlgM7/40xJ7M`
+    /// or `KlgM7`. `latest` as a revision means the latest. Returns nil for anything else.
     public init?(_ string: String) {
         let s = string.trimmingCharacters(in: .whitespacesAndNewlines)
         func isID(_ p: Substring) -> Bool { (3...16).contains(p.count) && p.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber) } }
-        if let url = URL(string: s), let host = url.host(), host.hasSuffix("zsa.io") {
+        if let url = URL(string: s.contains("://") ? s : "https://\(s)"), let host = url.host(),
+            host == "zsa.io" || host.hasSuffix(".zsa.io")
+        {
             let parts = url.pathComponents.filter { $0 != "/" }
             guard let i = parts.firstIndex(of: "layouts"), parts.indices.contains(i + 1), isID(Substring(parts[i + 1])) else { return nil }
             let revision = parts.indices.contains(i + 2) ? parts[i + 2] : nil
@@ -34,6 +36,6 @@ public struct OryxReference: Hashable, Sendable {
         }
         let pieces = s.split(separator: "/", omittingEmptySubsequences: false)
         guard (1...2).contains(pieces.count), pieces.allSatisfy(isID) else { return nil }
-        self.init(layoutID: String(pieces[0]), revisionID: pieces.count == 2 ? String(pieces[1]) : nil)
+        self.init(layoutID: String(pieces[0]), revisionID: pieces.count == 2 && pieces[1] != "latest" ? String(pieces[1]) : nil)
     }
 }
