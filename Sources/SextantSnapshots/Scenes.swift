@@ -58,6 +58,7 @@ enum Scenes {
         scenes += SnapshotScene.pair("activity", size: CGSize(width: 480, height: 14 * 40 + 16), chrome: .content) { activityStates }
         // After every model has loaded, so the autosave of this edit can't leak into other scenes.
         symNum.session?.setColor(HexColor(hex: "#FF9500"), layer: 1, index: 30)
+        scenes += await layers(f)
         return scenes
     }
 
