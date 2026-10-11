@@ -48,7 +48,6 @@ struct SnapshotTool: AsyncParsableCommand {
 /// The user's layout in a throwaway library, plus window models opened on it.
 @MainActor
 struct Fixtures {
-    let library: Library
     let entry: LibraryEntry
     private let root: URL
 
@@ -58,12 +57,13 @@ struct Fixtures {
         let root = FileManager.default.temporaryDirectory.appending(path: "sextant-snapshots-\(UUID().uuidString)")
         let library = Library(store: PackageLibrary(root: root, moveToTrash: { try FileManager.default.removeItem(at: $0) }))
         let entry = try await library.importOryxJSON(Data(contentsOf: layoutFile))
-        return Self(library: library, entry: entry, root: root)
+        return Self(entry: entry, root: root)
     }
 
-    /// A window model with the layout open on `layer`, optionally with a key selected.
+    /// A window model with the layout open on `layer`, optionally with a key selected. Each gets its own `Library`
+    /// over the same folder, because a library opens a layout in one window only (ADR 0026).
     func windowModel(layer: Int = 0, key: Int? = nil) async -> LayoutWindowModel {
-        let model = LayoutWindowModel(library: library)
+        let model = LayoutWindowModel(library: Library(store: PackageLibrary(root: root)))
         await model.open(entry.id)
         model.session?.select(layer: layer)
         model.session?.select(key: key)

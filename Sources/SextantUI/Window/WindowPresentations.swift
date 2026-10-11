@@ -1,0 +1,26 @@
+import SwiftUI
+
+extension View {
+    /// The window's sheets, alerts and popovers, one modifier each.
+    func windowPresentations(_ model: LayoutWindowModel) -> some View {
+        modifier(DeleteLayerAlert(model: model))
+    }
+}
+
+/// Confirms deleting a layer that keys still switch to (spec §6.1).
+private struct DeleteLayerAlert: ViewModifier {
+    var model: LayoutWindowModel
+
+    func body(content: Content) -> some View {
+        content.alert(
+            Text("Delete this layer?"),
+            isPresented: Binding(get: { model.layerPendingDeletion != nil }, set: { _ in model.layerPendingDeletion = nil }),
+            presenting: model.layerPendingDeletion
+        ) { layer in
+            Button("Delete and Clear References", role: .destructive) { model.session?.deleteLayer(layer) }
+            Button("Cancel", role: .cancel) {}
+        } message: { layer in
+            Text(model.deletionMessage(for: layer))
+        }
+    }
+}
