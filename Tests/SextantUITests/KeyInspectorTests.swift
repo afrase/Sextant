@@ -60,6 +60,7 @@ struct KeyInspectorTests {
         #expect(KeyText.summary(try key(0, 19), layerNames: names).hasSuffix("Hold for Left Option."))
         #expect(KeyText.summary(Key(hold: .holding(.hyper)), layerNames: names) == "Hold for Hyper.")
         #expect(KeyText.summary(Key(tap: .toggle(2)), layerNames: names) == "Tap: Toggle Brd+Sys (TG(2)).")
+        #expect(KeyText.summary(Key(tap: .transparent, hold: .momentary(1)), layerNames: names) == "Hold activates Sym+Num (MO(1)).")
         let inherited = Legends.legend(layout: layout, layer: 1, index: 19)
         #expect(KeyText.inheritance(inherited, layout: layout, layer: 1) == "Transparent on Sym+Num. Acts as Z (hold ⌥) from Main.")
     }

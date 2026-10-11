@@ -102,7 +102,8 @@ extension KeyText {
 
     /// The inspector's summary sentence (spec §5.1, §6.5): "Tap sends Return. Hold activates Sym+Num (MO(1))."
     static func summary(_ key: Key, layerNames: [String]) -> String {
-        key.actions.map { slot, action in
+        // A transparent tap under a hold shows as empty in the slot strip, so it isn't described either.
+        key.actions.filter { !$0.action.isTransparent }.map { slot, action in
             let legend = Legends.legend(for: action, layerNames: layerNames)
             if KeycodeCatalog.layerFunctions.contains(action.canonicalCode) {
                 if slot == .hold, action.canonicalCode == "MO", let name = legend.layerName {

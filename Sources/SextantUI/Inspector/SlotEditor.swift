@@ -156,7 +156,10 @@ struct SlotEditor: View {
         guard mode != current else { return }
         switch mode {
         case .modifier: setHeld(.leftControl)
-        case .layer: session.setAction(.momentary(session.layout.layers.indices.first { $0 != layer } ?? layer), slot: slot)
+        case .layer:
+            // A layer above this one: a lower one held from here stays hidden under it.
+            let layers = session.layout.layers.indices
+            session.setAction(.momentary(layers.first { $0 > layer } ?? layers.first { $0 != layer } ?? layer), slot: slot)
         // The picker assigns the key to this slot.
         case .key: model.openKeycodePicker()
         case .nothing: session.setAction(nil, slot: slot)
