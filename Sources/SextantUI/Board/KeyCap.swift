@@ -51,8 +51,10 @@ struct KeyCapModel: Equatable {
     var isGhost: Bool { legend.ownKind == .transparent }
     /// The kind drawn: a transparent key shows the kind it inherits.
     var kind: KeyKind { legend.isInherited ? legend.legend.kind : legend.ownKind }
+    /// The key you hold to reach the displayed layer, when that layer has a colour: tinted, hatched and haloed (spec §4.5).
+    var isActivator: Bool { layerTones != nil && legend.activatesDisplayedLayer }
     /// The layer ring goes on keys the displayed layer owns, and on the key that holds it (spec §4.5).
-    var isOwned: Bool { layerTones != nil && (!isGhost || legend.activatesDisplayedLayer) }
+    var isOwned: Bool { layerTones != nil && !isGhost || isActivator }
 
     /// What the hold band shows: a dual-function key's hold, or a tap dance's hold or double tap (spec §4.4).
     var band: (action: ActionLegend, slot: KeySlot)? {
@@ -103,11 +105,12 @@ struct KeyCap: View, Equatable {
             face
             if isPressed { pressedFill }
             content
-                .opacity(model.isGhost ? 0.4 : 1)
+                .opacity(model.isGhost && !model.isActivator ? 0.4 : 1)
                 .padding(.horizontal, 0.06 * u)
             corners
         }
         .foregroundStyle(ink.primary, ink.secondary)
+        .background { halo }
         .overlay { rings }
         .scaleEffect(isPressed && !reduceMotion ? 0.96 : 1)
         .animation(isPressed ? nil : SextantMotion.keyRelease, value: isPressed)
@@ -134,7 +137,8 @@ struct KeyCap: View, Equatable {
         shape.fill(Tokens.ghostFill.color)
             .overlay { shape.strokeBorder(Tokens.ghostStroke.color, style: StrokeStyle(lineWidth: 1, dash: [3, 2.5])) }
             .overlay {
-                if model.legend.activatesDisplayedLayer, let tones = model.layerTones {
+                if model.isActivator, let tones = model.layerTones {
+                    shape.fill(tones.display.color.opacity(isDark ? 0.16 : 0.10))
                     Hatch(color: tones.display.color.opacity(isDark ? 0.38 : 0.30), spacing: 0.10 * u).clipShape(shape)
                 }
             }
@@ -324,15 +328,30 @@ struct KeyCap: View, Equatable {
         }
     }
 
+    /// A soft glow in the layer colour around the key holding the layer, behind the cap so it can't wash the legend.
+    @ViewBuilder private var halo: some View {
+        if model.isActivator, model.issue == nil, let tones = model.layerTones {
+            // A shadow, not a blur: the ring covers the stroke, and offscreen snapshots don't draw blur.
+            shape.inset(by: -1)
+                .stroke(tones.display.color, style: ringStyle)
+                .shadow(color: tones.display.color.opacity(isDark ? 0.9 : 0.75), radius: 0.12 * u)
+                .allowsHitTesting(false)
+        }
+    }
+
+    /// The layer ring; the halo's stroke matches it, so it can't fill in the Differentiate Without Color dashes.
+    private var ringStyle: StrokeStyle {
+        let width: CGFloat = (highContrast ? 2 : isDark ? 1.25 : 1.5) + (model.isActivator ? 0.5 : 0)
+        return StrokeStyle(lineWidth: width, dash: differentiateWithoutColor && model.isActivator ? [3, 2] : [])
+    }
+
     private var rings: some View {
         ZStack {
             if let issue = model.issue {
                 shape.inset(by: -2).stroke((issue == .error ? Tokens.danger : Tokens.warning).color, lineWidth: 2)
             } else if model.isOwned, let tones = model.layerTones {
-                let width: CGFloat = highContrast ? 2 : isDark ? 1.25 : 1.5
-                let dashed = differentiateWithoutColor && model.legend.activatesDisplayedLayer
                 shape.inset(by: -1)
-                    .stroke(tones.display.color, style: StrokeStyle(lineWidth: width, dash: dashed ? [3, 2] : []))
+                    .stroke(tones.display.color, style: ringStyle)
                     .shadow(color: isDark ? tones.display.color.opacity(0.45) : .clear, radius: 3)
             }
             if isHovered {

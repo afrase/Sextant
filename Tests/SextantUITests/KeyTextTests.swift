@@ -139,7 +139,8 @@ struct KeyCapModelTests {
         let inherited = KeyCapModel(layout: layout, layer: 1, index: 19)
         #expect(inherited.isGhost && !inherited.isOwned && inherited.kind == .dualFunction, "shows the inherited kind")
         let holder = KeyCapModel(layout: layout, layer: 1, index: 24)
-        #expect(holder.isGhost && holder.isOwned, "the key holding the layer is ringed and hatched")
+        #expect(holder.isGhost && holder.isOwned && holder.isActivator, "the key holding the layer is ringed, hatched and haloed")
+        #expect(!own.isActivator && !inherited.isActivator)
     }
 
     /// Spec §4.8: the LED dot shows when the key has its own LED colour, transparent or not.
