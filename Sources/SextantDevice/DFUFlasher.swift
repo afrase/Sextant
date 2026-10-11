@@ -46,7 +46,7 @@ public actor DFUFlasher: Flasher {
         progress: @escaping @Sendable (FlashProgress) -> Void
     ) async throws(FlashError) {
         guard !flashing else { throw .deviceBusy }
-        // Also refuses an unknown bootloader and a single STM32 image on a GD32 bootloader (0x1791).
+        // Also refuses an unknown bootloader and every image for a GD32 bootloader (0x1791) for now.
         do { try image.validate(forBootloaderPID: device.productID, board: board) } catch { throw .imageRejected(error) }
         let digest = Insecure.MD5.hash(data: image.data).map { String(format: "%02x", $0) }.joined()
         guard digest == md5.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() else { throw .checksumMismatch }

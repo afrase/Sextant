@@ -154,7 +154,7 @@ struct ToolchainTests {
         // Running out of RAM isn't a flash-size problem.
         let ram = await events(FakeRunner(output: [.line("ld: region `ram0' overflowed by 99 bytes"), .exit(2)]))
         #expect(ram.last == .failed(.failed("ld: region `ram0' overflowed by 99 bytes")))
-        let window = Int(board.flashEnd - board.flashStart)
+        let window = Int(board.applicationEnd - board.flashStart)
         let big = await events(FakeRunner(output: [.exit(0)], image: (home, Data(count: window + 16 + 5))))
         #expect(big.last == .failed(.tooLarge(overBy: 5)))
     }

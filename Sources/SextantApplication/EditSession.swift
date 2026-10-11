@@ -303,6 +303,7 @@ public final class EditSession {
         next.title = layout.title
         let draft = RevisionDraft(source: .import, message: imported.oryx?.message, layout: next)
         revisions.append(try await library.appendRevision(draft, to: id))
+        revisionBaseline = next
         edit(
             String(localized: "Import from Oryx"),
             select: { selection, doc in selection.layer = min(selection.layer, max(doc.layers.count - 1, 0)) }

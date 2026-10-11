@@ -13,8 +13,11 @@ public final class Library {
     public var lastError: LibraryError?
 
     @ObservationIgnored private let store: any LayoutLibrary
-    /// Open documents, so an import lands in the open one instead of behind it, where its autosave would undo it.
+    /// Open documents, one per layout: an import lands in the open one instead of behind it, and no second copy's
+    /// autosave can overwrite the first's edits.
     @ObservationIgnored private var sessions: [UUID: OpenSession] = [:]
+    /// Layouts being loaded, so two windows opening at once can't both take the same one.
+    @ObservationIgnored private var opening: Set<UUID> = []
     @ObservationIgnored private let log = Logger(subsystem: "com.sextant.app", category: "application")
 
     public init(store: any LayoutLibrary) {
@@ -30,11 +33,29 @@ public final class Library {
         }
     }
 
-    /// Opens a layout for editing.
+    /// True while a window has the layout open, or is opening it. A layout has one window (spec §2.1).
+    public func isOpen(_ id: UUID) -> Bool { opening.contains(id) || sessions[id]?.session != nil }
+
+    /// Opens a layout for editing. Windows check ``isOpen(_:)`` first, and ``close(_:)`` the session when done.
     public func open(_ id: UUID, autosaveDelay: Duration = .seconds(1)) async throws(LibraryError) -> EditSession {
+        opening.insert(id)
+        defer { opening.remove(id) }
+        // A document whose window went away can still hold its last edit: write it before reading the file.
+        await sessions[id]?.session?.flush()
         let session = EditSession(stored: try await store.load(id), library: store, autosaveDelay: autosaveDelay)
         sessions[id] = OpenSession(session: session)
         return session
+    }
+
+    /// Lets a layout go when its window closes or switches away: writes its last edit, then frees it for other windows.
+    public func close(_ session: EditSession) async {
+        await session.flush()
+        if sessions[session.id]?.session === session { sessions[session.id] = nil }
+    }
+
+    /// Writes every open document's pending edit now (before quitting).
+    public func flushOpenSessions() async {
+        for session in sessions.values.compactMap(\.session) { await session.flush() }
     }
 
     /// Imports an Oryx layout JSON file (GraphQL response or bare layout) as a new library layout,

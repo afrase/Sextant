@@ -63,20 +63,22 @@ public final class LayoutWindowModel {
         self.onBuild = onBuild
     }
 
-    /// Opens `id`, or the most recently modified layout when `id` is nil or no longer in the library (a stale
-    /// restored window). Leaves `session` nil for an empty library. Returns the id actually opened.
+    /// Opens `id`, or the most recently modified layout no other window has open when `id` is nil, no longer in the
+    /// library (a stale restored window) or open in another window (one window per layout). Leaves `session` nil
+    /// when there is none. Returns the id actually opened.
     @discardableResult
     public func open(_ id: UUID?) async -> UUID? {
         await library.refresh()
         let known = library.entries.map(\.id)
-        guard let target = id.flatMap({ known.contains($0) ? $0 : nil }) ?? known.first else { return nil }
+        let free = { (candidate: UUID) in candidate == self.session?.id || !self.library.isOpen(candidate) }
+        guard let target = id.flatMap({ known.contains($0) && free($0) ? $0 : nil }) ?? known.first(where: free) else { return nil }
         guard target != session?.id else { return target }
         do {
             let next = try await library.open(target)
             if let old = session {
                 // A waiting Build & Flash has no time limit; stop it so it can't flash the next keyboard in flash mode.
                 onBuild?(.stop, old)
-                await old.flush()
+                await library.close(old)
                 // Undo steps point at the old session; drop them so ⌘Z can't reach a released document.
                 old.undoManager?.removeAllActions(withTarget: old)
             }
@@ -87,6 +89,14 @@ public final class LayoutWindowModel {
             loadError = error
             return nil
         }
+    }
+
+    /// The window is closing: stops its layout's Build & Flash (see ``open(_:)``) and lets the layout go, so another
+    /// window can open it.
+    func close() async {
+        guard let session else { return }
+        onBuild?(.stop, session)
+        await library.close(session)
     }
 
     // MARK: Derived text

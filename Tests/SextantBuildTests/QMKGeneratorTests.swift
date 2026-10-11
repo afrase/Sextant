@@ -79,6 +79,16 @@ struct QMKGeneratorTests {
         layout.updateKey(layer: 0, index: 1) { $0 = Key(tap: KeyAction(code: "KC_NO", macro: Macro(steps: [MacroStep(code: "A);x(")]))) }
         #expect(throws: GeneratorError.self) { try QMKGenerator().generate(layout, identity: identity) }
         #expect(throws: GeneratorError.self) { try QMKGenerator().generate(clean, identity: FirmwareIdentity(serial: "a\"\n#include")) }
+        // SS_DELAY() stalls the keyboard for its whole pause: Oryx's 0...5000 ms only.
+        for delay in [5000, 5001, 2_000_000_000, -1] {
+            let pause = Macro(steps: [MacroStep(code: "KC_A", delay: delay)])
+            layout.updateKey(layer: 0, index: 1) { $0 = Key(tap: KeyAction(code: "KC_NO", macro: pause)) }
+            if delay == 5000 {
+                _ = try QMKGenerator().generate(layout, identity: identity)
+            } else {
+                #expect(throws: GeneratorError.self, "\(delay)") { try QMKGenerator().generate(layout, identity: identity) }
+            }
+        }
         layout = clean
         layout.settings["rgbTimeout"] = .number(1e15)
         #expect(throws: GeneratorError.self) { try QMKGenerator().generate(layout, identity: identity) }

@@ -15,10 +15,12 @@ import os
 @main
 struct SextantMain: App {
     @State private var services: SextantServices
+    @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
     init() {
         let services = Self.makeServices()
         _services = State(initialValue: services)
+        appDelegate.library = services.library
         services.live.start()
         // `--import <oryx.json>`: add an Oryx layout file to the library at launch.
         let args = CommandLine.arguments
@@ -62,5 +64,19 @@ struct SextantMain: App {
                     session: session, library: store, generator: generator, toolchain: toolchain, watcher: watcher,
                     flasher: flasher, md5: md5)
             })
+    }
+}
+
+/// Quitting waits for open documents' pending autosaves (each lands up to a second after the last edit).
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    var library: Library?
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let library else { return .terminateNow }
+        Task {
+            await library.flushOpenSessions()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 }

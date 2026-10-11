@@ -52,13 +52,13 @@ public struct LayoutWindow: View {
             let opened = await model.open(layoutID)
             if let opened, opened != layoutID { layoutID = opened }
         }
-        // Closing the window ends its layout's Build & Flash too (see LayoutWindowModel.open).
-        .onDisappear { model.build(.stop) }
+        // Closing the window ends its layout's Build & Flash and frees the layout for other windows.
+        .onDisappear { Task { await model.close() } }
         .onChange(of: model.session?.id, initial: true) { model.session?.undoManager = undoManager }
         .onChange(of: model.library.entries.first?.id) {
             // A layout arrived while this window had none open (first import): open it.
             guard model.session == nil else { return }
-            Task { await model.open(layoutID) }
+            Task { if let opened = await model.open(layoutID) { layoutID = opened } }
         }
     }
 
@@ -71,6 +71,10 @@ public struct LayoutWindow: View {
             ContentUnavailableView(
                 String(localized: "Couldn't open this layout"), systemImage: "exclamationmark.triangle",
                 description: Text(error.localizedDescription))
+        } else if !model.library.entries.isEmpty {
+            ContentUnavailableView(
+                String(localized: "Every layout is open"), systemImage: "macwindow.on.rectangle",
+                description: Text("Each layout has one window. Choose one in the sidebar to bring its window forward."))
         } else {
             ContentUnavailableView(
                 String(localized: "Bring your layout to Sextant"), systemImage: "keyboard",
@@ -82,13 +86,14 @@ public struct LayoutWindow: View {
 private struct Sidebar: View {
     var model: LayoutWindowModel
     @Binding var layoutID: UUID?
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         List(selection: layerSelection) {
             Section("Layouts") {
                 ForEach(model.library.entries) { entry in
                     Button {
-                        layoutID = entry.id
+                        show(entry.id)
                     } label: {
                         Label(entry.title, systemImage: entry.id == model.session?.id ? "keyboard.fill" : "keyboard")
                             .fontWeight(entry.id == model.session?.id ? .semibold : .regular)
@@ -126,6 +131,15 @@ private struct Sidebar: View {
             }
         }
         .listStyle(.sidebar)
+    }
+
+    /// Opens a layout in this window, or brings forward the window that has it (one window per layout).
+    private func show(_ id: UUID) {
+        if id != model.session?.id, model.library.isOpen(id) {
+            openWindow(id: "layout", value: id)
+        } else {
+            layoutID = id
+        }
     }
 
     /// The shown layer is the sidebar's selection; layouts are opened with their buttons.

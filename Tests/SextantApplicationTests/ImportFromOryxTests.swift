@@ -223,6 +223,7 @@ struct ImportFromOryxTests {
         #expect(session.origin == .oryx(layoutId: "KlgM7", revisionId: "N3wRev"))
         #expect(session.revisions.map(\.source) == [.import, .import])
         #expect(undo.undoActionName == "Import from Oryx")
+        #expect(!session.isEditedSinceRevision, "the import is the new last revision")
 
         session.select(key: 2)
         undo.beginUndoGrouping()
@@ -237,6 +238,7 @@ struct ImportFromOryxTests {
         undo.undo()
         undo.undo()
         #expect(session.layout == before, "the import is undoable")
+        #expect(session.isEditedSinceRevision, "undone, the layout differs from the import revision")
         #expect(session.origin == .oryx(layoutId: "KlgM7", revisionId: "40xJ7M"))
     }
 

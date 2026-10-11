@@ -55,8 +55,22 @@ struct PackageLibraryTests {
         await #expect(throws: LibraryError.self) { try await library.layout(ofRevision: "../meta", in: entry.id) }
         await #expect(throws: LibraryError.self) { try await library.layout(ofRevision: "0009-missing", in: entry.id) }
         #expect(!stored.hasEditsSinceLastRevision)
+        let meta = try #require(await library.location(of: entry.id)).appending(path: "meta.json")
+        let staleMeta = try Data(contentsOf: meta)
         try await library.save(layout, to: entry.id)
         #expect(try await library.load(entry.id).hasEditsSinceLastRevision)
+        try staleMeta.write(to: meta)  // as if meta.json's write had failed after layout.json's
+        #expect(try await library.load(entry.id).hasEditsSinceLastRevision, "layout.json counts, not meta.json's cached hash")
+    }
+
+    /// One Character can be dozens of UTF-16 units; the folder name must still fit APFS's 255.
+    @Test func titlesOfLongCharactersStillGetAFolder() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        var titled = layout
+        titled.title = String(repeating: "👨‍👩‍👧‍👦", count: 30)
+        let entry = try await library.create(titled, origin: .local, firstRevision: nil)
+        try await library.rename(entry.id, to: String(repeating: "a\u{301}\u{302}\u{303}\u{304}\u{305}\u{306}\u{307}\u{308}", count: 60))
+        #expect(try await library.load(entry.id).layout.title.count == 60)
     }
 
     @Test func renamesDuplicatesAndTrashes() async throws {

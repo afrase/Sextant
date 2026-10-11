@@ -20,6 +20,23 @@ struct LayoutWindowModelTests {
         #expect(model.loadError == nil)
     }
 
+    /// One window per layout (spec §2.1): two documents for one layout would overwrite each other's autosaves.
+    @Test func aSecondWindowOpensAnotherLayout() async throws {
+        let library = Library(store: MemoryLibrary())
+        let data = try #require(userLayoutData)
+        let first = try await library.importOryxJSON(data)
+        let window1 = LayoutWindowModel(library: library)
+        #expect(await window1.open(nil) == first.id)
+        let window2 = LayoutWindowModel(library: library)
+        #expect(await window2.open(nil) == nil, "the only layout is open in the first window")
+        #expect(await window2.open(first.id) == nil, "a restored window can't take it either")
+        let second = try await library.importOryxJSON(data)
+        #expect(await window2.open(nil) == second.id)
+        #expect(await window2.open(first.id) == second.id, "it keeps its own layout")
+        await window1.close()
+        #expect(await window2.open(first.id) == first.id, "a closed window frees its layout")
+    }
+
     /// Leaving a layout stops its Build & Flash: a waiting run has no time limit and would flash the next keyboard.
     @Test func switchingLayoutsStopsTheOldLayoutsBuild() async throws {
         let library = Library(store: MemoryLibrary())

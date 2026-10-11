@@ -9,6 +9,7 @@ public enum FirmwareImageError: Error, Equatable, Sendable, LocalizedError {
     case wrongProduct(image: UInt16, bootloader: UInt16)
     case embeddedSuffix
     case unknownBootloader(UInt16)
+    case unsupportedBootloader(UInt16)
     case tooLarge(bytes: Int, limit: Int)
     case badStackPointer(UInt32)
     case badResetVector(UInt32)
@@ -24,6 +25,7 @@ public enum FirmwareImageError: Error, Equatable, Sendable, LocalizedError {
             String(localized: "The image is for bootloader \(Self.hex(image)), but the keyboard's is \(Self.hex(bootloader)).")
         case .embeddedSuffix: String(localized: "The file holds more than one firmware image.")
         case let .unknownBootloader(pid): String(localized: "Bootloader \(Self.hex(pid)) isn't one Sextant knows.")
+        case .unsupportedBootloader: String(localized: "Sextant can't flash GD32 keyboards yet.")
         case let .tooLarge(bytes, limit): String(localized: "The image is \(bytes) bytes; this keyboard takes at most \(limit).")
         case let .badStackPointer(sp): String(localized: "The image's stack pointer \(Self.hex(sp)) is outside RAM.")
         case let .badResetVector(rv): String(localized: "The image's start address \(Self.hex(rv)) is outside the application area.")
@@ -53,8 +55,9 @@ public struct FirmwareImage: Hashable, Sendable {
     public init(data: Data) { self.data = Data(data) }
 
     /// The checks every flasher guard needs before the first transfer (CLAUDE.md, ADR 0013).
-    /// A single STM32 image on a GD32 bootloader (`0x1791`) fails the product check, and an Oryx dual image
-    /// (STM32 image, its suffix, GD32 image, suffix; research 02 §8.4) fails on its inner suffix.
+    /// A single STM32 image on a GD32 bootloader (`0x1791`) fails the product check, an Oryx dual image
+    /// (STM32 image, its suffix, GD32 image, suffix; research 02 §8.4) fails on its inner suffix, and any other
+    /// image for a GD32 bootloader is refused until its flash layout is understood (ADR 0013, research 00 §7).
     public func validate(forBootloaderPID pid: UInt16, board: BoardDefinition) throws(FirmwareImageError) {
         guard data.count > 16 + 8 else { throw .tooShort }
         let s = data.count - 16
@@ -74,6 +77,7 @@ public struct FirmwareImage: Hashable, Sendable {
             }
             rest = rest[match.upperBound...]
         }
+        guard board.bootloaderProductIDs[pid] != .gd32 else { throw .unsupportedBootloader(pid) }
         let limit = Int(board.flashEnd - board.flashStart)
         guard payload.count <= limit else { throw .tooLarge(bytes: payload.count, limit: limit) }
         let sp = le32(0), reset = le32(4)

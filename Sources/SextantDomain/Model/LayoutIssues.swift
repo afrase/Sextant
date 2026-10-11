@@ -32,9 +32,10 @@ public enum LayoutIssues {
     /// they raise no issue; the size estimate needs a build, so the build reports it.
     public static func check(_ layout: KeyboardLayout) -> [LayoutIssue] {
         var issues: [LayoutIssue] = []
+        var seen: Set<LayoutIssue> = []
         func add(_ kind: LayoutIssue.Kind, _ key: KeyRef?, _ severity: LayoutIssue.Severity = .error) {
             let issue = LayoutIssue(kind: kind, severity: severity, key: key)
-            if !issues.contains(where: { $0.id == issue.id }) { issues.append(issue) }
+            if seen.insert(issue).inserted { issues.append(issue) }
         }
         func check(_ action: KeyAction, _ key: KeyRef?) {
             let codes = [action.code] + (action.macro?.steps.map(\.code) ?? [])

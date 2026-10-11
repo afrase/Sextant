@@ -59,13 +59,13 @@ struct BuildFlashSessionTests {
         #expect(document.revisions.last == revision)
     }
 
-    @Test func buildOnlyMeasuresAgainstTheFlashWindowAndCanFlashLater() async throws {
+    @Test func buildOnlyMeasuresAgainstTheApplicationWindowAndCanFlashLater() async throws {
         let toolchain = FakeToolchain()
         let warning = LayoutIssue(kind: .unreachableLayer(3), severity: .warning, key: nil)
         let (session, _) = try await make(toolchain: toolchain, issues: { _ in [warning] })
         session.build()
         #expect(await eventually { session.phase == .built }, "warnings don't block")
-        #expect(session.usedBytes == 65_786 && session.capacity == 0x4_0000)
+        #expect(session.usedBytes == 65_786 && session.capacity == 0x1_E000)
         #expect(watcher.subscriberCount == 0, "a build alone never looks for flash mode")
         session.flash(connectedKeyboard: nil)
         #expect(await enterFlashMode(session))
@@ -160,7 +160,7 @@ struct BuildFlashSessionTests {
     }
 
     @Test func refusesFirmwareThatDoesNotFit() async throws {
-        let (session, _) = try await make(toolchain: FakeToolchain(script: FakeToolchain.success(usedBytes: 0x4_0000 + 3_214)))
+        let (session, _) = try await make(toolchain: FakeToolchain(script: FakeToolchain.success(usedBytes: 0x1_E000 + 3_214)))
         session.buildAndFlash(connectedKeyboard: nil)
         #expect(await eventually { session.phase == .failed(.toolchain(.tooLarge(overBy: 3_214))) })
         #expect(watcher.subscriberCount == 0)
