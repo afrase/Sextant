@@ -35,7 +35,7 @@ struct WindowDetail: View {
                     .navigationTitle(session.layout.title)
                     .navigationSubtitle(model.subtitle)
             }
-        } else if !model.library.hasLoaded {
+        } else if !model.library.hasLoaded || model.isOpening {
             DelayedSpinner().frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let error = model.loadError {
             ContentUnavailableView(

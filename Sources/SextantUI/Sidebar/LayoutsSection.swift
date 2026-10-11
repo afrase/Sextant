@@ -69,10 +69,8 @@ extension LayoutWindowModel {
     /// Moves a layout to the Trash. The layout open here closes first: its Build & Flash stops (a waiting run would
     /// flash the next keyboard), its last edit is written, its undo steps go, and the window is left empty.
     func trashLayout(_ id: UUID) async {
-        guard canTrash(id) else { return }
         if let session, session.id == id {
-            onBuild?(.stop, session)
-            await library.close(session)
+            await close()
             session.undoManager?.removeAllActions(withTarget: session)
             self.session = nil
         }

@@ -18,14 +18,18 @@ public enum BuildBackend: String, CaseIterable, Sendable {
 /// Reports a backend's build tools status. It only looks; it never downloads (the setup step does, with consent).
 public typealias BuildToolsStatus = @MainActor (BuildBackend) async -> ToolchainStatus
 
+/// The firmware commits builds are pinned to; the composition root passes SextantBuild's pins.
+public typealias FirmwareSource = (firmware: String, modules: String)
+
 /// App settings (spec §8.9): General, Build and Privacy. Settings nothing reads yet are stored for later steps.
 struct SettingsView: View {
     var buildToolsStatus: BuildToolsStatus?
+    var firmwareSource: FirmwareSource?
 
     var body: some View {
         TabView {
             Tab("General", systemImage: "gearshape") { GeneralSettings() }
-            Tab("Build", systemImage: "hammer") { BuildSettings(status: buildToolsStatus) }
+            Tab("Build", systemImage: "hammer") { BuildSettings(status: buildToolsStatus, source: firmwareSource) }
             Tab("Privacy", systemImage: "hand.raised") { PrivacySettings() }
         }
         .frame(width: 520)
@@ -63,13 +67,15 @@ public struct GeneralSettings: View {
 
 public struct BuildSettings: View {
     var status: BuildToolsStatus?
+    var source: FirmwareSource?
     @AppStorage(BuildBackend.key) private var backend = BuildBackend.container
     @AppStorage(SettingsKey.prefersOryxBuild) private var prefersOryxBuild = true
     @State private var toolsStatus: ToolchainStatus?
 
     /// `known` shows a status before the first check finishes (snapshots run no tasks).
-    public init(status: BuildToolsStatus?, known: ToolchainStatus? = nil) {
+    public init(status: BuildToolsStatus?, source: FirmwareSource?, known: ToolchainStatus? = nil) {
         self.status = status
+        self.source = source
         _toolsStatus = State(initialValue: known)
     }
 
@@ -94,6 +100,12 @@ public struct BuildSettings: View {
             } footer: {
                 Text("The container builds in a small Linux VM with ZSA's compiler; the managed toolchain builds on this Mac.")
                     .foregroundStyle(.secondary)
+            }
+            if let source {
+                LabeledContent("Firmware source") {
+                    Text("ZSA fork \(String(source.firmware.prefix(7))), modules \(String(source.modules.prefix(7)))")
+                        .textSelection(.enabled)
+                }
             }
             Toggle("Use Oryx's build when the layout is unchanged since import", isOn: $prefersOryxBuild)
         }

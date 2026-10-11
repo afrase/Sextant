@@ -6,13 +6,18 @@ public struct SextantScenes: Scene {
     private let services: SextantServices
     private let onBuild: BuildHandler?
     private let buildToolsStatus: BuildToolsStatus?
+    private let firmwareSource: FirmwareSource?
 
     /// `onBuild` runs the build commands; until Build & Flash is presented it is nil and they stay disabled.
-    /// `buildToolsStatus` fills Settings › Build's status line.
-    public init(services: SextantServices, onBuild: BuildHandler? = nil, buildToolsStatus: BuildToolsStatus? = nil) {
+    /// `buildToolsStatus` fills Settings › Build's status line, and `firmwareSource` its pinned commits.
+    public init(
+        services: SextantServices, onBuild: BuildHandler? = nil, buildToolsStatus: BuildToolsStatus? = nil,
+        firmwareSource: FirmwareSource? = nil
+    ) {
         self.services = services
         self.onBuild = onBuild
         self.buildToolsStatus = buildToolsStatus
+        self.firmwareSource = firmwareSource
     }
 
     public var body: some Scene {
@@ -28,6 +33,6 @@ public struct SextantScenes: Scene {
         .windowResizability(.contentMinSize)
         .commands { SextantCommands(library: services.library) }
 
-        Settings { SettingsView(buildToolsStatus: buildToolsStatus) }
+        Settings { SettingsView(buildToolsStatus: buildToolsStatus, firmwareSource: firmwareSource) }
     }
 }

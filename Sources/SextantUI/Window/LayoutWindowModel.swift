@@ -73,6 +73,8 @@ public final class LayoutWindowModel {
     var settingsScrollTarget: String?
     /// The layout whose Rename… alert is showing.
     var layoutPendingRename: UUID?
+    /// A layout is loading (true until the first ``open(_:)`` finishes), so the empty states wait for it.
+    var isOpening = true
 
     public init(
         library: Library, onBuild: BuildHandler? = nil, live: LiveSession? = nil,
@@ -98,6 +100,8 @@ public final class LayoutWindowModel {
     /// when there is none. Returns the id actually opened.
     @discardableResult
     public func open(_ id: UUID?) async -> UUID? {
+        isOpening = true
+        defer { isOpening = false }
         await library.refresh()
         let known = library.entries.map(\.id)
         let free = { (candidate: UUID) in candidate == self.session?.id || !self.library.isOpen(candidate) }
@@ -181,12 +185,13 @@ public final class LayoutWindowModel {
 
     // MARK: Command enablement
 
-    var hasSelectedKey: Bool { session?.selection.keyIndex != nil }
+    /// Key commands are off on the Firmware Settings page, where the selected key isn't shown (the selection stays).
+    var hasSelectedKey: Bool { !showsFirmwareSettings && session?.selection.keyIndex != nil }
     var canShowPreviousLayer: Bool { (session?.selection.layer ?? 0) > 0 }
     var canShowNextLayer: Bool { session.map { $0.selection.layer < $0.layout.layers.count - 1 } ?? false }
     var canDeleteLayer: Bool { (session?.layout.layers.count ?? 0) > 1 }
     var canOverrideKey: Bool {
-        guard let session, let index = session.selection.keyIndex else { return false }
+        guard !showsFirmwareSettings, let session, let index = session.selection.keyIndex else { return false }
         return session.layout.resolvedKey(layer: session.selection.layer, index: index).isInherited
     }
     var canFollow: Bool { session != nil && activity.isKeyboardConnected }
@@ -243,6 +248,7 @@ public final class LayoutWindowModel {
     }
 
     func showIssue(_ key: KeyRef) {
+        showsFirmwareSettings = false
         session?.select(layer: key.layer)
         session?.select(key: key.index, slot: key.slot)
     }

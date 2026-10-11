@@ -38,7 +38,9 @@ struct SextantMain: App {
     }
 
     var body: some Scene {
-        SextantScenes(services: services, buildToolsStatus: { await Self.toolchain($0).status() })
+        SextantScenes(
+            services: services, buildToolsStatus: { await Self.toolchain($0).status() },
+            firmwareSource: (ContainerToolchain.Pins.firmwareCommit, ContainerToolchain.Pins.modulesCommit))
     }
 
     /// The toolchain for Settings › Build's choice. Constructing one only names its folder; status never downloads.

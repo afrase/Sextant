@@ -195,7 +195,7 @@ private struct NumberControl: View {
                 .multilineTextAlignment(.trailing)
                 .monospacedDigit()
                 .frame(width: 56)
-                Text(verbatim: unit).foregroundStyle(.secondary).frame(minWidth: 24, alignment: .leading)
+                Text(verbatim: setting.unitSymbol).foregroundStyle(.secondary).frame(minWidth: 24, alignment: .leading)
             } else {
                 Text(setting.format(.number(draft ?? value))).monospacedDigit().frame(minWidth: 56, alignment: .leading)
             }
@@ -205,16 +205,6 @@ private struct NumberControl: View {
     private func commit(_ number: Double) {
         let range = setting.range ?? 0...100
         session.setSetting(setting.id, to: .number(min(max(number.rounded(), range.lowerBound), range.upperBound)))
-    }
-
-    private var unit: String {
-        switch setting.unit {
-        case "milliseconds", "ms": "ms"
-        case "seconds": "s"
-        case "minutes": "min"
-        case "degrees": "°"
-        default: ""
-        }
     }
 }
 

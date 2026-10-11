@@ -42,6 +42,18 @@ struct LibraryManagementTests {
         #expect(await store.layout(copy.id)?.key(layer: 0, index: 1)?.tap?.code == "KC_F2")
     }
 
+    /// A layout open in a window stays out of the Trash: its autosave would write into a package that is gone.
+    @Test func anOpenLayoutCantBeTrashed() async throws {
+        let library = Library(store: store)
+        let entry = try await library.importOryxJSON(Fixtures.userLayoutData)
+        let session = try await library.open(entry.id, autosaveDelay: .seconds(60))
+        await library.trash(entry.id)
+        #expect(library.entries.map(\.id) == [entry.id] && library.lastError == nil)
+        await library.close(session)
+        await library.trash(entry.id)
+        #expect(library.entries.isEmpty)
+    }
+
     /// One undo step per change; Navigator settings go to the Navigator; ids outside the catalog are ignored.
     @Test func settingsAreOneUndoStepEach() async throws {
         let library = Library(store: store)

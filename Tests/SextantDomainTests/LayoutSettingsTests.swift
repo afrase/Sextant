@@ -36,6 +36,16 @@ struct LayoutSettingsTests {
         #expect(bare.navigator == nil && bare.settings["automouseTime"] == nil, "no Navigator, nowhere to keep it")
     }
 
+    /// A value field parses "nan"; JSON can't encode it, so storing it would make every later save fail.
+    @Test func ignoresNumbersJSONCantHold() throws {
+        let before = try Fixtures.layout()
+        var layout = before
+        layout.store(.number(.nan), for: try setting("tappingTerm"))
+        layout.store(.number(.infinity), for: try setting("tappingTerm"))
+        #expect(layout == before)
+        #expect(try setting("tappingTerm").format(.number(180)) == "180 ms")
+    }
+
     /// Spec §12.1: a blank QWERTY layout Sextant authors; every key is one the catalog knows.
     @Test func blankQWERTYFillsTheBoard() {
         let layout = KeyboardLayout.blankQWERTY(title: "Untitled Layout")

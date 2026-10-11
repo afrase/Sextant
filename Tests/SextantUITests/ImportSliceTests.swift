@@ -42,9 +42,29 @@ struct ImportSliceTests {
         #expect(model.windowToReveal(other, open: true) == other, "a new layout gets its own window")
         #expect(model.windowToReveal(other, open: false) == nil)
         #expect(model.windowToReveal(here, open: true) == nil, "a revision of the layout shown here")
-        let empty = LayoutWindowModel(library: Library(store: MemoryLibrary()))
+        let empty = LayoutWindowModel(library: model.library)
         #expect(empty.windowToReveal(other, open: true) == nil, "an empty window opens the newest itself")
-        #expect(empty.windowToReveal(here, open: true) == nil, "unknown to that library")
+        #expect(empty.windowToReveal(here, open: true) == here, "open in another window: that window comes forward")
+    }
+
+    /// Until its first load finishes, a window shows a spinner, not "every layout is open in another window".
+    @Test func aWindowIsOpeningUntilItsFirstLoadFinishes() async throws {
+        let model = try await openUserLayout()
+        let second = LayoutWindowModel(library: model.library)
+        #expect(second.isOpening && second.library.hasLoaded)
+        #expect(await second.open(nil) == nil && !second.isOpening)
+    }
+
+    /// Key commands can't reach the key the Firmware Settings page hides; the selection waits for the board.
+    @Test func keyCommandsAreOffOnTheFirmwareSettingsPage() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.select(layer: 1)
+        session.select(key: 19)
+        model.showsFirmwareSettings = true
+        #expect(!model.hasSelectedKey && !model.canOverrideKey && session.selection.keyIndex == 19)
+        model.showIssue(KeyRef(layer: 0, index: 3))
+        #expect(!model.showsFirmwareSettings && model.hasSelectedKey, "Show Key returns to the board")
     }
 
     /// Trashing the layout open here ends its session safely; another window's layout can't be trashed from here.

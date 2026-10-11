@@ -140,7 +140,9 @@ public final class Library {
         return copy
     }
 
+    /// Moves a layout to the Trash, unless a window has it open: its autosave would write into a package that is gone.
     public func trash(_ id: UUID) async {
+        guard !isOpen(id) else { return }
         await run { () throws(LibraryError) in try await self.store.trash(id) }
     }
 
