@@ -67,6 +67,19 @@ public final class LayoutWindowModel {
     /// The key label field has focus, so ⌘⌫ and ⇧⌘⌫ edit its text rather than make the key transparent or disable it.
     var isEditingKeyLabel = false
 
+    // MARK: layers
+    /// The layer whose name the sidebar is editing in place, by id (spec §6.1).
+    var renamingLayerID: String?
+    /// A layer waiting for Clear Layer's confirmation.
+    var layerPendingClear: Int?
+    /// A layer waiting for Clear Key Colours' confirmation (spec §6.2).
+    var keyColoursPendingClear: Int?
+    /// The layer whose Custom… colour sheet is open.
+    var layerPendingColour: Int?
+    /// The Lighting lens brush (spec §6.2): its colour, and whether it erases (no own colour) instead.
+    var brushColor = KeyboardLayout.defaultSwatch.first ?? HexColor(red: 1, green: 0.58, blue: 0)
+    var isErasing = false
+
     public init(
         library: Library, onBuild: BuildHandler? = nil, live: LiveSession? = nil,
         makeImport: (@MainActor () -> ImportFromOryx)? = nil,

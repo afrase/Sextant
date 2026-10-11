@@ -8,6 +8,9 @@ struct LensLane: View {
     var body: some View {
         GlassEffectContainer(spacing: 8) {
             HStack(spacing: 8) {
+                if model.lens == .lighting, let session = model.session {
+                    LightingCapsule(model: model, session: session).glassEffectTransition(.materialize)
+                }
                 if let status = model.laneStatus {
                     capsule(status)
                         .glassEffectTransition(.materialize)

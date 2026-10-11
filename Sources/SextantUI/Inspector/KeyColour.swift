@@ -53,24 +53,21 @@ struct KeyColourRow: View {
 
 /// Key ▸ LED Colour (spec §9.1): No Colour and the layout's swatches.
 struct KeyColourMenu: View {
-    var session: EditSession?
+    var window: LayoutWindowModel?
 
     var body: some View {
-        Button("No Colour") { session?.setColor(nil) }
+        Button("No Colour") { window?.session?.setColor(nil) }
         Divider()
-        let swatch = session?.layout.swatch ?? []
-        ForEach(swatch.isEmpty ? KeyboardLayout.defaultSwatch : swatch, id: \.self) { color in
-            Button(color.hex) { session?.setColor(color) }
+        ForEach(Array((window?.swatches ?? []).enumerated()), id: \.offset) { _, color in
+            Button {
+                window?.session?.setColor(color)
+            } label: {
+                Label {
+                    Text(verbatim: color.hex)
+                } icon: {
+                    color.swatchImage
+                }
+            }
         }
-    }
-}
-
-extension HexColor {
-    /// A picked colour in sRGB, rounded to what `#RRGGBB` stores, so the document matches its saved form.
-    init?(_ color: Color) {
-        guard let c = NSColor(color).usingColorSpace(.sRGB),
-            let hex = HexColor(hex: HexColor(red: c.redComponent, green: c.greenComponent, blue: c.blueComponent).hex)
-        else { return nil }
-        self = hex
     }
 }

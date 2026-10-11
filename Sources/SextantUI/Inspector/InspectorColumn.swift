@@ -8,10 +8,12 @@ struct InspectorColumn: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 if let session = model.session {
-                    if let index = session.selection.keyIndex {
+                    if model.lens == .lighting {
+                        LightingInspector(model: model, session: session)
+                    } else if let index = session.selection.keyIndex {
                         KeyInspector(model: model, session: session, index: index)
                     } else {
-                        LayerInspector(session: session)
+                        LayerInspector(model: model, session: session)
                     }
                 } else {
                     Text("No layout open").foregroundStyle(.secondary)
