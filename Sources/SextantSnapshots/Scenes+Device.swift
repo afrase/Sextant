@@ -219,7 +219,7 @@ private final class SceneToolchain: Toolchain {
     }
 
     func status() async -> ToolchainStatus {
-        setup == nil ? .ready("scene") : .needsSetup("Building firmware needs a one-time download of the build tools (about 190 MB).")
+        setup == nil ? .ready("scene") : .needsSetup("Building firmware needs a one-time download of the build tools (about 199 MB).")
     }
 
     func setUp() -> AsyncStream<SetupEvent> {

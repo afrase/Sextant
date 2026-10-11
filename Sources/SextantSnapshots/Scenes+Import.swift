@@ -41,7 +41,7 @@ extension Scenes {
         }
 
         // Settings panes (spec §8.9).
-        let setup = ToolchainStatus.needsSetup("Building firmware needs a one-time download of the build tools (about 190 MB).")
+        let setup = ToolchainStatus.needsSetup("Building firmware needs a one-time download of the build tools (about 199 MB).")
         let status: BuildToolsStatus = { setup }
         scenes += SnapshotScene.pair("settings-general", size: CGSize(width: 520, height: 230), chrome: .window(title: "General")) {
             GeneralSettings()

@@ -158,21 +158,29 @@ public enum ToolchainPins {
     ]
 
     /// The fork and the submodules a Voyager build reads, as GitHub archives at their pinned commits.
-    /// shortcut: sizes and hashes are filled in at the first approved download; until then setup refuses to run.
+    /// GitHub keeps archive checksums stable (its 2023 commitment); if one ever changes, setup fails closed.
     static let firmware: [Artifact] = [
-        archive("zsa/qmk_firmware", firmwareCommit, size: 0, sha256: "", [Unpack(into: "qmk_firmware")]),
+        archive(
+            "zsa/qmk_firmware", firmwareCommit, size: 1_808_982, sha256: "74b3ebe3461be0fcbc61bb2050a0618d476e2a7f114cde062bbaa13c9c4fde2c",
+            [Unpack(into: "qmk_firmware")]),
         // ChibiOS without other vendors' headers (306 MB of its 368 MB), demos and tests.
         archive(
-            "qmk/ChibiOS", chibiosCommit, size: 0, sha256: "",
+            "qmk/ChibiOS", chibiosCommit, size: 49_495_228, sha256: "b54ee9518c77f3d2f305f53f32fab530d093e5e2207e26ecb859dab063b79fee",
             [
                 Unpack(into: "qmk_firmware/lib/chibios", include: ["*/os/*"], exclude: ["*/os/common/ext/*"]),
                 Unpack(
                     into: "qmk_firmware/lib/chibios", include: ["*/os/common/ext/ARM/CMSIS/Core/*", "*/os/common/ext/ST/STM32F3xx/*"]),
             ]),
         // The ChibiOS USB stack borrows LUFA's USB class headers.
-        archive("qmk/lufa", lufaCommit, size: 0, sha256: "", [Unpack(into: "qmk_firmware/lib/lufa", include: ["*/LUFA/*"])]),
-        archive("qmk/printf", printfCommit, size: 0, sha256: "", [Unpack(into: "qmk_firmware/lib/printf")]),
-        archive("zsa/qmk_modules", modulesCommit, size: 0, sha256: "", [Unpack(into: "qmk_firmware/modules/zsa")]),
+        archive(
+            "qmk/lufa", lufaCommit, size: 5_104_273, sha256: "01a62a2258dc4fe574290ce5ccc3f947d4e101141a228cc927ae28e58a7bec23",
+            [Unpack(into: "qmk_firmware/lib/lufa", include: ["*/LUFA/*"])]),
+        archive(
+            "qmk/printf", printfCommit, size: 173_154, sha256: "2fabf2d86b4118ab52f6f0d2e5fd6b20bb7a1c2f67f56e2d463753d6cd2bda42",
+            [Unpack(into: "qmk_firmware/lib/printf")]),
+        archive(
+            "zsa/qmk_modules", modulesCommit, size: 44011, sha256: "27ee746393cb4cd30dc30ac0a816d5ac7cba766aeac25710f47083c7d8e1479c",
+            [Unpack(into: "qmk_firmware/modules/zsa")]),
     ]
 
     private static func url(_ string: String) -> URL {
