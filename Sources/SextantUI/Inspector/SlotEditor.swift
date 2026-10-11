@@ -103,7 +103,7 @@ struct SlotEditor: View {
         }
     }
 
-    private func setChord(_ modifiers: Modifiers) { session.setModifiers(modifiers, slot: slot) }
+    private func setChord(_ modifiers: Modifiers) { session.setChord(modifiers, slot: slot) }
 
     // MARK: Hold and Tap then hold
 
@@ -114,6 +114,11 @@ struct SlotEditor: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
+        // Small, as the lens picker. The frame keeps its width from widening the inspector and moving the board.
+        // shortcut: the four equal segments are ~6 pt wider than 248 pt and overhang the padding by ~3 pt a side; mini
+        // fits but its 9 pt labels are hard to read.
+        .controlSize(.small)
+        .frame(minWidth: 0, maxWidth: .infinity)
         switch (mode, action) {
         case let (.modifier, action?):
             let held = action.heldModifiers
@@ -176,7 +181,9 @@ struct SlotEditor: View {
         let legend = Legends.legend(for: action, layerNames: session.layout.layerNames)
         return LabeledContent("Keycode") {
             VStack(alignment: .leading, spacing: 6) {
-                Button(action: model.openKeycodePicker) {
+                Button {
+                    model.openKeycodePicker()
+                } label: {
                     HStack(spacing: 8) {
                         CapLegendView(action: legend, u: 32)
                             .frame(width: 32, height: 32)
@@ -201,7 +208,7 @@ struct SlotEditor: View {
                 .accessibilityLabel(String(localized: "Keycode: \(legend.name), \(legend.qmk)"))
                 .accessibilityHint(Text("Opens the keycode picker."))
                 HStack {
-                    Button("Change…", action: model.openKeycodePicker)
+                    Button("Change…") { model.openKeycodePicker() }
                     Button("Clear") { session.setAction(nil, slot: slot) }
                 }
             }
@@ -210,7 +217,9 @@ struct SlotEditor: View {
 
     /// A dashed tile for an empty slot; clicking it opens the keycode picker.
     private func emptyTile(_ title: String, hint: String) -> some View {
-        Button(action: model.openKeycodePicker) {
+        Button {
+            model.openKeycodePicker()
+        } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Label(title, systemImage: "plus")
                 Text(hint).font(.caption).foregroundStyle(.secondary)
@@ -271,7 +280,6 @@ private struct LayerRows: View {
                 }
             }
             .labelsHidden()
-            .fixedSize()
         }
         if let target = action.layer, let warning = KeyText.layerWarning(code: code, target: target, own: layer, layout: session.layout) {
             Label {

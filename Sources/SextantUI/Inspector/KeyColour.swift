@@ -6,6 +6,7 @@ import SwiftUI
 /// The key's own LED colour on its layer (spec §5.1): a stock colour well, and No Colour to fall back to the layer's.
 /// The colour panel reports every step of a drag, so a pick settles for a moment before it becomes one undo step.
 struct KeyColourRow: View {
+    var model: LayoutWindowModel
     var session: EditSession
     let layerID: String
     let index: Int
@@ -43,7 +44,8 @@ struct KeyColourRow: View {
     private var layer: Int? { session.layout.layers.firstIndex { $0.id == layerID } }
 
     private func commit() {
-        guard let pending, let layer else { return }
+        // Not onto a session the window has already let go.
+        guard model.session === session, let pending, let layer else { return }
         self.pending = nil
         if pending != stored { session.setColor(pending, layer: layer, index: index) }
     }

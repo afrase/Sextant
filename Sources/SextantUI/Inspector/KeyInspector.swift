@@ -30,9 +30,10 @@ struct KeyInspector: View {
             Text("Key").font(.headline)
             // Keyed by the key they edit, so a commit as the selection moves lands on the key it was typed for.
             Group {
-                KeyLabelField(session: session, layerID: layerID, index: index, stored: own.customLabel ?? "")
+                KeyLabelField(model: model, session: session, layerID: layerID, index: index, stored: own.customLabel ?? "")
                 KeyColourRow(
-                    session: session, layerID: layerID, index: index, stored: own.glowColor, layerColor: layout.layers[safe: layer]?.color)
+                    model: model, session: session, layerID: layerID, index: index, stored: own.glowColor,
+                    layerColor: layout.layers[safe: layer]?.color)
             }
             .id("\(layerID)/\(index)")
             Divider()
@@ -150,6 +151,7 @@ struct KeyInspector: View {
 /// The custom label (spec §5.1): up to 10 characters, committed on Return or when focus leaves, never per keystroke.
 /// It finds its layer by id when it commits, so a layer moved or deleted meanwhile can't redirect the edit.
 struct KeyLabelField: View {
+    var model: LayoutWindowModel
     var session: EditSession
     let layerID: String
     let index: Int
@@ -157,7 +159,8 @@ struct KeyLabelField: View {
     @State private var draft: String
     @FocusState private var focused: Bool
 
-    init(session: EditSession, layerID: String, index: Int, stored: String) {
+    init(model: LayoutWindowModel, session: EditSession, layerID: String, index: Int, stored: String) {
+        self.model = model
         self.session = session
         self.layerID = layerID
         self.index = index
@@ -168,8 +171,10 @@ struct KeyLabelField: View {
     var body: some View {
         LabeledContent("Label") {
             VStack(alignment: .leading, spacing: 4) {
-                TextField("Label", text: $draft, prompt: Text("Shows the keycode"))
+                TextField("Label", text: $draft, prompt: Text("None — shows the keycode"))
                     .labelsHidden()
+                    // The spec's placeholder fits the 156 pt field only at small size.
+                    .controlSize(.small)
                     .focused($focused)
                     .onSubmit(commit)
                     .onChange(of: draft) { if draft.count > 10 { draft = String(draft.prefix(10)) } }
@@ -179,13 +184,23 @@ struct KeyLabelField: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .onChange(of: focused) { if !focused { commit() } }
-        .onChange(of: stored) { if !focused { draft = stored } }
-        .onDisappear(perform: commit)
+        .onChange(of: focused) {
+            model.isEditingKeyLabel = focused
+            if !focused { commit() }
+        }
+        // Its own commit or an undo, redo or menu edit: either way the stored label wins.
+        .onChange(of: stored) { draft = stored }
+        .onDisappear {
+            model.isEditingKeyLabel = false
+            commit()
+        }
     }
 
     private func commit() {
-        guard draft != stored, let layer = session.layout.layers.firstIndex(where: { $0.id == layerID }) else { return }
+        // Not onto a session the window has already let go.
+        guard model.session === session, draft != stored, let layer = session.layout.layers.firstIndex(where: { $0.id == layerID }) else {
+            return
+        }
         session.setLabel(draft, layer: layer, index: index)
     }
 }

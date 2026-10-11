@@ -12,23 +12,31 @@ extension View {
     }
 }
 
+extension EnvironmentValues {
+    /// Whether a drag on the board swaps keys. Only the Keys lens turns it on: a drag in another lens (a Lighting
+    /// paint stroke) must never move keys.
+    @Entry var swapsKeys = false
+}
+
 private struct KeySwapGesture: ViewModifier {
     var session: EditSession
     var board: BoardLayout
-    @State private var drag: (from: CGPoint, to: CGPoint)?
+    @Environment(\.swapsKeys) private var swapsKeys
+    /// Resets when the drag ends or is cancelled (a lens switch mid-drag), so the guide can't linger.
+    @GestureState private var drag: (from: CGPoint, to: CGPoint)?
 
     func body(content: Content) -> some View {
         content
             // Simultaneous, so a click still selects; a drag only starts once the pointer moves.
             .simultaneousGesture(
                 DragGesture(minimumDistance: 6)
-                    .onChanged { drag = ($0.startLocation, $0.location) }
+                    .updating($drag) { value, drag, _ in drag = (value.startLocation, value.location) }
                     .onEnded { value in
-                        drag = nil
                         // Reading the modifier state at the drop needs no event monitor.
                         let copy = NSEvent.modifierFlags.contains(.option)
                         session.dragKey(from: value.startLocation, to: value.location, on: board, copy: copy)
-                    }
+                    },
+                isEnabled: swapsKeys
             )
             .overlay(alignment: .topLeading) {
                 if let drag, let source = board.keyIndex(at: drag.from).map(board.frame) {

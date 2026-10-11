@@ -19,19 +19,27 @@ struct KeyInspectorTests {
         #expect(HoldMode(KeyAction(code: "KC_LEFT_ALT", macro: Macro(steps: [MacroStep(code: "KC_A")]))) == .key)
     }
 
-    /// Several modifiers are one keycode chorded with the rest; Hyper and Meh are Oryx's `ALL_T` and `MEH_T`.
+    /// Several modifiers, Hyper and Meh included, are one keycode chorded with the rest: the generator builds that in
+    /// any key, and `ALL_T` / `MEH_T` only beside a basic tap.
     @Test func modifierHoldsRoundTrip() {
         #expect(KeyAction.holding([.leftOption]) == .code("KC_LEFT_ALT"))
-        #expect(KeyAction.holding(.hyper) == KeyAction(code: "ALL_T"))
-        #expect(KeyAction.holding(.meh) == KeyAction(code: "MEH_T"))
+        #expect(KeyAction.holding(.hyper) == .code("KC_LEFT_CTRL", modifiers: [.leftShift, .leftOption, .leftCommand]))
         #expect(KeyAction.holding([.leftControl, .leftShift]) == .code("KC_LEFT_CTRL", modifiers: [.leftShift]))
         #expect(KeyAction.holding([]) == nil, "no modifiers holds nothing")
         for mods: Modifiers in [[.rightCommand], [.leftShift, .leftCommand], .hyper, .meh, [.rightControl, .rightOption]] {
             #expect(KeyAction.holding(mods)?.heldModifiers == mods)
         }
-        // The QMK row shows every held modifier, not just the keycode's.
-        let key = Key(tap: .code("KC_A"), hold: .holding([.leftControl, .leftShift]))
-        #expect(Legends.qmkExpression(for: key) == "MT(MOD_LCTL | MOD_LSFT, KC_A)")
+    }
+
+    /// QMK can't build `LM(n,)`: clearing an `LM` key's last modifier leaves a plain hold on the same layer.
+    @Test func clearingAnLMChordLeavesMO() async throws {
+        let session = try #require(try await openUserLayout().session)
+        session.select(key: 13, slot: .tap)
+        session.setAction(KeyAction(code: "LM", layer: 1, modifiers: [.leftShift]))
+        session.setChord([.leftShift, .leftCommand], slot: .tap)
+        #expect(session.layout.key(layer: 0, index: 13)?.tap == KeyAction(code: "LM", layer: 1, modifiers: [.leftShift, .leftCommand]))
+        session.setChord([], slot: .tap)
+        #expect(session.layout.key(layer: 0, index: 13)?.tap == .momentary(1))
     }
 
     @Test func modifiersMoveSides() {

@@ -1,3 +1,4 @@
+import SextantApplication
 import SextantDomain
 
 /// What a Hold or Tap then hold slot holds (spec §5.2): the segmented control's choices.
@@ -32,11 +33,11 @@ extension KeyAction {
     /// The modifiers a modifier hold presses: its keycode's, plus any chorded with it (⌃⇧ is `KC_LEFT_CTRL` + Shift).
     var heldModifiers: Modifiers { (KeycodeCatalog.modifier(forCode: code) ?? []).union(modifiers) }
 
-    /// A hold that presses `modifiers`, or nil for none. Hyper and Meh use Oryx's `ALL_T` / `MEH_T`; any other set is
-    /// its first modifier's keycode chorded with the rest, which the generator builds as a dual-function key.
+    /// A hold that presses `modifiers`, or nil for none: its first modifier's keycode chorded with the rest, which the
+    /// generator builds as a dual-function key.
+    /// shortcut: Hyper and Meh are chorded too, not Oryx's `ALL_T` / `MEH_T`, which the generator can't build beside a
+    /// non-basic tap or in a tap dance; use them once `QMKCodes.statements` handles them.
     static func holding(_ modifiers: Modifiers) -> KeyAction? {
-        if modifiers == .hyper { return KeyAction(code: "ALL_T") }
-        if modifiers == .meh { return KeyAction(code: "MEH_T") }
         let codes: [(Modifiers, String)] = [
             (.leftControl, "KC_LEFT_CTRL"), (.leftShift, "KC_LEFT_SHIFT"), (.leftOption, "KC_LEFT_ALT"), (.leftCommand, "KC_LEFT_GUI"),
             (.rightControl, "KC_RIGHT_CTRL"), (.rightShift, "KC_RIGHT_SHIFT"), (.rightOption, "KC_RIGHT_ALT"),
@@ -44,6 +45,22 @@ extension KeyAction {
         ]
         guard let (first, code) = codes.first(where: { modifiers.contains($0.0) }) else { return nil }
         return KeyAction(code: code, modifiers: modifiers.subtracting(first))
+    }
+}
+
+extension EditSession {
+    /// Sets the chord on a slot of the selected key. QMK can't build `LM(n,)`, so an `LM` key left with no modifiers
+    /// becomes `MO` on the same layer.
+    func setChord(_ modifiers: Modifiers, slot: KeySlot) {
+        if modifiers.isEmpty, let index = selection.keyIndex, var action = layout.key(layer: selection.layer, index: index)?[slot],
+            action.canonicalCode == "LM"
+        {
+            action.code = "MO"
+            action.modifiers = []
+            setAction(action, slot: slot)
+        } else {
+            setModifiers(modifiers, slot: slot)
+        }
     }
 }
 

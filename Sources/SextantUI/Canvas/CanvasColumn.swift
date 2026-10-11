@@ -20,7 +20,9 @@ struct CanvasColumn: View {
             LensLane(model: model).frame(height: 36)
             BoardView(
                 session: session, mode: model.legendMode, issues: model.issueMap, pressed: model.pressedKeys,
-                highlightedKind: model.highlightedKind, showsGrid: showsGrid)
+                highlightedKind: model.highlightedKind, showsGrid: showsGrid
+            )
+            .environment(\.swapsKeys, model.lens == .keys)
             ContextStrip(model: model, session: session).frame(height: 76)
             BoardFooter(model: model).frame(height: 32)
         }
