@@ -280,11 +280,11 @@ public final class EditSession {
         edit(String(localized: "Rename Layout")) { $0.title = t }
     }
 
-    /// Sets a firmware setting; values equal to the default are removed (Oryx stores config sparsely).
+    /// Sets a firmware setting, sparsely as Oryx stores config (``KeyboardLayout/store(_:for:)``): nil or the unset
+    /// value removes it, and Navigator settings go to the Navigator's options. Ids outside the catalog are ignored.
     public func setSetting(_ id: String, to value: SettingValue?, catalog: SettingsCatalog = .voyager) {
-        edit(String(localized: "Change Setting")) { doc in
-            if let value, value != catalog.setting(id: id)?.defaultValue { doc.settings[id] = value } else { doc.settings[id] = nil }
-        }
+        guard let setting = catalog.setting(id: id) else { return }
+        edit(String(localized: "Change Setting")) { $0.store(value, for: setting) }
     }
 
     // MARK: Import
