@@ -7,10 +7,10 @@ public struct LayoutWindow: View {
     @State private var model: LayoutWindowModel
     @Binding private var layoutID: UUID?
     @Environment(\.undoManager) private var undoManager
-    @State private var showInspector = true
+    @State private var windowWidth: CGFloat = 1440
 
-    public init(library: Library, layoutID: Binding<UUID?>) {
-        self.init(model: LayoutWindowModel(library: library), layoutID: layoutID)
+    public init(library: Library, layoutID: Binding<UUID?>, onBuild: BuildHandler? = nil) {
+        self.init(model: LayoutWindowModel(library: library, onBuild: onBuild), layoutID: layoutID)
     }
 
     /// A window over an existing model (snapshots preload it so rendering doesn't race the load).
@@ -20,41 +20,61 @@ public struct LayoutWindow: View {
     }
 
     public var body: some View {
-        NavigationSplitView {
+        @Bindable var model = model
+        // Honest minimums (spec §3.2): 640 for the centre plus each visible column's minimum, and 640 tall with the
+        // ≈52 pt toolbar. The minimum goes on the window, not the detail: on macOS 26 a detail `minWidth` counts the
+        // sidebar twice. Column ideals equal their minimums so the centre gets its 640 at the smallest window.
+        NavigationSplitView(columnVisibility: $model.columnVisibility) {
             Sidebar(model: model, layoutID: $layoutID)
-                .navigationSplitViewColumnWidth(min: 200, ideal: 228, max: 300)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 200, max: 300)
         } detail: {
-            Group {
-                if let session = model.session {
-                    CanvasColumn(session: session, legendMode: model.legendMode)
-                        .navigationTitle(session.layout.title)
-                        .navigationSubtitle(session.currentLayer?.title ?? "")
-                } else if let error = model.loadError {
-                    ContentUnavailableView(
-                        String(localized: "Couldn't open this layout"), systemImage: "exclamationmark.triangle",
-                        description: Text(error.localizedDescription))
-                } else {
-                    ContentUnavailableView(
-                        String(localized: "Bring your layout to Sextant"), systemImage: "keyboard",
-                        description: Text("Import a layout from Oryx to get started."))
+            detail
+                .inspector(isPresented: $model.showsInspector) {
+                    InspectorSummary(model: model)
+                        .inspectorColumnWidth(min: 280, ideal: 280, max: 360)
                 }
-            }
-            .frame(minWidth: 640)
-            .inspector(isPresented: $showInspector) {
-                Text("Select a key to edit it.")
-                    .foregroundStyle(.secondary)
-                    .inspectorColumnWidth(min: 280, ideal: 300, max: 360)
-            }
+                .toolbar(id: "layout") { WindowToolbar(model: model, windowWidth: windowWidth) }
+        }
+        .frame(minWidth: model.minimumWidth, minHeight: 640 - 52)
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { windowWidth = $0 })
+        .focusedSceneValue(model)
+        .alert(
+            Text("Delete this layer?"),
+            isPresented: Binding(get: { model.layerPendingDeletion != nil }, set: { _ in model.layerPendingDeletion = nil }),
+            presenting: model.layerPendingDeletion
+        ) { layer in
+            Button("Delete and Clear References", role: .destructive) { model.session?.deleteLayer(layer) }
+            Button("Cancel", role: .cancel) {}
+        } message: { layer in
+            Text(model.deletionMessage(for: layer))
         }
         .task(id: layoutID) {
             let opened = await model.open(layoutID)
             if let opened, opened != layoutID { layoutID = opened }
         }
+        // Closing the window ends its layout's Build & Flash too (see LayoutWindowModel.open).
+        .onDisappear { model.build(.stop) }
         .onChange(of: model.session?.id, initial: true) { model.session?.undoManager = undoManager }
         .onChange(of: model.library.entries.first?.id) {
             // A layout arrived while this window had none open (first import): open it.
             guard model.session == nil else { return }
             Task { await model.open(layoutID) }
+        }
+    }
+
+    @ViewBuilder private var detail: some View {
+        if let session = model.session {
+            CanvasColumn(model: model, session: session)
+                .navigationTitle(session.layout.title)
+                .navigationSubtitle(model.subtitle)
+        } else if let error = model.loadError {
+            ContentUnavailableView(
+                String(localized: "Couldn't open this layout"), systemImage: "exclamationmark.triangle",
+                description: Text(error.localizedDescription))
+        } else {
+            ContentUnavailableView(
+                String(localized: "Bring your layout to Sextant"), systemImage: "keyboard",
+                description: Text("Import a layout from Oryx to get started."))
         }
     }
 }
@@ -64,98 +84,142 @@ private struct Sidebar: View {
     @Binding var layoutID: UUID?
 
     var body: some View {
-        List {
+        List(selection: layerSelection) {
             Section("Layouts") {
                 ForEach(model.library.entries) { entry in
                     Button {
                         layoutID = entry.id
                     } label: {
-                        Label(entry.title, systemImage: "keyboard")
+                        Label(entry.title, systemImage: entry.id == model.session?.id ? "keyboard.fill" : "keyboard")
+                            .fontWeight(entry.id == model.session?.id ? .semibold : .regular)
                     }
                     .buttonStyle(.plain)
-                    .listRowBackground(entry.id == model.session?.id ? Color.accentColor.opacity(0.15) : nil)
+                    .accessibilityAddTraits(entry.id == model.session?.id ? .isSelected : [])
                 }
             }
             if let session = model.session {
                 Section("Layers") {
                     ForEach(Array(session.layout.layers.enumerated()), id: \.element.id) { index, layer in
-                        Button {
-                            session.select(layer: index)
-                        } label: {
-                            LayerRow(index: index, layer: layer, isSelected: session.selection.layer == index)
-                        }
-                        .buttonStyle(.plain)
+                        LayerRow(index: index, layer: layer)
+                            .tag(index)
+                            .contextMenu {
+                                Button("Duplicate") { session.duplicateLayer(index) }
+                                Button("Move Up") { session.moveLayer(from: index, to: index - 1) }.disabled(index == 0)
+                                Button("Move Down") { session.moveLayer(from: index, to: index + 1) }
+                                    .disabled(index == session.layout.layers.count - 1)
+                                Divider()
+                                Button("Delete Layer…") {
+                                    session.select(layer: index)
+                                    model.requestDeleteLayer()
+                                }
+                                .disabled(!model.canDeleteLayer)
+                            }
                     }
+                    Button {
+                        session.addLayer()
+                    } label: {
+                        Label("Add Layer", systemImage: "plus")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
                 }
             }
         }
         .listStyle(.sidebar)
+    }
+
+    /// The shown layer is the sidebar's selection; layouts are opened with their buttons.
+    private var layerSelection: Binding<Int?> {
+        Binding(get: { model.session?.selection.layer }, set: { if let layer = $0 { model.session?.select(layer: layer) } })
     }
 }
 
 private struct LayerRow: View {
     var index: Int
     var layer: Layer
-    var isSelected: Bool
 
     var body: some View {
         HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .fill(layer.color?.color ?? Tokens.neutralChip.color)
-                .frame(width: 10, height: 10)
+            LayerChip(color: layer.color, size: 10)
             Text(verbatim: "\(index)").monospacedDigit().foregroundStyle(.secondary)
             Text(layer.title)
-            Spacer()
-            Text(verbatim: "\(layer.keys.filter { !$0.isTransparent }.count)").monospacedDigit().foregroundStyle(.secondary)
         }
-        .fontWeight(isSelected ? .semibold : .regular)
+        .badge(layer.keys.filter { !$0.isTransparent }.count)
         .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityLabel(String(localized: "Layer \(index), \(layer.title)"))
     }
 }
 
-/// The centre column's fixed bands (spec §3.3). Only the board area flexes.
-private struct CanvasColumn: View {
-    var session: EditSession
-    var legendMode: LegendMode
+/// A layer's colour chip: a small rounded square, neutral on layers without a colour (spec §3.6).
+struct LayerChip: View {
+    var color: HexColor?
+    var size: CGFloat
 
     var body: some View {
-        VStack(spacing: 0) {
-            header.frame(height: 44)
-            Color.clear.frame(height: 36)  // lens lane
-            BoardView(
-                layout: session.layout, layer: session.selection.layer, selectedKey: session.selection.keyIndex, mode: legendMode,
-                onSelect: { session.select(key: $0) }
-            )
-            Color.clear.frame(height: 76)  // context strip
-            Color.clear.frame(height: 32)  // board footer
-        }
-        .background(Bench())
-    }
-
-    private var header: some View {
-        HStack {
-            Text(readout).font(.callout).foregroundStyle(.secondary)
-            Spacer()
-        }
-        .padding(.horizontal, 20)
-    }
-
-    private var readout: String {
-        let l = session.selection.layer
-        if l == 0 { return String(localized: "Layer 0 · base · \(session.layout.keyCount) keys") }
-        let own = session.currentLayer?.keys.filter { !$0.isTransparent }.count ?? 0
-        return String(localized: "Layer \(l) · \(own) own · \(session.layout.keyCount - own) inherited")
+        RoundedRectangle(cornerRadius: size * 0.3, style: .continuous)
+            .fill(color.map { LayerTones($0).display.color } ?? Tokens.neutralChip.color)
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
     }
 }
 
-/// The content surface behind the board: base colour with a soft radial lift (spec §4.10). Never glass.
-struct Bench: View {
+/// The inspector until the key editor exists (spec §3.8, §5.1): the selected key, or a summary of the layer.
+/// shortcut: read-only; the key editor (step 4) and layer actions (step 6) replace it.
+private struct InspectorSummary: View {
+    var model: LayoutWindowModel
+
     var body: some View {
-        ZStack {
-            Tokens.benchBase.color
-            RadialGradient(
-                colors: [Tokens.benchLift.color, Tokens.benchBase.color], center: .init(x: 0.5, y: 0.46), startRadius: 0, endRadius: 700)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                if let session = model.session {
+                    if let index = session.selection.keyIndex {
+                        keySummary(session, index: index)
+                    } else {
+                        layerSummary(session)
+                    }
+                } else {
+                    Text("No layout open").foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+        }
+    }
+
+    @ViewBuilder private func keySummary(_ session: EditSession, index: Int) -> some View {
+        let layer = session.selection.layer
+        let model = KeyCapModel(layout: session.layout, layer: layer, index: index)
+        KeyCap(model: model, u: 52).frame(width: 52, height: 52)
+        Text(model.legend.legend.primary?.name ?? String(localized: "Key \(index)")).font(.title3.weight(.semibold))
+        Text(model.legend.ownKind.title).font(.callout).foregroundStyle(.secondary)
+        if session.geometry.keys.indices.contains(index) {
+            Text(verbatim: "\(KeyText.position(session.geometry.key(index), in: session.geometry)) · \(String(localized: "key \(index)"))")
+                .font(.callout).foregroundStyle(.secondary)
+        }
+        if let key = session.layout.key(layer: layer, index: index) {
+            Text(Legends.qmkExpression(for: key)).font(.callout.monospaced()).textSelection(.enabled)
+        }
+    }
+
+    @ViewBuilder private func layerSummary(_ session: EditSession) -> some View {
+        let index = session.selection.layer
+        if let layer = session.currentLayer {
+            HStack(spacing: 8) {
+                LayerChip(color: layer.color, size: 12)
+                Text(layer.title).font(.title3.weight(.semibold))
+            }
+            Text(String(localized: "Layer \(index) · \(layer.color?.hex ?? String(localized: "No colour"))"))
+                .font(.callout).foregroundStyle(.secondary)
+            if let activator = KeyText.activator(layout: session.layout, layer: index) {
+                let source = session.layout.layers[safe: activator.layer]?.title ?? ""
+                let text = String(localized: "\(activator.text) on \(source)")
+                Text(text.prefix(1).uppercased() + text.dropFirst()).font(.callout).foregroundStyle(.secondary)
+            }
+            Divider()
+            let counts = Dictionary(grouping: layer.keys, by: \.kind).mapValues(\.count)
+            ForEach(KeyKind.allCases.filter { counts[$0] != nil }, id: \.self) { kind in
+                LabeledContent(kind.title) { Text(verbatim: "\(counts[kind] ?? 0)").monospacedDigit() }
+            }
         }
     }
 }

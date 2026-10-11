@@ -106,6 +106,20 @@ struct EditSessionTests {
         #expect(session.saveError == nil)
     }
 
+    /// "Edited" survives reopening: it comes from the stored working copy against its last revision.
+    @Test func editedSinceRevisionSurvivesReopening() async throws {
+        let library = Library(store: store)
+        let entry = try await library.importOryxJSON(Fixtures.userLayoutData)
+        #expect(try await library.open(entry.id).isEditedSinceRevision == false)
+        var edited = try await store.load(entry.id).layout
+        edited.updateKey(layer: 0, index: 1) { $0 = Key("KC_Q") }
+        try await store.save(edited, to: entry.id)
+        let reopened = try await library.open(entry.id)
+        #expect(reopened.isEditedSinceRevision, "an autosaved edit from an earlier session still reads as edited")
+        try await reopened.saveRevision(source: .save, message: nil)
+        #expect(!reopened.isEditedSinceRevision)
+    }
+
     @Test func savesRevisions() async throws {
         let (session, _) = try await open()
         let summary = try await session.saveRevision(source: .save, message: "Tweak")

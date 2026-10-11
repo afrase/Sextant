@@ -1,27 +1,40 @@
+import AppKit
+import SextantApplication
 import SextantDomain
 import SwiftUI
 
-/// The keyboard for one layer, fitted into whatever space it gets (spec §3.3, §4).
+/// The keyboard for the session's current layer, fitted into whatever space it gets (spec §3.3, §4).
 ///
-/// The frame is a pure function of the available size, so nothing outside the board area can move it.
+/// The frame is a pure function of the available size and the layout's board (ADR 0017), so nothing outside
+/// the board area can move it. The board is one tab stop: arrows move the selection, ⇥ / ⇧⇥ change slot,
+/// ⌫ makes the key transparent and esc deselects (§9.2).
 public struct BoardView: View {
-    var layout: KeyboardLayout
-    var layer: Int
-    var selectedKey: Int?
+    var session: EditSession
     var mode: LegendMode
+    /// Live and build issues; keys on the shown layer get a ring and a badge.
+    var issues: [KeyRef: LayoutIssue.Severity]
+    var pressed: PressedKeys?
+    /// The kind the footer's kind key points at; every other kind dims.
+    var highlightedKind: KeyKind?
+    var showsGrid: Bool
     var capRange: ClosedRange<CGFloat>
-    var onSelect: ((Int) -> Void)?
+
+    @FocusState private var isFocused: Bool
+    @Namespace private var rotors
+    @Environment(\.motion) private var motion
+    @Environment(\.colorSchemeContrast) private var contrast
 
     public init(
-        layout: KeyboardLayout, layer: Int, selectedKey: Int? = nil, mode: LegendMode = .symbols,
-        capRange: ClosedRange<CGFloat> = 36...76, onSelect: ((Int) -> Void)? = nil
+        session: EditSession, mode: LegendMode = .symbols, issues: [KeyRef: LayoutIssue.Severity] = [:], pressed: PressedKeys? = nil,
+        highlightedKind: KeyKind? = nil, showsGrid: Bool = true, capRange: ClosedRange<CGFloat> = 36...76
     ) {
-        self.layout = layout
-        self.layer = layer
-        self.selectedKey = selectedKey
+        self.session = session
         self.mode = mode
+        self.issues = issues
+        self.pressed = pressed
+        self.highlightedKind = highlightedKind
+        self.showsGrid = showsGrid
         self.capRange = capRange
-        self.onSelect = onSelect
     }
 
     /// Cap side for a board area (spec §3.3). The spec's `pitch = min((W − 48) / 15, (H − 48) / 6.7)` uses the
@@ -32,47 +45,206 @@ public struct BoardView: View {
     }
 
     public var body: some View {
+        let layout = session.layout
+        let layer = session.selection.layer
+        let models = capModels()
         GeometryReader { proxy in
-            let geometry = (layout.board ?? .voyager).geometry(navigator: layout.navigator.map { $0.side == .left ? .left : .right })
+            let geometry = session.geometry
             let cap = Self.capSize(for: proxy.size, boardUnits: geometry.bounds.size, range: capRange)
             let board = geometry.layout(keySize: cap, spacing: cap * 0.11)
-            let models = capModels()
+            let center = CGPoint(x: proxy.size.width / 2, y: proxy.size.height * 0.46)
+            let origin = CGPoint(x: center.x - board.size.width / 2, y: center.y - board.size.height / 2)
             ZStack(alignment: .topLeading) {
-                if layout.navigator != nil, let nav = board.navigator {
-                    NavigatorDisc(diameter: nav.diameter, kind: layout.navigator?.kind)
-                        .position(nav.center)
-                }
-                BoardCanvas(layout: board) { frame in
-                    if let model = models[safe: frame.index] {
-                        KeyCap(model: model, u: cap)
-                            .equatable()
-                            .onTapGesture { onSelect?(frame.index) }
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel(model.accessibilityLabel)
-                            .accessibilityAddTraits(frame.index == selectedKey ? [.isButton, .isSelected] : .isButton)
+                BenchBackdrop(
+                    boardRect: CGRect(origin: origin, size: board.size), pitch: board.pitch,
+                    gridAnchor: gridAnchor(board, geometry, origin), wash: models.first?.layerTones, layer: layer, showsGrid: showsGrid)
+                keys(board, models: models, cap: cap)
+                    .frame(width: board.size.width, height: board.size.height)
+                    // The board draws its own focus ring (spec §11): the selection glow, or this outline before a key is chosen.
+                    .overlay {
+                        if isFocused && session.selection.keyIndex == nil {
+                            RoundedRectangle(cornerRadius: 0.3 * cap, style: .continuous)
+                                .strokeBorder(Color.accentColor.opacity(0.6), lineWidth: 2)
+                                .padding(-0.3 * cap)
+                                .allowsHitTesting(false)
+                        }
                     }
-                }
+                    .position(center)
             }
-            .frame(width: board.size.width, height: board.size.height)
-            .position(x: proxy.size.width / 2, y: proxy.size.height * 0.46)
         }
+        .focusable()
+        .focused($isFocused)
+        .focusEffectDisabled()
+        .onMoveCommand(perform: move)
+        .onKeyPress(keys: [.tab, Self.backTab], phases: .down) { press in
+            // ⌃⇥ / ⌃⇧⇥ leave the board, as they leave a text view.
+            press.modifiers.contains(.control) ? .ignored : cycleSlot(back: press.key == Self.backTab || press.modifiers.contains(.shift))
+        }
+        .onKeyPress(.delete) {
+            guard session.selection.keyIndex != nil else { return .ignored }
+            session.makeTransparent()
+            return .handled
+        }
+        // shortcut: ⏎ and typing open the keycode picker once it exists (spec step 5); until then they pass through.
+        .onExitCommand { session.select(key: nil) }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(String(localized: "Keyboard, \(layerName) layer, \(layout.keyCount) keys"))
+        .accessibilityLabel(
+            String(localized: "Keyboard, \(layout.layers[safe: layer]?.title ?? "") layer, \(layout.keyCount) keys")
+        )
+        .accessibilityRotor(Text("Layers")) {
+            // Each entry needs its own target, so entry n lands on key n of the layer it switches to.
+            ForEach(Array(layout.layers.prefix(layout.keyCount).enumerated()), id: \.offset) { index, item in
+                AccessibilityRotorEntry(Text(verbatim: item.title), id: index, in: rotors) { session.select(layer: index) }
+            }
+        }
+        .accessibilityRotor(Text("Key kinds")) {
+            ForEach(KeyKind.allCases.compactMap { kind in models.first { $0.legend.ownKind == kind } }, id: \.index) { model in
+                AccessibilityRotorEntry(Text(verbatim: model.legend.ownKind.title), id: model.index, in: rotors)
+            }
+        }
+        .accessibilityRotor(Text("Issues")) {
+            ForEach(models.filter { $0.issue != nil }, id: \.index) { model in
+                AccessibilityRotorEntry(Text(verbatim: KeyText.label(model.legend, index: model.index)), id: model.index, in: rotors)
+            }
+        }
     }
 
-    private var layerName: String { layout.layers.indices.contains(layer) ? layout.layers[layer].title : "" }
+    // MARK: Keys
+
+    private func keys(_ board: BoardLayout, models: [KeyCapModel], cap: CGFloat) -> some View {
+        let layout = session.layout
+        let layer = session.selection.layer
+        let order = Self.readingOrder(session.geometry)
+        return ZStack(alignment: .topLeading) {
+            if layout.navigator != nil, let nav = board.navigator {
+                NavigatorDisc(diameter: nav.diameter, kind: layout.navigator?.kind)
+                    .position(nav.center)
+            }
+            BoardCanvas(layout: board) { frame in
+                if let model = models[safe: frame.index] {
+                    let value = KeyText.value(model.legend, layout: layout, layer: layer, index: frame.index, geometry: session.geometry)
+                    BoardKey(model: model, u: cap, height: frame.size.height, press: pressed?.state(frame.index))
+                        .onTapGesture { select(frame.index) }
+                        .help(value)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(KeyText.label(model.legend, index: frame.index))
+                        .accessibilityValue(value)
+                        // shortcut: "Press Return to change." joins this hint when ⏎ opens the picker (spec step 5).
+                        .accessibilityHint(Text("Actions available."))
+                        .accessibilityAction { select(frame.index) }
+                        .accessibilityAddTraits(frame.index == session.selection.keyIndex ? [.isButton, .isSelected] : .isButton)
+                        .accessibilitySortPriority(order[safe: frame.index] ?? 0)
+                        .accessibilityRotorEntry(id: frame.index, in: rotors)
+                        .accessibilityActions { keyActions(model) }
+                }
+            }
+            selectionRing(board, cap: cap)
+        }
+        .animation(SextantMotion.layerChange, value: layer)
+    }
+
+    /// VoiceOver custom actions (spec §4.11). Change Tap, Change Hold and Record Key arrive with the picker.
+    @ViewBuilder private func keyActions(_ model: KeyCapModel) -> some View {
+        let index = model.index
+        if !model.isGhost { Button("Make Transparent") { session.makeTransparent(index: index) } }
+        if model.legend.ownKind != .disabled { Button("Disable") { session.disable(index: index) } }
+        if model.legend.isInherited { Button("Override on This Layer") { session.overrideInherited(index: index) } }
+        Button("Show on Other Layers") { session.select(key: index) }
+        Button("Copy QMK Expression") { session.copyQMKExpression(index: index) }
+    }
+
+    /// One ring that moves between keys, following their rotation (spec §4.7, §10.6).
+    @ViewBuilder private func selectionRing(_ board: BoardLayout, cap: CGFloat) -> some View {
+        if let index = session.selection.keyIndex, board.frames.indices.contains(index) {
+            let frame = board.frames[index]
+            let quiet = contrast == .increased || motion.reduceMotion
+            let width: CGFloat = contrast == .increased || (isFocused && quiet) ? 3 : 2
+            let outset = 2.5 + width
+            RoundedRectangle(cornerRadius: 0.16 * cap + outset, style: .continuous)
+                .strokeBorder(Color.accentColor, lineWidth: width)
+                .frame(width: frame.size.width + outset * 2, height: frame.size.height + outset * 2)
+                .shadow(color: isFocused && !quiet ? Color.accentColor.opacity(0.35) : .clear, radius: 4)
+                .rotationEffect(.degrees(frame.rotation))
+                .position(frame.center)
+                .animation(motion.selection, value: index)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+    }
 
     private func capModels() -> [KeyCapModel] {
-        let tones = layer > 0 ? layout.layers[safe: layer]?.color.map(LayerTones.init) : nil
-        var targetTones: [Int: LayerTones] = [:]
-        for (i, l) in layout.layers.enumerated() { if let c = l.color { targetTones[i] = LayerTones(c) } }
-        return (0..<layout.keyCount).map { index in
-            let legend = Legends.legend(layout: layout, layer: layer, index: index)
-            return KeyCapModel(
-                index: index, legend: legend, layerTones: tones,
-                holdTargetTones: legend.legend.secondary?.layer.flatMap { targetTones[$0] },
-                isSelected: index == selectedKey, mode: mode)
+        let layer = session.selection.layer
+        var severity: [Int: LayoutIssue.Severity] = [:]
+        for (ref, s) in issues where ref.layer == layer && severity[ref.index] != .error { severity[ref.index] = s }
+        return (0..<session.layout.keyCount).map { index in
+            var model = KeyCapModel(layout: session.layout, layer: layer, index: index, mode: mode, issue: severity[index])
+            model.isDimmed = highlightedKind.map { $0 != model.legend.ownKind } ?? false
+            return model
         }
+    }
+
+    /// VoiceOver reads the left half row by row, its thumbs, then the right half and its thumbs (spec §4.11).
+    nonisolated static func readingOrder(_ geometry: BoardGeometry) -> [Double] {
+        let keys = geometry.keys
+        let sorted = keys.sorted {
+            ($0.hand == .right ? 1 : 0, $0.cluster == .thumb ? 1 : 0, $0.row, $0.center.x)
+                < ($1.hand == .right ? 1 : 0, $1.cluster == .thumb ? 1 : 0, $1.row, $1.center.x)
+        }
+        var priority = Array(repeating: 0.0, count: keys.count)
+        for (rank, key) in sorted.enumerated() where priority.indices.contains(key.index) {
+            priority[key.index] = Double(keys.count - rank)
+        }
+        return priority
+    }
+
+    /// A point on the key-pitch grid, in board-area coordinates, so the bench grid lines up with the keys.
+    private func gridAnchor(_ board: BoardLayout, _ geometry: BoardGeometry, _ origin: CGPoint) -> CGPoint {
+        guard let frame = board.frames.first, let shape = geometry.keys.first else { return origin }
+        return CGPoint(
+            x: origin.x + frame.center.x - shape.center.x * board.pitch, y: origin.y + frame.center.y - shape.center.y * board.pitch)
+    }
+
+    // MARK: Keyboard
+
+    private static let backTab = KeyEquivalent("\u{19}")
+
+    private func select(_ index: Int) {
+        session.select(key: index)
+        isFocused = true
+    }
+
+    private func move(_ direction: MoveCommandDirection) {
+        switch direction {
+        case .left: session.moveSelection(.left)
+        case .right: session.moveSelection(.right)
+        case .up: session.moveSelection(.up)
+        case .down: session.moveSelection(.down)
+        @unknown default: break
+        }
+    }
+
+    private func cycleSlot(back: Bool) -> KeyPress.Result {
+        guard let key = session.selection.keyIndex else { return .ignored }
+        let slots = KeySlot.allCases
+        let current = slots.firstIndex(of: session.selection.slot) ?? 0
+        session.select(key: key, slot: slots[(current + (back ? slots.count - 1 : 1)) % slots.count])
+        return .handled
+    }
+}
+
+/// One cap on the board. Hover is local and the live press is read from this key's own state, so neither
+/// redraws the rest of the board (spec §13.3 item 6).
+private struct BoardKey: View {
+    var model: KeyCapModel
+    var u: CGFloat
+    var height: CGFloat
+    var press: PressedKeys.KeyState?
+    @State private var isHovered = false
+
+    var body: some View {
+        KeyCap(model: model, u: u, height: height, isPressed: press?.isDown ?? false, isHovered: isHovered)
+            .equatable()
+            .onHover { isHovered = $0 }
     }
 }
 
@@ -91,8 +263,17 @@ private struct NavigatorDisc: View {
                     .foregroundStyle(.tertiary)
             }
             .frame(width: diameter, height: diameter)
-            .help(String(localized: "Navigator · settings in Firmware Settings › Navigator"))
+            .help(String(localized: "Navigator trackpad · settings in Firmware Settings › Navigator"))
             .accessibilityHidden(true)
+    }
+}
+
+extension EditSession {
+    /// Copies the key's own QMK expression (`LT(1, KC_ENTER)`, `KC_TRNS`) to the pasteboard (⌥⇧⌘C).
+    func copyQMKExpression(index: Int? = nil) {
+        guard let i = index ?? selection.keyIndex, let key = layout.key(layer: selection.layer, index: i) else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(Legends.qmkExpression(for: key), forType: .string)
     }
 }
 
