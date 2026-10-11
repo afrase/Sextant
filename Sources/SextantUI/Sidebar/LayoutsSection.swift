@@ -7,7 +7,6 @@ struct LayoutsSection: View {
     var model: LayoutWindowModel
     @Binding var layoutID: UUID?
     @Environment(\.openWindow) private var openWindow
-    @State private var pendingTrash: UUID?
 
     var body: some View {
         Section("Layouts") {
@@ -27,16 +26,7 @@ struct LayoutsSection: View {
                     Button("Rename…") { model.layoutPendingRename = entry.id }
                     Button("Duplicate") { Task { await model.library.duplicate(entry.id) } }
                     Divider()
-                    // A layout open in another window is closed there first; this window can't end that session.
-                    Button("Move to Trash…") { pendingTrash = entry.id }.disabled(!model.canTrash(entry.id))
-                }
-                .confirmationDialog(
-                    Text("Move “\(model.title(of: entry.id))” to the Trash?"),
-                    isPresented: Binding(get: { pendingTrash == entry.id }, set: { if !$0 { pendingTrash = nil } })
-                ) {
-                    Button("Move to Trash", role: .destructive) { Task { await trash(entry.id) } }
-                } message: {
-                    Text("You can put it back from the Trash in Finder.")
+                    Button("Move to Trash…") { model.layoutPendingTrash = entry.id }.disabled(!model.canTrash(entry.id))
                 }
             }
             // The Welcome's choices once the library has a layout (spec §12.1, File ▸ New and Import).
@@ -65,12 +55,6 @@ struct LayoutsSection: View {
         }
     }
 
-    private func trash(_ id: UUID) async {
-        let wasOpenHere = id == model.session?.id
-        await model.trashLayout(id)
-        // The window loads the next free layout itself, or shows its empty state.
-        if wasOpenHere { layoutID = nil }
-    }
 }
 
 extension LayoutWindowModel {
@@ -80,9 +64,11 @@ extension LayoutWindowModel {
         return library.entries.first { $0.id == id }?.title ?? ""
     }
 
-    /// Another window's document can't be ended from here, so only a layout open here or nowhere can go to the Trash;
-    /// the one open here not while its flash writes.
-    func canTrash(_ id: UUID) -> Bool { id == session?.id ? buildFlash?.canStop != false : !library.isOpen(id) }
+    /// Any layout but one whose firmware is being written, which can't be stopped (spec §7.4). A layout open in
+    /// another window closes there first (``TrashLayoutDialog``), which stops a run that is building or waiting.
+    func canTrash(_ id: UUID) -> Bool {
+        id == session?.id ? buildFlash?.canStop != false : !(live?.flashingLayoutID == id && live?.isWritingFirmware == true)
+    }
 
     /// Moves a layout to the Trash. The layout open here closes first: its Build & Flash stops (a waiting run would
     /// flash the next keyboard), its last edit is written, its undo steps go, and the window is left empty.
@@ -119,5 +105,37 @@ struct RenameLayoutAlert: ViewModifier {
             .onChange(of: model.layoutPendingRename) {
                 if let id = model.layoutPendingRename { title = model.title(of: id) }
             }
+    }
+}
+
+/// Move to Trash… for a layout, from its sidebar row or File ▸ Move Layout to Trash…. A layout open in another window
+/// closes there first, which writes its last edit and lets it go; the library refuses one that is still open.
+struct TrashLayoutDialog: ViewModifier {
+    var model: LayoutWindowModel
+    @Binding var layoutID: UUID?
+    @Environment(\.dismissWindow) private var dismissWindow
+
+    func body(content: Content) -> some View {
+        let pending = model.layoutPendingTrash
+        content.confirmationDialog(
+            Text("Move “\(pending.map(model.title(of:)) ?? "")” to the Trash?"),
+            isPresented: Binding(get: { pending != nil }, set: { if !$0 { model.layoutPendingTrash = nil } }),
+            presenting: pending
+        ) { id in
+            Button("Move to Trash", role: .destructive) { Task { await trash(id) } }
+        } message: { _ in
+            Text("You can put it back from the Trash in Finder.")
+        }
+    }
+
+    private func trash(_ id: UUID) async {
+        if id != model.session?.id, model.library.isOpen(id) {
+            dismissWindow(id: "layout", value: id)
+            for _ in 0..<30 where model.library.isOpen(id) { try? await Task.sleep(for: .milliseconds(100)) }
+        }
+        let wasOpenHere = id == model.session?.id
+        await model.trashLayout(id)
+        // The window loads the next free layout itself, or shows its empty state.
+        if wasOpenHere { layoutID = nil }
     }
 }

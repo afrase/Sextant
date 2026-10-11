@@ -42,7 +42,7 @@ struct BrushSwatches: View {
                 }
                 .buttonStyle(.plain)
                 .help(color.hex)
-                .accessibilityLabel(String(localized: "Brush colour \(color.hex)"))
+                .accessibilityLabel(String(localized: "Brush color \(color.hex)"))
                 .accessibilityAddTraits(current ? .isSelected : [])
             }
         }
@@ -55,13 +55,13 @@ struct BrushColorPicker: View {
 
     var body: some View {
         ColorPicker(
-            String(localized: "Custom Brush Colour"),
+            String(localized: "Custom Brush Color"),
             selection: Binding(get: { model.brushColor.color }, set: { HexColor($0).map(model.pickBrush) }),
             supportsOpacity: false
         )
         .labelsHidden()
         .controlSize(.small)
-        .help(Text("Custom colour"))
+        .help(Text("Custom color"))
     }
 }
 
@@ -75,6 +75,6 @@ struct EraserToggle: View {
             .toggleStyle(.button)
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
-            .help(Text("Eraser: keys go back to the layer colour"))
+            .help(Text("Eraser: keys go back to the layer color"))
     }
 }

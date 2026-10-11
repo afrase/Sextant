@@ -63,7 +63,7 @@ public struct HexColor: Hashable, Sendable, Codable, CustomStringConvertible {
     public init(from decoder: Decoder) throws {
         let s = try decoder.singleValueContainer().decode(String.self)
         guard let c = Self(hex: s) else {
-            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Bad colour \(s)"))
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Bad color \(s)"))
         }
         self = c
     }

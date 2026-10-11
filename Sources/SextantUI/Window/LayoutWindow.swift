@@ -38,6 +38,7 @@ public struct LayoutWindow: View {
         .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { windowWidth = $0 })
         .focusedSceneValue(model)
         .windowPresentations(model)
+        .modifier(TrashLayoutDialog(model: model, layoutID: $layoutID))
         .task(id: layoutID) {
             let opened = await model.open(layoutID)
             if let opened, opened != layoutID { layoutID = opened }

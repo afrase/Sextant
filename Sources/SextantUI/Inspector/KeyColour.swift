@@ -15,18 +15,18 @@ struct KeyColourRow: View {
     @State private var pending: HexColor?
 
     var body: some View {
-        LabeledContent("LED colour") {
+        LabeledContent("LED color") {
             HStack {
                 ColorPicker(
-                    "LED colour",
+                    "LED color",
                     selection: Binding(get: { (pending ?? stored ?? layerColor)?.color ?? .gray }, set: { pending = HexColor($0) }),
                     supportsOpacity: false
                 )
                 .labelsHidden()
                 if stored == nil {
-                    Text(layerColor == nil ? String(localized: "None") : String(localized: "Layer colour")).foregroundStyle(.secondary)
+                    Text(layerColor == nil ? String(localized: "None") : String(localized: "Layer color")).foregroundStyle(.secondary)
                 } else {
-                    Button("No Colour") {
+                    Button("No Color") {
                         pending = nil
                         if let layer { session.setColor(nil, layer: layer, index: index) }
                     }
@@ -56,7 +56,7 @@ struct KeyColourMenu: View {
     var window: LayoutWindowModel?
 
     var body: some View {
-        Button("No Colour") { window?.session?.setColor(nil) }
+        Button("No Color") { window?.session?.setColor(nil) }
         Divider()
         ForEach(Array((window?.swatches ?? []).enumerated()), id: \.offset) { _, color in
             Button {

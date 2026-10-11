@@ -182,6 +182,7 @@ public final class BuildFlashSession {
         let id = runID
         task = Task {
             var installed = false
+            var failure: ToolchainError?
             for await event in toolchain.setUp() {
                 guard !Task.isCancelled else { break }
                 switch event {
@@ -189,11 +190,13 @@ public final class BuildFlashSession {
                 case .installing:
                     if case let .settingUp(_, total) = phase { show(.settingUp(received: total, total: total)) }
                 case .finished: installed = true
-                case let .failed(error): fail(.setup(error))
+                case let .failed(error): failure = error
                 }
             }
             guard runID == id else { return }
+            // Free first: Try Again on the failure must find no run in progress.
             task = nil
+            if let failure { return fail(.setup(failure)) }
             if installed, !Task.isCancelled { begin(request, keyboard: nil, confirmed: true) }
         }
     }

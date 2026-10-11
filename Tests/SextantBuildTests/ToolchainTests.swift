@@ -67,7 +67,7 @@ struct ToolchainTests {
         var log = BuildLog(sourceMap: [:])
         let events = text.split(separator: "\n", omittingEmptySubsequences: false).flatMap { log.consume(String($0)) }
         #expect(log.usedBytes == size)
-        #expect(log.lines.allSatisfy { !$0.contains("\u{1B}") }, "colour codes are stripped")
+        #expect(log.lines.allSatisfy { !$0.contains("\u{1B}") }, "color codes are stripped")
         let compiling = events.compactMap { if case let .compiling(file, done, total) = $0 { (file, done, total) } else { nil } }
         #expect(compiling.count == text.components(separatedBy: "Compiling:").count - 1)
         #expect(compiling.allSatisfy { !$0.0.contains("/") && $0.1 <= $0.2 })

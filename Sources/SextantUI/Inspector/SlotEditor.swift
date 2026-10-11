@@ -264,8 +264,8 @@ private struct LayerRows: View {
     var body: some View {
         let code = action.canonicalCode
         if showsBehaviour {
-            LabeledContent("Behaviour") {
-                Picker("Behaviour", selection: Binding(get: { code }, set: { update(code: $0) })) {
+            LabeledContent("Behavior") {
+                Picker("Behavior", selection: Binding(get: { code }, set: { update(code: $0) })) {
                     ForEach(KeyText.layerBehaviours(current: code), id: \.code) { Text($0.title).tag($0.code) }
                 }
                 .labelsHidden()

@@ -12,7 +12,7 @@ struct LayerMenu: View {
             .keyboardShortcut("d", modifiers: [.command, .shift]).disabled(session == nil)
         // Renames in place in the sidebar (spec §9.1); the layer summary's name field works without it.
         Button("Rename Layer…") { window?.startRenaming(layer: current) }.disabled(session == nil || window?.showsSidebar != true)
-        Menu("Layer Colour") {
+        Menu("Layer Color") {
             if let window { LayerColourMenu(model: window, layer: current) }
         }
         .disabled(session == nil)

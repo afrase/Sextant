@@ -180,7 +180,7 @@ struct DFUFlasherTests {
         let fake = FakeDfuSe()
         let (image, md5) = testImage(payload: 5_000)
         // In a child task: cancelling the test's own task would end the test as cancelled.
-        await #expect(throws: FlashError.transfer("Cancelled")) {
+        await #expect(throws: FlashError.transfer("Canceled")) {
             try await Task { try await flash(image, md5: md5, on: fake, notFoundFirst: 3, cancelOnAttempt: 1) }.value
         }
         #expect(!opened.value)

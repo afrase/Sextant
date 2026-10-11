@@ -118,10 +118,10 @@ struct QMKGeneratorGoldenTests {
             Issue.record("\(label) differs at \(common):\n  sextant: …\(sextant)\n  oryx:    …\(oryx)", sourceLocation: sourceLocation)
             return
         }
-        #expect(aColors.count == eColors.count, "\(label) colour count", sourceLocation: sourceLocation)
+        #expect(aColors.count == eColors.count, "\(label) color count", sourceLocation: sourceLocation)
         for (x, y) in zip(aColors, eColors) {
             let hue = min((x[0] - y[0] + 256) % 256, (y[0] - x[0] + 256) % 256)
-            #expect(hue <= 2 && abs(x[1] - y[1]) <= 1 && x[2] == y[2], "\(label) colour \(x) vs Oryx \(y)", sourceLocation: sourceLocation)
+            #expect(hue <= 2 && abs(x[1] - y[1]) <= 1 && x[2] == y[2], "\(label) color \(x) vs Oryx \(y)", sourceLocation: sourceLocation)
         }
     }
 

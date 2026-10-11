@@ -146,7 +146,7 @@ public struct BoardView: View {
                         model: model, light: KeyLight(own: own, layer: layout.layers[safe: layer]?.color), u: cap,
                         press: pressed?.state(frame.index)
                     )
-                    .accessibilityHint(brush.color == nil ? Text("Erases the key's own colour.") : Text("Paints with the brush."))
+                    .accessibilityHint(brush.color == nil ? Text("Erases the key's own color.") : Text("Paints with the brush."))
                     .accessibilityAction { session.paint(brush.color, keys: [frame.index]) }
                     .accessibilityAddTraits(.isButton)
                     .accessibilitySortPriority(order[safe: frame.index] ?? 0)

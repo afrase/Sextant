@@ -29,6 +29,7 @@ struct FileSaveItems: View {
         Button("Save Revision…") {}.keyboardShortcut("s").disabled(true)
         Button("Duplicate Layout") { if let id { Task { await window?.library.duplicate(id) } } }.disabled(id == nil)
         Button("Rename Layout…") { window?.layoutPendingRename = id }.disabled(id == nil)
+        Button("Move Layout to Trash…") { window?.layoutPendingTrash = id }.disabled(id.map { window?.canTrash($0) != true } ?? true)
         Menu("Export") {
             Button("Layout JSON…") {}
             Button("QMK Source (.zip)…") {}

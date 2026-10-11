@@ -213,7 +213,7 @@ enum KeycodeTable {
                 code: "KC_WWW_SEARCH", aliases: ["KC_WSCH"], label: "Search", name: "Browser Search", symbol: "magnifyingglass",
                 keywords: ["web", "find"], category: n),
             Entry(
-                code: "KC_WWW_FAVORITES", aliases: ["KC_WFAV"], label: "Favs", name: "Browser Favourites", symbol: "star",
+                code: "KC_WWW_FAVORITES", aliases: ["KC_WFAV"], label: "Favs", name: "Browser Favorites", symbol: "star",
                 keywords: ["web", "bookmarks"], category: n),
         ]
     }
@@ -408,7 +408,7 @@ enum KeycodeTable {
                 code: "RGB_MODE_REVERSE", aliases: ["RGB_RMOD", "RM_PREV", "UG_PREV"], label: "‹ Effect", name: "Previous Animation",
                 symbol: "wand.and.stars.inverse", keywords: ["led", "mode", "effect"], category: l),
             Entry(
-                code: "RGB_SLD", label: "Solid", name: "Solid Colour (Stop Animation)", symbol: "pause.circle",
+                code: "RGB_SLD", label: "Solid", name: "Solid Color (Stop Animation)", symbol: "pause.circle",
                 keywords: ["led", "static", "still"], category: l),
             Entry(
                 code: "RGB_VAI", aliases: ["RM_VALU", "UG_VALU"], label: "LED+", name: "Lighting Brighter", symbol: "sun.max",
@@ -418,10 +418,10 @@ enum KeycodeTable {
                 keywords: ["led", "brightness", "value"], category: l),
             Entry(
                 code: "RGB_HUI", aliases: ["RM_HUEU", "UG_HUEU"], label: "Hue+", name: "Hue Forward", symbol: "paintpalette",
-                keywords: ["led", "colour", "color"], category: l),
+                keywords: ["led", "color", "colour"], category: l),
             Entry(
                 code: "RGB_HUD", aliases: ["RM_HUED", "UG_HUED"], label: "Hue−", name: "Hue Back", symbol: "paintpalette",
-                keywords: ["led", "colour", "color"], category: l),
+                keywords: ["led", "color", "colour"], category: l),
             Entry(
                 code: "RGB_SAI", aliases: ["RM_SATU", "UG_SATU"], label: "Sat+", name: "Saturation Up", symbol: "drop.fill",
                 keywords: ["led", "saturation"], category: l),
@@ -435,11 +435,11 @@ enum KeycodeTable {
                 code: "RGB_SPD", aliases: ["RM_SPDD", "UG_SPDD"], label: "Speed−", name: "Animation Slower", symbol: "tortoise",
                 keywords: ["led", "speed"], category: l),
             Entry(
-                code: "RGB", label: "Colour", name: "Set Colour", symbol: "paintbrush.pointed.fill",
+                code: "RGB", label: "Color", name: "Set Color", symbol: "paintbrush.pointed.fill",
                 keywords: ["led", "color", "colour", "paint"], category: l, needsColor: true),
             Entry(
-                code: "TOGGLE_LAYER_COLOR", label: "Layer RGB", name: "Toggle Layer Colours", symbol: "square.3.layers.3d.top.filled",
-                keywords: ["led", "layer colours", "per layer"], category: l),
+                code: "TOGGLE_LAYER_COLOR", label: "Layer RGB", name: "Toggle Layer Colors", symbol: "square.3.layers.3d.top.filled",
+                keywords: ["led", "layer colors", "per layer"], category: l),
             Entry(
                 code: "LED_LEVEL", aliases: ["MOON_LED_LEVEL"], label: "Status LEDs", name: "Status LED Brightness", symbol: "light.max",
                 keywords: ["indicator", "led"], category: l),

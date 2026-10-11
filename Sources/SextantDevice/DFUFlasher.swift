@@ -51,14 +51,14 @@ public actor DFUFlasher: Flasher {
         let digest = Insecure.MD5.hash(data: image.data).map { String(format: "%02x", $0) }.joined()
         guard digest == md5.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() else { throw .checksumMismatch }
 
-        guard !Task.isCancelled else { throw .transfer("Cancelled") }
+        guard !Task.isCancelled else { throw .transfer("Canceled") }
 
         flashing = true
         defer { flashing = false }
         let transport = try await openWhenReady(device, board: board)
         guard !Task.isCancelled else {
             transport.close()
-            throw .transfer("Cancelled")
+            throw .transfer("Canceled")
         }
         // Until the first erase a cancel leaves the keyboard waiting in flash mode. After it, stopping leaves the
         // keyboard without firmware, so the write runs in its own task and finishes even if the caller is cancelled.
@@ -92,7 +92,7 @@ public actor DFUFlasher: Flasher {
             do {
                 return try open(device, board)
             } catch .deviceNotFound {
-                do { try await clock.sleep(for: .milliseconds(100)) } catch { throw .transfer("Cancelled") }
+                do { try await clock.sleep(for: .milliseconds(100)) } catch { throw .transfer("Canceled") }
             }
         }
         return try open(device, board)
@@ -206,7 +206,7 @@ struct DfuSe<C: Clock<Duration>> {
             do {
                 try await clock.sleep(for: min(max(s.pollTimeout, .milliseconds(1)), Self.maxPollInterval))
             } catch {
-                throw .transfer("Cancelled")
+                throw .transfer("Canceled")
             }
         }
         throw .timeout(address: address)

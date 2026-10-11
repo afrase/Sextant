@@ -74,9 +74,9 @@ struct ImportSliceTests {
         let neighbour = LayoutWindowModel(library: model.library)
         let second = try await model.library.importOryxJSON(try #require(userLayoutData))
         await neighbour.open(second.id)
-        #expect(!model.canTrash(second.id) && model.canTrash(id))
+        #expect(model.canTrash(second.id) && model.canTrash(id), "the dialog closes the other window first")
         await model.trashLayout(second.id)
-        #expect(neighbour.session?.id == second.id, "refused: the other window keeps its document")
+        #expect(neighbour.session?.id == second.id, "refused while the other window still has it open")
         await model.trashLayout(id)
         #expect(model.session == nil && !model.library.isOpen(id))
     }

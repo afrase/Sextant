@@ -80,7 +80,7 @@ struct LayersAndLightingTests {
         step(undo) { model.clearKeyColours(on: 2) }
         #expect(model.keysWithOwnColour(on: 2).isEmpty && model.keysWithOwnColour(on: 1) == [7])
         undo.undo()
-        #expect(model.keysWithOwnColour(on: 2) == [3, 4, 5], "one undo brings every colour back")
+        #expect(model.keysWithOwnColour(on: 2) == [3, 4, 5], "one undo brings every color back")
     }
 
     @Test func theBrushPaintsOnlyInTheLightingLens() async throws {
@@ -89,10 +89,10 @@ struct LayersAndLightingTests {
         model.lens = .lighting
         #expect(model.brush == Brush(color: model.brushColor))
         model.isErasing = true
-        #expect(model.brush == Brush(color: nil), "the eraser removes keys' own colours")
+        #expect(model.brush == Brush(color: nil), "the eraser removes keys' own colors")
         let teal = try #require(HexColor(hex: "#00C7BE"))
         model.pickBrush(teal)
-        #expect(model.brush == Brush(color: teal), "picking a colour puts the eraser down")
+        #expect(model.brush == Brush(color: teal), "picking a color puts the eraser down")
         #expect(model.swatches == KeyboardLayout.defaultSwatch, "the user's layout has no swatches of its own")
     }
 

@@ -195,6 +195,19 @@
     "%lld keys down" : {
 
     },
+    "%lld keys set on this layer" : {
+
+    },
+    "%lld keys set on this layer; %lld pass through to the layer below" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld keys set on this layer; %2$lld pass through to the layer below"
+          }
+        }
+      }
+    },
     "%lld keys switch to %@: %@. They will do nothing." : {
       "localizations" : {
         "en" : {
@@ -218,12 +231,12 @@
         }
       }
     },
-    "%lld of %lld keys have their own colour" : {
+    "%lld of %lld keys have their own color" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "%1$lld of %2$lld keys have their own colour"
+            "value" : "%1$lld of %2$lld keys have their own color"
           }
         }
       }
@@ -312,6 +325,9 @@
     "Add tap" : {
 
     },
+    "Another app, such as Keymapp, is using the keyboard’s live connection" : {
+
+    },
     "Another window is flashing the keyboard. Try again when it finishes." : {
 
     },
@@ -344,7 +360,7 @@
     "Before importing from Oryx" : {
 
     },
-    "Behaviour" : {
+    "Behavior" : {
 
     },
     "Board" : {
@@ -359,7 +375,7 @@
     "Brush" : {
 
     },
-    "Brush colour %@" : {
+    "Brush color %@" : {
 
     },
     "Build" : {
@@ -470,13 +486,13 @@
     "Clear %@?" : {
 
     },
-    "Clear Key Colour" : {
+    "Clear Key Color" : {
 
     },
-    "Clear Key Colours" : {
+    "Clear Key Colors" : {
 
     },
-    "Clear Key Colours…" : {
+    "Clear Key Colors…" : {
 
     },
     "Clear Label" : {
@@ -488,7 +504,7 @@
     "Clear Layer…" : {
 
     },
-    "Clear the key colours on %@?" : {
+    "Clear the key colors on %@?" : {
 
     },
     "Clear…" : {
@@ -497,10 +513,10 @@
     "Close" : {
 
     },
-    "Colour" : {
+    "Color" : {
 
     },
-    "Colour for %@" : {
+    "Color for %@" : {
 
     },
     "Command Palette" : {
@@ -566,10 +582,10 @@
     "Custom" : {
 
     },
-    "Custom Brush Colour" : {
+    "Custom Brush Color" : {
 
     },
-    "Custom colour" : {
+    "Custom color" : {
 
     },
     "Custom…" : {
@@ -684,13 +700,13 @@
     "Eraser" : {
 
     },
-    "Eraser · no own colour" : {
+    "Eraser · no own color" : {
 
     },
-    "Eraser: keys go back to the layer colour" : {
+    "Eraser: keys go back to the layer color" : {
 
     },
-    "Erases the key's own colour." : {
+    "Erases the key's own color." : {
 
     },
     "Erasing" : {
@@ -699,7 +715,7 @@
     "Erasing · %lld%%" : {
 
     },
-    "Every key on this layer becomes transparent and loses its own colour. You can undo this." : {
+    "Every key on this layer becomes transparent and loses its own color. You can undo this." : {
 
     },
     "Every layout is open in another window" : {
@@ -1034,10 +1050,10 @@
     "L" : {
 
     },
-    "LED Colour" : {
+    "LED Color" : {
 
     },
-    "LED colour" : {
+    "LED color" : {
 
     },
     "LIVE" : {
@@ -1100,13 +1116,13 @@
     "Layer 0 · base · %lld keys" : {
 
     },
-    "Layer Colour" : {
+    "Layer Color" : {
 
     },
-    "Layer colour" : {
+    "Layer color" : {
 
     },
-    "Layer colour %@" : {
+    "Layer color %@" : {
 
     },
     "Layer name" : {
@@ -1172,6 +1188,9 @@
     "Live keyboard" : {
 
     },
+    "Live keyboard access is off, so Sextant can’t read the keyboard’s layer" : {
+
+    },
     "Live keyboard access is off." : {
 
     },
@@ -1226,6 +1245,9 @@
     "Move Layer Up" : {
 
     },
+    "Move Layout to Trash…" : {
+
+    },
     "Move Up" : {
 
     },
@@ -1265,10 +1287,10 @@
     "Next Issue" : {
 
     },
-    "No Colour" : {
+    "No Color" : {
 
     },
-    "No colour" : {
+    "No color" : {
 
     },
     "No keyboard" : {
@@ -1373,7 +1395,7 @@
     "Override on This Layer" : {
 
     },
-    "Own colour %@" : {
+    "Own color %@" : {
 
     },
     "Paint %lld Keys" : {
@@ -1562,16 +1584,16 @@
     "Set %@" : {
 
     },
-    "Set Colour" : {
+    "Set Color" : {
 
     },
-    "Set Key Colour" : {
+    "Set Key Color" : {
 
     },
     "Set Label" : {
 
     },
-    "Set Layer Colour" : {
+    "Set Layer Color" : {
 
     },
     "Set up" : {
@@ -1869,10 +1891,10 @@
     "The keyboard’s lights go dark and it disconnects while in flash mode. That’s expected. Sextant starts writing as soon as it sees the bootloader." : {
 
     },
-    "The layer colour is also its LED colour on the keyboard." : {
+    "The layer color is also its LED color on the keyboard." : {
 
     },
-    "These keys go back to the layer colour. You can undo this." : {
+    "These keys go back to the layer color. You can undo this." : {
 
     },
     "This happens once. The build starts as soon as the tools are ready." : {
@@ -2060,7 +2082,7 @@
     "bottom row" : {
 
     },
-    "colour keys" : {
+    "color keys" : {
 
     },
     "column %lld" : {

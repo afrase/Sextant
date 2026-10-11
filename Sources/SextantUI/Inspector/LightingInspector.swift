@@ -15,7 +15,7 @@ struct LightingInspector: View {
             HStack(spacing: 8) {
                 if model.isErasing {
                     Image(systemName: "eraser").accessibilityHidden(true)
-                    Text("Eraser · no own colour")
+                    Text("Eraser · no own color")
                 } else {
                     LayerChip(color: model.brushColor, size: 14)
                     Text(verbatim: model.brushColor.hex).monospaced()
@@ -29,21 +29,21 @@ struct LightingInspector: View {
                 EraserToggle(model: model)
             }
             Divider()
-            Text("Layer colour").font(.headline)
+            Text("Layer color").font(.headline)
             HStack(spacing: 8) {
                 LayerChip(color: layer.color, size: 14)
-                Text(layer.color?.hex ?? String(localized: "No colour")).monospaced()
+                Text(layer.color?.hex ?? String(localized: "No color")).monospaced()
                 Spacer()
                 Button("Use Brush") { session.setLayerColor(model.brushColor, layer: index) }
                     .disabled(model.isErasing || layer.color == model.brushColor)
                 Button("None") { session.setLayerColor(nil, layer: index) }.disabled(layer.color == nil)
             }
             .controlSize(.small)
-            Text("The layer colour is also its LED colour on the keyboard.").font(.callout).foregroundStyle(.secondary)
+            Text("The layer color is also its LED color on the keyboard.").font(.callout).foregroundStyle(.secondary)
             Divider()
             Text("Painted on \(layer.title)").font(.headline)
-            Text("\(painted) of \(layer.keys.count) keys have their own colour").monospacedDigit()
-            Button("Clear Key Colours…") { model.keyColoursPendingClear = index }.disabled(painted == 0)
+            Text("\(painted) of \(layer.keys.count) keys have their own color").monospacedDigit()
+            Button("Clear Key Colors…") { model.keyColoursPendingClear = index }.disabled(painted == 0)
         }
     }
 }

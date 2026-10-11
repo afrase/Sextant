@@ -408,7 +408,7 @@ struct CapLegendView: View {
                     .overlay { Circle().strokeBorder(.black.opacity(0.15), lineWidth: 0.5) }
                     .frame(width: 0.30 * u, height: 0.30 * u)
                     .shadow(color: swatch.color.opacity(0.7), radius: 0.08 * u)
-                caption(String(localized: "Colour"))
+                caption(String(localized: "Color"))
             }
         } else if let layer = action.layerName {
             VStack(spacing: 0.02 * u) {

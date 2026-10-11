@@ -110,6 +110,8 @@ public final class LayoutWindowModel {
     var settingsScrollTarget: String?
     /// The layout whose Rename… alert is showing.
     var layoutPendingRename: UUID?
+    /// The layout whose Move to Trash… confirmation is showing.
+    var layoutPendingTrash: UUID?
     /// A layout is loading (true until the first ``open(_:)`` finishes), so the empty states wait for it.
     var isOpening = true
 

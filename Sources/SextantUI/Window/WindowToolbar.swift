@@ -11,6 +11,8 @@ struct WindowToolbar: CustomizableToolbarContent {
         ToolbarItem(id: "build", placement: .navigation) {
             BuildButton(model: model)
         }
+        // A prominent glass button inside the toolbar's shared glass platter draws as a capsule in a capsule.
+        .sharedBackgroundVisibility(.hidden)
         ToolbarItem(id: "activity", placement: .principal) {
             ActivityCapsule(
                 state: model.activity, boardName: model.boardName,
@@ -79,7 +81,11 @@ extension WindowToolbar {
         if model.canFollow { return Text("Follow the keyboard’s layer (⌘L)") }
         if model.session == nil { return Text("Open a layout to follow the keyboard’s layer") }
         if model.connectedKeyboard == nil { return Text("Connect your keyboard to follow its layer") }
-        return Text("Sextant can’t read the keyboard’s layer")
+        switch model.live?.connection {
+        case .hardwareAccessOff?: return Text("Live keyboard access is off, so Sextant can’t read the keyboard’s layer")
+        case .heldByAnotherApp?: return Text("Another app, such as Keymapp, is using the keyboard’s live connection")
+        default: return Text("Sextant can’t read the keyboard’s layer")
+        }
     }
 }
 

@@ -184,6 +184,8 @@ struct DeviceAndBuildTests {
         first.build(.buildAndFlash)
         #expect(await eventually { first.activity.status == .waitingForFlashMode })
         #expect(!second.canBuild && second.activity.status == .flashingElsewhere(layout: "My MacOS Layout"))
+        let flashing = try #require(first.session?.id)
+        #expect(second.canTrash(flashing), "waiting can be stopped: closing that window stops the run")
         await first.close()
         #expect(await eventually { second.canBuild }, "free again once the run stops")
     }

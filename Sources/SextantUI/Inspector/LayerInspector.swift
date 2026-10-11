@@ -17,12 +17,12 @@ struct LayerInspector: View {
             }
             Group {
                 LabeledContent("Name") { LayerNameField(model: model, session: session, layer: layer).id(layer.id) }
-                LabeledContent("Colour") {
+                LabeledContent("Color") {
                     Menu {
                         LayerColourMenu(model: model, layer: index)
                     } label: {
                         Label {
-                            Text(layer.color?.hex ?? String(localized: "No colour"))
+                            Text(layer.color?.hex ?? String(localized: "No color"))
                         } icon: {
                             (layer.color ?? Tokens.neutralChip.light).swatchImage
                         }
@@ -49,7 +49,7 @@ struct LayerInspector: View {
                 Button("Copy To…") {}.disabled(true)
                 Button("Clear…") { model.layerPendingClear = index }
             }
-            Text("The layer colour is also its LED colour on the keyboard.").font(.callout).foregroundStyle(.secondary)
+            Text("The layer color is also its LED color on the keyboard.").font(.callout).foregroundStyle(.secondary)
         }
     }
 }

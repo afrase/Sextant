@@ -437,7 +437,7 @@ enum SettingsCatalogData {
     {
      "id": "disableNKRO",
      "title": "Remove N-key rollover",
-     "summary": "Compile N-key rollover out and fall back to 6-key rollover. Try this if a computer or firmware setup screen doesn't recognise the board.",
+     "summary": "Compile N-key rollover out and fall back to 6-key rollover. Try this if a computer or firmware setup screen doesn't recognize the board.",
      "type": "toggle",
      "default": false
     },
@@ -559,13 +559,13 @@ enum SettingsCatalogData {
   {
    "id": "rgb",
    "title": "RGB Lighting",
-   "summary": "Brightness and hue steps, sleep behaviour, and which animations are compiled in.",
+   "summary": "Brightness and hue steps, sleep behavior, and which animations are compiled in.",
    "visibleOnVoyager": true,
    "settings": [
     {
      "id": "rgbHueStep",
      "title": "Hue step",
-     "summary": "How far each hue key moves around the colour wheel.",
+     "summary": "How far each hue key moves around the color wheel.",
      "type": "slider",
      "default": 8,
      "min": 1,
@@ -648,7 +648,7 @@ enum SettingsCatalogData {
       },
       {
        "id": "cycleAll",
-       "title": "Colour cycle"
+       "title": "Color cycle"
       },
       {
        "id": "cycleLeftRight",
@@ -910,7 +910,7 @@ enum SettingsCatalogData {
     {
      "id": "legacyDualFunctionDances",
      "title": "Legacy dual-function keys",
-     "summary": "Build two-function keys as tap dances, like older layouts. They feel less responsive; use this only to keep old behaviour.",
+     "summary": "Build two-function keys as tap dances, like older layouts. They feel less responsive; use this only to keep old behavior.",
      "type": "toggle",
      "default": false
     }
@@ -919,7 +919,7 @@ enum SettingsCatalogData {
   {
    "id": "oneshot",
    "title": "One-Shot Keys",
-   "summary": "Behaviour of one-shot modifiers and one-shot layers.",
+   "summary": "Behavior of one-shot modifiers and one-shot layers.",
    "visibleOnVoyager": true,
    "settings": [
     {

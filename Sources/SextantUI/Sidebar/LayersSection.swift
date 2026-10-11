@@ -37,7 +37,7 @@ private struct LayerContextMenu: View {
 
     var body: some View {
         Button("Rename…") { model.startRenaming(layer: index) }
-        Menu("Colour") { LayerColourMenu(model: model, layer: index) }
+        Menu("Color") { LayerColourMenu(model: model, layer: index) }
         Divider()
         Button("Duplicate") { session.duplicateLayer(index) }
         Button("Move Up") { session.moveLayer(from: index, to: index - 1) }.disabled(index == 0)
@@ -66,6 +66,7 @@ private struct LayerRow: View {
 
     var body: some View {
         let renaming = model.renamingLayerID == layer.id
+        let own = layer.keys.filter { !$0.isTransparent }.count
         // The selected row's fill is dark grey in dark mode; secondary text and badges vanish on it.
         let detail: HierarchicalShapeStyle = isSelected ? .primary : .secondary
         HStack(spacing: 8) {
@@ -90,11 +91,22 @@ private struct LayerRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .gesture(TapGesture(count: 2).onEnded { model.startRenaming(layer: index) }, isEnabled: !renaming)
-        .badge(Text(verbatim: "\(layer.keys.filter { !$0.isTransparent }.count)").foregroundStyle(detail))
+        .badge(Text(verbatim: "\(own)").foregroundStyle(detail))
+        .help(keysText(own: own))
         .accessibilityElement(children: renaming ? .contain : .combine)
         .accessibilityLabel(
             isLive
                 ? String(localized: "Layer \(index), \(layer.title), the keyboard’s layer")
-                : String(localized: "Layer \(index), \(layer.title)"))
+                : String(localized: "Layer \(index), \(layer.title)")
+        )
+        .accessibilityValue(keysText(own: own))
+    }
+
+    /// The badge's meaning: keys this layer sets itself; the rest are transparent and act as the layer below.
+    private func keysText(own: Int) -> String {
+        let through = layer.keys.count - own
+        return through == 0
+            ? String(localized: "\(own) keys set on this layer")
+            : String(localized: "\(own) keys set on this layer; \(through) pass through to the layer below")
     }
 }

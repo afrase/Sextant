@@ -20,8 +20,8 @@ enum KeyLight: Equatable {
 
     var spoken: String {
         switch self {
-        case let .own(color): String(localized: "Own colour \(color.hex)")
-        case let .layer(color): String(localized: "Layer colour \(color.hex)")
+        case let .own(color): String(localized: "Own color \(color.hex)")
+        case let .layer(color): String(localized: "Layer color \(color.hex)")
         case .off: String(localized: "Off")
         }
     }

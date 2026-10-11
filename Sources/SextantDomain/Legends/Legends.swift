@@ -154,7 +154,7 @@ public enum Legends {
         if code == "RGB" {
             let hex = action.color?.hex ?? "#000000"
             return ActionLegend(
-                text: "Colour", symbol: entry?.symbol, name: "Set colour \(hex)", side: nil, modifiers: [], layer: nil, layerName: nil,
+                text: "Color", symbol: entry?.symbol, name: "Set color \(hex)", side: nil, modifiers: [], layer: nil, layerName: nil,
                 color: action.color, qmk: "RGB(\(hex))", category: .lighting, isUnknown: false)
         }
 

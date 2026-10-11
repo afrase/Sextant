@@ -159,7 +159,7 @@ public final class EditSession {
     /// Sets or clears a key's LED colour on its layer.
     public func setColor(_ color: HexColor?, layer: Int? = nil, index: Int? = nil) {
         guard let (l, i) = target(layer, index) else { return }
-        edit(color == nil ? String(localized: "Clear Key Colour") : String(localized: "Set Key Colour")) {
+        edit(color == nil ? String(localized: "Clear Key Color") : String(localized: "Set Key Color")) {
             $0.updateKey(layer: l, index: i) { $0.glowColor = color }
         }
     }
@@ -243,7 +243,7 @@ public final class EditSession {
 
     public func setLayerColor(_ color: HexColor?, layer index: Int) {
         guard layout.layers.indices.contains(index) else { return }
-        edit(String(localized: "Set Layer Colour")) { $0.layers[index].color = color }
+        edit(String(localized: "Set Layer Color")) { $0.layers[index].color = color }
     }
 
     /// Reorders a layer; MO/TG/TO/… references follow it, and so does the selection.

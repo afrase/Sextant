@@ -114,6 +114,6 @@ struct KeyCapModelTests {
         var below = layout
         below.layers[0].keys[19].glowColor = glow
         let inherited = KeyCapModel(layout: below, layer: 1, index: 19)
-        #expect(inherited.isGhost && inherited.ownGlow == nil, "an inherited colour is not the key's own")
+        #expect(inherited.isGhost && inherited.ownGlow == nil, "an inherited color is not the key's own")
     }
 }

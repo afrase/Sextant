@@ -87,7 +87,7 @@ struct ContextStrip: View {
                 LayerChip(color: item.color, size: 14)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.title).font(.callout.weight(.medium)).lineLimit(1)
-                    Text(String(localized: "\(own) of \(item.keys.count) keys have their own colour"))
+                    Text(String(localized: "\(own) of \(item.keys.count) keys have their own color"))
                         .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }

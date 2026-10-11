@@ -108,7 +108,7 @@ struct LayerColourMenu: View {
         }
         Divider()
         Button("Custom…") { model.layerPendingColour = layer }
-        Button("No Colour") { model.session?.setLayerColor(nil, layer: layer) }.disabled(current == nil)
+        Button("No Color") { model.session?.setLayerColor(nil, layer: layer) }.disabled(current == nil)
     }
 }
 
@@ -127,17 +127,17 @@ struct LayerPresentations: ViewModifier {
                 Button("Clear Layer", role: .destructive) { model.session?.clearLayer(layer) }
                 Button("Cancel", role: .cancel) {}
             } message: { _ in
-                Text("Every key on this layer becomes transparent and loses its own colour. You can undo this.")
+                Text("Every key on this layer becomes transparent and loses its own color. You can undo this.")
             }
             .alert(
-                Text("Clear the key colours on \(layerName(model.keyColoursPendingClear))?"),
+                Text("Clear the key colors on \(layerName(model.keyColoursPendingClear))?"),
                 isPresented: Binding(get: { model.keyColoursPendingClear != nil }, set: { _ in model.keyColoursPendingClear = nil }),
                 presenting: model.keyColoursPendingClear
             ) { layer in
-                Button("Clear Key Colours", role: .destructive) { model.clearKeyColours(on: layer) }
+                Button("Clear Key Colors", role: .destructive) { model.clearKeyColours(on: layer) }
                 Button("Cancel", role: .cancel) {}
             } message: { _ in
-                Text("These keys go back to the layer colour. You can undo this.")
+                Text("These keys go back to the layer color. You can undo this.")
             }
             .sheet(isPresented: Binding(get: { model.layerPendingColour != nil }, set: { _ in model.layerPendingColour = nil })) {
                 if let layer = model.layerPendingColour { LayerColourSheet(model: model, layer: layer) }
@@ -164,13 +164,13 @@ struct LayerColourSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Colour for \(model.session?.layout.layers[safe: layer]?.title ?? "")").font(.headline)
-            ColorPicker("Colour", selection: $draft, supportsOpacity: false)
-            Text("The layer colour is also its LED colour on the keyboard.").font(.callout).foregroundStyle(.secondary)
+            Text("Color for \(model.session?.layout.layers[safe: layer]?.title ?? "")").font(.headline)
+            ColorPicker("Color", selection: $draft, supportsOpacity: false)
+            Text("The layer color is also its LED color on the keyboard.").font(.callout).foregroundStyle(.secondary)
             HStack {
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("Set Colour") {
+                Button("Set Color") {
                     if let colour = HexColor(draft) { model.session?.setLayerColor(colour, layer: layer) }
                     dismiss()
                 }

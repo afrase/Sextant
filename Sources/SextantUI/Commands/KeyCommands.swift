@@ -26,7 +26,7 @@ struct KeyMenu: View {
         Button("Disable Key") { session?.disable() }.keyboardShortcut(.delete, modifiers: [.command, .shift])
             .disabled(!hasKey || window?.isEditingText == true)
         Button("Override on This Layer") { session?.overrideInherited() }.disabled(window?.canOverrideKey != true)
-        Menu("LED Colour") { KeyColourMenu(window: window) }.disabled(!hasKey)
+        Menu("LED Color") { KeyColourMenu(window: window) }.disabled(!hasKey)
         Divider()
         Button("Select Key by Pressing It") {}.keyboardShortcut("l", modifiers: [.command, .shift]).disabled(true)
         Button("Copy QMK Expression") { session?.copyQMKExpression() }

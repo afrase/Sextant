@@ -162,7 +162,7 @@ struct KeymapPlan {
         case "MEH_T": return QMKCodes.wrap("KC_MEH", action.modifiers)
         case "OSM": return "OSM(\(QMKCodes.mask(action.modifiers)))"
         case "RGB":
-            guard let color = action.color else { throw .unsupported(String(localized: "a colour key without a colour"), ref) }
+            guard let color = action.color else { throw .unsupported(String(localized: "a color key without a color"), ref) }
             let hsv = QMKCodes.HSV(color)
             let name = "HSV_\(hsv.h)_\(hsv.s)_\(hsv.v)"
             if !colors.contains(where: { $0.name == name }) { colors.append(ColorKey(name: name, hsv: hsv, key: ref)) }

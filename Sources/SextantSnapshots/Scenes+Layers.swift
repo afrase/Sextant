@@ -29,7 +29,7 @@ extension Scenes {
             SnapshotOverlay.menu(size: CGSize(width: 200, height: 0), at: CGPoint(x: 150, y: 190)) { layerMenu },
             SnapshotOverlay.menu(size: CGSize(width: 150, height: 0), at: CGPoint(x: 346, y: 222)) { colourMenu },
         ]
-        return window("layers-rename", rename) + window("layers-colour-menu", menu, overlays: menus)
+        return window("layers-rename", rename) + window("layers-color-menu", menu, overlays: menus)
             + window("layers-summary", summary) + window("lighting", lighting)
             + [
                 SnapshotScene("lighting-min-light", size: CGSize(width: 1120, height: 640)) {
@@ -41,7 +41,7 @@ extension Scenes {
     private static var layerMenu: some View {
         VStack(alignment: .leading, spacing: 0) {
             let items = [
-                "Rename…", "Colour", "-", "Duplicate", "Move Up", "Move Down", "-", "Copy Layer To…", "Clear Layer…", "Delete Layer…",
+                "Rename…", "Color", "-", "Duplicate", "Move Up", "Move Down", "-", "Copy Layer To…", "Clear Layer…", "Delete Layer…",
             ]
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 if item == "-" {
@@ -50,12 +50,12 @@ extension Scenes {
                     HStack {
                         Text(item)
                         Spacer()
-                        if item == "Colour" { Image(systemName: "chevron.right").font(.caption) }
+                        if item == "Color" { Image(systemName: "chevron.right").font(.caption) }
                     }
                     .foregroundStyle(item == "Copy Layer To…" ? .tertiary : .primary)
                     .padding(.horizontal, 8)
                     .frame(height: 22)
-                    .background(item == "Colour" ? Color.accentColor.opacity(0.85) : .clear, in: .rect(cornerRadius: 5))
+                    .background(item == "Color" ? Color.accentColor.opacity(0.85) : .clear, in: .rect(cornerRadius: 5))
                 }
             }
         }
@@ -75,7 +75,7 @@ extension Scenes {
             }
             Divider().padding(.vertical, 4)
             Text("Custom…").padding(.horizontal, 26).frame(height: 22)
-            Text("No Colour").padding(.horizontal, 26).frame(height: 22)
+            Text("No Color").padding(.horizontal, 26).frame(height: 22)
         }
         .padding(5)
     }

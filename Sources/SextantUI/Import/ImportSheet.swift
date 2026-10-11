@@ -285,7 +285,7 @@ private struct ImportPreview: View {
                 stat(s.assignedKeys, "keys")
                 stat(s.dualFunctionKeys, "dual-function")
                 stat(s.customLabels, "labels")
-                stat(s.colorKeys, "colour keys")
+                stat(s.colorKeys, "color keys")
                 stat(s.macros, "macros")
             }
             VStack(alignment: .leading, spacing: 4) {
