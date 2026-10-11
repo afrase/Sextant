@@ -23,6 +23,10 @@ public struct BoardView: View {
     @Namespace private var rotors
     @Environment(\.motion) private var motion
     @Environment(\.colorSchemeContrast) private var contrast
+    /// The Lighting lens brush: a click or drag paints instead of selecting (spec §2.2, §6.2).
+    @Environment(\.brush) private var brush
+    /// Keys the current paint stroke has crossed; they preview the brush until the stroke lands as one undo step.
+    @State private var stroke: [Int] = []
 
     public init(
         session: EditSession, mode: LegendMode = .symbols, issues: [KeyRef: LayoutIssue.Severity] = [:], pressed: PressedKeys? = nil,
@@ -121,7 +125,13 @@ public struct BoardView: View {
                     .position(nav.center)
             }
             BoardCanvas(layout: board) { frame in
-                if let model = models[safe: frame.index] {
+                if let model = models[safe: frame.index], let brush {
+                    let own = stroke.contains(frame.index) ? brush.color : layout.key(layer: layer, index: frame.index)?.glowColor
+                    LitKeyCap(model: model, light: KeyLight(own: own, layer: layout.layers[safe: layer]?.color), u: cap)
+                        .accessibilityHint(Text("Paints with the brush."))
+                        .accessibilityAction { session.paint(brush.color, keys: [frame.index]) }
+                        .accessibilitySortPriority(order[safe: frame.index] ?? 0)
+                } else if let model = models[safe: frame.index] {
                     let value = KeyText.value(model.legend, layout: layout, layer: layer, index: frame.index, geometry: session.geometry)
                     BoardKey(model: model, u: cap, height: frame.size.height, press: pressed?.state(frame.index))
                         .onTapGesture { select(frame.index) }
@@ -140,7 +150,20 @@ public struct BoardView: View {
             }
             selectionRing(board, cap: cap)
         }
+        .gesture(paintStroke(board), isEnabled: brush != nil)
         .animation(SextantMotion.layerChange, value: layer)
+    }
+
+    /// Click or drag across keys to paint them, hit-testing the key polygons; one stroke is one undo step (spec §6.2).
+    private func paintStroke(_ board: BoardLayout) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { drag in
+                if let index = board.keyIndex(at: drag.location), !stroke.contains(index) { stroke.append(index) }
+            }
+            .onEnded { _ in
+                if let brush { session.paint(brush.color, keys: stroke) }
+                stroke = []
+            }
     }
 
     /// VoiceOver custom actions (spec §4.11). Change Tap, Change Hold and Record Key arrive with the picker.

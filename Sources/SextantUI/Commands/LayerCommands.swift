@@ -5,12 +5,17 @@ struct LayerMenu: View {
 
     var body: some View {
         let session = window?.session
-        Button("New Layer") { session?.addLayer() }
+        let current = session?.selection.layer ?? 0
+        Button("New Layer") { window?.addLayer() }
             .keyboardShortcut("n", modifiers: [.command, .shift]).disabled(session == nil)
-        Button("Duplicate Layer") { if let session { session.duplicateLayer(session.selection.layer) } }
+        Button("Duplicate Layer") { session?.duplicateLayer(current) }
             .keyboardShortcut("d", modifiers: [.command, .shift]).disabled(session == nil)
-        Button("Rename Layer…") {}.disabled(true)
-        Menu("Layer Colour") {}.disabled(true)
+        // Renames in place in the sidebar (spec §9.1); the layer summary's name field works without it.
+        Button("Rename Layer…") { window?.startRenaming(layer: current) }.disabled(session == nil || window?.showsSidebar != true)
+        Menu("Layer Colour") {
+            if let window { LayerColourMenu(model: window, layer: current) }
+        }
+        .disabled(session == nil)
         Divider()
         Button("Move Layer Up") { window?.moveLayer(by: -1) }
             .keyboardShortcut(.upArrow, modifiers: [.command, .option]).disabled(window?.canShowPreviousLayer != true)
@@ -18,7 +23,7 @@ struct LayerMenu: View {
             .keyboardShortcut(.downArrow, modifiers: [.command, .option]).disabled(window?.canShowNextLayer != true)
         Divider()
         Button("Copy Layer To…") {}.disabled(true)
-        Button("Clear Layer…") {}.disabled(true)
+        Button("Clear Layer…") { window?.layerPendingClear = current }.disabled(session == nil)
         Button("Delete Layer…") { window?.requestDeleteLayer() }.disabled(window?.canDeleteLayer != true)
         Divider()
         Button("Show Previous Layer") { window?.showAdjacentLayer(-1) }
