@@ -1,0 +1,10 @@
+#!/bin/sh
+# Notarizes and staples .build/Sextant.app. Needs a Developer ID signature (scripts/bundle with
+# SEXTANT_SIGN_IDENTITY) and a notarytool keychain profile. Run by the user only; never automated.
+#   SEXTANT_NOTARY_PROFILE  name passed to `xcrun notarytool store-credentials`.
+set -eu
+cd "$(dirname "$0")/.."
+: "${SEXTANT_NOTARY_PROFILE:?set SEXTANT_NOTARY_PROFILE}"
+ditto -c -k --keepParent .build/Sextant.app .build/Sextant.zip
+xcrun notarytool submit .build/Sextant.zip --keychain-profile "$SEXTANT_NOTARY_PROFILE" --wait
+xcrun stapler staple .build/Sextant.app

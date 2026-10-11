@@ -1,0 +1,28 @@
+#!/bin/sh
+# Builds Sextant.app from the Swift package (ADR 0011): release build, bundle layout, String Catalog, signing.
+#   SEXTANT_SIGN_IDENTITY  codesign identity ("Developer ID Application: …"); ad-hoc when unset.
+#   SEXTANT_VERSION        CFBundleShortVersionString (default 0.1.0).
+# Output: .build/Sextant.app
+set -eu
+cd "$(dirname "$0")/.."
+identity="${SEXTANT_SIGN_IDENTITY:--}"
+version="${SEXTANT_VERSION:-0.1.0}"
+build=$(git rev-list --count HEAD 2>/dev/null || echo 1)
+
+swift build -c release --product SextantApp
+bin=$(swift build -c release --show-bin-path)
+app=.build/Sextant.app
+rm -rf "$app"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+cp "$bin/SextantApp" "$app/Contents/MacOS/Sextant"
+for bundle in "$bin"/*.bundle; do [ -e "$bundle" ] && cp -R "$bundle" "$app/Contents/Resources/"; done
+xcrun xcstringstool compile Resources/Localizable.xcstrings --output-directory "$app/Contents/Resources"
+sed -e "s/@VERSION@/$version/" -e "s/@BUILD@/$build/" Resources/Info.plist > "$app/Contents/Info.plist"
+
+# A secure timestamp is required for notarization; ad-hoc builds skip it (no network round trip).
+ts=--timestamp
+[ "$identity" = "-" ] && ts=--timestamp=none
+codesign --force --deep --options runtime "$ts" \
+    --entitlements Resources/Sextant.entitlements --sign "$identity" "$app"
+codesign --verify --strict "$app"
+echo "Built $app (signed with ${identity})"

@@ -1,0 +1,89 @@
+import Foundation
+import SextantDomain
+import Testing
+
+struct LayoutCodecTests {
+    @Test func decodesTheUserLayout() throws {
+        let layout = try Fixtures.layout()
+        #expect(layout.title == "My MacOS Layout [fork]")
+        #expect(layout.layers.map(\.title) == ["Main", "Sym+Num", "Brd+Sys"])
+        #expect(layout.layers[1].color?.hex == "#00F0FF")
+        #expect(layout.layers[2].color?.hex == "#42FF00")
+        #expect(layout.layers.allSatisfy { $0.keys.count == 52 })
+        #expect(layout.oryx?.serial == "KlgM7/40xJ7M")
+        #expect(layout.oryx?.firmwareVersion == "25.0")
+        #expect(layout.settings == ["qmkCanary": .bool(true)])
+    }
+
+    @Test func navigatorAndSwatchesComeAlong() throws {
+        let full = try Fixtures.layout("my-layout-KlgM7-full.json")
+        #expect(full.navigator?.kind == .trackpad)
+        #expect(full.navigator?.side == .right)
+        #expect(full.navigator?.options["scrollInertia"] == .bool(true))
+        #expect(full.navigator?.options["aimSpeed"] == nil, "null options mean default and are dropped")
+
+        let e5 = try Fixtures.layout("voyager-e5Rrr.json")
+        #expect(e5.navigator?.kind == .trackball)
+        #expect(e5.navigator?.side == .left)
+        #expect(e5.swatch.count == 10)
+
+        let jr = try Fixtures.layout("voyager-JRGQm.json")
+        #expect(jr.combos.first?.name == "PrevWebTab")
+        #expect(jr.combos.first?.keyIndices == [14, 13, 15])
+        #expect(jr.combos.first?.output.modifiers == [.leftControl, .leftShift])
+    }
+
+    /// Oryx generates KC_TRANSPARENT for keys with no actions (Brd+Sys 18 and 43 in the user's keymap.c).
+    @Test func keysWithoutActionsAreTransparent() throws {
+        let layout = try Fixtures.layout()
+        #expect(layout.layers[2].keys[18] == .transparent)
+        #expect(layout.layers[2].keys[43] == .transparent)
+    }
+
+    @Test(arguments: Fixtures.allLayoutFiles)
+    func roundTripsThroughSextantsFormat(file: String) throws {
+        let original = try Fixtures.layout(file)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(original)
+        let decoded = try KeyboardLayout(oryxJSON: data)
+        #expect(decoded == original)
+        #expect(try encoder.encode(decoded) == data, "encoding is deterministic")
+    }
+
+    @Test func emptyListsEqualTheirDefault() throws {
+        let e5 = try Fixtures.layout("voyager-e5Rrr.json")
+        let setting = try #require(SettingsCatalog.voyager.setting(id: "disabledAnimations"))
+        #expect(e5.settings["disabledAnimations"] == setting.defaultValue)
+    }
+
+    @Test func refusesLayersWithTheWrongKeyCount() throws {
+        let json = #"{"title":"x","geometry":"voyager","revision":{"layers":[{"title":"Main","keys":[null]}]}}"#
+        #expect(throws: OryxDecodingError.badLayerKeyCount(layer: "Main", count: 1, expected: 52)) {
+            try KeyboardLayout(oryxJSON: Data(json.utf8))
+        }
+        #expect(throws: OryxDecodingError.missingRevision) { try KeyboardLayout(oryxJSON: Data(#"{"title":"x"}"#.utf8)) }
+    }
+
+    @Test func refusesBoardsSextantDoesNotKnow() {
+        let json = #"{"title":"x","geometry":"moonlander","revision":{"layers":[{"title":"Main","keys":[null]}]}}"#
+        #expect(throws: OryxDecodingError.unsupportedBoard("moonlander")) { try KeyboardLayout(oryxJSON: Data(json.utf8)) }
+    }
+
+    @Test func errorsInsideAnEnvelopeAreReportedAsThemselves() {
+        let json = #"{"data":{"layout":{"title":"x","geometry":"voyager","revision":{"layers":[{"title":"Main","keys":[null]}]}}}}"#
+        #expect(throws: OryxDecodingError.badLayerKeyCount(layer: "Main", count: 1, expected: 52)) {
+            try KeyboardLayout(oryxJSON: Data(json.utf8))
+        }
+    }
+
+    @Test func aSlotWithoutACodeIsEmpty() throws {
+        let key = try JSONDecoder().decode(Key.self, from: Data(#"{"tap":{"code":"KC_A"},"hold":{"code":null,"layer":null}}"#.utf8))
+        #expect(key == Key("KC_A"))
+    }
+
+    @Test func foldsOryxModifierMasks() throws {
+        let action = try JSONDecoder().decode(KeyAction.self, from: Data(#"{"code":"OSM","modifier":"MOD_LSFT"}"#.utf8))
+        #expect(action.modifiers == [.leftShift])
+    }
+}

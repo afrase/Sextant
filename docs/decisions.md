@@ -1,5 +1,7 @@
 # Decisions
 
+The index of settled decisions. From decision 6 on, each has an ADR in [`adr/`](adr/README.md) with its context and consequences.
+
 | # | Date | Decision | Notes |
 |---|---|---|---|
 | 1 | 2026-10-11 | Name: **Sextant** | Fine for development. A paid store release needs a distinct listing name and trademark clearance (research 00 §7). Don't name an SPM module exactly `Sextant`. |
@@ -7,6 +9,18 @@
 | 3 | 2026-10-11 | Minimum OS: **macOS 26** | Liquid Glass design language, current SwiftUI, Apple Containerization as the build backend. |
 | 4 | 2026-10-11 | UI design scope: **design every surface, build in phases** | Editor, live layer/key view, menu bar item, floating overlay/HUD, heatmap and app-aware layers are all designed now. Build order: editor, then live view (MVP), then the rest (v1). |
 | 5 | 2026-10-11 | Code architecture: **clean / hexagonal**, plus Swift and macOS best practices | Domain, then application (use cases and ports), then adapters (storage, Oryx, QMK build, USB DFU, raw HID), then a SwiftUI driving adapter, with the app target as the composition root. Layers are enforced as SwiftPM targets. Swift 6 strict concurrency, Observation, Swift Testing, os.Logger, and a thin app shell. The user's reason: this structure works well for AI-built projects. Details are in `CLAUDE.md`. |
+| 6 | 2026-10-11 | Module layout: one target per layer or adapter group | [ADR 0006](adr/0006-module-layout.md). Reconciles spec §13.1 with decision 5. |
+| 7 | 2026-10-11 | Document format: Oryx-shaped JSON in `.sextant` packages | [ADR 0007](adr/0007-document-format.md). One codec; display-only Oryx fields dropped; SHA-256 in storage. |
+| 8 | 2026-10-11 | Domain data compiled in; visual tokens in code | [ADR 0008](adr/0008-no-resource-bundles-in-domain.md) |
+| 9 | 2026-10-11 | UI-facing use cases are `@MainActor @Observable` | [ADR 0009](adr/0009-observable-use-cases.md). Selection lives in `EditSession`. |
+| 10 | 2026-10-11 | Typed throws on ports and use cases | [ADR 0010](adr/0010-typed-errors.md) |
+| 11 | 2026-10-11 | App bundle: SwiftPM plus `scripts/bundle`, no Xcode project | [ADR 0011](adr/0011-app-bundle.md) |
+| 12 | 2026-10-11 | Hardware writes wired off until the user approves | [ADR 0012](adr/0012-hardware-gate.md) |
+| 13 | 2026-10-11 | Firmware checks: structure in domain, md5 in adapters | [ADR 0013](adr/0013-firmware-integrity-split.md) |
+| 14 | 2026-10-11 | One process-based toolchain adapter, two configurations | [ADR 0014](adr/0014-toolchain-backends.md). Containerization not adopted for now. |
+| 15 | 2026-10-11 | Keys with no actions are transparent | [ADR 0015](adr/0015-null-keys-are-transparent.md). Deviates from spec §4.6, following Oryx's generated source. |
+| 16 | 2026-10-11 | One String Catalog, resolved from the main bundle | [ADR 0016](adr/0016-string-catalog.md). `scripts/strings` syncs it. |
+| 17 | 2026-10-11 | Boards are data: everything board-specific comes from `BoardDefinition` | [ADR 0017](adr/0017-boards-are-data.md). The user's future goal of more keyboards. |
 
 UI taste calls: all nine decided 2026-10-11 (ui-spec §14).
 

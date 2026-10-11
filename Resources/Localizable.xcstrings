@@ -1,0 +1,194 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%@ Copy" : {
+
+    },
+    "Bring your layout to Sextant" : {
+
+    },
+    "Change Modifiers" : {
+
+    },
+    "Change Setting" : {
+
+    },
+    "Clear %@" : {
+
+    },
+    "Clear Key Colour" : {
+
+    },
+    "Clear Label" : {
+
+    },
+    "Clear Layer" : {
+
+    },
+    "Colour" : {
+
+    },
+    "Copy Key" : {
+
+    },
+    "Delete Layer" : {
+
+    },
+    "Disable Key" : {
+
+    },
+    "Disabled" : {
+
+    },
+    "Double tap" : {
+
+    },
+    "Dual-function" : {
+
+    },
+    "Duplicate Layer" : {
+
+    },
+    "Edit Key" : {
+
+    },
+    "Hold" : {
+
+    },
+    "Import a layout from Oryx to get started." : {
+
+    },
+    "Key %lld" : {
+
+    },
+    "Keyboard, %@ layer, %lld keys" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keyboard, %1$@ layer, %2$lld keys"
+          }
+        }
+      }
+    },
+    "L" : {
+
+    },
+    "Label" : {
+
+    },
+    "Layer" : {
+
+    },
+    "Layer %lld" : {
+
+    },
+    "Layer %lld · %lld own · %lld inherited" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Layer %1$lld · %2$lld own · %3$lld inherited"
+          }
+        }
+      }
+    },
+    "Layer 0 · base · %lld keys" : {
+
+    },
+    "Layers" : {
+
+    },
+    "Layouts" : {
+
+    },
+    "Lighting" : {
+
+    },
+    "Macro" : {
+
+    },
+    "Make Transparent" : {
+
+    },
+    "Modifier" : {
+
+    },
+    "Move Layer" : {
+
+    },
+    "Navigator · settings in Firmware Settings › Navigator" : {
+
+    },
+    "New Layer" : {
+
+    },
+    "Override Key" : {
+
+    },
+    "Paint %lld Keys" : {
+
+    },
+    "R" : {
+
+    },
+    "Regular" : {
+
+    },
+    "Rename Layer" : {
+
+    },
+    "Rename Layout" : {
+
+    },
+    "Select a key to edit it." : {
+
+    },
+    "Set %@" : {
+
+    },
+    "Set Key Colour" : {
+
+    },
+    "Set Label" : {
+
+    },
+    "Set Layer Colour" : {
+
+    },
+    "Sextant couldn't read this layout. %@" : {
+
+    },
+    "Sextant couldn't save or load the layout. %@" : {
+
+    },
+    "Swap Keys" : {
+
+    },
+    "Tap" : {
+
+    },
+    "Tap dance" : {
+
+    },
+    "Tap then hold" : {
+
+    },
+    "This layout is no longer in your library." : {
+
+    },
+    "This layout was saved by a newer version of Sextant. Update Sextant to open it." : {
+
+    },
+    "Transparent" : {
+
+    },
+    "Untitled Layout" : {
+
+    },
+    "hold" : {
+
+    }
+  },
+  "version" : "1.0"
+}

@@ -1,0 +1,10 @@
+#!/bin/sh
+# Syncs Resources/Localizable.xcstrings with every String(localized:), LocalizedStringResource and
+# SwiftUI Text literal in the shipping targets (the compiler emits .stringsdata on each build). ADR 0016.
+set -eu
+cd "$(dirname "$0")/.."
+swift build --product SextantApp >/dev/null
+data=$(find .build -path '*/Debug/*' -name '*.stringsdata' | grep -E '/Sextant(Domain|Application|Storage|UI|App)-[tp]\.build/' | grep -v resource_bundle_accessor)
+# shellcheck disable=SC2086
+xcrun xcstringstool sync Resources/Localizable.xcstrings --stringsdata $data
+echo "Resources/Localizable.xcstrings synced"

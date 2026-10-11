@@ -6,9 +6,11 @@ Sextant is a native macOS 26 SwiftUI app for configuring the user's ZSA Voyager.
 
 - `docs/design/ui-spec.md`: what to build. §13 covers targets, APIs and the MVP build order. §14 lists the taste calls, all decided.
 - `docs/research/00-overview.md`: how Oryx, the firmware, the flasher and live HID work, plus the architecture and its risks. Section 4 covers flasher safety.
-- `docs/decisions.md`: settled decisions, plus what is still open.
+- `docs/decisions.md`: settled decisions, plus what is still open. From decision 6 on, each has an ADR in `docs/adr/`; add one for every significant choice.
+- `docs/architecture.md`: the code design (targets, ports, adapters, concurrency, errors, `.sextant` format, testing).
+- `docs/progress.md`: what is done, what comes next, what is blocked. Read it first after a context reset.
 
-**Status:** research and UI design are done. Next come the code design and the MVP build.
+**Status:** code design done; the MVP build is under way (see `docs/progress.md`). Run `scripts/check` before every commit.
 
 ## Architecture: clean / hexagonal (decision 5)
 
@@ -19,7 +21,7 @@ Sextant is a native macOS 26 SwiftUI app for configuring the user's ZSA Voyager.
 - **UI:** a driving adapter. SwiftUI views plus `@Observable` view models that call use cases. Views never touch adapters directly.
 - **Composition root:** the app target, the only place that wires concrete adapters to ports.
 
-**Enforce it with module boundaries,** one SwiftPM target per layer or adapter group, so a wrong import fails to compile. Spec §13.1's target list predates this decision; the code design must reconcile it with these layers.
+**Enforce it with module boundaries,** one SwiftPM target per layer or adapter group, so a wrong import fails to compile. `docs/architecture.md` §1 lists the targets and reconciles them with spec §13.1.
 
 **Testing follows the layers:**
 - domain and use cases: unit tests with in-memory fakes of the ports;
