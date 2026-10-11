@@ -65,6 +65,13 @@ enum Scenes {
         scenes += await device(f)
         scenes += SnapshotScene.pair("activity", size: CGSize(width: 480, height: 14 * 40 + 16), chrome: .content) { activityStates }
         scenes += await layers(f)
+        // The app icon, 1024 pt on a transparent canvas; scripts/icon renders these at each icon size into Resources/AppIcon.icns.
+        for (name, small) in [("app-icon", false), ("app-icon-small", true)] {
+            scenes.append(
+                SnapshotScene(name, size: CGSize(width: 1024, height: 1024), chrome: .imageRenderer, background: .transparent) {
+                    AppIconArtwork(small: small)
+                })
+        }
         // After every model has loaded, so the autosave of this edit can't leak into other scenes.
         symNum.session?.setColor(HexColor(hex: "#FF9500"), layer: 1, index: 30)
         return scenes
