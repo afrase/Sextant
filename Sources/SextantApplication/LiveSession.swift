@@ -164,6 +164,7 @@ public final class LiveSession {
     }
 
     private func show(_ state: LinkState, from device: KeyboardDevice) {
+        guard keyboard == device else { return }  // an update still in flight when the keyboard went away
         if state.isLive, connection != .connected(device) { connection = .connected(device) }
         if let serial = state.serial, serial != firmwareSerial { firmwareSerial = serial }
         if state.protocolVersion != protocolVersion { protocolVersion = state.protocolVersion }
@@ -177,6 +178,8 @@ extension Clock where Duration == Swift.Duration {
     /// burst collapses into one update, updates come at most 60 times a second, and nothing runs while the
     /// keyboard is idle. Returns the final state. A method so it can be called on an `any Clock` (passing one
     /// to a generic parameter doesn't compile in this module).
+    /// shortcut: during a burst with gaps under 1/60 s the update waits for the pause; move to a leading-and-trailing
+    /// throttle if that lag ever shows.
     fileprivate func publish(
         _ events: AsyncStream<LiveEvent>, board: BoardDefinition, to body: @MainActor (LinkState) -> Void
     ) async -> LinkState {

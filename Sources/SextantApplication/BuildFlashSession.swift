@@ -26,9 +26,10 @@ public enum BuildFlashError: Error, Equatable, Sendable, LocalizedError {
         case let .flash(e): e.localizedDescription
         case .notReconnected:
             String(localized: "The keyboard didn't reconnect after flashing. Unplug it and plug it back in to check it.")
-        case let .unexpectedSerial(serial):
-            String(
-                localized: "The keyboard reconnected as \(serial ?? "unknown"), not the new firmware. Put it in flash mode to try again.")
+        case let .unexpectedSerial(serial?):
+            String(localized: "The keyboard reconnected as \(serial), not the new firmware. Put it in flash mode to try again.")
+        case .unexpectedSerial(nil):
+            String(localized: "The keyboard reconnected without a serial. Put it in flash mode to try again.")
         }
     }
 }
@@ -38,6 +39,8 @@ public enum BuildFlashError: Error, Equatable, Sendable, LocalizedError {
 ///
 /// Writing starts only when exactly one bootloader of the board appears and the image passes validation;
 /// there is no "Flash Now". ``stop()`` works while building or waiting and is refused from validation on.
+/// Call ``stop()`` when the document closes: a waiting run has no time limit and would flash the next keyboard
+/// put in flash mode.
 @MainActor
 @Observable
 public final class BuildFlashSession {
@@ -199,6 +202,7 @@ public final class BuildFlashSession {
         {
             return show(.confirmingReplace(serial: serial, title: await title(runningSerial: serial)))
         }
+        guard !Task.isCancelled else { return }
         if request != .flash {
             guard await build(layout, as: expected) else { return }
         }
@@ -281,6 +285,8 @@ public final class BuildFlashSession {
         var settleID = 0
         var flashed = false
         for await input in inputs {
+            // A stopped stream still hands over events it already holds: never act on one after Stop.
+            guard !Task.isCancelled else { return }
             if flashed {
                 switch input {
                 case let .device(.attached(.keyboard(keyboard))):

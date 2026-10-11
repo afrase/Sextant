@@ -147,6 +147,8 @@ struct BuildFlashSessionTests {
         #expect(await eventually { !session.diagnostics.isEmpty })
         #expect(session.diagnostics.map(\.key) == [FakeGenerator.mappedKey, nil])
         #expect(session.artifact == nil)
+        session.retry()
+        #expect(await eventually { toolchain.buildCount == 2 }, "a failed build retries by rebuilding")
     }
 
     @Test func refusesFirmwareThatDoesNotFit() async throws {
