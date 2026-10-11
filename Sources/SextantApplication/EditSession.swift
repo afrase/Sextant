@@ -40,6 +40,10 @@ public final class EditSession {
     public private(set) var changeCount = 0
     /// The last autosave failure, if any (cleared by the next successful save).
     public private(set) var saveError: LibraryError?
+    /// The layout as of the last revision, for "Edited" in the window subtitle (spec §3.4).
+    /// shortcut: starts as the layout at open, so edits autosaved in an earlier launch read as unedited until the
+    /// library hands over the last revision's layout (StoredLayout has only summaries today).
+    private var revisionBaseline: KeyboardLayout
 
     /// The window's undo manager. Edits made while it is nil are not undoable.
     @ObservationIgnored public weak var undoManager: UndoManager?
@@ -51,6 +55,7 @@ public final class EditSession {
     public init(stored: StoredLayout, library: any LayoutLibrary, autosaveDelay: Duration = .seconds(1)) {
         id = stored.entry.id
         layout = stored.layout
+        revisionBaseline = stored.layout
         revisions = stored.revisions
         origin = stored.entry.origin
         self.library = library
@@ -70,6 +75,9 @@ public final class EditSession {
 
     /// Resolved legend for a key on the current layer.
     public func legend(at index: Int) -> ResolvedLegend { Legends.legend(layout: layout, layer: selection.layer, index: index) }
+
+    /// True when the layout differs from the last revision (undoing back to it clears this).
+    public var isEditedSinceRevision: Bool { layout != revisionBaseline }
 
     public var canUndo: Bool {
         _ = changeCount
@@ -294,8 +302,10 @@ public final class EditSession {
     @discardableResult
     public func saveRevision(source: RevisionSource, message: String?) async throws(LibraryError) -> RevisionSummary {
         await flush()
-        let summary = try await library.appendRevision(RevisionDraft(source: source, message: message, layout: layout), to: id)
+        let saved = layout
+        let summary = try await library.appendRevision(RevisionDraft(source: source, message: message, layout: saved), to: id)
         revisions.append(summary)
+        revisionBaseline = saved
         return summary
     }
 
