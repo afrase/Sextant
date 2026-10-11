@@ -1522,7 +1522,7 @@ Modifiers on caps and in hints are text glyphs (⌃ ⌥ ⇧ ⌘ ⇪ ⌫ ⌦ ⏎ 
 ### 10.7 Identity
 
 - **The sextant mark.** A 60° graduated arc (7 ticks) with an index arm. It is Sextant's only brand element. It appears in:
-  - the app icon: a graphite squircle with a porcelain arc over two tilted generic key silhouettes (no Voyager outline);
+  - the app icon: a graphite squircle with a simple porcelain marine sextant in profile (graduated limb, brass index arm, mirrors, short telescope), no keys and no Voyager outline;
   - the menu bar glyph, with the layer number;
   - empty states, large and tertiary;
   - About.
