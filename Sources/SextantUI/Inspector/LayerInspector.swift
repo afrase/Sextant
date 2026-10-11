@@ -92,6 +92,8 @@ private struct LayerNameField: View {
             .focused($isFocused)
             .onSubmit(commit)
             .onChange(of: isFocused) { if !isFocused { commit() } }
+            // Switching layers (⌘2) or closing the window replaces the field without a focus change.
+            .onDisappear(perform: commit)
             .onChange(of: title) { draft = title }
     }
 

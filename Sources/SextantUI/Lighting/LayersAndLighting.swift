@@ -127,7 +127,7 @@ struct LayerPresentations: ViewModifier {
                 Button("Clear Layer", role: .destructive) { model.session?.clearLayer(layer) }
                 Button("Cancel", role: .cancel) {}
             } message: { _ in
-                Text("Every key on this layer becomes transparent. You can undo this.")
+                Text("Every key on this layer becomes transparent and loses its own colour. You can undo this.")
             }
             .alert(
                 Text("Clear the key colours on \(layerName(model.keyColoursPendingClear))?"),

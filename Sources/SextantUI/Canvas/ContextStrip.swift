@@ -25,18 +25,23 @@ struct ContextStrip: View {
         }
     }
 
-    /// One card per layer from layer 0 up, scrolling sideways when they don't fit.
+    /// One card per layer from layer 0 up, scrolling sideways when they don't fit, with the current layer's in view.
     private func cards(@ViewBuilder _ card: @escaping (Int, Layer) -> some View) -> some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 6) {
-                ForEach(Array(session.layout.layers.enumerated()), id: \.element.id) { index, layer in
-                    card(index, layer)
+        let current = session.currentLayer?.id
+        return ScrollViewReader { proxy in
+            ScrollView(.horizontal) {
+                HStack(spacing: 6) {
+                    ForEach(Array(session.layout.layers.enumerated()), id: \.element.id) { index, layer in
+                        card(index, layer)
+                    }
                 }
+                .padding(.horizontal, 20)
+                .frame(maxHeight: .infinity)
             }
-            .padding(.horizontal, 20)
-            .frame(maxHeight: .infinity)
+            .scrollIndicators(.never)
+            .onAppear { proxy.scrollTo(current, anchor: .center) }
+            .onChange(of: current) { proxy.scrollTo(current, anchor: .center) }
         }
-        .scrollIndicators(.never)
     }
 
     @ViewBuilder private func keyCard(layer: Int, key: Int, title: String) -> some View {

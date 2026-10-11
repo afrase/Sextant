@@ -96,6 +96,24 @@ struct LayersAndLightingTests {
         #expect(model.swatches == KeyboardLayout.defaultSwatch, "the user's layout has no swatches of its own")
     }
 
+    @Test func aStrokeChangesOnlyColoursInOneStep() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        let undo = undoable(session)
+        let before = session.layout.layers[2].keys
+        let orange = try #require(HexColor(hex: "#FF9500"))
+        step(undo) { session.paint(orange, keys: Array(14...20), layer: 2) }
+        let after = session.layout.layers[2].keys
+        for i in before.indices {
+            var expected = before[i]
+            if (14...20).contains(i) { expected.glowColor = orange }
+            #expect(after[i] == expected, "key \(i) keeps its actions")
+        }
+        #expect(undo.undoActionName == "Paint 7 Keys")
+        undo.undo()
+        #expect(session.layout.layers[2].keys == before)
+    }
+
     @Test func aKeyLightsWithItsOwnColourThenItsLayers() throws {
         let own = try #require(HexColor(hex: "#FF9500"))
         let layer = try #require(HexColor(hex: "#42FF00"))

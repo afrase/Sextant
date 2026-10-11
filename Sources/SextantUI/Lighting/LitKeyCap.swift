@@ -79,6 +79,7 @@ struct LitKeyCap: View {
         }
         .scaleEffect(isDown && !reduceMotion ? 0.96 : 1)
         .animation(isDown ? nil : SextantMotion.keyRelease, value: isDown)
+        .opacity(model.isDimmed ? 0.35 : 1)
         .onHover { isHovered = $0 }
         .contentShape(shape)
         .accessibilityElement(children: .ignore)
