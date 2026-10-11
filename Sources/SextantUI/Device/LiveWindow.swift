@@ -15,11 +15,32 @@ extension LayoutWindowModel {
         let errors = session.map { LayoutIssues.check($0.layout).filter { $0.severity == .error } } ?? []
         let status =
             buildFlash.flatMap { ActivityState.Status($0.phase, usedBytes: $0.usedBytes, capacity: $0.capacity) }
+            ?? flashingElsewhere.map { .flashingElsewhere(layout: $0) }
             ?? (errors.isEmpty ? nil : .issues(count: errors.count, firstKey: errors.first?.key?.index))
             ?? ActivityState.Status(
                 live.connection, match: match, serial: live.firmwareSerial, edits: editsSinceImport,
-                revisionDate: session?.revisions.last?.createdAt)
-        return ActivityState(device: ActivityState.Device(live.connection, serial: live.firmwareSerial, match: match), status: status)
+                revisionDate: session?.revisions.last?.createdAt, layoutOpen: session != nil)
+        let device = ActivityState.Device(live.connection, serial: live.firmwareSerial, match: match, layoutOpen: session != nil)
+        return ActivityState(device: device, status: status)
+    }
+
+    /// The title of the layout another window is flashing (spec §7.6): this window's Build & Flash waits its turn.
+    var flashingElsewhere: String? {
+        guard let id = live?.flashingLayoutID, id != session?.id else { return nil }
+        return library.entries.first { $0.id == id }?.title ?? ""
+    }
+
+    /// Compile errors the source map placed on a key (spec §7.5): their caps ring until the next build.
+    var compileErrorKeys: [KeyRef] { buildFlash?.diagnostics.filter { $0.severity == .error }.compactMap(\.key) ?? [] }
+
+    /// The lens lane's capsule for the first compile error on a key: "Build error on Brd+Sys · key 45 · Tap".
+    var compileErrorLane: LaneStatus? {
+        guard let key = compileErrorKeys.first, let layout = session?.layout else { return nil }
+        var parts = [
+            String(localized: "Build error on \(layout.layers[safe: key.layer]?.title ?? "")"), String(localized: "key \(key.index)"),
+        ]
+        if let slot = key.slot { parts.append(slot.title) }
+        return .issue(text: parts.joined(separator: " · "), key: key)
     }
 
     /// How the keyboard's firmware relates to the open layout; nil without a serial or an open layout.
@@ -44,12 +65,14 @@ extension LayoutWindowModel {
         }
     }
 
-    /// Edits since the import, when the keyboard runs that import's Oryx build; otherwise Sextant can't count them.
+    /// Key edits since the import, when the keyboard runs that import's Oryx build; otherwise (or when only layers or
+    /// settings changed) Sextant can't count them.
     private var editsSinceImport: Int? {
         guard let session, let imported = importedLayout, let serial = imported.oryx?.serial, serial == live?.firmwareSerial else {
             return nil
         }
-        return session.layout.diff(from: imported).keyChanges.count
+        let count = session.layout.diff(from: imported).keyChanges.count
+        return count > 0 ? count : nil
     }
 
     /// Feeds the window from the keyboard for its lifetime (spec §8.2): presses light the board, the shown layer
@@ -63,7 +86,8 @@ extension LayoutWindowModel {
             pressedKeys.update(now.pressed)
             if now.document != last?.document { importedLayout = await buildFlash?.importedLayout() }
             if now.followed != last?.followed || now.document?.id != last?.document?.id {
-                if let layer = now.followed { session?.select(layer: layer) }
+                // Another layout's layer numbers mean other layers: leave the shown one alone.
+                if let layer = now.followed, runsThisLayout { session?.select(layer: layer) }
             } else if live.isFollowing, now.layer != last?.layer {
                 live.stopFollowing()
             }
@@ -96,23 +120,24 @@ private struct LiveInputs: Equatable, Sendable {
 }
 
 extension ActivityState.Device {
-    init(_ connection: LiveSession.Connection, serial: String?, match: FirmwareMatch?) {
+    /// With no layout open, there is nothing for the keyboard to differ from.
+    init(_ connection: LiveSession.Connection, serial: String?, match: FirmwareMatch?, layoutOpen: Bool = true) {
         switch connection {
         case .noKeyboard: self = .absent
         case .bootloader: self = .flashMode
         case .connected, .heldByAnotherApp, .hardwareAccessOff:
-            self = .connected(serial: serial, matchesLayout: match == .current || match == .thisLayout)
+            self = .connected(serial: serial, matchesLayout: !layoutOpen || match == .current || match == .thisLayout)
         }
     }
 }
 
 extension ActivityState.Status {
     /// What a Build & Flash phase shows; nil where the keyboard's status shows instead (idle, a question on the sheet,
-    /// or blocked, whose issues the live issues already show).
+    /// blocked, whose issues the live issues already show, or turned away because another window is flashing).
     init?(_ phase: BuildFlashSession.Phase, usedBytes: Int?, capacity: Int) {
         func fraction(_ done: Int, _ total: Int) -> Double { total > 0 ? Double(done) / Double(total) : 0 }
         switch phase {
-        case .idle, .blocked, .confirmingReplace: return nil
+        case .idle, .blocked, .confirmingReplace, .failed(.flashingElsewhere): return nil
         case .needsSetup: self = .needsSetup
         case .generating: self = .generating
         case let .compiling(file, done, total): self = .building(file: file, done: done, total: total)
@@ -125,7 +150,8 @@ extension ActivityState.Status {
         case let .erasing(done, total): self = .erasing(fraction: fraction(done, total))
         case let .writing(done, total): self = .writing(fraction: fraction(done, total), bytes: done)
         case .verifying: self = .verifying
-        case let .done(revision, _): self = .flashed(revision: revision.map { String(localized: "revision \($0.number)") } ?? "")
+        case let .done(revision?, nil): self = .flashed(revision: String(localized: "revision \(revision.number)"))
+        case .done: self = .flashedNotSaved
         case let .failed(.toolchain(.compileFailed(diagnostics))):
             let errors = diagnostics.filter { $0.severity == .error }
             self = .buildFailed(errors: max(errors.count, 1), key: errors.lazy.compactMap(\.key).first?.index)
@@ -135,14 +161,19 @@ extension ActivityState.Status {
         }
     }
 
-    /// The keyboard against the open layout (spec §3.5). Without a serial Sextant can't tell, so it says another layout.
-    init(_ connection: LiveSession.Connection, match: FirmwareMatch?, serial: String?, edits: Int?, revisionDate: Date?) {
+    /// The keyboard against the open layout (spec §3.5). Without a serial Sextant can't tell, so it says another layout;
+    /// with no layout open (first launch, §12.1) there is nothing to differ from.
+    init(
+        _ connection: LiveSession.Connection, match: FirmwareMatch?, serial: String?, edits: Int?, revisionDate: Date?,
+        layoutOpen: Bool = true
+    ) {
         switch connection {
         case .noKeyboard: self = .noKeyboard
         case .bootloader: self = .inFlashMode
         case .heldByAnotherApp: self = .heldByAnotherApp("Keymapp")
         case .connected, .hardwareAccessOff:
             switch match {
+            case _ where !layoutOpen: self = .keyboardConnected
             case .current: self = .onKeyboard(revisionDate: revisionDate ?? .now)
             case .thisLayout: self = .notOnKeyboard(edits: edits)
             case .otherLayout, nil: self = .otherLayout(serial: serial ?? "")

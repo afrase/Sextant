@@ -24,7 +24,16 @@ hook. Parallel UI slices own the layer controls (sidebar, ⌘1–9, the jump men
   layout or closes. A flash that can't be stopped (from validation until the keyboard comes back, at most 10 s after
   writing) keeps the window on its layout, so its progress stays in view. ⌘R brings up the sheet and ⌘B builds quietly
   (the capsule shows progress). Hide only dismisses.
-  A finished flash shows "Flashed" in the capsule for 8 s, then gives way to the keyboard's status.
+  A finished flash shows "Flashed" in the capsule for 8 s, then gives way to the keyboard's status. A flash that
+  couldn't be recorded in History keeps saying so until the sheet shows why.
+- **One flash at a time, app-wide (spec §7.6).** `LiveSession` holds the one layout whose Build & Flash waits for flash
+  mode or flashes (`claimFlashMode(for:)`, `releaseFlashMode(for:)`). `BuildFlashSession` claims it before it waits
+  for flash mode and lets go when that step ends (done, failed or stopped). A second run that reaches the step meanwhile
+  fails with `flashingElsewhere` and never looks for the bootloader. Other windows disable Build, Build & Flash, Flash…
+  and Try Again, and their capsule says "Flashing from ‘<layout>’". The live session holds it because it is already the
+  one app-wide object for the keyboard, so no new service is wired.
+- **Follow only means this layout's layers.** When the keyboard runs another layout, its layer numbers mean other
+  layers: the shown layer doesn't move, the sidebar has no live badge, and the lane says "LIVE · Layer 2".
 - **The UI only reports.** The sheet maps every `BuildFlashSession.Phase` to the spec's copy and buttons. There is no
   "Flash Now", and Cancel is disabled from validation on. "Download and Build" stays disabled until the user approves
   the toolchain download. "Flash Oryx's Build" stays disabled because the use case can't flash a stored image yet.
@@ -38,6 +47,7 @@ hook. Parallel UI slices own the layer controls (sidebar, ⌘1–9, the jump men
 ## Consequences
 - Every window shows the same keyboard and Follow state; building and flashing stay per layout.
 - Undo or Add Layer changing the shown layer also stops Follow. That is consistent with "a layer chosen by hand".
-- Two windows can each wait for flash mode, and the first to see the bootloader flashes. Spec §7.6 wants other windows'
-  Build & Flash disabled while one flashes. That needs an app-wide registry of running sessions, which this slice
-  doesn't own.
+- Two windows can't race to write different layouts to the same bootloader. Two builds may still run at once; only
+  the first to reach flash mode goes on.
+- Show Details gives the DFU status and address but not the step, because the flasher doesn't report the step with
+  its error.

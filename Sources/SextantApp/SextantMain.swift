@@ -62,7 +62,7 @@ struct SextantMain: App {
             makeBuildFlash: { session in
                 BuildFlashSession(
                     session: session, library: store, generator: generator, toolchain: toolchain, watcher: watcher,
-                    flasher: flasher, md5: md5)
+                    flasher: flasher, md5: md5, live: live)
             })
     }
 }

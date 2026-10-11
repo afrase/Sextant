@@ -33,6 +33,9 @@ public final class LiveSession {
     public private(set) var isFollowing = false
     /// macOS secure input is on (a password field has focus): presses are hidden.
     public private(set) var isSecureInputOn = false
+    /// The library layout whose Build & Flash is waiting for flash mode or flashing (spec §7.6). One at a time,
+    /// app-wide: two would race to write different layouts to the same bootloader.
+    public private(set) var flashingLayoutID: UUID?
     private var pressed: Set<Int> = []
 
     /// Indices of the keys held down; empty while secure input is on.
@@ -88,6 +91,17 @@ public final class LiveSession {
     public func follow() { isFollowing = true }
 
     public func stopFollowing() { isFollowing = false }
+
+    /// Claims flash mode for one layout's Build & Flash; false while another layout's holds it.
+    public func claimFlashMode(for layoutID: UUID) -> Bool {
+        guard flashingLayoutID == nil || flashingLayoutID == layoutID else { return false }
+        flashingLayoutID = layoutID
+        return true
+    }
+
+    public func releaseFlashMode(for layoutID: UUID) {
+        if flashingLayoutID == layoutID { flashingLayoutID = nil }
+    }
 
     /// How the keyboard's firmware relates to a layout; nil when no keyboard reports a serial.
     /// - Parameter importedLayout: see ``FirmwareIdentity/importedLayout(of:revisions:library:)``.

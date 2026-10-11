@@ -8,9 +8,11 @@ struct LayersSection: View {
     var session: EditSession
 
     var body: some View {
+        // Another layout's layer numbers mean other layers.
+        let liveLayer = model.runsThisLayout ? model.live?.activeLayer : nil
         Section("Layers") {
             ForEach(Array(session.layout.layers.enumerated()), id: \.element.id) { index, layer in
-                LayerRow(index: index, layer: layer, isLive: model.live?.activeLayer == index)
+                LayerRow(index: index, layer: layer, isLive: liveLayer == index)
                     .tag(Destination.layer(index))
                     .contextMenu {
                         Button("Duplicate") { session.duplicateLayer(index) }

@@ -6,6 +6,7 @@ import SwiftUI
 /// capsule's "Flashed" giving way to the keyboard's status after 8 s when the sheet is hidden (spec §3.5, §7, §8.2, §11).
 struct DeviceWiring: ViewModifier {
     @Bindable var model: LayoutWindowModel
+    @Environment(\.appearsActive) private var appearsActive
 
     func body(content: Content) -> some View {
         content
@@ -18,13 +19,21 @@ struct DeviceWiring: ViewModifier {
             .onChange(of: model.buildFlash?.phase) { old, new in
                 if let text = BuildFlashText.announcement(from: old, to: new) { AccessibilityNotification.Announcement(text).post() }
             }
+            .task(id: model.live?.followedLayer) {
+                // "Sym+Num layer" once the layer holds for a second, from the active window only (spec §4.11, §11).
+                guard appearsActive, model.runsThisLayout, let layer = model.live?.followedLayer,
+                    let title = model.session?.layout.layers[safe: layer]?.title, (try? await Task.sleep(for: .seconds(1))) != nil
+                else { return }
+                AccessibilityNotification.Announcement(String(localized: "\(title) layer")).post()
+            }
     }
 }
 
 extension LayoutWindowModel {
-    /// A flash finished while the sheet was hidden: the capsule says "Flashed" for a while.
+    /// A flash finished and was recorded while the sheet was hidden: the capsule says "Flashed" for a while. One that
+    /// wasn't recorded keeps saying so until the sheet shows why.
     var isFlashedOutOfSight: Bool {
-        if case .done = buildFlash?.phase { !showsBuildSheet } else { false }
+        if case .done(_, nil) = buildFlash?.phase { !showsBuildSheet } else { false }
     }
 }
 
@@ -130,6 +139,7 @@ public struct BuildFlashSheet: View {
         case .built:
             Button("Close", action: hide).keyboardShortcut(.cancelAction)
             Button("Flash…") { build.flash(connectedKeyboard: model.connectedKeyboard) }.keyboardShortcut(.defaultAction)
+                .disabled(!model.canBuild)
         case .waitingForFlashMode:
             Button("Hide", action: hide).keyboardShortcut(.cancelAction)
             Button("Cancel", action: stop)
@@ -145,7 +155,7 @@ public struct BuildFlashSheet: View {
             Button("Done", action: stop).keyboardShortcut(.defaultAction)
         case .failed:
             Button("Close", action: hide).keyboardShortcut(.cancelAction)
-            Button("Try Again") { build.retry() }.keyboardShortcut(.defaultAction)
+            Button("Try Again") { build.retry() }.keyboardShortcut(.defaultAction).disabled(!model.canBuild)
         }
     }
 }
@@ -183,14 +193,15 @@ enum BuildFlashText {
         case .flash(.imageRejected), .flash(.checksumMismatch): return String(localized: "Sextant won’t flash this image")
         case .flash(.hardwareAccessOff): return String(localized: "Flashing is off")
         case .flash: return String(localized: "Flashing didn’t finish")
-        case .multipleBootloaders, .notReconnected, .unexpectedSerial: return String(localized: "Build & Flash stopped")
+        case .multipleBootloaders, .notReconnected, .unexpectedSerial, .flashingElsewhere:
+            return String(localized: "Build & Flash stopped")
         }
     }
 
     /// The step indicator's position: Build · Flash mode · Write · Verify · Done (spec §7.2).
     static func step(_ phase: BuildFlashSession.Phase) -> Int {
         switch phase {
-        case .waitingForFlashMode, .failed(.multipleBootloaders): 2
+        case .waitingForFlashMode, .failed(.multipleBootloaders), .failed(.flashingElsewhere): 2
         case .validating, .erasing, .writing, .failed(.flash): 3
         case .verifying, .failed(.notReconnected), .failed(.unexpectedSerial): 4
         case .done: 5
@@ -202,7 +213,8 @@ enum BuildFlashText {
     static func announcement(from old: BuildFlashSession.Phase?, to new: BuildFlashSession.Phase?) -> String? {
         switch new {
         case .built: return String(localized: "Build succeeded")
-        case .done: return String(localized: "Flashed")
+        case .done(_, nil): return String(localized: "Flashed")
+        case .done: return String(localized: "Flashed, but not saved in History")
         case let .failed(error): return failureTitle(error)
         case let .writing(done, total) where total > 0:
             let quarter = done * 4 / total
@@ -211,4 +223,16 @@ enum BuildFlashText {
         default: return nil
         }
     }
+
+    /// Show Details for a flash that didn't finish (spec §7.3): the DFU status and the address, in hex like the sheet.
+    static func details(_ error: BuildFlashError) -> String {
+        switch error {
+        case let .flash(.dfuError(status, address)): String(localized: "DFU status \(Int(status)) at \(hex(address))")
+        case let .flash(.timeout(address)): String(localized: "The bootloader stopped answering at \(hex(address))")
+        case let .flash(.transfer(message)): message
+        default: error.localizedDescription
+        }
+    }
+
+    private static func hex(_ address: UInt32) -> String { String(format: "0x%08X", address) }
 }

@@ -209,5 +209,10 @@ extension LayoutWindowModel {
     }
 
     /// The keyboard runs a build of the open layout, so its layer numbers mean this layout's layers.
-    var runsThisLayout: Bool { firmwareMatch == .current || firmwareMatch == .thisLayout }
+    var runsThisLayout: Bool {
+        switch firmwareMatch {
+        case .current, .thisLayout: true
+        default: false
+        }
+    }
 }

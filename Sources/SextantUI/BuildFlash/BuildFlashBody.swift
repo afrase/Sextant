@@ -20,9 +20,11 @@ struct BuildFlashBody: View {
             log
         case let .blocked(issues):
             Text("Sextant checks the layout before every build. These keys need fixing first.")
-            ForEach(issues) { issue in
-                issueRow(
-                    message: model.session.map { KeyText.issueText(issue, layout: $0.layout) } ?? "", location: nil, key: issue.key)
+            capped {
+                ForEach(issues) { issue in
+                    issueRow(
+                        message: model.session.map { KeyText.issueText(issue, layout: $0.layout) } ?? "", location: nil, key: issue.key)
+                }
             }
         case let .confirmingReplace(serial, title):
             Text(replaceText(serial: serial, title: title)).fixedSize(horizontal: false, vertical: true)
@@ -211,8 +213,10 @@ struct BuildFlashBody: View {
         switch error {
         case let .toolchain(.compileFailed(diagnostics)):
             let errors = diagnostics.filter { $0.severity == .error }
-            ForEach(Array(errors.enumerated()), id: \.offset) { _, d in
-                issueRow(message: d.message, location: location(d), key: d.key)
+            capped {
+                ForEach(Array(errors.enumerated()), id: \.offset) { _, d in
+                    issueRow(message: d.message, location: location(d), key: d.key)
+                }
             }
             if errors.isEmpty || errors.contains(where: { $0.key == nil }) {
                 HStack {
@@ -239,13 +243,21 @@ struct BuildFlashBody: View {
             )
             .fixedSize(horizontal: false, vertical: true)
             DisclosureGroup("Show Details") {
-                Text(verbatim: String(describing: error)).font(.caption.monospaced()).textSelection(.enabled)
+                Text(verbatim: BuildFlashText.details(error)).font(.caption.monospaced()).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+        case let .generator(.unsupported(_, key?)):
+            issueRow(message: error.localizedDescription, location: nil, key: key)
+            log
         default:
             Text(error.localizedDescription).fixedSize(horizontal: false, vertical: true)
             if case .generator = error { log }
         }
+    }
+
+    /// A list that scrolls past about seven rows, so the fitted sheet stays within spec §7.2's 640 pt.
+    private func capped(@ViewBuilder _ rows: () -> some View) -> some View {
+        ScrollView { VStack(alignment: .leading, spacing: 14) { rows() } }.scrollBounceBehavior(.basedOnSize).frame(maxHeight: 280)
     }
 
     private func issueRow(message: String, location: String?, key: KeyRef?) -> some View {

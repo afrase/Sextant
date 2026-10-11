@@ -11,6 +11,8 @@ public struct ActivityState: Hashable, Sendable {
 
     public enum Status: Hashable, Sendable {
         case noKeyboard
+        /// A keyboard, with no layout open to compare it with.
+        case keyboardConnected
         case onKeyboard(revisionDate: Date)
         /// An earlier build of this layout is on the keyboard; `edits` when Sextant can count them.
         case notOnKeyboard(edits: Int?)
@@ -31,6 +33,10 @@ public struct ActivityState: Hashable, Sendable {
         /// Waiting for the keyboard to come back with the new firmware; it has no percentage.
         case verifying
         case flashed(revision: String)
+        /// Flashed, but the flash couldn't be recorded in History; the sheet says why.
+        case flashedNotSaved
+        /// Another window's Build & Flash holds flash mode (spec §7.6).
+        case flashingElsewhere(layout: String)
         case buildFailed(errors: Int, key: Int?)
         case flashFailed
     }
@@ -73,6 +79,8 @@ extension ActivityState.Status {
         switch self {
         case .noKeyboard:
             ActivityLook(symbol: "circle.fill", tone: .secondary, text: String(localized: "No keyboard"))
+        case .keyboardConnected:
+            ActivityLook(symbol: "keyboard", tone: .secondary, text: String(localized: "Keyboard connected"))
         case let .onKeyboard(date):
             ActivityLook(
                 symbol: "checkmark.circle.fill", tone: .success, text: String(localized: "On keyboard"),
@@ -128,6 +136,12 @@ extension ActivityState.Status {
                 progress: .indeterminate)
         case let .flashed(revision):
             ActivityLook(symbol: "checkmark.seal.fill", tone: .success, text: String(localized: "Flashed"), detail: revision)
+        case .flashedNotSaved:
+            ActivityLook(
+                symbol: "checkmark.seal.fill", tone: .warning, text: String(localized: "Flashed"),
+                detail: String(localized: "Not saved in History"))
+        case let .flashingElsewhere(layout):
+            ActivityLook(symbol: "bolt.fill", tone: .secondary, text: String(localized: "Flashing from ‘\(layout)’"))
         case let .buildFailed(errors, key):
             ActivityLook(
                 symbol: "xmark.octagon.fill", tone: .danger, text: String(localized: "Build Failed"),

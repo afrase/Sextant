@@ -110,10 +110,14 @@ public final class LayoutWindowModel {
         let free = { (candidate: UUID) in candidate == self.session?.id || !self.library.isOpen(candidate) }
         guard let target = id.flatMap({ known.contains($0) && free($0) ? $0 : nil }) ?? known.first(where: free) else { return nil }
         guard target != session?.id else { return target }
-        // A flash that is writing can't be stopped; keep its layout until it ends, so its progress stays in view.
-        if buildFlash?.canStop == false { return session?.id }
         do {
             let next = try await library.open(target)
+            // A flash that is writing (it may have started during the load) can't be stopped; keep its layout until it
+            // ends, so its progress stays in view.
+            if buildFlash?.canStop == false {
+                await library.close(next)
+                return session?.id
+            }
             if let old = session {
                 // A waiting Build & Flash has no time limit; stop it so it can't flash the next keyboard in flash mode.
                 buildFlash?.stop()
@@ -162,6 +166,7 @@ public final class LayoutWindowModel {
             let ref = KeyRef(layer: key.layer, index: key.index)
             if map[ref] != .error { map[ref] = issue.severity }
         }
+        for key in compileErrorKeys { map[KeyRef(layer: key.layer, index: key.index)] = .error }
         return map
     }
 
@@ -170,7 +175,10 @@ public final class LayoutWindowModel {
         if let issue = LayoutIssues.check(session.layout).first(where: { $0.severity == .error && $0.key != nil }), let key = issue.key {
             return .issue(text: KeyText.issueText(issue, layout: session.layout), key: key)
         }
+        if let compileError = compileErrorLane { return compileError }
         guard isFollowing else { return nil }
+        // Another layout's layers have other names: the keyboard's layer by number.
+        if live != nil, !runsThisLayout { return .live(text: String(localized: "LIVE · Layer \(live?.activeLayer ?? 0)")) }
         let layer = session.selection.layer
         let name = session.currentLayer?.title ?? ""
         let held = layer == 0 ? nil : KeyText.activator(layout: session.layout, layer: layer)?.text
@@ -201,7 +209,7 @@ public final class LayoutWindowModel {
     }
     /// Follow needs a keyboard that reports its layer.
     var canFollow: Bool { session != nil && (live.map { $0.activeLayer != nil } ?? activity.isKeyboardConnected) }
-    var canBuild: Bool { buildFlash != nil && session != nil && !activity.isBusy }
+    var canBuild: Bool { buildFlash != nil && session != nil && !activity.isBusy && flashingElsewhere == nil }
     /// Stop is for building and waiting only: flashing can't be interrupted once it writes (spec §7.4).
     var canStop: Bool {
         guard buildFlash != nil else { return false }
@@ -252,7 +260,10 @@ public final class LayoutWindowModel {
     func build(_ command: BuildCommand) {
         guard let buildFlash else { return }
         switch command {
-        case .build: buildFlash.build()
+        case .build:
+            buildFlash.build()
+            // Live errors block it; the sheet lists them, or ⌘B would seem to do nothing (spec §7.5).
+            if session.map({ LayoutIssues.check($0.layout).contains { $0.severity == .error } }) == true { showsBuildSheet = true }
         case .buildAndFlash:
             buildFlash.buildAndFlash(connectedKeyboard: connectedKeyboard)
             showsBuildSheet = true
