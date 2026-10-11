@@ -21,6 +21,8 @@ let package = Package(
         .package(url: "https://github.com/pointfreeco/swift-clocks", exact: "1.1.1"),
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", exact: "1.19.6"),
         .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", exact: "0.65.1"),
+        // Firmware builds in a pinned Linux VM (ADR 0018). Large dependency tree: SextantBuild only.
+        .package(url: "https://github.com/apple/containerization", exact: "0.49.0"),
     ],
     targets: [
         // Domain: pure Swift + Foundation.
@@ -37,7 +39,10 @@ let package = Package(
         .target(name: "SextantOryx", dependencies: ["SextantApplication", "SextantDomain"]),
         .target(
             name: "SextantBuild",
-            dependencies: ["SextantApplication", "SextantDomain", .product(name: "Subprocess", package: "swift-subprocess")]
+            dependencies: [
+                "SextantApplication", "SextantDomain", .product(name: "Subprocess", package: "swift-subprocess"),
+                .product(name: "Containerization", package: "containerization"),
+            ]
         ),
         .target(name: "SextantDevice", dependencies: ["SextantApplication", "SextantDomain"]),
 

@@ -57,9 +57,10 @@ public struct Key: Hashable, Sendable {
     public var customLabel: String?
     /// Per-key LED colour on this layer.
     public var glowColor: HexColor?
-    /// Per-key colour while Caps Lock is on (Oryx `lockGlowColor`; kept for round-trips).
+    /// Per-key colour while Caps Lock is on (Oryx `lockGlowColor`; firmware paints it when Caps Lock status is on).
     public var lockGlowColor: HexColor?
-    /// Per-key tapping term as a signed delta in ms from the global value (Oryx convention); nil means the global value.
+    /// Per-key tapping term in ms (absolute, as Oryx stores it; firmware gets the difference from the global term);
+    /// nil means the global value.
     public var tappingTerm: Int?
 
     public init(
