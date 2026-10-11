@@ -135,22 +135,12 @@ struct SextantRing: View {
 /// Card A, the reset button, and card B, the Reset key on the user's own board (spec §7.3).
 struct FlashModeCards: View {
     var layout: KeyboardLayout?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             card {
-                ZStack(alignment: .topTrailing) {
-                    // A generic left half seen from above, its cable leaving the top edge (no product art).
-                    RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color.secondary.opacity(0.5), lineWidth: 1.5)
-                        .frame(width: 120, height: 44).padding(.top, 14)
-                    Capsule().fill(Color.secondary.opacity(0.5)).frame(width: 8, height: 18).offset(x: -24)
-                    Image(systemName: "target").foregroundStyle(Tokens.danger.color).symbolEffect(.pulse, isActive: !reduceMotion)
-                        .offset(x: -44, y: 6)
-                }
-                .frame(maxWidth: .infinity)
-                .accessibilityHidden(true)
-                Text("Press the reset button on the top edge of the left half, next to the cable, once.")
+                Image(systemName: "button.horizontal.top.press").font(.largeTitle).foregroundStyle(.tint).accessibilityHidden(true)
+                Text("Press the small reset button on the left half once.")
             }
             card {
                 if let layout, let path = FlashPath.find(in: layout) {

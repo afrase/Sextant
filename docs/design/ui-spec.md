@@ -923,8 +923,8 @@ The picker is the command palette component in **assign scope**.
 | Flash failed | "Flashing didn't finish" | "Nothing is broken: the bootloader can't be overwritten, so you can always try again. Put the keyboard in flash mode again to retry." [Show Details] (DFU status, step, address) | [Close] [Try Again] |
 
 **Flash mode, card A: the reset button**
-- An illustration of a generic left half's top edge, with the cable, and the reset button marked with `target`. The marker pulses; under Reduce Motion it is static.
-- Copy: "Press the reset button on the top edge of the left half, next to the cable, once." (The Voyager has a button there, not a pinhole; the user confirmed on hardware, 2026-10-11.)
+- The `button.horizontal.top.press` symbol, large, in the accent colour. (An abstract drawing of the half's top edge confused the user, 2026-10-11.)
+- Copy: "Press the small reset button on the left half once." (The Voyager has a button, not a pinhole; the user confirmed on hardware, 2026-10-11.)
 - Verify the exact button position on hardware before release (research 02 §8.7).
 
 **Flash mode, card B: the Reset key (Console graft)**
@@ -1508,7 +1508,7 @@ Modifiers on caps and in hints are text glyphs (⌃ ⌥ ⇧ ⌘ ⇪ ⌫ ⌦ ⏎ 
 | Lens-lane capsule | `.materialize` | Fade |
 | Pressed key | Instant on; fade 0.12 s on release; scale 0.96 | No scale |
 | Recording ring | Opacity pulse, 0.9 s, repeating | Static |
-| Waiting for flash mode | Arc shimmer, 2.4 s per turn; reset-button marker pulse | Static, with the status text only |
+| Waiting for flash mode | Arc shimmer, 2.4 s per turn | Static, with the status text only |
 | Flash ring progress | Linear interpolation, 0.25 s | Same |
 | Done seal | `symbolEffect(.bounce)` once | None |
 | HUD | In 0.12 s with an 8 pt rise; out 0.18 s | Fade |
