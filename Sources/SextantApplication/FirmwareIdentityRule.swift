@@ -6,9 +6,10 @@ import os
 //
 // 1. A layout imported from Oryx and still equal to its latest import revision builds with Oryx's own
 //    `layoutId/revisionId` serial. The build is equivalent to Oryx's, so Keymapp, zapp and Oryx keep working.
-// 2. Anything else builds with `sx:<library id, 8 hex>:<content fingerprint, 8 hex>`. The fingerprint is the
-//    CRC-32 of the layout's canonical (sorted-keys) JSON, so the same content always gets the same serial, and
-//    LiveSession can tell "runs exactly this" from "runs an older build of this layout" without any lookup.
+// 2. Anything else builds with `sx-<library id, 8 hex>-<content fingerprint, 8 hex>`. The fingerprint is the
+//    DFU-suffix CRC (reflected CRC-32 without the final XOR, `FirmwareImage.crc`) of the layout's canonical
+//    (sorted-keys) JSON, so the same content always gets the same serial, and LiveSession can tell "runs exactly
+//    this" from "runs an older build of this layout" without any lookup.
 //    There is no "/" in it, so tools that read Oryx serials see non-Oryx firmware instead of asking Oryx for a
 //    layout that isn't there. It is 20 ASCII characters: it fits QMK's USB serial and the 30-byte raw-HID reply.
 
@@ -50,7 +51,8 @@ extension FirmwareIdentity {
         self.init(serial: Self.sextantPrefix(libraryID) + String(format: "%08X", FirmwareImage.crc(json)))
     }
 
-    static func sextantPrefix(_ libraryID: UUID) -> String { "sx:\(libraryID.uuidString.prefix(8)):" }
+    /// The generator accepts only `[A-Za-z0-9/_-]` in a serial, and a `/` would read as an Oryx serial.
+    static func sextantPrefix(_ libraryID: UUID) -> String { "sx-\(libraryID.uuidString.prefix(8))-" }
 
     /// The layout of the latest import revision, which the rule compares against. Nil when there is none or it
     /// can't be read; the rule then falls back to a Sextant serial, which is always safe.

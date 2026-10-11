@@ -66,7 +66,13 @@ public final class LiveSession {
     public func start() {
         guard tasks.isEmpty else { return }
         tasks = [
-            Task { for await event in watcher.events(for: board) { handle(event) } },
+            Task {
+                for await event in watcher.events(for: board) {
+                    // A stopped stream still hands over events it already holds: one must not reconnect after stop().
+                    guard !Task.isCancelled else { break }
+                    handle(event)
+                }
+            },
             Task {
                 while !Task.isCancelled {
                     let on = secureInputProbe()
@@ -141,7 +147,7 @@ public final class LiveSession {
     // MARK: Live link
 
     /// Runs link sessions for a keyboard until it goes away, reopening them with backoff (1 s doubling to 30 s;
-    /// a session that delivered events resets it). Stops for good when hardware access is off.
+    /// a session that reached live mode resets it). Stops for good when hardware access is off.
     private func runLink(_ device: KeyboardDevice) async {
         var delay = Duration.seconds(1)
         while !Task.isCancelled {
@@ -199,7 +205,7 @@ private struct LinkState: Sendable {
     var protocolVersion: UInt8?
     var layer: Int?
     var pressed: Set<Int> = []
-    /// The session delivered something besides its end.
+    /// The session reached live mode (layer or key events). Old firmware reports its version and then ends.
     var isLive = false
     var endReason: DeviceError?
 
@@ -208,15 +214,18 @@ private struct LinkState: Sendable {
             endReason = reason
             return
         }
-        isLive = true
         switch event {
         case let .firmwareSerial(s): serial = s
         case let .protocolVersion(v): protocolVersion = v
-        case let .layer(l): layer = l
+        case let .layer(l):
+            layer = l
+            isLive = true
         case let .keyDown(row, column):
             if let i = board.keyIndex(matrixRow: row, column: column) { pressed.insert(i) }
+            isLive = true
         case let .keyUp(row, column):
             if let i = board.keyIndex(matrixRow: row, column: column) { pressed.remove(i) }
+            isLive = true
         case .ended: break
         }
     }

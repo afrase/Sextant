@@ -74,24 +74,50 @@ struct LiveSessionTests {
         #expect(live.pressedKeys.isEmpty)
     }
 
+    /// True when, once `settled` holds, the next link session opens exactly `delay` later on the test clock.
+    func reopens(after delay: Duration, once settled: () -> Bool) async -> Bool {
+        let count = link.sessionCount
+        guard await eventually(settled) else { return false }
+        await clock.advance(by: delay - .milliseconds(1))
+        guard link.sessionCount == count else { return false }
+        await clock.advance(by: .milliseconds(1))
+        return await eventually { link.sessionCount == count + 1 }
+    }
+
     @Test func reconnectsWithBackoffWhileAnotherAppHoldsTheKeyboard() async {
         let live = start()
         let keyboard = KeyboardDevice.voyager(serial: "KlgM7/40xJ7M")
         watcher.attach(.keyboard(keyboard))
         #expect(await eventually { link.sessionCount == 1 })
         link.send(.ended(.heldByAnotherApp))
-        #expect(await eventually { live.connection == .heldByAnotherApp(keyboard) })
-        #expect(
-            await eventually {
-                await clock.advance(by: .milliseconds(500))
-                return link.sessionCount == 2
-            })
+        #expect(await reopens(after: .seconds(1)) { live.connection == .heldByAnotherApp(keyboard) })
         link.send(.layer(0))
         #expect(
             await eventually {
                 await clock.advance(by: .milliseconds(17))
                 return live.connection == .connected(keyboard)
             })
+    }
+
+    @Test func backsOffUntilASessionGoesLive() async {
+        let live = start()
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { link.sessionCount == 1 })
+        // Firmware too old for live events reports its protocol version, then ends: that is not live.
+        for (version, seconds) in [(1, 1), (2, 2), (3, 4), (4, 8)] as [(UInt8, Int64)] {
+            link.send(.protocolVersion(version), .ended(.io("firmware is too old")))
+            #expect(await reopens(after: .seconds(seconds)) { live.protocolVersion == version }, "session \(version)")
+        }
+        link.send(.layer(1), .ended(.io("unplugged")))
+        #expect(await reopens(after: .seconds(1)) { live.activeLayer == 1 }, "a live session resets the backoff")
+    }
+
+    @Test func stopBeforeTheWatcherRunsStartsNoLink() async throws {
+        let live = start()
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        live.stop()
+        try await Task.sleep(for: .milliseconds(100))  // let the cancelled watcher loop drain what it holds
+        #expect(link.sessionCount == 0 && live.connection == .noKeyboard)
     }
 
     @Test func hardwareAccessOffStopsTheLinkButKeepsTheSerial() async {

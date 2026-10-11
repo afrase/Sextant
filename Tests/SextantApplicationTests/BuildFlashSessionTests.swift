@@ -80,7 +80,7 @@ struct BuildFlashSessionTests {
         session.buildAndFlash(connectedKeyboard: nil)
         #expect(await enterFlashMode(session))
         let serial = try #require(generator.lastIdentity?.serial)
-        #expect(serial.hasPrefix("sx:"))
+        #expect(serial.hasPrefix("sx-"))
         document.setCode("KC_F14", layer: 0, index: 1)
         #expect(await eventually { session.phase == .verifying })
         watcher.attach(.keyboard(.voyager(id: 2, serial: serial)))
@@ -115,6 +115,14 @@ struct BuildFlashSessionTests {
         #expect(toolchain.buildCount == 0, "the confirmation comes before the build")
         session.confirmReplace()
         #expect(await eventually { session.phase == .waitingForFlashMode(stillWaiting: false) })
+    }
+
+    @Test func confirmsBeforeReplacingFirmwareWithNoSerial() async throws {
+        let toolchain = FakeToolchain()
+        let (session, _) = try await make(toolchain: toolchain)
+        session.buildAndFlash(connectedKeyboard: .voyager(serial: nil))
+        #expect(await eventually { session.phase == .confirmingReplace(serial: nil, title: nil) })
+        #expect(toolchain.buildCount == 0)
     }
 
     @Test func asksForSetupBeforeTheFirstBuild() async throws {
@@ -195,7 +203,7 @@ struct BuildFlashSessionTests {
             toolchain: FakeToolchain(script: FakeToolchain.success(image: Images.valid(productID: 0x0791))), flasher: flasher)
         session.buildAndFlash(connectedKeyboard: nil)
         #expect(await enterFlashMode(session, .gd32()))
-        #expect(session.phase == .failed(.imageRejected(.wrongProduct(image: 0x0791, bootloader: 0x1791))))
+        #expect(session.phase == .failed(.flash(.imageRejected(.wrongProduct(image: 0x0791, bootloader: 0x1791)))))
         #expect(session.phase.error?.localizedDescription.hasPrefix("Sextant won't flash this image: ") == true)
         #expect(flasher.calls.isEmpty)
     }
@@ -229,11 +237,10 @@ struct BuildFlashSessionTests {
         session.buildAndFlash(connectedKeyboard: nil)
         #expect(await enterFlashMode(session))
         #expect(await eventually { session.phase == .verifying })
-        #expect(
-            await eventually {
-                await clock.advance(by: .seconds(1))
-                return session.phase == .failed(.notReconnected)
-            })
+        await clock.advance(by: .seconds(9))
+        #expect(session.phase == .verifying)
+        await clock.advance(by: .seconds(1))
+        #expect(await eventually { session.phase == .failed(.notReconnected) })
         #expect(document.revisions.count == 1, "no flash revision without verification")
     }
 
@@ -254,6 +261,29 @@ struct BuildFlashSessionTests {
         waiting.stop()
         #expect(waiting.phase == .idle)
         #expect(await eventually { watcher.subscriberCount == 0 }, "stops watching for flash mode")
+    }
+
+    @Test func stopBeforeTheRunStartsNeverBuilds() async throws {
+        let toolchain = FakeToolchain()
+        let (session, _) = try await make(toolchain: toolchain)
+        session.buildAndFlash(connectedKeyboard: nil)
+        session.stop()
+        try await Task.sleep(for: .milliseconds(100))  // let the cancelled run reach the toolchain, if it would
+        #expect(toolchain.buildCount == 0 && session.phase == .idle)
+    }
+
+    /// Checks the whole "Stop never flashes" rule: TestClock can't hit the exact moment a `.settled` is buffered
+    /// when Stop lands, so this doesn't pin the guard in the flash loop on its own.
+    @Test func stopWhileABootloaderSettlesNeverFlashes() async throws {
+        let flasher = FakeFlasher()
+        let (session, _) = try await make(flasher: flasher)
+        session.buildAndFlash(connectedKeyboard: nil)
+        #expect(await eventually { session.phase == .waitingForFlashMode(stillWaiting: false) && watcher.subscriberCount == 1 })
+        watcher.attach(.bootloader(.stm32()))
+        try await Task.sleep(for: .milliseconds(20))  // the loop sees it and starts the settle timer
+        session.stop()
+        await clock.advance(by: .seconds(1))
+        #expect(flasher.calls.isEmpty && session.phase == .idle)
     }
 
     @Test func stopIsRefusedWhileWriting() async throws {

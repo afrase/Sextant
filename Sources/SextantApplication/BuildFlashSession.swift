@@ -9,8 +9,7 @@ public enum BuildFlashError: Error, Equatable, Sendable, LocalizedError {
     /// Compile errors (with their keys), too large, or a toolchain failure.
     case toolchain(ToolchainError)
     case multipleBootloaders
-    /// The image failed validation for the connected bootloader. There is no override.
-    case imageRejected(FirmwareImageError)
+    /// Includes `.imageRejected`: the image failed validation for the connected bootloader, with no override.
     case flash(FlashError)
     /// The keyboard didn't come back within 10 s of flashing.
     case notReconnected
@@ -22,7 +21,6 @@ public enum BuildFlashError: Error, Equatable, Sendable, LocalizedError {
         case let .generator(e): e.localizedDescription
         case let .toolchain(e): e.localizedDescription
         case .multipleBootloaders: String(localized: "Connect only one keyboard in flash mode.")
-        case let .imageRejected(reason): String(localized: "Sextant won't flash this image: \(reason.localizedDescription)")
         case let .flash(e): e.localizedDescription
         case .notReconnected:
             String(localized: "The keyboard didn't reconnect after flashing. Unplug it and plug it back in to check it.")
@@ -48,8 +46,8 @@ public final class BuildFlashSession {
         case idle
         /// Live issues with error severity block the build (§7.5).
         case blocked([LayoutIssue])
-        /// The connected keyboard runs another layout: ``confirmReplace()`` or ``stop()``.
-        case confirmingReplace(serial: String, title: String?)
+        /// The connected keyboard runs another layout, or firmware with no serial: ``confirmReplace()`` or ``stop()``.
+        case confirmingReplace(serial: String?, title: String?)
         /// The toolchain needs its one-time setup (§7.3 "Set up the build tools").
         case needsSetup(String)
         case generating
@@ -197,10 +195,12 @@ public final class BuildFlashSession {
             let imported = await FirmwareIdentity.importedLayout(of: session.id, revisions: session.revisions, library: library)
             expected = FirmwareIdentity(layout: layout, libraryID: session.id, importedLayout: imported)
         }
-        if request != .build, !confirmed, let serial = keyboard?.serial,
-            FirmwareMatch(serial: serial, expected: expected, libraryID: session.id, oryxLayoutID: layout.oryx?.layoutId) == .otherLayout
+        if request != .build, !confirmed, let keyboard,
+            (keyboard.serial.map {
+                FirmwareMatch(serial: $0, expected: expected, libraryID: session.id, oryxLayoutID: layout.oryx?.layoutId)
+            } ?? .otherLayout) == .otherLayout
         {
-            return show(.confirmingReplace(serial: serial, title: await title(runningSerial: serial)))
+            return show(.confirmingReplace(serial: keyboard.serial, title: await title(runningSerial: keyboard.serial)))
         }
         guard !Task.isCancelled else { return }
         if request != .flash {
@@ -211,7 +211,8 @@ public final class BuildFlashSession {
     }
 
     /// The library title of the layout a serial names, for the replace confirmation.
-    private func title(runningSerial serial: String) async -> String? {
+    private func title(runningSerial serial: String?) async -> String? {
+        guard let serial else { return nil }
         let entries = (try? await library.entries()) ?? []
         return entries.first { entry in
             if case let .oryx(layoutId, _) = entry.origin, serial.hasPrefix(layoutId + "/") { return true }
@@ -228,6 +229,7 @@ public final class BuildFlashSession {
         }
         show(.generating)
         await session.flush()
+        guard !Task.isCancelled else { return false }
         let source: GeneratedSource
         do {
             source = try generator.generate(layout, identity: identity)
@@ -336,7 +338,7 @@ public final class BuildFlashSession {
         do {
             try image.validate(forBootloaderPID: device.productID, board: board)
         } catch {
-            fail(.imageRejected(error))
+            fail(.flash(.imageRejected(error)))
             return false
         }
         logger.info("Flashing bootloader \(device.id, privacy: .public)")
