@@ -6,7 +6,7 @@ import Foundation
 extension HexColor {
     /// Builds a colour from hue, saturation and brightness, each 0...1.
     public init(hue: Double, saturation: Double, brightness: Double) {
-        let h = (hue - floor(hue)) * 6, s = min(max(saturation, 0), 1), v = min(max(brightness, 0), 1)
+        let h = hue.isFinite ? (hue - floor(hue)) * 6 : 0, s = min(max(saturation, 0), 1), v = min(max(brightness, 0), 1)
         let c = v * s, x = c * (1 - abs(h.truncatingRemainder(dividingBy: 2) - 1)), m = v - c
         let (r, g, b): (Double, Double, Double) =
             switch Int(h) {

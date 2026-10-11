@@ -16,7 +16,8 @@ enum SnapshotCompositor {
     static func context(width: Int, height: Int) -> CGContext? {
         CGContext(
             data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
-            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
     }
 
     /// Converts a top-left-origin rect in points to a bottom-left-origin rect in pixels.

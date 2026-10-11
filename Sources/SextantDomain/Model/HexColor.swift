@@ -12,9 +12,11 @@ public struct HexColor: Hashable, Sendable, Codable, CustomStringConvertible {
     public var blue: Double
 
     public init(red: Double, green: Double, blue: Double) {
-        self.red = min(max(red, 0), 1)
-        self.green = min(max(green, 0), 1)
-        self.blue = min(max(blue, 0), 1)
+        // Clamp, and turn NaN into 0, so `hex` can never trap.
+        func unit(_ v: Double) -> Double { v.isNaN ? 0 : min(max(v, 0), 1) }
+        self.red = unit(red)
+        self.green = unit(green)
+        self.blue = unit(blue)
     }
 
     /// Parses `#RRGGBB`, `RRGGBB` or `#RGB` (case-insensitive). Returns nil for anything else.

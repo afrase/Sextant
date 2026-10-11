@@ -230,7 +230,9 @@ extension KeyboardLayout {
             for (id, value) in options {
                 switch value {
                 case let .integers(list) where id.hasSuffix("Layers"): options[id] = .integers(list.compactMap(map))
-                case let .number(n) where id == "automouseLayer": options[id] = map(Int(n)).map { .number(Double($0)) }
+                case let .number(n) where id == "automouseLayer":
+                    // Imported data: a non-integral or out-of-range number is no layer, not a crash.
+                    options[id] = Int(exactly: n).flatMap(map).map { .number(Double($0)) }
                 default: break
                 }
             }
@@ -246,7 +248,7 @@ extension KeyboardLayout {
         let moved = order.remove(at: source)
         order.insert(moved, at: destination)
         // order[newIndex] = oldIndex
-        var newIndexOf = [Int: Int]()
+        var newIndexOf: [Int: Int] = [:]
         for (newIndex, oldIndex) in order.enumerated() { newIndexOf[oldIndex] = newIndex }
         layers = order.map { layers[$0] }
         remapLayerReferences { newIndexOf[$0] }

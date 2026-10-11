@@ -86,4 +86,19 @@ struct LayoutCodecTests {
         let action = try JSONDecoder().decode(KeyAction.self, from: Data(#"{"code":"OSM","modifier":"MOD_LSFT"}"#.utf8))
         #expect(action.modifiers == [.leftShift])
     }
+
+    /// Imported numbers are untrusted: huge, fractional or infinite values must not trap anywhere.
+    @Test func hostileNumbersDoNotCrash() throws {
+        var layout = try Fixtures.layout()
+        layout.settings["tappingTerm"] = .number(1e300)
+        layout.navigator = NavigatorConfig(kind: .trackpad, side: .right, options: ["automouseLayer": .number(.infinity)])
+        #expect(SettingValue.number(1e300).description == "1e+300")
+        #expect(SettingValue.number(.infinity).description == "inf")
+        #expect(SettingsCatalog.voyager.setting(id: "tappingTerm")?.format(.number(1e300)) != nil)
+        layout.layers.append(.transparent(title: "Extra"))
+        layout.moveLayer(from: 1, to: 3)
+        #expect(layout.navigator?.options["automouseLayer"] == nil)
+        #expect(HexColor(red: .nan, green: 0.5, blue: 1).hex == "#0080FF")
+        #expect(HexColor(hue: .nan, saturation: 1, brightness: 1).hex == "#FF0000")
+    }
 }

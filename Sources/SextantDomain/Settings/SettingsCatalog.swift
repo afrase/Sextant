@@ -67,7 +67,7 @@ public enum SettingValue: Hashable, Sendable, Codable, CustomStringConvertible {
     public var description: String {
         switch self {
         case let .bool(b): b ? "On" : "Off"
-        case let .number(d): d == d.rounded() ? String(Int(d)) : String(d)
+        case let .number(d): Int(exactly: d).map(String.init) ?? String(d)
         case let .text(s): s
         case let .integers(i): i.map(String.init).joined(separator: ", ")
         case let .strings(s): s.joined(separator: ", ")
@@ -126,7 +126,7 @@ public struct Setting: Identifiable, Hashable, Sendable {
         guard let value else { return "Off" }
         if case let .number(d) = value {
             if let m = marks[d] { return m }
-            let n = d == d.rounded() ? String(Int(d)) : String(format: "%.1f", d)
+            let n = Int(exactly: d).map(String.init) ?? String(format: "%.1f", d)
             switch unit {
             case "milliseconds", "ms": return "\(n) ms"
             case "seconds": return "\(n) s"

@@ -144,7 +144,7 @@ enum LayerFlattener {
             NSGetSizeAndAlignment(nv.objCType, &size, &align)
             guard size == 80 else { return nil }
             var m = [Float](repeating: 0, count: 20)
-            m.withUnsafeMutableBytes { nv.getValue($0.baseAddress!, size: 80) }
+            m.withUnsafeMutableBytes { buffer in if let base = buffer.baseAddress { nv.getValue(base, size: 80) } }
             return m
         }
         return nil
@@ -166,7 +166,8 @@ enum LayerFlattener {
         guard w > 0, h > 0, w * h < 16_000_000,
             let ctx = CGContext(
                 data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
-                space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+                space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
         else { return }
         if l.contentsAreFlipped() { ctx.translateBy(x: 0, y: CGFloat(h)); ctx.scaleBy(x: 1, y: -1) }
         ctx.scaleBy(x: scale, y: scale)

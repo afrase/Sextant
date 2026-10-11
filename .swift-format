@@ -1,6 +1,8 @@
 {
   "version": 1,
-  "indentation": { "spaces": 4 },
+  "indentation": {
+    "spaces": 4
+  },
   "lineLength": 140,
   "maximumBlankLines": 1,
   "respectsExistingLineBreaks": true,
@@ -11,6 +13,15 @@
     "OrderedImports": true,
     "UseLetInEveryBoundCaseVariable": false,
     "ValidateDocumentationComments": false,
-    "AllPublicDeclarationsHaveDocumentation": false
+    "AllPublicDeclarationsHaveDocumentation": false,
+    "NeverForceUnwrap": true,
+    "NeverUseForceTry": true,
+    "NeverUseImplicitlyUnwrappedOptionals": true,
+    "AlwaysUseLiteralForEmptyCollectionInit": true,
+    "NoVoidReturnOnFunctionSignature": true,
+    "UseExplicitNilCheckInConditions": true,
+    "UseTripleSlashForDocumentationComments": true,
+    "FileScopedDeclarationPrivacy": true,
+    "AvoidRetroactiveConformances": true
   }
 }

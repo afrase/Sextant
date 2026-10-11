@@ -8,7 +8,7 @@ public enum SnapshotAppearance: String, Sendable, CaseIterable, Hashable {
     case light, dark
 
     public var colorScheme: ColorScheme { self == .dark ? .dark : .light }
-    public var nsAppearance: NSAppearance { NSAppearance(named: self == .dark ? .darkAqua : .aqua)! }
+    public var nsAppearance: NSAppearance { NSAppearance(named: self == .dark ? .darkAqua : .aqua) ?? NSAppearance.currentDrawing() }
 }
 
 /// One image to render: a named view at a size and appearance, optionally inside a full window, with

@@ -26,7 +26,7 @@ public struct OryxReference: Hashable, Sendable {
             let parts = url.pathComponents.filter { $0 != "/" }
             guard let i = parts.firstIndex(of: "layouts"), parts.indices.contains(i + 1), isID(Substring(parts[i + 1])) else { return nil }
             let revision = parts.indices.contains(i + 2) ? parts[i + 2] : nil
-            guard revision == nil || revision == "latest" || isID(Substring(revision!)) else { return nil }
+            if let revision, revision != "latest", !isID(Substring(revision)) { return nil }
             self.init(
                 geometry: i > 0 ? parts[i - 1] : nil, layoutID: parts[i + 1], revisionID: revision == "latest" ? nil : revision,
                 layer: parts.indices.contains(i + 3) ? Int(parts[i + 3]) : nil)
