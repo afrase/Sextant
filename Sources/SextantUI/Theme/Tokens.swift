@@ -77,16 +77,22 @@ public enum Tokens {
     /// Kind colour (bar, band hairline, band fill at 12% / 18%) and band ink.
     public static func kind(_ kind: KeyKind) -> (tint: Token, ink: Token)? { kinds[kind] }
 
-    /// Built once, so every cap shares the same colours.
-    private static let kinds: [KeyKind: (tint: Token, ink: Token)] = [
-        .modifier: (pair(0x4F4CCF, 0xA9A7FF), pair(0x4F4CCF, 0xF2F2F4)),
-        .layer: layerKind,
-        .lighting: (pair(0x7D5A00, 0xFFD43B), pair(0x7D5A00, 0xFFD43B)),
-        .label: (pair(0x0A6C94, 0x80D5F6), pair(0x0A6C94, 0x80D5F6)),
-        .macro: (pair(0x7A35C4, 0xD6B8FF), pair(0x7A35C4, 0xD6B8FF)),
-        .tapDance: (pair(0xA3275F, 0xFF9CC8), pair(0xA3275F, 0xF2F2F4)),
-        .disabled: (pair(0x6E6E73, 0xA8A8AE), pair(0x6E6E73, 0xF2F2F4)),
-    ]
+    /// Built once, so every cap shares the same colours; the switch keeps a new kind from compiling without one.
+    private static let kinds = Dictionary(
+        uniqueKeysWithValues: KeyKind.allCases.compactMap { kind -> (KeyKind, (tint: Token, ink: Token))? in
+            let tokens: (tint: Token, ink: Token)? =
+                switch kind {
+                case .modifier: (pair(0x4F4CCF, 0xA9A7FF), pair(0x4F4CCF, 0xF2F2F4))
+                case .layer: layerKind
+                case .lighting: (pair(0x7D5A00, 0xFFD43B), pair(0x7D5A00, 0xFFD43B))
+                case .label: (pair(0x0A6C94, 0x80D5F6), pair(0x0A6C94, 0x80D5F6))
+                case .macro: (pair(0x7A35C4, 0xD6B8FF), pair(0x7A35C4, 0xD6B8FF))
+                case .tapDance: (pair(0xA3275F, 0xFF9CC8), pair(0xA3275F, 0xF2F2F4))
+                case .disabled: (pair(0x6E6E73, 0xA8A8AE), pair(0x6E6E73, 0xF2F2F4))
+                case .regular, .dualFunction, .transparent: nil
+                }
+            return tokens.map { (kind, $0) }
+        })
 
     /// Layer keys whose target has no colour.
     public static let layerKind = (tint: pair(0x0A6E67, 0x5FE3D3), ink: pair(0x0A6E67, 0x5FE3D3))
