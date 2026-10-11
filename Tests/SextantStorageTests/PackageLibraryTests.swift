@@ -50,6 +50,9 @@ struct PackageLibraryTests {
         #expect(stored.layout == edited)
         #expect(stored.entry.title == "Edited")
         #expect(stored.revisions.map(\.source) == [.save, .flash])
+        #expect(try await library.layout(ofRevision: r1.id, in: entry.id) == edited)
+        await #expect(throws: LibraryError.self) { try await library.layout(ofRevision: "../meta", in: entry.id) }
+        await #expect(throws: LibraryError.self) { try await library.layout(ofRevision: "0009-missing", in: entry.id) }
     }
 
     @Test func renamesDuplicatesAndTrashes() async throws {
