@@ -60,6 +60,7 @@ public struct BoardView: View {
                     gridAnchor: gridAnchor(board, geometry, origin), wash: models.first?.layerTones, layer: layer, showsGrid: showsGrid)
                 keys(board, models: models, cap: cap)
                     .frame(width: board.size.width, height: board.size.height)
+                    .keySwapGesture(session, board: board)
                     // The board draws its own focus ring (spec §11): the selection glow, or this outline before a key is chosen.
                     .overlay {
                         if isFocused && session.selection.keyIndex == nil {

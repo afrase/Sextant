@@ -63,6 +63,9 @@ public final class LayoutWindowModel {
     @ObservationIgnored let makeImport: (@MainActor () -> ImportFromOryx)?
     /// The Build & Flash state machine for the open layout; nil where building is off (tests, snapshots).
     @ObservationIgnored let makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)?
+    // MARK: inspector
+    /// The key label field has focus, so ⌘⌫ and ⇧⌘⌫ edit its text rather than make the key transparent or disable it.
+    var isEditingKeyLabel = false
 
     public init(
         library: Library, onBuild: BuildHandler? = nil, live: LiveSession? = nil,

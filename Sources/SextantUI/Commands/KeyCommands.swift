@@ -23,9 +23,10 @@ struct KeyMenu: View {
         .disabled(!hasKey)
         Divider()
         MakeTransparentItem(window: window)
-        Button("Disable Key") { session?.disable() }.keyboardShortcut(.delete, modifiers: [.command, .shift]).disabled(!hasKey)
+        Button("Disable Key") { session?.disable() }.keyboardShortcut(.delete, modifiers: [.command, .shift])
+            .disabled(!hasKey || window?.isEditingKeyLabel == true)
         Button("Override on This Layer") { session?.overrideInherited() }.disabled(window?.canOverrideKey != true)
-        Menu("LED Colour") {}.disabled(true)
+        Menu("LED Colour") { KeyColourMenu(session: session) }.disabled(!hasKey)
         Divider()
         Button("Select Key by Pressing It") {}.keyboardShortcut("l", modifiers: [.command, .shift]).disabled(true)
         Button("Copy QMK Expression") { session?.copyQMKExpression() }

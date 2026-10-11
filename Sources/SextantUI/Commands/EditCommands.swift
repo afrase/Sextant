@@ -18,6 +18,6 @@ struct MakeTransparentItem: View {
 
     var body: some View {
         Button("Make Transparent") { window?.session?.makeTransparent() }
-            .keyboardShortcut(.delete).disabled(window?.hasSelectedKey != true)
+            .keyboardShortcut(.delete).disabled(window?.hasSelectedKey != true || window?.isEditingKeyLabel == true)
     }
 }
