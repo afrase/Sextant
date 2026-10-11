@@ -2,7 +2,6 @@ import Foundation
 import IOKit.hid
 import SextantApplication
 import SextantDomain
-import os
 
 /// The raw-HID interface of one keyboard: 32-byte reports, no report ID.
 protocol HIDTransport: Sendable {
@@ -78,6 +77,7 @@ private struct OryxSession: Sendable {
 
     /// fw21 and older paired with a key sequence; from protocol 2 (fw22) on, `01` pairs and the events are the same.
     static let minimumVersion: UInt8 = 0x02
+    private static let openAttempts = 10
     private static let drainTime = Duration.milliseconds(20)
     private static let versionTimeout = Duration.milliseconds(400)
     private static let pairingTimeout = Duration.milliseconds(700)
@@ -88,7 +88,7 @@ private struct OryxSession: Sendable {
         let (inputs, feed) = AsyncStream.makeStream(of: Input.self)
         var reason: DeviceError?
         do {
-            try await transport.open { feed.yield($0.map(Input.report) ?? .removed) }
+            try await open { feed.yield($0.map(Input.report) ?? .removed) }
             reason = try await converse(inputs, feed, out)
         } catch let error as DeviceError {
             reason = error
@@ -98,6 +98,18 @@ private struct OryxSession: Sendable {
         await transport.close()
         out.yield(.ended(reason))
         out.finish()
+    }
+
+    /// Opens the interface, waiting up to a second for it: the HID interface is published tens of milliseconds
+    /// after the USB device the watcher reports.
+    private func open(_ receive: @escaping @Sendable ([UInt8]?) -> Void) async throws {
+        for attempt in 1...Self.openAttempts {
+            do {
+                return try await transport.open(receive: receive)
+            } catch .notFound where attempt < Self.openAttempts {
+                try await clock.sleep(for: .milliseconds(100))
+            }
+        }
     }
 
     /// Returns why the session gave up, or nil when the device went away or the consumer cancelled.
@@ -246,7 +258,7 @@ actor IOHIDTransport: HIDTransport {
 
     /// The keyboard's raw-HID interface, found without opening anything. Matching is on the vendor usage page only:
     /// opening the keyboard or trackpad interfaces needs Input Monitoring.
-    static func rawInterface(of device: KeyboardDevice, board: BoardDefinition, manager: IOHIDManager) -> IOHIDDevice? {
+    private static func rawInterface(of device: KeyboardDevice, board: BoardDefinition, manager: IOHIDManager) -> IOHIDDevice? {
         let matching: [String: Any] = [
             kIOHIDVendorIDKey: board.vendorID, kIOHIDProductIDKey: device.productID,
             kIOHIDPrimaryUsagePageKey: board.rawHIDUsagePage, kIOHIDPrimaryUsageKey: board.rawHIDUsage,

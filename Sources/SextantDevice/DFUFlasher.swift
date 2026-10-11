@@ -23,15 +23,20 @@ protocol USBControlTransport {
 public actor DFUFlasher: Flasher {
     private let queue = DispatchSerialQueue(label: "com.sextant.device.dfu")
     private let clock: any Clock<Duration>
-    private let open: @Sendable (BootloaderDevice) throws(FlashError) -> any USBControlTransport
+    private let open: @Sendable (BootloaderDevice, BoardDefinition) throws(FlashError) -> any USBControlTransport
     private var flashing = false
     private let log = Logger(subsystem: "com.sextant.app", category: "device")
 
     nonisolated public var unownedExecutor: UnownedSerialExecutor { queue.asUnownedSerialExecutor() }
 
-    public init() { self.init(clock: ContinuousClock()) { device throws(FlashError) in try IOUSBHostTransport(device: device) } }
+    public init() {
+        self.init(clock: ContinuousClock()) { device, board throws(FlashError) in try IOUSBHostTransport(device: device, board: board) }
+    }
 
-    init(clock: any Clock<Duration>, open: @escaping @Sendable (BootloaderDevice) throws(FlashError) -> any USBControlTransport) {
+    init(
+        clock: any Clock<Duration>,
+        open: @escaping @Sendable (BootloaderDevice, BoardDefinition) throws(FlashError) -> any USBControlTransport
+    ) {
         self.clock = clock
         self.open = open
     }
@@ -66,10 +71,25 @@ public actor DFUFlasher: Flasher {
         _ payload: Data, to device: BootloaderDevice, board: BoardDefinition, clock: some Clock<Duration>,
         progress: @Sendable (FlashProgress) -> Void
     ) async throws(FlashError) {
-        let transport = try open(device)
+        let transport = try await openWhenReady(device, board: board, clock: clock)
         defer { transport.close() }
         var dfu = DfuSe(transport: transport, board: board, clock: clock)
         try await dfu.write(payload, progress: progress)
+    }
+
+    /// The bootloader's interface 0 is published a little after the device the watcher reports (zapp waits 500 ms
+    /// after hotplug), so a missing interface is retried for up to a second.
+    private func openWhenReady(
+        _ device: BootloaderDevice, board: BoardDefinition, clock: some Clock<Duration>
+    ) async throws(FlashError) -> sending any USBControlTransport {
+        for _ in 1..<10 {
+            do {
+                return try open(device, board)
+            } catch .deviceNotFound {
+                try? await clock.sleep(for: .milliseconds(100))
+            }
+        }
+        return try open(device, board)
     }
 }
 
@@ -154,7 +174,9 @@ struct DfuSe<C: Clock<Duration>> {
                 throw .transfer("Refused DfuSe command \(data.map { String(format: "%02X", $0) }.joined(separator: " "))")
             }
             let address = UInt32(data[1]) | UInt32(data[2]) << 8 | UInt32(data[3]) << 16 | UInt32(data[4]) << 24
-            guard window.contains(address) else { throw .transfer("Refused address \(String(format: "0x%08X", address))") }
+            guard window.contains(address), data[0] == Self.setAddress || address.isMultiple(of: UInt32(board.flashPageSize)) else {
+                throw .transfer("Refused address \(String(format: "0x%08X", address))")
+            }
             if data[0] == Self.setAddress { pointer = address }
         case 2:
             guard let pointer, data.count <= board.flashPageSize, UInt64(pointer) + UInt64(data.count) <= UInt64(board.flashEnd) else {
@@ -199,24 +221,26 @@ private final class IOUSBHostTransport: USBControlTransport {
     private static let timeout: TimeInterval = 5
     private let interface: IOUSBHostInterface
 
-    init(device: BootloaderDevice) throws(FlashError) {
+    init(device: BootloaderDevice, board: BoardDefinition) throws(FlashError) {
         let usb = IORegistryEntryIDMatching(device.id).map { IOServiceGetMatchingService(kIOMainPortDefault, $0) } ?? 0
         guard usb != 0 else { throw .deviceNotFound }
         defer { IOObjectRelease(usb) }
+        // The image was validated for `device.productID`; make sure that is the device being opened.
+        guard Self.number(usb, "idVendor") == Int(board.vendorID), Self.number(usb, "idProduct") == Int(device.productID) else {
+            throw .deviceNotFound
+        }
         var children: io_iterator_t = 0
         guard IORegistryEntryGetChildIterator(usb, kIOServicePlane, &children) == KERN_SUCCESS else { throw .deviceNotFound }
         defer { IOObjectRelease(children) }
         var found: IOUSBHostInterface?
         while found == nil, case let child = IOIteratorNext(children), child != 0 {
             defer { IOObjectRelease(child) }
-            let number =
-                IORegistryEntryCreateCFProperty(child, "bInterfaceNumber" as CFString, kCFAllocatorDefault, 0)?
-                .takeRetainedValue() as? Int
-            guard IOObjectConformsTo(child, "IOUSBHostInterface") != 0, number == 0 else { continue }
+            guard IOObjectConformsTo(child, "IOUSBHostInterface") != 0, Self.number(child, "bInterfaceNumber") == 0 else { continue }
             do {
                 found = try IOUSBHostInterface(__ioService: child, options: [], queue: nil, interestHandler: nil)
             } catch {
-                throw .deviceBusy  // another app (Keymapp, a browser) holds the interface
+                // Exclusive access: another app (Keymapp, a browser) holds the interface.
+                throw (error as NSError).code == Int(kIOReturnExclusiveAccess) ? .deviceBusy : .transfer(error.localizedDescription)
             }
         }
         guard let found else { throw .deviceNotFound }
@@ -237,6 +261,10 @@ private final class IOUSBHostTransport: USBControlTransport {
     }
 
     func close() { interface.destroy() }
+
+    private static func number(_ entry: io_registry_entry_t, _ key: String) -> Int? {
+        IORegistryEntryCreateCFProperty(entry, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Int
+    }
 
     private func send(_ request: IOUSBDeviceRequest, _ data: NSMutableData) throws(FlashError) -> Int {
         var transferred = 0

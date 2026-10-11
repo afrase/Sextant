@@ -121,9 +121,14 @@ struct DFUFlasherTests {
     let opened = Locked(false)
     let progress = Locked<[FlashProgress]>([])
 
-    func flash(_ image: FirmwareImage, md5: String, productID: UInt16 = 0x0791, on fake: FakeDfuSe) async throws(FlashError) {
+    func flash(
+        _ image: FirmwareImage, md5: String, productID: UInt16 = 0x0791, on fake: FakeDfuSe, notFoundFirst: Int = 0
+    ) async throws(FlashError) {
         let opened = opened, progress = progress
-        let flasher = DFUFlasher(clock: ImmediateClock()) { _ throws(FlashError) in
+        let attempts = Locked(0)
+        let flasher = DFUFlasher(clock: ImmediateClock()) { _, _ throws(FlashError) in
+            attempts.value += 1
+            guard attempts.value > notFoundFirst else { throw .deviceNotFound }
             opened.value = true
             return fake
         }
@@ -154,6 +159,14 @@ struct DFUFlasherTests {
                 FlashProgress(phase: .writing, done: 2048, total: 5_000), FlashProgress(phase: .writing, done: 4096, total: 5_000),
                 FlashProgress(phase: .writing, done: 5_000, total: 5_000), FlashProgress(phase: .leaving, done: 0, total: 1),
             ])
+    }
+
+    /// The interface appears a little after the device: retried for a second, then given up.
+    @Test func waitsForTheInterfaceAfterAttach() async throws {
+        let (image, md5) = testImage(payload: 5_000)
+        try await flash(image, md5: md5, on: FakeDfuSe(), notFoundFirst: 3)
+        #expect(opened.value)
+        await #expect(throws: FlashError.deviceNotFound) { try await flash(image, md5: md5, on: FakeDfuSe(), notFoundFirst: 10) }
     }
 
     @Test func aBootloaderThatResetsOnLeaveStillCountsAsFlashed() async throws {
@@ -205,6 +218,7 @@ struct DFUFlasherTests {
         let refused: [(value: UInt16, data: [UInt8])] = [
             (0, [0x41]),  // MASS_ERASE
             (0, command(0x41, 0x0800_0000)), (0, command(0x41, start - 1)), (0, command(0x41, end)), (0, command(0x21, 0xFFFF_FFFF)),
+            (0, command(0x41, start + 1)),  // an erase must name a page start
             (0, command(0x92, start)),  // any other DfuSe command
             (0, [0x21, 0x00, 0x20, 0x00]),  // short
             (2, [0x00]),  // a block before any SET_ADDRESS

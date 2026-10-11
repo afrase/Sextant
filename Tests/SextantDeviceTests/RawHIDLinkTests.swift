@@ -12,11 +12,18 @@ final class FakeHID: HIDTransport {
     let script: [[[UInt8]?]]
     let openError: DeviceError?
     let sendError: DeviceError?
+    /// Opens that fail with `.notFound` first, as when the interface isn't published yet.
+    let notFoundFirst: Int
+    let opens = Locked(0)
     let sent = Locked<[[UInt8]]>([])
     let closed = Locked(false)
     private let receive = Locked<(@Sendable ([UInt8]?) -> Void)?>(nil)
 
-    init(onOpen: [[UInt8]?] = [], script: [[[UInt8]?]] = [], openError: DeviceError? = nil, sendError: DeviceError? = nil) {
+    init(
+        onOpen: [[UInt8]?] = [], script: [[[UInt8]?]] = [], openError: DeviceError? = nil, sendError: DeviceError? = nil,
+        notFoundFirst: Int = 0
+    ) {
+        self.notFoundFirst = notFoundFirst
         self.onOpen = onOpen
         self.script = script
         self.openError = openError
@@ -24,6 +31,8 @@ final class FakeHID: HIDTransport {
     }
 
     func open(receive: @escaping @Sendable ([UInt8]?) -> Void) throws(DeviceError) {
+        opens.value += 1
+        if opens.value <= notFoundFirst { throw .notFound }
         if let openError { throw openError }
         self.receive.value = receive
         onOpen.forEach(receive)
@@ -113,8 +122,19 @@ struct RawHIDLinkTests {
         #expect(hid.sent.value.map { $0[0] } == [0xFE, 0x00, 0x01])
     }
 
+    /// The HID interface appears a little after the USB device: retried for a second, then given up.
+    @Test func waitsForTheInterfaceAfterAttach() async {
+        let late = FakeHID(script: [[report(0xFE, 0x05, 0xFE)], [], [report(0x05, 0x00, 0xFE), nil]], notFoundFirst: 3)
+        #expect(await events(late) == [.protocolVersion(5), .layer(0), .ended(nil)])
+        let missing = FakeHID(notFoundFirst: 10)
+        #expect(await events(missing) == [.ended(.notFound)])
+        #expect(missing.opens.value == 10)
+    }
+
     @Test func reportsAnInterfaceSeizedByAnotherApp() async {
-        #expect(await events(FakeHID(openError: .heldByAnotherApp)) == [.ended(.heldByAnotherApp)])
+        let seized = FakeHID(openError: .heldByAnotherApp)
+        #expect(await events(seized) == [.ended(.heldByAnotherApp)])
+        #expect(seized.opens.value == 1)
         let seizedLater = FakeHID(sendError: .heldByAnotherApp)
         #expect(await events(seizedLater) == [.ended(.heldByAnotherApp)])
         #expect(seizedLater.closed.value)

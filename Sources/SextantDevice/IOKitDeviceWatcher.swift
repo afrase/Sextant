@@ -108,7 +108,8 @@ private final class USBWatch: @unchecked Sendable {
             guard let context else { return }
             Unmanaged<USBWatch>.fromOpaque(context).takeUnretainedValue().drain(iterator, matched: false)
         }
-        for (type, callback) in [(kIOFirstMatchNotification, matched), (kIOTerminatedNotification, terminated)] {
+        // Termination first, so a device unplugged between the two registrations is still reported as gone.
+        for (type, callback) in [(kIOTerminatedNotification, terminated), (kIOFirstMatchNotification, matched)] {
             let matching = IOServiceMatching("IOUSBHostDevice") as NSMutableDictionary
             matching["idVendor"] = vendorID
             matching["idProductArray"] = productIDs.sorted()
