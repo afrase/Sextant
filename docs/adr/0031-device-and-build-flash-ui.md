@@ -11,8 +11,9 @@ hook. Parallel UI slices own the layer controls (sidebar, ⌘1–9, the jump men
 ## Decision
 - **One source of truth each.** With a live session, `LayoutWindowModel.activity` is derived on read from the live
   session, the serial match and the Build & Flash phase (a run first, then live issues, then the keyboard). `isFollowing`
-  reads and writes `LiveSession`'s Follow, so Follow is app-wide. Without a live session (tests, snapshots) both keep a
-  settable stand-in, so existing scenes still draw fixed states.
+  reads and writes `LiveSession`'s Follow, so Follow is app-wide. It counts only while a layer arrives: with live access
+  off (today's default) or Keymapp holding the keyboard, Follow is on in the use case, but nothing says "LIVE". Without
+  a live session (tests, snapshots) both keep a settable stand-in, so existing scenes still draw fixed states.
 - **Follow by observation.** One loop per window (`followKeyboard()`, an `Observations` sequence) shows the followed
   layer, feeds presses into `PressedKeys`, and stops following when the shown layer changes for any other reason. Any
   hand-picked layer counts (sidebar, ⌘1–9, the jump menu, Show Key), and no layer control has to know about Follow.
@@ -20,7 +21,9 @@ hook. Parallel UI slices own the layer controls (sidebar, ⌘1–9, the jump men
   same import revision a build compares against, so the capsule's "On keyboard" and the build's serial agree (ADR 0019).
   The count of edits shows only when the keyboard runs that import's Oryx build. Otherwise Sextant can't count them.
 - **Build & Flash per window.** `makeBuildFlash` makes one per opened layout. It is stopped when the window switches
-  layout or closes. ⌘R brings up the sheet and ⌘B builds quietly (the capsule shows progress). Hide only dismisses.
+  layout or closes. A flash that can't be stopped (from validation until the keyboard comes back, at most 10 s after
+  writing) keeps the window on its layout, so its progress stays in view. ⌘R brings up the sheet and ⌘B builds quietly
+  (the capsule shows progress). Hide only dismisses.
   A finished flash shows "Flashed" in the capsule for 8 s, then gives way to the keyboard's status.
 - **The UI only reports.** The sheet maps every `BuildFlashSession.Phase` to the spec's copy and buttons. There is no
   "Flash Now", and Cancel is disabled from validation on. "Download and Build" stays disabled until the user approves

@@ -40,9 +40,10 @@ public final class LayoutWindowModel {
     public var columnVisibility: NavigationSplitViewVisibility = .all
     public var showsInspector = true
     /// The displayed layer tracks the keyboard's (spec §8.2): the live session's Follow, shared by every window, or a
-    /// stand-in where there is no live session (tests, snapshots).
+    /// stand-in where there is no live session (tests, snapshots). Only while a layer arrives: a keyboard with live
+    /// access off, or held by Keymapp, has Follow on but nothing to follow.
     public var isFollowing: Bool {
-        get { live?.isFollowing ?? followsWithoutLive }
+        get { live.map { $0.followedLayer != nil } ?? followsWithoutLive }
         set {
             guard let live else { return followsWithoutLive = newValue }
             if newValue { live.follow() } else { live.stopFollowing() }
@@ -109,6 +110,8 @@ public final class LayoutWindowModel {
         let free = { (candidate: UUID) in candidate == self.session?.id || !self.library.isOpen(candidate) }
         guard let target = id.flatMap({ known.contains($0) && free($0) ? $0 : nil }) ?? known.first(where: free) else { return nil }
         guard target != session?.id else { return target }
+        // A flash that is writing can't be stopped; keep its layout until it ends, so its progress stays in view.
+        if buildFlash?.canStop == false { return session?.id }
         do {
             let next = try await library.open(target)
             if let old = session {
@@ -196,7 +199,8 @@ public final class LayoutWindowModel {
         guard let session, let index = session.selection.keyIndex else { return false }
         return session.layout.resolvedKey(layer: session.selection.layer, index: index).isInherited
     }
-    var canFollow: Bool { session != nil && activity.isKeyboardConnected }
+    /// Follow needs a keyboard that reports its layer.
+    var canFollow: Bool { session != nil && (live.map { $0.activeLayer != nil } ?? activity.isKeyboardConnected) }
     var canBuild: Bool { buildFlash != nil && session != nil && !activity.isBusy }
     /// Stop is for building and waiting only: flashing can't be interrupted once it writes (spec §7.4).
     var canStop: Bool {

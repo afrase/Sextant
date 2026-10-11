@@ -15,7 +15,7 @@ struct DeviceAndBuildTests {
 
     /// A window with the user's layout open, a live session on the fake watcher and link, and Build & Flash whose build
     /// succeeds and then waits for flash mode on `flashMode`.
-    func window(library: Library? = nil) async throws -> LayoutWindowModel {
+    func window(library: Library? = nil, flasher: any Flasher = HoldingFlasher()) async throws -> LayoutWindowModel {
         let store = MemoryLibrary()
         let library = library ?? Library(store: store)
         if library.entries.isEmpty { _ = try await library.importOryxJSON(try #require(userLayoutData)) }
@@ -26,7 +26,7 @@ struct DeviceAndBuildTests {
             library: library, live: live,
             makeBuildFlash: { session in
                 BuildFlashSession(
-                    session: session, library: store, generator: Generator(), toolchain: Builds(), watcher: flashMode, flasher: NoFlasher(),
+                    session: session, library: store, generator: Generator(), toolchain: Builds(), watcher: flashMode, flasher: flasher,
                     md5: { _ in "" })
             })
         await model.open(nil)
@@ -89,6 +89,43 @@ struct DeviceAndBuildTests {
         await model.open(second.id)
         #expect(old.phase == .idle)
         #expect(model.buildFlash !== old, "each layout gets its own")
+    }
+
+    /// Live access off (the default, ADR 0012) or Keymapp holding the keyboard: Follow is on but nothing arrives.
+    @Test func nothingClaimsToBeLiveWithoutALayer() async throws {
+        let model = try await window()
+        watcher.attach(.keyboard(KeyboardDevice(id: 1, productID: 0x1977, serial: "KlgM7/40xJ7M")))
+        #expect(await eventually { link.sessions > 0 })
+        link.send(.ended(.hardwareAccessOff))
+        #expect(
+            await eventually {
+                model.live?.connection == .hardwareAccessOff(KeyboardDevice(id: 1, productID: 0x1977, serial: "KlgM7/40xJ7M"))
+            })
+        #expect(model.live?.isFollowing == true, "the live session turned Follow on at connect")
+        #expect(!model.isFollowing && !model.canFollow && model.laneStatus == nil)
+        #expect(model.readout == "Layer 0 · base · 52 keys")
+    }
+
+    /// A flash that writes can't be stopped, so the window keeps its layout until it ends.
+    @Test func switchingLayoutsWaitsForAFlashThatIsWriting() async throws {
+        let library = Library(store: MemoryLibrary())
+        let data = try #require(userLayoutData)
+        let first = try await library.importOryxJSON(data)
+        let second = try await library.importOryxJSON(data)
+        let flasher = HoldingFlasher()
+        let model = try await window(library: library, flasher: flasher)
+        await model.open(first.id)
+        let build = try #require(model.buildFlash)
+        flashMode.attach(.bootloader(BootloaderDevice(id: 9, productID: 0x0791, kind: .stm32, version: 1)))
+        build.buildAndFlash(connectedKeyboard: nil)
+        #expect(await eventually { if case .writing = build.phase { true } else { false } })
+        #expect(await model.open(second.id) == first.id, "refused while writing")
+        #expect(model.buildFlash === build && model.session?.id == first.id)
+        flasher.release()
+        #expect(await eventually { build.phase == .verifying })
+        flashMode.attach(.keyboard(KeyboardDevice(id: 2, productID: 0x1977, serial: build.identity?.serial)))
+        #expect(await eventually { if case .done = build.phase { true } else { false } })
+        #expect(await model.open(second.id) == second.id, "once flashed, the window moves on")
     }
 
     @Test func buildOnlyIsQuietAndTheCapsuleShowsItsSize() async throws {
@@ -210,9 +247,13 @@ private final class Link: KeyboardLink {
         return stream
     }
 
+    /// Sends events on the newest session; `.ended` also ends it.
     func send(_ events: LiveEvent...) {
         guard let session = open.withLock({ $0.last }) else { return }
-        events.forEach { session.yield($0) }
+        for event in events {
+            session.yield(event)
+            if case .ended = event { session.finish() }
+        }
     }
 }
 
@@ -222,24 +263,34 @@ private struct Generator: FirmwareGenerator {
     }
 }
 
-/// A build that succeeds at once with a 65,786-byte image.
+/// A build that succeeds at once, reporting 65,786 bytes, with an image that passes validation for an STM32 bootloader.
 private struct Builds: Toolchain {
     func status() async -> ToolchainStatus { .ready("test") }
     func build(_ source: GeneratedSource, board: BoardDefinition) -> AsyncStream<BuildEvent> {
-        AsyncStream { continuation in
+        var payload = Data(count: 64)
+        payload.replaceSubrange(0..<8, with: [0x00, 0x80, 0x00, 0x20, 0x01, 0x21, 0x00, 0x08])  // stack in RAM, odd reset vector
+        let image = FirmwareImage.withSuffix(payload, vendorID: 0x3297, productID: 0x0791).data
+        return AsyncStream { continuation in
             continuation.yield(.output("Compiling keymap.c"))
-            continuation.yield(.finished(BuildArtifact(image: Data(count: 80), usedBytes: 65_786, log: [])))
+            continuation.yield(.finished(BuildArtifact(image: image, usedBytes: 65_786, log: [])))
             continuation.finish()
         }
     }
 }
 
-/// Never reached: no test puts a keyboard in flash mode.
-private struct NoFlasher: Flasher {
+/// Reports a write step, then holds until released.
+private final class HoldingFlasher: Flasher {
+    private let (gate, opener) = AsyncStream.makeStream(of: Void.self)
+
+    func release() { opener.yield() }
+
     func flash(
         _ image: FirmwareImage, md5: String, to device: BootloaderDevice, board: BoardDefinition,
         progress: @escaping @Sendable (FlashProgress) -> Void
-    ) async throws(FlashError) { throw .deviceNotFound }
+    ) async throws(FlashError) {
+        progress(FlashProgress(phase: .writing, done: 1, total: 2))
+        for await _ in gate { break }
+    }
 }
 
 /// Polls `condition`, letting other tasks run, for up to about two seconds.
