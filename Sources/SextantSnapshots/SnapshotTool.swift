@@ -52,13 +52,13 @@ struct Fixtures {
     let entry: LibraryEntry
     private let root: URL
 
-    static func load() async throws -> Fixtures {
+    static func load() async throws -> Self {
         let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let layoutFile = repo.appending(path: "docs/research/oryx-examples/my-layout-KlgM7-40xJ7M.json")
         let root = FileManager.default.temporaryDirectory.appending(path: "sextant-snapshots-\(UUID().uuidString)")
         let library = Library(store: PackageLibrary(root: root, moveToTrash: { try FileManager.default.removeItem(at: $0) }))
         let entry = try await library.importOryxJSON(Data(contentsOf: layoutFile))
-        return Fixtures(library: library, entry: entry, root: root)
+        return Self(library: library, entry: entry, root: root)
     }
 
     /// A window model with the layout open on `layer`, optionally with a key selected.
