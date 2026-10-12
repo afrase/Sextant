@@ -130,8 +130,7 @@ private struct OryxSession: Sendable {
 
     private enum Input { case report([UInt8]), removed, deadline(Int), command(KeyboardCommand), writeFailed(DeviceError) }
 
-    /// The one pending timeout: arming another cancels it, and only the newest id counts. A struct rather than a nested
-    /// function over captured vars, which crashes Swift 6.3's compiler (MandatoryAllocBoxToStack).
+    /// The one pending timeout: arming another cancels it, and only the newest id counts.
     private struct Deadline {
         private(set) var id = 0
         private var task: Task<Void, Never>?
@@ -188,11 +187,13 @@ private struct OryxSession: Sendable {
     /// after the USB device the watcher reports.
     private func open(_ receive: @escaping @Sendable ([UInt8]?) -> Void) async throws {
         for attempt in 1...Self.openAttempts {
+            // Not `catch .notFound where …`: that pattern crashes Swift 6.3's compiler here.
             do {
                 return try await transport.open(receive: receive)
-            } catch .notFound where attempt < Self.openAttempts {
-                try await clock.sleep(for: .milliseconds(100))
+            } catch {
+                guard case .notFound = error, attempt < Self.openAttempts else { throw error }
             }
+            try await clock.sleep(for: .milliseconds(100))
         }
     }
 
