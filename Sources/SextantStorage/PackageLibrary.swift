@@ -15,8 +15,10 @@ import os
 /// <root>/.recovery/<id>.json   the latest edits until their autosave lands
 /// ```
 public actor PackageLibrary: LayoutLibrary {
-    /// The package format this build writes. Newer packages are refused, not misread.
-    public static let formatVersion = 1
+    /// The newest package format this build reads. Newer packages are refused, not misread. A package is written as 2
+    /// once it holds macro drafts, and as 1 until then, so an older build refuses drafts (`.newerFormat`) instead of
+    /// dropping them at its next save; every other package stays readable by older builds (ADR 0042).
+    public static let formatVersion = 2
 
     private let root: URL
     private let now: @Sendable () -> Date
@@ -73,7 +75,7 @@ public actor PackageLibrary: LayoutLibrary {
             path: "\(Self.folderName(layout.title))-\(id.uuidString.prefix(6)).sextant", directoryHint: .isDirectory)
         let date = now()
         let meta = Meta(
-            formatVersion: Self.formatVersion, id: id, title: layout.title, origin: Meta.Origin(origin),
+            formatVersion: Self.formatVersion(of: layout), id: id, title: layout.title, origin: Meta.Origin(origin),
             createdAt: date, modifiedAt: date, contentHash: try Self.contentHash(layout))
         try io { try FileManager.default.createDirectory(at: folder.appending(path: "revisions"), withIntermediateDirectories: true) }
         try write(layout, to: folder.appending(path: "layout.json"))
@@ -86,6 +88,12 @@ public actor PackageLibrary: LayoutLibrary {
     public func save(_ layout: KeyboardLayout, to id: UUID) throws(LibraryError) {
         let folder = try folder(for: id)
         var meta = try readMeta(folder)
+        let version = Self.formatVersion(of: layout, was: meta.formatVersion)
+        if version > meta.formatVersion {
+            // Raised before the drafts land: an older build must never find them under a version it reads.
+            meta.formatVersion = version
+            try write(meta, to: folder.appending(path: "meta.json"))
+        }
         try write(layout, to: folder.appending(path: "layout.json"))
         meta.title = layout.title
         meta.modifiedAt = now()
@@ -324,6 +332,11 @@ public actor PackageLibrary: LayoutLibrary {
         let data: Data
         do { data = try encoder(pretty: false).encode(layout) } catch { throw .unreadable(String(describing: error)) }
         return "sha256:" + SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// 2 once a layout has macro drafts, else `was`. It never goes back down: revisions saved since may hold drafts.
+    private static func formatVersion(of layout: KeyboardLayout, was: Int = 1) -> Int {
+        layout.macroDrafts.isEmpty ? was : max(was, 2)
     }
 
     static func folderName(_ title: String) -> String {

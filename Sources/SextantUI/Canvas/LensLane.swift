@@ -70,6 +70,9 @@ private struct PickCapsule: View {
             Image(systemName: "hand.point.up.left").foregroundStyle(Color.accentColor).accessibilityHidden(true)
             Text(prompt).lineLimit(1)
             Button("Cancel") { model.cancelBoardPick() }.buttonStyle(.borderless)
+                // esc reaches the window even when the board's exit command doesn't: right after Assign to Key leaves its page
+                // for the board, a probe saw about 1 esc in 25 missed (ADR 0042).
+                .keyboardShortcut(.cancelAction)
         }
         .font(.callout.weight(.medium))
         .padding(.horizontal, 12)

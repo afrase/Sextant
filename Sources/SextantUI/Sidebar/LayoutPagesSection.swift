@@ -7,6 +7,7 @@ struct LayoutPagesSection: View {
 
     var body: some View {
         Section("Layout") {
+            Label("Macros", systemImage: "list.bullet.rectangle").badge(session.layout.macros.count).tag(Destination.macros)
             let changed = session.layout.changedSettings().count
             Label("Firmware Settings", systemImage: "slider.horizontal.3")
                 .badge(changed == 0 ? nil : Text(verbatim: "\(changed)").foregroundStyle(.tint))

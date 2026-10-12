@@ -83,6 +83,7 @@ public enum LayoutIssues {
                 check(combo.output, nil, combo: combo.id)
             }
         }
+        for issue in macroStepIssues(layout) { add(issue.kind, issue.key, combo: issue.combo) }
         let reachable = reachableLayers(layout)
         for li in layout.layers.indices where !reachable.contains(li) { add(.unreachableLayer(li), nil, .warning) }
         func rank(_ i: (offset: Int, element: LayoutIssue)) -> [Int] {

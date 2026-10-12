@@ -1,9 +1,9 @@
 import Foundation
 
-/// Picker categories (15), in display order.
+/// Picker categories (16), in display order. Macros holds the layout's own macros, not catalog entries.
 public enum KeycodeCategory: String, CaseIterable, Hashable, Sendable, Identifiable {
     case letters, digits, modifiers, punctuation, navigation, editing, functionKeys, media, mouse, lighting, layers, system, international,
-        numpad, navigator
+        numpad, navigator, macros
 
     public var id: String { rawValue }
 
@@ -24,6 +24,7 @@ public enum KeycodeCategory: String, CaseIterable, Hashable, Sendable, Identifia
         case .international: "International"
         case .numpad: "Numpad"
         case .navigator: "Navigator"
+        case .macros: "Macros"
         }
     }
 
@@ -45,6 +46,7 @@ public enum KeycodeCategory: String, CaseIterable, Hashable, Sendable, Identifia
         case .international: "globe"
         case .numpad: "number"
         case .navigator: "circle.circle"
+        case .macros: "list.bullet.rectangle"
         }
     }
 }

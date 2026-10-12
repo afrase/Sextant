@@ -95,9 +95,66 @@ struct PackageLibraryTests {
         let entry = try await library.create(layout, origin: .local, firstRevision: nil)
         let meta = try #require(await library.location(of: entry.id)).appending(path: "meta.json")
         let text = try String(contentsOf: meta, encoding: .utf8).replacingOccurrences(
-            of: "\"formatVersion\" : 1", with: "\"formatVersion\" : 2")
+            of: "\"formatVersion\" : 1", with: "\"formatVersion\" : 3")
         try text.write(to: meta, atomically: true, encoding: .utf8)
-        await #expect(throws: LibraryError.newerFormat(2)) { try await library.load(entry.id) }
+        await #expect(throws: LibraryError.newerFormat(3)) { try await library.load(entry.id) }
+    }
+
+    /// Only a package with macro drafts is format 2, so older builds refuse it rather than drop the drafts at their next
+    /// save; every other package stays format 1 (ADR 0042). It stays 2: revisions saved since may hold drafts.
+    @Test func macroDraftsMakeAPackageFormat2() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await library.create(layout, origin: .local, firstRevision: RevisionDraft(source: .import, layout: layout))
+        let folder = try #require(await library.location(of: entry.id))
+        func version(_ folder: URL) throws -> Int? {
+            let meta = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appending(path: "meta.json"))) as? [String: Any]
+            return meta?["formatVersion"] as? Int
+        }
+        #expect(try version(folder) == 1)
+        #expect(try !String(contentsOf: folder.appending(path: "layout.json"), encoding: .utf8).contains("macroDrafts"))
+
+        var drafted = layout
+        drafted.addMacroDraft(Macro(name: "Sig", steps: [MacroStep(code: "KC_S", delay: 20)]))
+        try await library.save(drafted, to: entry.id)
+        #expect(try version(folder) == 2)
+        #expect(try await library.load(entry.id).layout == drafted)
+        try await library.save(layout, to: entry.id)
+        #expect(try version(folder) == 2)
+
+        // The version rises before the drafts are written: a failed write leaves no drafts under format 1.
+        let other = try await library.create(layout, origin: .local, firstRevision: nil)
+        let otherFolder = try #require(await library.location(of: other.id))
+        try FileManager.default.removeItem(at: otherFolder.appending(path: "layout.json"))
+        try FileManager.default.createDirectory(at: otherFolder.appending(path: "layout.json/blocked"), withIntermediateDirectories: true)
+        await #expect(throws: LibraryError.self) { try await library.save(drafted, to: other.id) }
+        #expect(try version(otherFolder) == 2)
+
+        let plainCopy = try await library.duplicate(entry.id)
+        #expect(try version(#require(await library.location(of: plainCopy.id))) == 1)
+        try await library.save(drafted, to: entry.id)
+        let draftedCopy = try await library.duplicate(entry.id)
+        #expect(try version(#require(await library.location(of: draftedCopy.id))) == 2)
+        #expect(try await library.load(draftedCopy.id).layout.macroDrafts == drafted.macroDrafts)
+    }
+
+    /// A layout without drafts encodes as before, so no content hash moves: not the "Edited" baseline, not the match
+    /// against Oryx's build. These are the hashes main computed before drafts existed.
+    @Test func contentHashesOfEveryFixtureAreUnchanged() throws {
+        let examples = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appending(path: "docs/research/oryx-examples")
+        let expected = [
+            "my-layout-KlgM7-40xJ7M.json": "455113c008a65dda79158c160e6a4969db7da70611d810b212a7ffab7e9c9ff3",
+            "my-layout-KlgM7-full.json": "7f6d8a63961d5eb28c437a6c1d5b3c82461c6fbaafa8a2fe9f2a6d0b91dc2953",
+            "voyager-default.json": "d2a10b45821b34bb947c58207fb2eed7225542c7f6f49b8584f1d13bb15ebc9e",
+            "voyager-e5Rrr.json": "a497cef149a0a79b3143079dc15caab2e176c42e5bfe555c15c25de7a564a5d3",
+            "voyager-JRGQm.json": "5836b1d4eafe163dd3f7de206bf39da07f9393c247c0b007e3bfeccc180a18b2",
+            "voyager-m9dpx.json": "f064e3bc8d582434f694dfc6f4e897f33a1c9fbc83d8cdeb25bb0106b167297c",
+            "voyager-XlrR4.json": "610dbc2fea545fe6cf71e24206a1cba50e7e55fed13960d837b4f73d829a9c5e",
+        ]
+        for (file, hash) in expected {
+            let fixture = try KeyboardLayout(oryxJSON: Data(contentsOf: examples.appending(path: file)))
+            #expect(try PackageLibrary.contentHash(fixture) == "sha256:\(hash)", "\(file)")
+        }
     }
 
     @Test func anOryxOriginFollowsTheImportedRevision() async throws {

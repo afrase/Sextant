@@ -122,6 +122,8 @@ public struct KeyboardLayout: Hashable, Sendable {
     public var swatch: [HexColor]
     /// Set when the layout was imported from Oryx.
     public var oryx: OryxRevisionInfo?
+    /// Macros on no key yet (``MacroDraft``); Sextant's own, not Oryx's.
+    public var macroDrafts: [MacroDraft] = []
 
     public init(
         title: String, geometry: String = "voyager", layers: [Layer], combos: [Combo] = [],

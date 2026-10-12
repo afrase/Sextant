@@ -13,6 +13,9 @@ public struct EditorSelection: Hashable, Sendable {
     public var slot: KeySlot
     /// Selected combo's id (the Combos page).
     public var combo: String?
+    /// Selected macro and its selected step (the Macros page).
+    public var macro: MacroLocator?
+    public var step: Int?
 
     public init(layer: Int = 0, keyIndex: Int? = nil, slot: KeySlot = .tap) {
         self.layer = layer
@@ -432,6 +435,13 @@ public final class EditSession {
         select(&selection, next)
         // An edit can remove the selected combo: Delete Layer takes the combos limited to that layer.
         if let combo = selection.combo, !next.combos.contains(where: { $0.id == combo }) { selection.combo = nil }
+        // A selected key macro is a position: when Move Layer or Delete Layer shifts its layer, it follows by id, or goes.
+        if case let .key(ref)? = selection.macro, selection.macro == before.selection.macro,
+            before.layout.layers.indices.contains(ref.layer)
+        {
+            let id = before.layout.layers[ref.layer].id
+            selection.macro = next.layers.firstIndex { $0.id == id }.map { .key(KeyRef(layer: $0, index: ref.index, slot: ref.slot)) }
+        }
         changed()
         registerUndo(restoring: before, name: name)
     }

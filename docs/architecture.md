@@ -58,7 +58,7 @@ All types are `Sendable` value types. No SwiftUI, AppKit, IOKit, URLSession or f
 
 ### 2.1 Layout model (ported from PrototypeKit `Model/`)
 
-- `KeyboardLayout`: the document content. `title`, `geometry` ("voyager", which names its `BoardDefinition`), `layers: [Layer]`, `combos: [Combo]`, `settings: [String: SettingValue]` (sparse, Oryx convention), `navigator: NavigatorConfig?`, `swatch: [HexColor]`, plus `oryx: OryxRevisionInfo?` (layout id, revision id, firmware version, md5, createdAt, message) when it came from Oryx. The generator assumes firmware 25 when `oryx?.firmwareVersion` is missing. Operations: key lookup and update, transparent resolution (`resolvedKey`), `keysActivating(layer:)`, `moveLayer` / `removeLayer` with reference remapping, `diff(from:)`.
+- `KeyboardLayout`: the document content. `title`, `geometry` ("voyager", which names its `BoardDefinition`), `layers: [Layer]`, `combos: [Combo]`, `settings: [String: SettingValue]` (sparse, Oryx convention), `navigator: NavigatorConfig?`, `swatch: [HexColor]`, `macroDrafts: [MacroDraft]` (macros on no key yet, Sextant's own), plus `oryx: OryxRevisionInfo?` (layout id, revision id, firmware version, md5, createdAt, message) when it came from Oryx. The generator assumes firmware 25 when `oryx?.firmwareVersion` is missing. Operations: key lookup and update, transparent resolution (`resolvedKey`), `keysActivating(layer:)`, `moveLayer` / `removeLayer` with reference remapping, `diff(from:)`, and the macro library (`macros` by `MacroLocator`: key slot, combo or draft; assign, unassign, remove, step edits, `MacroStep.canType`; ADR 0042).
 - `Layer` (stable `id`: Oryx hashId or UUID, `title`, `color`, one key per board key: 52 on the Voyager), `Key` (tap / hold / doubleTap / tapHold, `customLabel`, `glowColor`, `tappingTerm`), `KeyAction` (code, layer, modifiers, macro, color, description), `KeySlot`, `KeyKind`, `Modifiers`, `Macro`, `MacroStep`, `Combo`, `NavigatorConfig`, `HexColor` (no `.color` / `.nsColor`; those are UI extensions), `SettingValue`.
 - Feature operations live in `Layout+<Feature>.swift`:
   - `Layout+TappingTerm`: `setTappingTerm` (bounded, nil at the global term, shared by keys with the same actions; ADR 0041).
@@ -74,7 +74,7 @@ All types are `Sendable` value types. No SwiftUI, AppKit, IOKit, URLSession or f
 ### 2.3 Derived views of a layout
 
 - `Legends` → `KeyLegend`, `ActionLegend`, `ResolvedLegend` (ported). Pure text and SF Symbol names.
-- `LayoutIssues.check(_:)` → `[LayoutIssue]` (unknown keycode, missing layer, unreachable layer, macro too long, empty combo, a tap dance slot that can't run, an ignored per-key tapping term, near size limit). A key's issue carries a `KeyRef` (layer, index, slot) so the UI can badge the cap; a combo's carries the combo's id. `LayoutIssue.Kind` also declares the v1 kinds no check raises yet (a macro step `SEND_STRING` can't type, a combo over 6 keys, a duplicate combo trigger, a transparent or tap-dance combo key, rolling neighbors); each feature adds its check function and one call in `check` (ADR 0037).
+- `LayoutIssues.check(_:)` → `[LayoutIssue]` (unknown keycode, missing layer, unreachable layer, macro too long, a macro step `SEND_STRING` can't type, empty combo, a tap dance slot that can't run, an ignored per-key tapping term, near size limit). A key's issue carries a `KeyRef` (layer, index, slot) so the UI can badge the cap; a combo's carries the combo's id. `LayoutIssue.Kind` also declares the v1 kinds no check raises yet (a macro step `SEND_STRING` can't type, a combo over 6 keys, a duplicate combo trigger, a transparent or tap-dance combo key, rolling neighbors); each feature adds its check function and one call in `check` (ADR 0037).
 - `OryxReference(string)`: parses `configure.zsa.io` URLs, `layout/revision` serials and bare ids.
 - `ImportSummary(layout)`: layers, assigned keys, dual-function keys, labels, colour keys, macros.
 - `FlashPath`: the `QK_BOOT` key and the chain of holds from layer 0 that reaches it (Build & Flash card B).
@@ -157,7 +157,8 @@ Library root: `~/Library/Application Support/Sextant/Library/`. One folder per l
 My MacOS Layout-1F3A9C.sextant/
   meta.json                 {"formatVersion":1,"id":"<UUID>","title":…,"origin":{"kind":"oryx","layoutId":"KlgM7","revisionId":"40xJ7M"},
                              "createdAt":…,"modifiedAt":…,"contentHash":"sha256:…"}
-  layout.json               the working copy: KeyboardLayout in Oryx revision shape, pretty-printed, sorted keys
+  layout.json               the working copy: KeyboardLayout in Oryx revision shape, pretty-printed, sorted keys, plus
+                             Sextant's own top-level "macroDrafts":[{"id":…,"macro":{…}}] when it has unassigned macros
   revisions/
     0001-3b9f2c1e.json      {"id":…,"number":1,"parent":null,"createdAt":…,"source":"import|flash|save",
                              "message":…,"contentHash":"sha256:…","layout":{…}}   append-only, never rewritten
@@ -169,7 +170,8 @@ My MacOS Layout-1F3A9C.sextant/
 
 - Folder names are for humans; identity is `meta.json` `id`. Renaming a layout rewrites `meta.json` and renames the folder.
 - `contentHash` is SHA-256 over the canonical (sorted-keys) JSON of `layout`, written as `sha256:<hex>`. It powers "Edited since revision", "Flash Oryx's build" (hash equals an imported revision) and future sync.
-- `formatVersion` greater than the build's is refused with a typed error, never misread.
+- `formatVersion` greater than the build's is refused with a typed error, never misread. This build reads 2. It writes 1 until a package holds macro drafts, then 2 (meta.json first, so drafts never sit under format 1), and keeps it at 2 after they go, since revisions may hold them. An older build therefore refuses drafts rather than dropping them at its next save (ADR 0042).
+- Macros on keys and combos stay inline, in Oryx's shape. `macroDrafts` is written only when non-empty, so a layout without drafts hashes exactly as before.
 
 ## 7. Errors
 

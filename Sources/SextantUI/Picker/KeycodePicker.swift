@@ -11,6 +11,8 @@ struct AssignTarget {
     var key: KeyRef?
     /// The value being replaced: the footer's "Now …" and the ✓.
     var current: KeyAction?
+    /// The keycodes it takes (a macro step takes only codes it can type); nil takes every one.
+    var accepts: ((KeyAction) -> Bool)?
     /// Writes the keycode, as one undo step.
     var assign: @MainActor (KeyAction) -> Void
 }
@@ -48,7 +50,7 @@ public struct Palette {
 /// One result row or tile.
 struct PaletteItem: Identifiable {
     enum Group {
-        case importOryx, suggested, recent, commands, keys, layers, keycodes, settings
+        case importOryx, suggested, recent, commands, keys, layers, keycodes, settings, documents
 
         var title: String {
             switch self {
@@ -60,6 +62,7 @@ struct PaletteItem: Identifiable {
             case .layers: String(localized: "Layers")
             case .keycodes: String(localized: "Keycodes")
             case .settings: String(localized: "Firmware settings")
+            case .documents: String(localized: "Documents")
             }
         }
     }
@@ -89,10 +92,10 @@ extension LayoutWindowModel {
     /// and Key ▸ Change Keycode… call it, some as an unapplied `() -> Void`, so it keeps this exact signature.
     public func openKeycodePicker() { openKeycodePicker(prefilled: "") }
 
-    /// Opens the picker pre-filled, as typing on the board does. It ends Record Key.
+    /// Opens the picker pre-filled, as typing on the board does. It ends Record Key and Record Steps.
     public func openKeycodePicker(prefilled query: String) {
         guard hasSelectedKey else { return }
-        recorder = nil
+        (recorder, macros.stepRecorder) = (nil, nil)
         palette = Palette(scope: .assign, query: query)
     }
 
@@ -110,17 +113,18 @@ extension LayoutWindowModel {
         return true
     }
 
-    /// Opens the picker on a target that isn't the selected key's slot, on any page. It ends Record Key.
+    /// Opens the picker on a target that isn't the selected key's slot, on any page. It ends Record Key and Record Steps.
     func openKeycodePicker(_ target: AssignTarget) {
         guard session != nil else { return }
-        recorder = nil
+        (recorder, macros.stepRecorder) = (nil, nil)
         palette = Palette(scope: .assign, target: target)
     }
 
-    /// Opens the command palette (⌘K, the toolbar's Search) or Find Key (⌘F). It ends Record Key.
+    /// Opens the command palette (⌘K, the toolbar's Search) or Find Key (⌘F). It ends Record Key and Record Steps, which
+    /// would otherwise take the typing.
     public func openPalette(_ scope: Palette.Scope = .general, query: String = "") {
         guard session != nil else { return }
-        recorder = nil
+        (recorder, macros.stepRecorder) = (nil, nil)
         palette = Palette(scope: scope, query: query)
     }
 
@@ -247,7 +251,8 @@ extension LayoutWindowModel {
 
     /// Results in a rail category (nil is Suggested).
     func pickerCount(_ category: KeycodeCategory?) -> Int {
-        category.map { KeycodeCatalog.entries(in: $0).reduce(0) { $0 + pickable($1).count } } ?? suggestedKeycodes.count
+        if category == .macros { return macroPickerCount }
+        return category.map { KeycodeCatalog.entries(in: $0).reduce(0) { $0 + pickable($1).count } } ?? suggestedKeycodes.count
     }
 
     // MARK: Keycode results
@@ -255,6 +260,7 @@ extension LayoutWindowModel {
     /// The catalog's ranked search (glyph, code or alias, name prefix, word, fuzzy), or a category to browse.
     private func keycodeItems(_ query: String, category: KeycodeCategory?) -> [PaletteItem] {
         guard let session else { return [] }
+        if category == .macros { return macroPickerItems(query) }
         let actions =
             query.isEmpty
             ? category.map { KeycodeCatalog.entries(in: $0).flatMap(pickable) } ?? suggestedKeycodes
@@ -280,9 +286,11 @@ extension LayoutWindowModel {
     /// editors offer them.
     private func pickable(_ entry: KeycodeEntry) -> [KeyAction] {
         if entry.needsModifiers || entry.needsColor { return [] }
-        guard entry.needsLayer, let layers = session?.layout.layers.indices else { return [KeyAction(code: entry.code)] }
-        return layers.map { KeyAction(code: entry.code, layer: $0) }
+        guard entry.needsLayer, let layers = session?.layout.layers.indices else { return [KeyAction(code: entry.code)].filter(accepts) }
+        return layers.map { KeyAction(code: entry.code, layer: $0) }.filter(accepts)
     }
+
+    private func accepts(_ action: KeyAction) -> Bool { assignTarget?.accepts?(action) ?? true }
 
     /// Recents, then slot-aware suggestions: modifiers and layers for a hold, common keys otherwise.
     private var suggestedKeycodes: [KeyAction] {
@@ -300,7 +308,7 @@ extension LayoutWindowModel {
         // Recents outlive deleted layers and layout switches.
         let recents = recentKeycodes.filter { $0.layer.map(session.layout.layers.indices.contains) ?? true }
         var seen = Set<KeyAction>()
-        return (recents + codes.map { KeyAction(code: $0) } + layers).filter { seen.insert($0).inserted }
+        return (recents + codes.map { KeyAction(code: $0) } + layers).filter { accepts($0) && seen.insert($0).inserted }
     }
 
     /// A cap showing `action` alone; a layer key takes its target layer's colour.
@@ -355,6 +363,7 @@ extension LayoutWindowModel {
             }
         }
         items += settingItems(query)
+        items += macroDocumentItems(query)
         return items
     }
 
