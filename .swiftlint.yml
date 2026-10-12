@@ -1,5 +1,5 @@
 # SwiftLint (ADR 0018). Formatting belongs to swift-format (.swift-format); SwiftLint checks code quality and
-# the layer rules SwiftPM can't enforce for system frameworks (CLAUDE.md, docs/architecture.md §1).
+# the layer rules SwiftPM can't enforce for system frameworks (AGENTS.md, docs/architecture.md §1).
 
 included:
   - Sources

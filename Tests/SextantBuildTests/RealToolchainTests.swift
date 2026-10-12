@@ -40,7 +40,7 @@ struct RealToolchainTests {
         }
         // The flasher's own checks: suffix, CRC, vendor and product, size, stack pointer and reset vector.
         try FirmwareImage(data: artifact.image).validate(forBootloaderPID: 0x0791, board: .voyager)
-        // The Navigator trackpad must stay in (CLAUDE.md), and the serial Oryx and Keymapp read must be there.
+        // The Navigator trackpad must stay in (AGENTS.md), and the serial Oryx and Keymapp read must be there.
         #expect(log.contains { $0.contains("navigator_trackpad.c") })
         #expect(artifact.image.range(of: Data("KlgM7/40xJ7M".utf8)) != nil)
         // Oryx built 65,786 bytes from the same 167 files. Arm's build of GCC 12.2.1 and its newlib come out about 5%

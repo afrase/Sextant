@@ -3,7 +3,7 @@
 Status: accepted, 2026-10-11. Supersedes ADR 0014's choice of backend; ADR 0008's "domain data compiled in" is unchanged.
 
 ## Context
-CLAUDE.md allowed third-party dependencies only with the user's agreement. The user now prefers "to leverage libraries and community tools more than writing our own", asked for production-grade linting, and approved a concrete set of packages (2026-10-11). For firmware builds they chose the container path ("the more correct path"), wary of the ~1 GB image.
+AGENTS.md allowed third-party dependencies only with the user's agreement. The user now prefers "to leverage libraries and community tools more than writing our own", asked for production-grade linting, and approved a concrete set of packages (2026-10-11). For firmware builds they chose the container path ("the more correct path"), wary of the ~1 GB image.
 
 ## Decision
 - **Dependencies, pinned exactly in `Package.swift`:** swift-async-algorithms (live-event coalescing), swift-subprocess (toolchain processes), swift-argument-parser (dev-tool CLI), swift-clocks and swift-snapshot-testing (tests only). Sparkle at release time.

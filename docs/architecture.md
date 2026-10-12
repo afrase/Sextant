@@ -50,7 +50,7 @@ Test targets mirror them: `SextantDomainTests`, `SextantApplicationTests`, `Sext
 | `SextantBoard` (KeyCap, BoardView, lenses, a11y) | folder `SextantUI/Board` | It is UI-layer code with the same dependencies as the rest of the UI. A separate target buys nothing the layer rule needs. |
 | `SextantDevice` | `SextantDevice` (I/O only) + `LiveSession` in Application | The live state machine is a use case; the adapter only speaks HID and USB. |
 | `SextantBuild` | `SextantBuild` (generator + toolchains) + `BuildFlashSession` in Application | Same split: orchestration is a use case. |
-| `SextantApp` | `SextantUI` (all views) + `SextantApp` (composition root only) | The app target stays a thin shell (CLAUDE.md). |
+| `SextantApp` | `SextantUI` (all views) + `SextantApp` (composition root only) | The app target stays a thin shell (AGENTS.md). |
 
 ## 2. Domain (`SextantDomain`)
 
@@ -124,7 +124,7 @@ Small things that are not worth a port are injected as values: an `any Clock<Dur
 
 ### 3.3 Hardware gate
 
-Raw-HID writes (pairing, protocol query, the commands of ADR 0038) and flashing need the user's explicit hardware approval (CLAUDE.md). Until it is given, the composition root wires `KeyboardLink` and `Flasher` to refusing implementations, and the real adapters are reachable only when their user defaults are set by hand: `SextantFlashingEnabled` (the flasher) and `SextantLiveAccessEnabled` (the raw-HID link), or `SextantHardwareEnabled` for both. Read-only enumeration (`IOKitDeviceWatcher`) is always on. See ADRs 0012 and 0034.
+Raw-HID writes (pairing, protocol query, the commands of ADR 0038) and flashing need the user's explicit hardware approval (AGENTS.md). Until it is given, the composition root wires `KeyboardLink` and `Flasher` to refusing implementations, and the real adapters are reachable only when their user defaults are set by hand: `SextantFlashingEnabled` (the flasher) and `SextantLiveAccessEnabled` (the raw-HID link), or `SextantHardwareEnabled` for both. Read-only enumeration (`IOKitDeviceWatcher`) is always on. See ADRs 0012 and 0034.
 
 ## 4. Adapters
 

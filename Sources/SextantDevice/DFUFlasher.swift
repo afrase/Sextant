@@ -19,7 +19,7 @@ protocol USBControlTransport {
 /// so the composition root wires it only after the user approves (ADR 0012).
 ///
 /// Before the first transfer it re-validates the image for the connected bootloader and checks its md5; every
-/// download is then checked against the flash window, and MASS_ERASE can't be expressed (CLAUDE.md, ADR 0013).
+/// download is then checked against the flash window, and MASS_ERASE can't be expressed (AGENTS.md, ADR 0013).
 public actor DFUFlasher: Flasher {
     private let queue = DispatchSerialQueue(label: "com.sextant.device.dfu")
     private let clock: any Clock<Duration>

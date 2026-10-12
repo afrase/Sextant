@@ -2,11 +2,11 @@
 
 You are the lead architect and lead engineer for Sextant, a native macOS 26 SwiftUI app for configuring my ZSA Voyager. Work autonomously. Take this project as far as you can without me, and make the calls a senior architect would make. Ask me only for the things listed under "Stop and ask" below.
 
-Use the ponytail skill throughout: do the smallest thing that fully solves each step. The hexagonal layer boundaries in CLAUDE.md are not negotiable, so ponytail simplifies inside the layers, never by merging them. Run ponytail-review on your own work at every milestone. When you finish, list the deferred shortcuts with ponytail-debt.
+Use the ponytail skill throughout: do the smallest thing that fully solves each step. The hexagonal layer boundaries in AGENTS.md are not negotiable, so ponytail simplifies inside the layers, never by merging them. Run ponytail-review on your own work at every milestone. When you finish, list the deferred shortcuts with ponytail-debt.
 
 ## Read first
 
-- CLAUDE.md: the architecture rules, Swift/macOS practices and hardware safety rules.
+- AGENTS.md: the architecture rules, Swift/macOS practices and hardware safety rules.
 - docs/design/ui-spec.md: what to build. §13 covers targets, APIs and the MVP build order; §14 lists the decided taste calls.
 - docs/research/00-overview.md: how Oryx, the firmware, flashing and live HID work. §4 covers the flasher guards.
 - docs/decisions.md: settled and still-open decisions.

@@ -54,7 +54,7 @@ public struct FirmwareImage: Hashable, Sendable {
 
     public init(data: Data) { self.data = Data(data) }
 
-    /// The checks every flasher guard needs before the first transfer (CLAUDE.md, ADR 0013).
+    /// The checks every flasher guard needs before the first transfer (AGENTS.md, ADR 0013).
     /// A single STM32 image on a GD32 bootloader (`0x1791`) fails the product check, an Oryx dual image
     /// (STM32 image, its suffix, GD32 image, suffix; research 02 §8.4) fails on its inner suffix, and any other
     /// image for a GD32 bootloader is refused until its flash layout is understood (ADR 0013, research 00 §7).

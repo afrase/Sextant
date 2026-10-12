@@ -3,7 +3,7 @@
 Status: accepted, 2026-10-11
 
 ## Context
-CLAUDE.md asks for String Catalogs. SwiftPM packages normally localize per module (`bundle: .module`), which would mean a catalog per target and `bundle:` arguments on every `Text`. Xcode extracts strings automatically; `swift build` does not.
+AGENTS.md asks for String Catalogs. SwiftPM packages normally localize per module (`bundle: .module`), which would mean a catalog per target and `bundle:` arguments on every `Text`. Xcode extracts strings automatically; `swift build` does not.
 
 ## Decision
 - All layers write user-facing text as `String(localized:)`, `LocalizedStringResource` or SwiftUI `Text("…")` literals with the default (main) bundle. Bare numbers use `Text(verbatim:)`.

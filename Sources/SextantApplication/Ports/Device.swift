@@ -198,7 +198,7 @@ public enum FlashError: Error, Equatable, Sendable, LocalizedError {
     }
 }
 
-/// Writes an image to a bootloader. Implementations enforce the flasher guards (CLAUDE.md, ADR 0013).
+/// Writes an image to a bootloader. Implementations enforce the flasher guards (AGENTS.md, ADR 0013).
 public protocol Flasher: Sendable {
     /// False when flashing is switched off (ADR 0012): Build & Flash then stops before asking for flash mode.
     var isEnabled: Bool { get }

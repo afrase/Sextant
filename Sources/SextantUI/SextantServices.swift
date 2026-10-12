@@ -1,6 +1,6 @@
 import SextantApplication
 
-/// The use cases the UI may call, built by the composition root. The UI never sees an adapter (CLAUDE.md).
+/// The use cases the UI may call, built by the composition root. The UI never sees an adapter (AGENTS.md).
 @MainActor
 public struct SextantServices {
     public let library: Library

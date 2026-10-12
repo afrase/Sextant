@@ -3,7 +3,7 @@
 Status: accepted, 2026-10-11
 
 ## Context
-CLAUDE.md forbids sending anything to the keyboard (raw-HID writes, RGB takeover, bootloader, DFU) without the user's explicit OK for that action. Even reading the live layer needs a write: Oryx protocol pairing (`01`). The agent runs the app during development, sometimes with the keyboard plugged in.
+AGENTS.md forbids sending anything to the keyboard (raw-HID writes, RGB takeover, bootloader, DFU) without the user's explicit OK for that action. Even reading the live layer needs a write: Oryx protocol pairing (`01`). The agent runs the app during development, sometimes with the keyboard plugged in.
 
 ## Decision
 The composition root wires `KeyboardLink` and `Flasher` to refusing implementations that throw a typed "hardware access is off" error. The real `RawHIDLink` and `DFUFlasher` are wired only when the `SextantHardwareEnabled` user default is true, which only the user sets. Read-only enumeration (`IOKitDeviceWatcher`: presence, serial, PID, bcdDevice) is always on. Both real adapters are built and unit-tested against fake transports.
