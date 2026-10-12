@@ -111,6 +111,19 @@
         }
       }
     },
+    "%@ · %lld changes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$lld changes"
+          }
+        }
+      }
+    },
+    "%@ · 1 change" : {
+
+    },
     "%@ · Edited" : {
 
     },
@@ -136,6 +149,9 @@
           }
         }
       }
+    },
+    "%@ · no changes" : {
+
     },
     "%@ › New Step" : {
 
@@ -200,10 +216,16 @@
         }
       }
     },
+    "%lld added" : {
+
+    },
     "%lld changed" : {
 
     },
     "%lld changed from defaults" : {
+
+    },
+    "%lld changes" : {
 
     },
     "%lld custom labels are shown in Sextant only." : {
@@ -219,6 +241,9 @@
 
     },
     "%lld issues" : {
+
+    },
+    "%lld keys" : {
 
     },
     "%lld keys down" : {
@@ -273,7 +298,16 @@
         }
       }
     },
+    "%lld other changes" : {
+
+    },
     "%lld own" : {
+
+    },
+    "%lld removed" : {
+
+    },
+    "%lld revisions" : {
 
     },
     "%lld steps" : {
@@ -321,6 +355,9 @@
     ", then wait %lld ms" : {
 
     },
+    "1 change" : {
+
+    },
     "1 edit" : {
 
     },
@@ -328,6 +365,9 @@
 
     },
     "1 issue" : {
+
+    },
+    "1 key" : {
 
     },
     "1 key down" : {
@@ -342,6 +382,12 @@
           }
         }
       }
+    },
+    "1 other change" : {
+
+    },
+    "1 revision" : {
+
     },
     "1 step" : {
 
@@ -368,6 +414,9 @@
 
     },
     "A macro types a sequence of keys from one key press." : {
+
+    },
+    "A revision is a checkpoint in History. You can compare the layout with it or restore it later." : {
 
     },
     "A tap dance's tap must be a key" : {
@@ -397,10 +446,25 @@
     "Add tap" : {
 
     },
+    "Added" : {
+
+    },
+    "Added %lld combos" : {
+
+    },
+    "Added 1 combo" : {
+
+    },
+    "Added layer %@" : {
+
+    },
     "Advanced" : {
 
     },
     "All Layers (PDF)…" : {
+
+    },
+    "Another Revision" : {
 
     },
     "Another app, such as Keymapp, is using the keyboard’s live connection" : {
@@ -448,6 +512,9 @@
 
     },
     "Before importing from Oryx" : {
+
+    },
+    "Before restoring revision %lld" : {
 
     },
     "Behavior" : {
@@ -558,7 +625,28 @@
     "Changed" : {
 
     },
+    "Changed %lld layer colors" : {
+
+    },
+    "Changed %lld settings" : {
+
+    },
     "Changed (%lld)" : {
+
+    },
+    "Changed 1 layer color" : {
+
+    },
+    "Changed 1 setting" : {
+
+    },
+    "Changed keys" : {
+
+    },
+    "Changed the Navigator" : {
+
+    },
+    "Changes" : {
 
     },
     "Change…" : {
@@ -574,6 +662,9 @@
 
     },
     "Choose the module attached to your keyboard. The change takes effect after you build and flash." : {
+
+    },
+    "Choose what to compare with above" : {
 
     },
     "Chord" : {
@@ -645,6 +736,9 @@
     "Commands" : {
 
     },
+    "Compare with: %@" : {
+
+    },
     "Compile" : {
 
     },
@@ -691,6 +785,9 @@
 
     },
     "Couldn’t set up the build tools" : {
+
+    },
+    "Current" : {
 
     },
     "Current value" : {
@@ -826,6 +923,35 @@
     "Edit Slot" : {
 
     },
+    "Edited %lld keys on %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Edited %1$lld keys on %2$@"
+          }
+        }
+      }
+    },
+    "Edited %lld keys on %lld layers" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Edited %1$lld keys on %2$lld layers"
+          }
+        }
+      }
+    },
+    "Edited 1 key on %@" : {
+
+    },
+    "Edited combos" : {
+
+    },
+    "Edited layers" : {
+
+    },
     "Empty" : {
 
     },
@@ -940,6 +1066,9 @@
     "Flashed %@" : {
 
     },
+    "Flashed from Sextant" : {
+
+    },
     "Flashed, but not saved in History" : {
 
     },
@@ -1019,6 +1148,12 @@
 
     },
     "Hide Sidebar" : {
+
+    },
+    "History" : {
+
+    },
+    "History · Edited" : {
 
     },
     "Hold" : {
@@ -1108,6 +1243,9 @@
     "Import from your Voyager" : {
 
     },
+    "Imported from Oryx" : {
+
+    },
     "Imports a public layout from configure.zsa.io. Oryx stays read-only; Sextant keeps its own copy." : {
 
     },
@@ -1164,6 +1302,16 @@
     },
     "Key %lld" : {
 
+    },
+    "Key %lld, %@: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Key %1$lld, %2$@: %3$@"
+          }
+        }
+      }
     },
     "Key Numbers" : {
 
@@ -1272,6 +1420,9 @@
 
     },
     "LIVE · following the keyboard" : {
+
+    },
+    "LOCAL" : {
 
     },
     "Label" : {
@@ -1418,6 +1569,9 @@
     "Loading" : {
 
     },
+    "Loading revisions…" : {
+
+    },
     "Macro" : {
 
     },
@@ -1458,6 +1612,9 @@
     "Make Transparent (⌘⌫)" : {
 
     },
+    "Makes this revision the layout again and saves that as a new revision. Nothing is lost, and you can undo it." : {
+
+    },
     "Matches the connected keyboard" : {
 
     },
@@ -1465,6 +1622,9 @@
 
     },
     "Meh" : {
+
+    },
+    "Message" : {
 
     },
     "Modifier" : {
@@ -1551,6 +1711,12 @@
     "New Window" : {
 
     },
+    "New layer · %lld keys" : {
+
+    },
+    "New layer · 1 key" : {
+
+    },
     "New layout" : {
 
     },
@@ -1558,6 +1724,12 @@
 
     },
     "No Color" : {
+
+    },
+    "No Revisions" : {
+
+    },
+    "No changes" : {
 
     },
     "No color" : {
@@ -1584,6 +1756,9 @@
     "No results" : {
 
     },
+    "No revisions yet" : {
+
+    },
     "None" : {
 
     },
@@ -1608,6 +1783,9 @@
     "Nothing is broken: the bootloader can’t be overwritten, so you can always try again. Put the keyboard in flash mode again to retry." : {
 
     },
+    "Nothing to compare" : {
+
+    },
     "Notify when a flash finishes" : {
 
     },
@@ -1618,6 +1796,12 @@
 
     },
     "OK" : {
+
+    },
+    "ON KEYBOARD" : {
+
+    },
+    "ORYX" : {
 
     },
     "Off" : {
@@ -1741,6 +1925,9 @@
     "Previous Issue" : {
 
     },
+    "Previous revision" : {
+
+    },
     "Print Layout…" : {
 
     },
@@ -1813,6 +2000,18 @@
     "Remove from Key" : {
 
     },
+    "Removed" : {
+
+    },
+    "Removed %lld combos" : {
+
+    },
+    "Removed 1 combo" : {
+
+    },
+    "Removed layer %@" : {
+
+    },
     "Rename" : {
 
     },
@@ -1831,7 +2030,23 @@
     "Rename Macro" : {
 
     },
+    "Renamed layer %@ to %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Renamed layer %1$@ to %2$@"
+          }
+        }
+      }
+    },
+    "Renamed the layout" : {
+
+    },
     "Rename…" : {
+
+    },
+    "Reordered layers" : {
 
     },
     "Replace and Flash" : {
@@ -1858,13 +2073,31 @@
     "Reset to Default" : {
 
     },
+    "Restore Revision" : {
+
+    },
+    "Restore This Revision" : {
+
+    },
     "Restored edits that hadn’t been saved" : {
+
+    },
+    "Restored revision %lld" : {
 
     },
     "Results" : {
 
     },
     "Revision" : {
+
+    },
+    "Revision %lld" : {
+
+    },
+    "Revisions" : {
+
+    },
+    "Revisions appear when you import, flash, or save a revision (⌘S)." : {
 
     },
     "Right" : {
@@ -1885,10 +2118,16 @@
     "Same as global" : {
 
     },
+    "Save Revision" : {
+
+    },
     "Save Revision…" : {
 
     },
     "Saved as a revision in History." : {
+
+    },
+    "Saved in Sextant" : {
 
     },
     "Search" : {
@@ -1964,6 +2203,9 @@
 
     },
     "Settings take effect after you build and flash. Values equal to the default aren't stored." : {
+
+    },
+    "Settings: %@" : {
 
     },
     "Sextant Help" : {
@@ -2252,6 +2494,9 @@
     "The file is too short to be firmware." : {
 
     },
+    "The first revision: nothing before it" : {
+
+    },
     "The half of the keyboard it's attached to." : {
 
     },
@@ -2288,6 +2533,9 @@
 
     },
     "The keyboard didn't reconnect after flashing. Unplug it and plug it back in to check it." : {
+
+    },
+    "The keyboard doesn’t run this layout" : {
 
     },
     "The keyboard has no such layer or light." : {
@@ -2365,6 +2613,9 @@
 
     },
     "This layout was saved by a newer version of Sextant. Update Sextant to open it." : {
+
+    },
+    "This revision couldn’t be read" : {
 
     },
     "Timeline" : {
@@ -2478,6 +2729,9 @@
     "Waiting for the keyboard to enter flash mode…" : {
 
     },
+    "What changed" : {
+
+    },
     "When a layer is locked" : {
 
     },
@@ -2538,7 +2792,13 @@
         }
       }
     },
+    "and %lld more" : {
+
+    },
     "bottom row" : {
+
+    },
+    "color" : {
 
     },
     "color keys" : {
@@ -2624,6 +2884,9 @@
     "knob" : {
 
     },
+    "label" : {
+
+    },
     "labels" : {
 
     },
@@ -2655,6 +2918,9 @@
 
     },
     "off" : {
+
+    },
+    "on keyboard" : {
 
     },
     "on the top edge of the %@, above the %@ key" : {

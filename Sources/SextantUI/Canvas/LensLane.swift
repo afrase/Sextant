@@ -9,7 +9,9 @@ struct LensLane: View {
     var body: some View {
         GlassEffectContainer(spacing: 8) {
             HStack(spacing: 8) {
-                if model.lens == .lighting, let session = model.session {
+                if model.page == .history, let history = model.history {
+                    HistoryCapsule(history: history).glassEffectTransition(.materialize)
+                } else if model.lens == .lighting, let session = model.session {
                     LightingCapsule(model: model, session: session).glassEffectTransition(.materialize)
                 }
                 // Status by priority: a pick (the only place that says what a click does) > an issue > recording > the rest.

@@ -37,7 +37,7 @@ struct WindowDetail: View {
                 // Each v1 page replaces its own line when it lands; until then no sidebar row reaches it (ADR 0037).
                 case .combos: EmptyView()
                 case .macros: MacrosPage(model: model, session: session)
-                case .history: EmptyView()
+                case .history: HistoryCanvas(model: model, session: session)
                 case .appLayers: EmptyView()
                 case .layer, nil:
                     CanvasColumn(model: model, session: session)

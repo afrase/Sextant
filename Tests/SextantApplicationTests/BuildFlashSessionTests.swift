@@ -90,6 +90,8 @@ struct BuildFlashSessionTests {
             return
         }
         #expect(try await store.layout(ofRevision: revision.id, in: document.id) == built, "not the later edit")
+        #expect(document.revisions.last == revision, "History lists it without reopening")
+        #expect(document.isEditedSinceRevision, "the later edit isn't in the flash")
     }
 
     // MARK: Before building

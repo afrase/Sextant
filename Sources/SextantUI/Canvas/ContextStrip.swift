@@ -8,6 +8,14 @@ struct ContextStrip: View {
     var session: EditSession
 
     var body: some View {
+        if model.page == .history, let history = model.history {
+            ChangesStrip(history: history)
+        } else {
+            lensStrip
+        }
+    }
+
+    @ViewBuilder private var lensStrip: some View {
         switch model.lens {
         case .keys:
             if let key = session.selection.keyIndex {
@@ -70,7 +78,7 @@ struct ContextStrip: View {
             }
             .padding(.horizontal, 10)
             .frame(minWidth: 150, maxHeight: 60, alignment: .leading)
-            .background(card(dashed: transparent, current: layer == session.selection.layer))
+            .background(Self.card(dashed: transparent, current: layer == session.selection.layer))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -93,7 +101,7 @@ struct ContextStrip: View {
             }
             .padding(.horizontal, 10)
             .frame(minWidth: 150, maxHeight: 60, alignment: .leading)
-            .background(card(dashed: false, current: layer == session.selection.layer))
+            .background(Self.card(dashed: false, current: layer == session.selection.layer))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -101,7 +109,7 @@ struct ContextStrip: View {
         .accessibilityAddTraits(layer == session.selection.layer ? .isSelected : [])
     }
 
-    private func card(dashed: Bool, current: Bool) -> some View {
+    static func card(dashed: Bool, current: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         return shape.fill(dashed ? Tokens.ghostFill.color : Tokens.capTop.color.opacity(0.6))
             .overlay {

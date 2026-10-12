@@ -6,6 +6,7 @@ extension View {
         modifier(DeleteLayerAlert(model: model))
             .modifier(LayerPresentations(model: model))
             .modifier(ImportSheetPresenter(model: model))
+            .modifier(SaveRevisionSheetPresenter(model: model))
             .modifier(RenameLayoutAlert(model: model))
             .modifier(DeviceWiring(model: model))
             .modifier(ExportPresenter(model: model))

@@ -1181,21 +1181,25 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 
 ### 8.7 History and diff (v1)
 
-**Revisions** are created by an import, every flash, and ⌘S Save Revision… (a sheet with a message field, prefilled "Edited 5 keys on Brd+Sys").
+**Revisions** are created by an import, every flash, and ⌘S Save Revision… (a sheet with a message field, prefilled "Edited 5 keys on Brd+Sys"). ⌘S is on when the layout differs from its last revision. The suggestion names keys first ("Edited 12 keys on 3 layers"), otherwise the first other change ("Changed 2 settings", "Renamed the layout"); a blank message stores none (ADR 0043).
 
 **Changes lens**
-- The board shows the selected revision's layout against what it is compared with. The default comparison is its parent; alternatives are Current, On keyboard, or Choose….
-- Badges follow §4.7. Unchanged keys are quiet.
-- The context strip shows per-layer change counts.
+- The board shows the selected revision's layout against what it is compared with. The default comparison is its parent; alternatives are Current, On keyboard, or Another Revision ▸ (a submenu of the other revisions). Choosing the revision being compared with goes back to its parent.
+- Badges follow §4.7. Unchanged keys are quiet. Badges always describe the board's keys, the selected revision's, against the comparison. Against Current or a later revision they read backward: "added" marks a key the comparison lacks, which Restore would bring back (ADR 0043).
+- What counts as a change: keys and layers (layers match by id; every own key of a new layer is added), the layer order, settings (Navigator options included), combos (compared by content, since Oryx numbers their ids by position), the Navigator's kind, side and automouse layer, and the layout's title.
+- The board keeps the layout's geometry and Navigator side, so no key moves, and it is read-only: no painting, swapping, ⌫, edit actions or issue rings. The revision's layer is the selected one, matched by id. A layer only the revision has can be chosen from the strip or the header's layer menu; it stays until another layer is chosen. The footer's kind key lists the kinds on the layer shown.
+- The lens capsule counts each badge ("Revision 2 · 1 added · 3 changed · 1 removed"), plus "N other changes" for settings, combos, layers, the Navigator and the title.
+- The context strip shows per-layer change counts. Layers the comparison has and the revision lacks follow, dashed, as "Removed".
 
 **Inspector**
-- **Timeline:** a vertical list. Each row has a node, the id in mono, badges (ORYX, LOCAL, ON KEYBOARD), the message, the date and the number of changed keys.
+- **Timeline:** a vertical list. Each row has a node, the id in mono, badges (ORYX, LOCAL, ON KEYBOARD), the message, the date and the number of changes. Past four revisions it scrolls on its own, keeping the selected one in view, so the details below stay on screen. VoiceOver reads a row as "Revision 2, Edited 5 keys on Brd+Sys", with the date and count as its value.
   - ON KEYBOARD marks the revision the keyboard runs: the import revision for Oryx's own build, or the newest matching flash revision for a Sextant build. Edits made since the flash are never on the keyboard (ADR 0039). The "On keyboard" comparison uses the same revision.
-- **Selected revision:** details (author, source, firmware size delta "+292 B"), a per-layer change bar, and a changes table (key, before cap → after cap, slots changed).
+- **Selected revision:** details (source, date, message), a per-layer change bar, the other changes (layers, settings, combos, the Navigator), and a changes table (key, before cap → after cap, slots changed). A row shows its layer and selects the key. The author isn't modeled; the firmware size delta "+292 B" comes with Flash This Revision (v1 plan slice 2.5).
 - **Actions:**
-  - [Restore This Revision]: creates a new revision; nothing is lost.
-  - [Flash This Revision…]
-  - [Export Source Zip…]
+  - [Restore This Revision]: checkpoints unsaved edits, records the restore as a new revision ("Restored revision 3") and makes it the layout as one undo step, keeping the title; nothing is lost. It is off when the layout already equals the revision, and while a restore runs.
+  - [Flash This Revision…] (slice 2.5)
+  - [Export Source Zip…] (slice 2.5)
+- **Empty state:** §12.4. The context strip reads "No revisions yet" and Compare with is off.
 
 **Future**
 - The source device is shown on each revision.
