@@ -531,24 +531,14 @@
     "Combo %lld" : {
 
     },
-    "Combo has %lld keys, not 2–6" : {
+    "Combo has %lld keys; 6 is the most" : {
 
     },
-    "Combo key %lld is a tap dance" : {
+    "Combo key %@ is a tap dance" : {
 
     },
-    "Combo key %lld is transparent" : {
+    "Combo key %@ is transparent" : {
 
-    },
-    "Combo keys %lld and %lld are rolling neighbors" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Combo keys %1$lld and %2$lld are rolling neighbors"
-          }
-        }
-      }
     },
     "Command Palette" : {
 
@@ -1083,6 +1073,16 @@
     },
     "Keys" : {
 
+    },
+    "Keys %@ and %@ are rolling neighbors" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keys %1$@ and %2$@ are rolling neighbors"
+          }
+        }
+      }
     },
     "Keys down" : {
 

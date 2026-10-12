@@ -40,6 +40,13 @@ struct KeyTextTests {
         let value = KeyText.value(z, layout: layout, layer: 1, index: 19, geometry: geometry)
         #expect(value.hasPrefix("Transparent on Sym+Num. Acts as Z, hold Left Option, from Main."), "\(value)")
         #expect(value.hasSuffix("Left hand, bottom row, column 2, key 19."), "\(value)")
+        var marks = CapDecoration()
+        marks.badge = CapDecoration.Mark(symbol: "plus.circle.fill", color: Tokens.success, accessibilityText: "Added")
+        marks.count = CapDecoration.Count(text: "22k", accessibilityText: "22,044 presses")
+        #expect(
+            KeyText.value(enter, layout: layout, layer: 0, index: 24, geometry: geometry, decoration: marks)
+                == "Dual-function. Tap sends Return. Hold activates layer 1, Sym+Num. Left thumb, outer key, key 24. Added. 22,044 presses."
+        )
     }
 
     @Test func positions() {
@@ -108,17 +115,22 @@ struct KeyTextTests {
         #expect(KeyText.issueText(dance, layout: layout) == "Action can't run in a tap dance on Main · key 3 · Double tap")
     }
 
-    /// A combo issue names its combo: its name, else its number.
+    /// A combo issue names its combo: its name, else its number. It names a combo key by what it shows on the combo's
+    /// layer (spec §6.4: "J and K are rolling neighbors"), else by its index.
     @Test func comboIssueText() {
         var combos = layout
         combos.combos = [
-            Combo(id: "a", keyIndices: [1, 2], output: .code("KC_ESCAPE")),
+            Combo(id: "a", keyIndices: [19, 20], output: .code("KC_ESCAPE")),
             Combo(id: "b", name: "Save", keyIndices: [3, 4], output: .code("KC_S")),
+            Combo(id: "c", keyIndices: [24, 25], layer: 1, output: .code("KC_TAB")),
         ]
         func text(_ kind: LayoutIssue.Kind, _ combo: String) -> String {
             KeyText.issueText(LayoutIssue(kind: kind, severity: .warning, key: nil, combo: combo), layout: combos)
         }
-        #expect(text(.rollingNeighbors(1, 2), "a") == "Combo keys 1 and 2 are rolling neighbors · Combo 1")
+        #expect(text(.rollingNeighbors(19, 20), "a") == "Keys Z and X are rolling neighbors · Combo 1")
+        #expect(text(.comboKeyTransparent(24), "c") == "Combo key ⏎ is transparent · Combo 3", "Sym+Num inherits ⏎")
+        #expect(text(.comboKeyTapDance(99), "a") == "Combo key 99 is a tap dance · Combo 1")
+        #expect(text(.comboTooManyKeys(7), "b") == "Combo has 7 keys; 6 is the most · Save")
         #expect(text(.duplicateComboTrigger, "b") == "Another combo uses the same keys · Save")
         #expect(text(.emptyCombo, "gone") == "Empty combo", "a combo that no longer exists isn't named")
     }

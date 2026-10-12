@@ -12,15 +12,15 @@ public struct LayoutIssue: Hashable, Sendable, Identifiable {
         /// A macro step (0-based) that `SEND_STRING` can't type: its code has no `X_` name.
         case macroStepNotTypable(step: Int, code: String)
         case emptyCombo
-        /// A combo with fewer than 2 or more than 6 keys.
-        case comboKeyCount(Int)
+        /// A combo with more than 6 keys; fewer than 2 is `emptyCombo`.
+        case comboTooManyKeys(Int)
         /// Another combo on the same layer has the same keys.
         case duplicateComboTrigger
-        /// Combo key `n` is transparent; QMK matches combos by keycode, so it can't fire.
+        /// The combo key at this board index is transparent; QMK matches combos by keycode, so it can't fire.
         case comboKeyTransparent(Int)
-        /// Combo key `n` is a tap dance, whose keycode a combo can't match either.
+        /// The combo key at this board index is a tap dance, whose keycode a combo can't match either.
         case comboKeyTapDance(Int)
-        /// Two combo keys sit side by side, so fast typing may roll across them (a warning).
+        /// Two combo keys (board indices) sit side by side, so fast typing may roll across them (a warning).
         case rollingNeighbors(Int, Int)
         /// A tap dance slot whose action can't run inside a dance.
         case notInTapDance

@@ -880,7 +880,7 @@ The picker is the command palette component in **assign scope**.
 - "Active on": All layers, or layer chips.
 - Combo term: "50 ms (global) · Firmware Settings ›".
 - Warnings:
-  - "J and K are rolling neighbours: fast typing may trigger this combo by accident."
+  - "J and K are rolling neighbors: fast typing may trigger this combo by accident."
   - Duplicate trigger set.
 
 **Combo colours** are Sextant's own categorical palette (§10.1).
@@ -1003,7 +1003,7 @@ These follow research §4, "Safety rules for the flasher".
 - macros over 24 steps;
 - a macro step `SEND_STRING` can't type (v1);
 - empty combos;
-- combos outside 2–6 keys, duplicate trigger keys, and transparent or tap-dance combo keys (v1);
+- combos over 6 keys (fewer than 2 is an empty combo), duplicate trigger keys, and transparent or tap-dance combo keys (v1);
 - rolling-neighbor combo keys (a warning, v1);
 - a tap dance slot whose action can't run in a dance (v1);
 - a per-key tapping term while per-key terms are off (a warning, v1);

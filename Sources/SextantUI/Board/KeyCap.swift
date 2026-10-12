@@ -21,12 +21,19 @@ public enum LegendMode: String, CaseIterable, Sendable {
 }
 
 /// What a board mode adds to a cap (spec §4.7, §4.8): Changes (a diff badge and ring, unchanged keys at 40%), Combos
-/// (a number and ring, non-members at 45%) and Heatmap (a fill). The default adds nothing.
+/// (a number and ring, non-members at 45%) and Heatmap (a fill and a count). The default adds nothing. VoiceOver reads
+/// the marks and the count after the key (``KeyText/value(_:layout:layer:index:geometry:decoration:)``).
 struct CapDecoration: Equatable {
-    /// A corner badge: an SF Symbol in a colour, and its words for VoiceOver.
+    /// A corner badge: an SF Symbol in a colour, and its words for VoiceOver (a phrase, no final period).
     struct Mark: Equatable {
         var symbol: String
         var color: Token
+        var accessibilityText: String
+    }
+
+    /// Words under the legend in mono, and how VoiceOver says them: a heat count ("22k", "22,044 presses").
+    struct Count: Equatable {
+        var text: String
         var accessibilityText: String
     }
 
@@ -37,8 +44,9 @@ struct CapDecoration: Equatable {
     var badge: Mark?
     /// Top left: a combo number.
     var number: Mark?
-    /// Over the face, under a live press: heat.
+    /// Over the face, under a live press: heat. The legend ink follows it.
     var fill: Token?
+    var count: Count?
 }
 
 extension Token: Equatable {
@@ -221,17 +229,20 @@ struct KeyCap: View, Equatable {
             .shadow(color: isDark ? tone.color.opacity(0.6) : .clear, radius: 0.18 * u)
     }
 
-    /// Legend ink: the cap tokens, or black / white by luminance on a pressed face.
+    /// Legend ink: the cap tokens, or black / white by luminance on a filled (heat) or pressed face.
     private var ink: (primary: Color, secondary: Color) {
-        guard isPressed else { return (Tokens.capLegend.color, Tokens.capLegend2.color) }
-        let tone = model.layerTones?.display ?? Tokens.success
-        let (fill, cap) = isDark ? (tone.dark, Tokens.capTop.dark) : (tone.light, Tokens.capTop.light)
-        let alpha = pressedAlpha
-        let mixed = HexColor(
-            red: cap.red + (fill.red - cap.red) * alpha, green: cap.green + (fill.green - cap.green) * alpha,
-            blue: cap.blue + (fill.blue - cap.blue) * alpha)
+        let fill = model.decoration.fill
+        guard isPressed || fill != nil else { return (Tokens.capLegend.color, Tokens.capLegend2.color) }
+        func shade(_ token: Token) -> HexColor { isDark ? token.dark : token.light }
+        var face = shade(fill ?? Tokens.capTop)
+        if isPressed {
+            let tone = shade(model.layerTones?.display ?? Tokens.success), alpha = pressedAlpha
+            face = HexColor(
+                red: face.red + (tone.red - face.red) * alpha, green: face.green + (tone.green - face.green) * alpha,
+                blue: face.blue + (tone.blue - face.blue) * alpha)
+        }
         // 0.179 is where black and white text have equal WCAG contrast.
-        return mixed.luminance > 0.179 ? (.black, .black.opacity(0.7)) : (.white, .white.opacity(0.75))
+        return face.luminance > 0.179 ? (.black, .black.opacity(0.7)) : (.white, .white.opacity(0.75))
     }
 
     // MARK: Content
@@ -267,11 +278,11 @@ struct KeyCap: View, Equatable {
         }
     }
 
-    @ViewBuilder private var primaryZone: some View {
-        if model.kind == .disabled {
-            Image(systemName: "nosign").font(.system(size: 0.24 * u)).opacity(0.5)
-        } else if let primary = legend.primary {
-            VStack(spacing: 0.02 * u) {
+    private var primaryZone: some View {
+        VStack(spacing: 0.02 * u) {
+            if model.kind == .disabled {
+                Image(systemName: "nosign").font(.system(size: 0.24 * u)).opacity(0.5)
+            } else if let primary = legend.primary {
                 CapLegendView(action: primary, u: u, isLabel: model.kind == .label || model.kind == .macro)
                 if let annotation = legend.annotation {
                     Text(annotation)
@@ -280,6 +291,9 @@ struct KeyCap: View, Equatable {
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 }
+            }
+            if let count = model.decoration.count {
+                Text(count.text).font(.system(size: 0.12 * u, design: .monospaced)).monospacedDigit().lineLimit(1)
             }
         }
     }
@@ -293,7 +307,9 @@ struct KeyCap: View, Equatable {
             ? Tokens.kind(.tapDance)
             : isLayer ? nil : (hold.modifiers.isEmpty && hold.side == nil ? Tokens.holdKey : Tokens.kind(.modifier))
         let fill = tokens?.tint.color ?? model.targetTones?.display.color ?? Tokens.layerKind.tint.color
-        let ink = tokens?.ink.color ?? model.targetTones?.ink.color ?? Tokens.layerKind.ink.color
+        // On a heat fill the band follows the legend's ink, chosen by luminance (spec §8.5).
+        let bandInk = tokens?.ink.color ?? model.targetTones?.ink.color ?? Tokens.layerKind.ink.color
+        let ink = model.decoration.fill == nil ? bandInk : self.ink.primary
         let prefix = band.slot == .doubleTap ? "2× " : ""
         return ZStack {
             Rectangle().fill(fill.opacity(isDark ? 0.18 : 0.12))
