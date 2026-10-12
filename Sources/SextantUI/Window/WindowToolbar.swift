@@ -43,7 +43,8 @@ struct WindowToolbar: CustomizableToolbarContent {
         }
         ToolbarItem(id: "search", placement: .primaryAction) {
             Button {
-                model.openPalette()
+                // This click's mouse-down, outside the palette, may just have closed it: don't open it again.
+                if NSApp.currentEvent?.eventNumber != model.paletteDismissingClick { model.togglePalette() }
             } label: {
                 if windowWidth >= 1280 {
                     // A view, not a Label: toolbars draw Labels as icons only.

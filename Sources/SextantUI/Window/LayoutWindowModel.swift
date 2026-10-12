@@ -97,6 +97,8 @@ public final class LayoutWindowModel {
     var palette: Palette?
     /// Bumped when a closed panel hands keyboard focus back to the board.
     var boardFocusRequests = 0
+    /// The mouse event number of the click that last closed the palette from outside it (the toolbar's Search toggles).
+    var paletteDismissingClick: Int?
     /// Record Key while it listens for the next key on the Mac's keyboard (spec §5.8); nil when off.
     var recorder: KeyRecorder?
     /// Keycodes assigned from the picker and commands run from the palette, newest first (Suggested, Recent).

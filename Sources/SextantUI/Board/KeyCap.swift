@@ -85,6 +85,8 @@ struct KeyCap: View, Equatable {
     var height: CGFloat?
     var isPressed = false
     var isHovered = false
+    /// The activator's halo is the board's alone; smaller caps elsewhere keep only its tint and ring.
+    var glows = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
@@ -120,6 +122,7 @@ struct KeyCap: View, Equatable {
 
     nonisolated static func == (a: Self, b: Self) -> Bool {
         a.model == b.model && a.u == b.u && a.height == b.height && a.isPressed == b.isPressed && a.isHovered == b.isHovered
+            && a.glows == b.glows
     }
 
     // MARK: Face
@@ -328,9 +331,10 @@ struct KeyCap: View, Equatable {
         }
     }
 
-    /// A soft glow in the layer colour around the key holding the layer, behind the cap so it can't wash the legend.
+    /// A soft glow in the layer colour around the key holding the layer, behind the cap; only its inner edge shows
+    /// through the near-clear ghost face, as a rim.
     @ViewBuilder private var halo: some View {
-        if model.isActivator, model.issue == nil, let tones = model.layerTones {
+        if glows, model.isActivator, model.issue == nil, let tones = model.layerTones {
             // A shadow, not a blur: the ring covers the stroke, and offscreen snapshots don't draw blur.
             shape.inset(by: -1)
                 .stroke(tones.display.color, style: ringStyle)

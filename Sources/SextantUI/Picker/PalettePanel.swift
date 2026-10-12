@@ -114,7 +114,10 @@ struct PaletteHost: ViewModifier {
                     return true
                 }
                 guard let point = window.contentView?.convert(location, from: nil) else { return false }
-                if !hits.keepsOpen(point, picking: model.isPicking) { model.closePalette() }
+                if !hits.keepsOpen(point, picking: model.isPicking) {
+                    model.closePalette()
+                    model.paletteDismissingClick = event.eventNumber
+                }
                 return false
             }
             return consumed ? nil : event
@@ -220,7 +223,7 @@ struct PalettePanel: View {
             } else {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
             }
-            TextField(placeholder, text: Binding(get: { palette.query }, set: { model.palette?.query = $0 }), selection: $selection)
+            TextField(placeholder, text: query, selection: $selection)
                 .textFieldStyle(.plain)
                 .font(.title3)
                 .focused($isFieldFocused)
@@ -231,6 +234,11 @@ struct PalettePanel: View {
                 .onKeyPress(phases: [.down, .repeat], action: handle)
         }
         .padding(.horizontal, 14)
+    }
+
+    /// A panel fading out must not write its text into the one replacing it.
+    private var query: Binding<String> {
+        Binding(get: { palette.query }, set: { [id = palette.id] in if model.palette?.id == id { model.palette?.query = $0 } })
     }
 
     private var placeholder: String {

@@ -45,14 +45,13 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 
 - **Layer clicks respond at once (the user found them sluggish, and asked for rename on right-click):** layer rows lost their double-click rename (ADR 0036); it had held each click's selection about 360 ms. With an 80 ms click, mouse-down to selection went from 447 to 88 ms, and to the board's first frame from about 505 to 145 ms, measured offscreen. The caps' layer crossfade now eases out.
 
-- **Closing the palette and picker (the user couldn't make ⌘K go away):** a click outside closes the panel and still lands (a click on a key retargets the picker instead), esc closes it wherever focus is in the window, ⌘K / ⇧⌘O toggle the palette, and the board gets focus back unless the click focused a text field or a list; checked with events synthesized into an offscreen window.
+- **Closing the palette and picker (the user couldn't make ⌘K go away):** a click outside closes the panel and still lands (a click on a key retargets the picker instead), esc closes it wherever focus is in the window, ⌘K / ⇧⌘O toggle the palette, and the board gets focus back unless the click focused a text field or a list; checked with events synthesized into an offscreen window. Follow-ups from its review: the toolbar's Search toggles too (the click whose mouse-down closed the palette doesn't reopen it), and a fading panel no longer writes its query into the next one. Clicking an inspector slot tile closes the picker (it used to retarget the slot); ⌥⇥ still switches slot inside it.
 
 ## In flight
 - Nothing.
 
 ## Next
-1. Done: the integration review checked the user's notes (2026-10-11): the Welcome with three cards, import offers for an unknown keyboard (Welcome card, device card [Import], Import from Connected Keyboard), and the restored-edits notice.
-2. Final report per `docs/prompts/lead-architect.md` (what works, milestones, decisions, deviations, what waits on the user, the ponytail-debt ledger via `ponytail:ponytail-debt`).
+- **v1** (the user asked to start it, 2026-10-12): `docs/v1-plan.md` has 21 slices in 5 waves. Wave 0 (groundwork, no hardware) comes first. The user's answers so far: PNG + vector PDF + Print stand in for SVG; add sindresorhus/KeyboardShortcuts for the layer shortcuts; hide Live Training (always on), Stenography and International locales Sextant has no codes for. Still to ask before their slices: live access and the SET_LAYER / RGB write categories (2.4, wave 3), App Layers' automatic switching (4.2), Combos' "Active on" meaning (2.1, default Oryx's), Copy Layer To across layouts (2.2, default same layout), settings Oryx never showed (0.5, default Sextant's own mapping).
 
 ## Known gaps and notes
 - Security: the generator validates every data-derived token (ADR 0020), after a background security review found C injection; covered by hostile-input tests.

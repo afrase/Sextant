@@ -291,7 +291,7 @@ The centre column is a fixed vertical stack. The board's frame is a pure functio
 | 6 | Undo / Redo | `.primaryAction` group (one shared platter) | `arrow.uturn.backward` / `arrow.uturn.forward` | Tooltips name the action: "Undo Set Hold (⌘Z)" |
 | 7 | `ToolbarSpacer(.fixed)` | | | |
 | 8 | Follow Keyboard | `.primaryAction` | Toggle button, `dot.radiowaves.left.and.right` | Shown selected when on. Disabled when no keyboard is connected. ⌘L |
-| 9 | Search | `.primaryAction` | A capsule labelled "Search  ⌘K" in windows of 1280 pt or wider, otherwise `magnifyingglass` | Opens the palette |
+| 9 | Search | `.primaryAction` | A capsule labelled "Search  ⌘K" in windows of 1280 pt or wider, otherwise `magnifyingglass` | Opens the palette, or closes it when open (as ⌘K does) |
 | 10 | Inspector toggle | `.primaryAction` | `sidebar.trailing` | Same command as `InspectorCommands` |
 
 There is no layer menu in the toolbar.
@@ -535,7 +535,7 @@ Layer colours are user data, and they are also firmware LED colours.
   - Face: tinted with `layer.display` at 10% light / 16% dark, and hatched in the layer colour: 45° lines spaced 0.10u, at 30% in light mode and 38% in dark.
   - Its inherited legend and band draw at full strength, not at the transparent 40%.
   - Ring: it gets the ring even though it is transparent on that layer, 0.5 pt thicker than an owned key's (2 pt light, 1.75 pt dark, 2.5 pt with Increase Contrast).
-  - Halo: a 0.12u glow in `layer.display` (75% light, 90% dark), drawn behind the cap so it can't wash the legend. An issue ring replaces both the ring and the halo.
+  - Halo: a 0.12u glow in `layer.display` (75% light, 90% dark), drawn behind the cap, on the board only (the context strip, inspector header and scope token keep the tint and ring). An issue ring replaces both the ring and the halo.
 - **Atmosphere.** A radial wash of `layer.display` sits on the bench behind the board: 5% light, 7% dark, radius 0.6 × the board width. It crossfades over 0.3 s on layer change.
 
 ### 4.6 Transparent, inherited and disabled keys
@@ -740,7 +740,7 @@ The picker is the command palette component in **assign scope**.
 **Dismissal**
 - esc closes the picker wherever focus is in its window. An input method's composition takes esc first, and Record Key is never on at the same time.
 - A click outside the panel closes it, and the click still does what it would have done (selects that layer, presses that button). A click inside the panel never closes it.
-- A click on a key on the board retargets the picker to that key instead, as ⌘⏎ does, so several keys can be assigned in turn.
+- A click on a key on the board retargets the picker to that key instead, so several keys can be assigned in turn. Focus stays on the board, so typing starts a fresh search there.
 - ⌘K or ⇧⌘O switches to the general palette.
 - The panel also closes when its window stops being key.
 - Closing gives keyboard focus to the board, so arrows and ⏎ keep working, unless the click that closed it focused a text field or a list.

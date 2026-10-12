@@ -307,7 +307,7 @@ private struct BoardKey: View {
     @State private var isHovered = false
 
     var body: some View {
-        KeyCap(model: model, u: u, height: height, isPressed: press?.isDown ?? false, isHovered: isHovered)
+        KeyCap(model: model, u: u, height: height, isPressed: press?.isDown ?? false, isHovered: isHovered, glows: true)
             .equatable()
             .onHover { isHovered = $0 }
     }
