@@ -19,18 +19,26 @@ protocol HIDTransport: Sendable {
 public struct RawHIDLink: KeyboardLink {
     private let clock: any Clock<Duration>
     private let makeTransport: @Sendable (KeyboardDevice, BoardDefinition) -> any HIDTransport
+    private let trace: (@Sendable (HIDTraceEntry) -> Void)?
 
-    public init() { self.init(clock: ContinuousClock()) { IOHIDTransport(device: $0, board: $1) } }
+    /// - Parameter trace: gets every report written and read, trimmed (the Developer raw-HID log, ADR 0045).
+    public init(trace: (@Sendable (HIDTraceEntry) -> Void)? = nil) {
+        self.init(clock: ContinuousClock(), trace: trace) { IOHIDTransport(device: $0, board: $1) }
+    }
 
-    init(clock: any Clock<Duration>, makeTransport: @escaping @Sendable (KeyboardDevice, BoardDefinition) -> any HIDTransport) {
+    init(
+        clock: any Clock<Duration>, trace: (@Sendable (HIDTraceEntry) -> Void)? = nil,
+        makeTransport: @escaping @Sendable (KeyboardDevice, BoardDefinition) -> any HIDTransport
+    ) {
         self.clock = clock
+        self.trace = trace
         self.makeTransport = makeTransport
     }
 
     public func session(
         with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>
     ) -> AsyncStream<LiveEvent> {
-        let session = OryxSession(transport: makeTransport(device, board), board: board, clock: clock)
+        let session = OryxSession(transport: makeTransport(device, board), board: board, clock: clock, trace: trace)
         return AsyncStream { out in
             let task = Task { await session.run(out, commands: commands) }
             out.onTermination = { _ in task.cancel() }
@@ -66,6 +74,23 @@ enum OryxReport {
 
     private static func padded(_ bytes: [UInt8]) -> [UInt8] { bytes + [UInt8](repeating: 0, count: size - bytes.count) }
 
+    /// What the raw-HID log keeps of a report: a sent one without its zero padding (by command, since a trailing 0 can
+    /// be a value), a received one up to and including its stop byte. The firmware's stack garbage after it is never
+    /// kept; a received report with no stop byte keeps only its id.
+    static func trimmed(_ report: [UInt8], sent: Bool) -> [UInt8] {
+        guard let id = report.first else { return [] }
+        let length =
+            switch (sent, id) {
+            case (true, _): commandLengths[id] ?? 1
+            case (false, 0x08), (false, 0xFF): 2
+            case (false, _): (report.dropFirst().firstIndex(of: stop) ?? 0) + 1
+            }
+        return Array(report.prefix(length))
+    }
+
+    /// The bytes `encode` pads for each command; the handshake's queries are one byte.
+    private static let commandLengths: [UInt8: Int] = [setLayer: 3, rgbControl: 2, setRGBLED: 5, setRGBLEDAll: 4]
+
     /// The event in an input report, or nil when it carries none (pairing success, unused replies) or is malformed.
     /// Payloads end at the first 0xFE; the firmware leaves stack garbage after it. `08` and `FF` have no stop byte:
     /// exactly byte 1 counts.
@@ -98,6 +123,7 @@ private struct OryxSession: Sendable {
     let transport: any HIDTransport
     let board: BoardDefinition
     let clock: any Clock<Duration>
+    let trace: (@Sendable (HIDTraceEntry) -> Void)?
 
     private enum Input { case report([UInt8]), removed, deadline(Int), command(KeyboardCommand), writeFailed(DeviceError) }
     private enum Phase { case draining, version(attempt: Int), pairing, live }
@@ -203,8 +229,10 @@ private struct OryxSession: Sendable {
                     break
                 }
             case let .report(bytes):
+                let event = OryxReport.parse(bytes, board: board)
+                trace?(HIDTraceEntry(direction: .received, bytes: OryxReport.trimmed(bytes, sent: false), event: event))
                 if case .draining = phase { continue }
-                guard let event = OryxReport.parse(bytes, board: board) else { continue }
+                guard let event else { continue }
                 out.yield(event)
                 switch (phase, event) {
                 case let (.version, .protocolVersion(version)):
@@ -232,6 +260,7 @@ private struct OryxSession: Sendable {
 
     private func send(_ report: [UInt8]) async throws {
         try await transport.send(report)
+        trace?(HIDTraceEntry(direction: .sent, bytes: OryxReport.trimmed(report, sent: true)))
         try await clock.sleep(for: Self.writeSpacing)
     }
 }

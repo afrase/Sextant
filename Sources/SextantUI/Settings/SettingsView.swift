@@ -7,16 +7,20 @@ public typealias BuildToolsStatus = @MainActor () async -> ToolchainStatus
 /// The firmware commits builds are pinned to; the composition root passes SextantBuild's pins.
 public typealias FirmwareSource = (firmware: String, modules: String)
 
-/// App settings (spec §8.9): General, Build and Privacy. Settings nothing reads yet are stored for later steps.
+/// App settings (spec §8.9): General, Keyboard, Build, Privacy and Advanced. Settings nothing reads yet are stored for
+/// later steps.
 struct SettingsView: View {
     var buildToolsStatus: BuildToolsStatus?
     var firmwareSource: FirmwareSource?
+    var trace: RawHIDTrace
 
     var body: some View {
         TabView {
             Tab("General", systemImage: "gearshape") { GeneralSettings() }
+            Tab("Keyboard", systemImage: "keyboard") { KeyboardSettings() }
             Tab("Build", systemImage: "hammer") { BuildSettings(status: buildToolsStatus, source: firmwareSource) }
             Tab("Privacy", systemImage: "hand.raised") { PrivacySettings() }
+            Tab("Advanced", systemImage: "gearshape.2") { AdvancedSettings(trace: trace) }
         }
         .frame(width: 520)
     }
@@ -29,6 +33,8 @@ enum SettingsKey {
     static let prefersOryxBuild = "prefersOryxBuild"
     static let recordsHeatmap = "recordsHeatmap"
     static let heatmapRetentionDays = "heatmapRetentionDays"
+    /// The Device popover's note about live data, shown at the first connect (spec §12.3).
+    static let seenLiveDataNote = "seenLiveDataNote"
 }
 
 public struct GeneralSettings: View {
@@ -115,7 +121,7 @@ private struct StatusLabelStyle: LabelStyle {
 
 public struct PrivacySettings: View {
     @AppStorage(SettingsKey.recordsHeatmap) private var recordsHeatmap = false
-    @AppStorage(SettingsKey.heatmapRetentionDays) private var retentionDays = 90
+    @AppStorage(SettingsKey.heatmapRetentionDays) private var retentionDays = 30
 
     public init() {}
 

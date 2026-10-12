@@ -59,9 +59,13 @@ struct SextantMain: App {
         let store = PackageLibrary(root: PackageLibrary.defaultRoot())
         let library = Library(store: store)
         let watcher = IOKitDeviceWatcher()
-        let link: any KeyboardLink = liveAccessEnabled ? RawHIDLink() : RefusingKeyboardLink()
+        // The raw-HID log sees only what the link writes and reads, and only while it is on (ADR 0045).
+        let trace = RawHIDTrace()
+        let link: any KeyboardLink = liveAccessEnabled ? RawHIDLink(trace: trace.record) : RefusingKeyboardLink()
         let flasher: any Flasher = flashingEnabled ? DFUFlasher() : RefusingFlasher()
-        let live = LiveSession(watcher: watcher, link: link, secureInputProbe: SecureInputProbe.isEnabled)
+        let live = LiveSession(
+            watcher: watcher, link: link, trace: trace, followsOnConnect: KeyboardSettings.followsOnConnect,
+            secureInputProbe: SecureInputProbe.isEnabled)
         let oryx = OryxClient()
         let generator = QMKGenerator()
         let md5: @Sendable (Data) -> String = { Insecure.MD5.hash(data: $0).map { String(format: "%02x", $0) }.joined() }

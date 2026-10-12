@@ -29,8 +29,8 @@ public final class LiveSession {
     public private(set) var protocolVersion: UInt8?
     /// The keyboard's highest active layer.
     public private(set) var activeLayer: Int?
-    /// Follow mode: the displayed layer tracks ``activeLayer``. On when a keyboard connects; off when a
-    /// layer is chosen by hand (``stopFollowing()``); ``follow()`` resumes it.
+    /// Follow mode: the displayed layer tracks ``activeLayer``. On when a keyboard connects, unless the user turned
+    /// that off (`followsOnConnect`); off when a layer is chosen by hand (``stopFollowing()``); ``follow()`` resumes it.
     public private(set) var isFollowing = false
     /// macOS secure input is on (a password field has focus): presses are hidden.
     public private(set) var isSecureInputOn = false
@@ -51,12 +51,16 @@ public final class LiveSession {
     public var followedLayer: Int? { isFollowing ? activeLayer : nil }
     /// A paired session is open, so ``send(_:)`` can write.
     public var canSend: Bool { liveCommands != nil }
+    /// The Developer raw-HID log, which the composition root wires into the link; here so every window and Settings reach
+    /// it (ADR 0045).
+    public let trace: RawHIDTrace
 
     @ObservationIgnored private let watcher: any DeviceWatcher
     @ObservationIgnored private let link: any KeyboardLink
     @ObservationIgnored private let board: BoardDefinition
     @ObservationIgnored private let clock: any Clock<Duration>
     @ObservationIgnored private let secureInputProbe: @Sendable () -> Bool
+    @ObservationIgnored private let followsOnConnect: @MainActor () -> Bool
     @ObservationIgnored private var devices: [ConnectedDevice] = []
     @ObservationIgnored private var keyboard: KeyboardDevice?
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
@@ -66,16 +70,21 @@ public final class LiveSession {
     /// The layer ``activity()`` last reported for this keyboard.
     @ObservationIgnored private var deliveredLayer: Int?
 
-    /// - Parameter secureInputProbe: `IsSecureEventInputEnabled`, polled once a second while a keyboard is connected
-    ///   and asked again for each event ``activity()`` would deliver.
+    /// - Parameters:
+    ///   - followsOnConnect: whether Follow turns on when a keyboard connects (Settings › Keyboard), asked at each connect.
+    ///   - secureInputProbe: `IsSecureEventInputEnabled`, polled once a second while a keyboard is connected and asked
+    ///     again for each event ``activity()`` would deliver.
     public init(
         watcher: any DeviceWatcher, link: any KeyboardLink, board: BoardDefinition = .voyager,
-        clock: any Clock<Duration> = ContinuousClock(), secureInputProbe: @escaping @Sendable () -> Bool
+        clock: any Clock<Duration> = ContinuousClock(), trace: RawHIDTrace = RawHIDTrace(),
+        followsOnConnect: @escaping @MainActor () -> Bool = { true }, secureInputProbe: @escaping @Sendable () -> Bool
     ) {
         self.watcher = watcher
         self.link = link
         self.board = board
         self.clock = clock
+        self.trace = trace
+        self.followsOnConnect = followsOnConnect
         self.secureInputProbe = secureInputProbe
     }
 
@@ -178,7 +187,7 @@ public final class LiveSession {
         keyboard = device
         connection = .connected(device)
         firmwareSerial = device.serial
-        isFollowing = true
+        isFollowing = followsOnConnect()
         linkTask = Task { await runLink(device) }
         // Only presses need hiding, so the probe runs only while a keyboard can send them.
         secureInputTask = Task {

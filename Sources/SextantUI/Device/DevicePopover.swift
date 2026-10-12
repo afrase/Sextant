@@ -1,3 +1,4 @@
+import AppKit
 import SextantApplication
 import SextantDomain
 import SwiftUI
@@ -12,11 +13,14 @@ extension View {
     }
 }
 
-/// The Device popover (spec §8.2): identity, the live layer and keys, Follow, and how live data stays private.
+/// The Device popover (spec §8.2): identity, the live layer and keys, Follow, the raw-HID log when it is on, and how
+/// live data stays private.
 public struct DevicePopover: View {
     var model: LayoutWindowModel
     /// First connect shows a note about live data once (spec §12.3).
-    @AppStorage("seenLiveDataNote") private var seenLiveDataNote = false
+    @AppStorage(SettingsKey.seenLiveDataNote) private var seenLiveDataNote = false
+    @AppStorage(SettingsKey.showsKeyPresses) private var showsPresses = true
+    @State private var showsTrace = true
 
     public init(model: LayoutWindowModel) { self.model = model }
 
@@ -47,6 +51,11 @@ public struct DevicePopover: View {
                         }
                     }
                     .disabled(!model.canFollow)
+                    Toggle("Show key presses on the board", isOn: $showsPresses)
+                }
+                if live.trace.isOn {
+                    Divider()
+                    traceLog(live.trace)
                 }
                 Divider()
                 privacy(live)
@@ -75,6 +84,34 @@ public struct DevicePopover: View {
         .font(.caption)
         .foregroundStyle(.secondary)
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// The Developer raw-HID log (Settings › Advanced), newest last. It also serves as the spec's event monitor.
+    private func traceLog(_ trace: RawHIDTrace) -> some View {
+        DisclosureGroup(isExpanded: $showsTrace) {
+            if trace.entries.isEmpty {
+                Text("No reports yet.").font(.callout).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                let log = trace.entries.map { $0.line(board: model.board) }.joined(separator: "\n")
+                let text = Text(verbatim: log).font(.caption.monospaced()).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 8) {
+                    // A short log takes its own height; a long one scrolls, opening on the newest report.
+                    ViewThatFits(in: .vertical) {
+                        text
+                        ScrollView { text }.defaultScrollAnchor(.bottom)
+                    }
+                    .frame(maxHeight: 150)
+                    Button("Copy Log") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(log, forType: .string)
+                    }
+                    .controlSize(.small)
+                }
+            }
+        } label: {
+            Text("Raw-HID log").font(.headline)
+        }
     }
 
     private func header(_ live: LiveSession) -> some View {
@@ -188,6 +225,25 @@ struct LayerPips: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(localized: "Status lights show layer \(layer)"))
+    }
+}
+
+extension HIDTraceEntry {
+    /// "12:04:31.207  ←  06 02 08 FE  down k40 · R8 C2": positions only, as the protocol carries nothing else.
+    func line(board: BoardDefinition) -> String {
+        let time = date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute().second().secondFraction(.fractional(3)))
+        var parts = [time, direction == .sent ? "→" : "←", bytes.map { String(format: "%02X", $0) }.joined(separator: " ")]
+        let key: (word: String, row: Int, column: Int)? =
+            switch event {
+            case let .keyDown(row, column): (String(localized: "down"), row, column)
+            case let .keyUp(row, column): (String(localized: "up"), row, column)
+            default: nil
+            }
+        if let key {
+            let index = board.keyIndex(matrixRow: key.row, column: key.column).map { "k\($0) · " } ?? ""
+            parts.append("\(key.word) \(index)R\(key.row) C\(key.column)")
+        }
+        return parts.joined(separator: "  ")
     }
 }
 

@@ -27,6 +27,6 @@ public struct SextantScenes: Scene {
         .windowResizability(.contentMinSize)
         .commands { SextantCommands(library: services.library) }
 
-        Settings { SettingsView(buildToolsStatus: buildToolsStatus, firmwareSource: firmwareSource) }
+        Settings { SettingsView(buildToolsStatus: buildToolsStatus, firmwareSource: firmwareSource, trace: services.live.trace) }
     }
 }

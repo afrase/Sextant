@@ -221,6 +221,9 @@
     "%lld keys use codes Sextant doesn't know yet. They're kept as they are and marked." : {
 
     },
+    "%lld ms" : {
+
+    },
     "%lld of %lld" : {
       "localizations" : {
         "en" : {
@@ -328,6 +331,9 @@
     "Add tap" : {
 
     },
+    "Advanced" : {
+
+    },
     "Another app, such as Keymapp, is using the keyboard’s live connection" : {
 
     },
@@ -376,6 +382,9 @@
 
     },
     "Bootloader %@ isn't one Sextant knows." : {
+
+    },
+    "Bottom center" : {
 
     },
     "Bring your layout to Sextant" : {
@@ -628,6 +637,9 @@
     "Default %@" : {
 
     },
+    "Delay" : {
+
+    },
     "Delete Layer" : {
 
     },
@@ -638,6 +650,9 @@
 
     },
     "Delete this layer?" : {
+
+    },
+    "Developer raw-HID log (positions only)" : {
 
     },
     "Device Info…" : {
@@ -853,6 +868,12 @@
     "Follow Keyboard" : {
 
     },
+    "Follow shows the keyboard’s layer as it changes. Choosing a layer by hand stops it, and ⌘L resumes it." : {
+
+    },
+    "Follow the keyboard by default" : {
+
+    },
     "Follow the keyboard’s layer" : {
 
     },
@@ -860,6 +881,9 @@
 
     },
     "Found" : {
+
+    },
+    "Full overlay" : {
 
     },
     "General" : {
@@ -1009,6 +1033,9 @@
     "Keep the keyboard connected until this finishes." : {
 
     },
+    "Keeps the last %lld reports Sextant and the keyboard exchange, for the Device popover. They stay in memory and are never saved; turning the log off clears it. It starts off each time Sextant opens." : {
+
+    },
     "Key" : {
 
     },
@@ -1115,6 +1142,9 @@
 
     },
     "Label" : {
+
+    },
+    "Large" : {
 
     },
     "Latest" : {
@@ -1283,6 +1313,9 @@
     "Matches the connected keyboard" : {
 
     },
+    "Medium" : {
+
+    },
     "Meh" : {
 
     },
@@ -1382,6 +1415,9 @@
     "No layout open" : {
 
     },
+    "No reports yet." : {
+
+    },
     "No results" : {
 
     },
@@ -1466,6 +1502,9 @@
     "Oryx's firmware didn't match its checksum, so Sextant didn't keep it. The layout imported fine." : {
 
     },
+    "Overlay" : {
+
+    },
     "Override Key" : {
 
     },
@@ -1500,6 +1539,9 @@
 
     },
     "Paused: secure input is on" : {
+
+    },
+    "Position" : {
 
     },
     "Press %@" : {
@@ -1557,6 +1599,9 @@
     "R" : {
 
     },
+    "Raw-HID log" : {
+
+    },
     "Read link" : {
 
     },
@@ -1579,6 +1624,9 @@
 
     },
     "Regular" : {
+
+    },
+    "Reminder" : {
 
     },
     "Rename" : {
@@ -1605,10 +1653,16 @@
     "Replace the layout on this keyboard?" : {
 
     },
+    "Reset" : {
+
+    },
     "Reset All" : {
 
     },
     "Reset All to Defaults…" : {
+
+    },
+    "Reset all warnings" : {
 
     },
     "Reset every firmware setting to its default?" : {
@@ -1818,16 +1872,34 @@
     "Show in Finder" : {
 
     },
+    "Show key presses on the board" : {
+
+    },
     "Show on Other Layers" : {
+
+    },
+    "Show overlay while a layer is held" : {
+
+    },
+    "Shows notes you dismissed again, such as the one about live data." : {
 
     },
     "Shows the Device popover" : {
 
     },
+    "Shows the layer you hold above other apps once the delay passes. A locked layer can show a small reminder until the keyboard is back on its base layer." : {
+
+    },
     "Side" : {
 
     },
+    "Size" : {
+
+    },
     "Slots" : {
+
+    },
+    "Small" : {
 
     },
     "Source" : {
@@ -2052,7 +2124,13 @@
     "This layout was saved by a newer version of Sextant. Update Sextant to open it." : {
 
     },
+    "Tint with the layer color" : {
+
+    },
     "Toggle" : {
+
+    },
+    "Top center" : {
 
     },
     "Trackball" : {
@@ -2142,6 +2220,9 @@
     "Waiting for the keyboard to enter flash mode…" : {
 
     },
+    "When a layer is locked" : {
+
+    },
     "When the keyboard connects" : {
 
     },
@@ -2212,6 +2293,9 @@
 
     },
     "different layout" : {
+
+    },
+    "down" : {
 
     },
     "dual-function" : {
@@ -2390,6 +2474,9 @@
 
     },
     "trackpad" : {
+
+    },
+    "up" : {
 
     },
     "› %@ on %@" : {

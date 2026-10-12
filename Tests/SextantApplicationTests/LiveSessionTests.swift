@@ -56,6 +56,27 @@ struct LiveSessionTests {
         #expect(live.isFollowing)
     }
 
+    /// Settings › Keyboard › Follow the keyboard by default, asked at each connect.
+    @Test func followStaysOffAtConnectWhenTheUserTurnedThatOff() async {
+        let follows = Flag()
+        let live = LiveSession(watcher: watcher, link: link, clock: clock, followsOnConnect: { follows.isOn }) { false }
+        live.start()
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { link.sessionCount == 1 })
+        link.send(.protocolVersion(5), .layer(2))
+        #expect(
+            await eventually {
+                await clock.advance(by: .milliseconds(17))
+                return live.activeLayer == 2
+            })
+        #expect(!live.isFollowing && live.followedLayer == nil)
+
+        follows.isOn = true
+        watcher.detach(1)
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { live.isFollowing }, "the next connect asks again")
+    }
+
     @Test func secureInputHidesPresses() async {
         let live = start()
         watcher.attach(.keyboard(.voyager(serial: nil)))

@@ -132,7 +132,7 @@ The main complaints about Instrument can all be fixed without changing its struc
 | Scene | Type | Contents | Phase |
 |---|---|---|---|
 | Layout window | `WindowGroup(id: "layout", for: LayoutID.self)` | One layout per window: sidebar, canvas and inspector. Several windows can be open | MVP |
-| Settings | `Settings { SettingsView() }`, opened with ⌘, | App preferences (§8.9) | MVP (General, Build, Privacy); v1 (Keyboard, Shortcuts) |
+| Settings | `Settings { SettingsView() }`, opened with ⌘, | App preferences (§8.9) | MVP (General, Build, Privacy); v1 (Keyboard, Advanced) |
 | Build & Flash | `.sheet` on the layout window | Build, flash mode, write, verify, done (§7) | MVP |
 | Import from Oryx | `.sheet` | Link or connected keyboard; preview (§8.1) | MVP |
 | Save Revision | `.sheet` (small) | Message field (§8.7) | MVP |
@@ -1073,7 +1073,7 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
   - Active layer chip: "Brd+Sys · layer 2 · held by Space".
   - Status LEDs: 4 dots, with "= 2 in binary".
   - Keys down, as positions (mini caps of non-character keys; character keys appear as "•").
-  - An "Event monitor" disclosure listing time, down or up, `k40`, and `R8 C2`. It shows **positions only, never letters**.
+  - An "Event monitor" disclosure listing time, down or up, `k40`, and `R8 C2`. It shows **positions only, never letters**. In v1 this is the "Raw-HID log" disclosure, shown while Settings › Advanced turns the log on (ADR 0045).
 - **Controls:**
   - Follow the keyboard's layer (⌘L);
   - Show key presses on the board;
@@ -1219,10 +1219,10 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 | Pane | Contents | Phase |
 |---|---|---|
 | General | Open at login. Show in menu bar. When the keyboard connects: Open Sextant / Do nothing. Show grid behind the keyboard. Notify when a flash finishes (opt-in) | MVP (menu bar options v1) |
-| Keyboard | Show key presses on the board. Follow the keyboard by default. Overlay: on/off, delay, position, size, tint with layer colour, toggled-layer behaviour. Global shortcuts to move the keyboard to a layer (⌃⌥0–9, off by default) | v1 |
+| Keyboard | Show key presses on the board (on). Follow the keyboard by default (on). Overlay: on/off (on), delay (0–500 ms in 10 ms steps, 150), position (bottom or top center), size (S/M/L, M), tint with layer colour (off), toggled-layer behaviour (full overlay, reminder or nothing; reminder). Global shortcuts to move the keyboard to a layer (⌃⌥0–9, off by default) | v1 |
 | Build | Build tools: Apple container (recommended) or managed toolchain, with status, disk use, [Update] and [Remove]. Firmware source pinned to ZSA fork commit `93b2b9e` and modules `13890cd`. "Use Oryx's build when the layout is unchanged since import" | MVP |
 | Privacy | Heatmap recording (off by default), retention, [Clear Heatmap Data…]. Explanatory text about raw HID and secure input | MVP |
-| Advanced | Developer raw-HID log (positions only). Reset all warnings | v1 |
+| Advanced | Developer raw-HID log (positions only): the last 500 reports, in memory only, off at each launch, cleared when turned off, shown in the Device popover (ADR 0045). Reset all warnings | v1 |
 | Sync | Server URL, device pairing, end-to-end encryption (hidden until built) | Future |
 
 ### 8.10 Room left for Future sync
