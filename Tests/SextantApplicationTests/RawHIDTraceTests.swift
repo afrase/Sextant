@@ -30,6 +30,19 @@ struct RawHIDTraceTests {
         #expect(trace.entries == [entry(2)], "the report typed into the password field is gone")
     }
 
+    /// A report that arrives during secure input stays out even when the field loses focus before the log appends it.
+    @Test func aReportFromAPasswordFieldNeverWaitsInTheQueue() async {
+        let secureInput = Flag()
+        let trace = RawHIDTrace { secureInput.isOn }
+        trace.isOn = true
+        secureInput.isOn = true
+        trace.record(entry(1))
+        secureInput.isOn = false
+        trace.record(entry(2))
+        #expect(await eventually { !trace.entries.isEmpty })
+        #expect(trace.entries == [entry(2)])
+    }
+
     @Test func keepsNothingWhileOffAndTurningItOffClearsIt() async throws {
         let trace = RawHIDTrace { false }
         trace.record(entry(1))

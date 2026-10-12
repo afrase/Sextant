@@ -223,7 +223,7 @@ public final class LiveSession {
             let (activity, tap) = AsyncStream.makeStream(of: LiveActivity.self)
             async let delivered: Void = deliver(activity, from: device)
             let events = link.session(with: device, board: board, commands: commands)
-            let final = await clock.publish(events, board: board, tap: tap) { state in
+            let final = await clock.publish(events, board: board, tap: tap, secureInput: secureInputProbe) { state in
                 show(state, from: device)
                 // The debounce flushes the last state after the session ends; an ended session takes no commands.
                 if state.isLive, !state.hasEnded, liveCommands == nil, !Task.isCancelled, keyboard == device {
@@ -298,11 +298,12 @@ extension Clock where Duration == Swift.Duration {
     /// throttle if that lag ever shows.
     fileprivate func publish(
         _ events: AsyncStream<LiveEvent>, board: BoardDefinition, tap: AsyncStream<LiveActivity>.Continuation,
-        to body: @MainActor (LinkState) -> Void
+        secureInput: @escaping @Sendable () -> Bool, to body: @MainActor (LinkState) -> Void
     ) async -> LinkState {
         var last = LinkState()
         let states = events.reductions(into: LinkState()) { state, event in
-            if let activity = state.apply(event, board: board) { tap.yield(activity) }
+            // Asked as the event arrives, so a press made during secure input never waits for the main actor.
+            if let activity = state.apply(event, board: board), !secureInput() { tap.yield(activity) }
         }
         for await state in states.debounce(for: .seconds(1) / 60, clock: self) {
             last = state
