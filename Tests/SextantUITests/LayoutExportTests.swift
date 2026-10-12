@@ -32,15 +32,14 @@ struct LayoutExportTests {
     }
 
     /// The caps' shadows embed as soft-masked images, and printing drops the masks: they printed as grey boxes.
-    @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
-    func thePDFsCapsCastNoShadows() throws {
-        let pdf = try #require(BoardImage.pdf(try example("voyager-JRGQm.json"), mode: .symbols))
+    /// The user's layout has color swatches, whose glow is a shadow too.
+    @Test func thePDFsCapsCastNoShadows() throws {
+        let pdf = try #require(BoardImage.pdf(try example("my-layout-KlgM7-40xJ7M.json"), mode: .symbols))
         #expect(pdf.range(of: Data("/Subtype /Image".utf8)) == nil)
     }
 
-    @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
-    func layoutJSONRoundTrips() throws {
-        let layout = try example("voyager-JRGQm.json")
+    @Test func layoutJSONRoundTrips() throws {
+        let layout = try example("my-layout-KlgM7-full.json")
         #expect(try KeyboardLayout(oryxJSON: LayoutExport.json(layout)) == layout)
     }
 

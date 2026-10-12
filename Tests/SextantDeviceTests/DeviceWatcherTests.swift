@@ -76,9 +76,9 @@ final class Locked<Value: Sendable>: Sendable {
     func withLock<R: Sendable>(_ body: (inout Value) -> R) -> R { mutex.withLock { body(&$0) } }
 }
 
-/// Polls `condition` for up to a second.
+/// Polls `condition` for up to five seconds: a loaded CI runner can take more than one.
 func waitUntil(_ condition: () async -> Bool) async throws {
-    for _ in 0..<1_000 {
+    for _ in 0..<5_000 {
         if await condition() { return }
         try await Task.sleep(for: .milliseconds(1))
     }

@@ -58,11 +58,11 @@ struct LayoutCodecTests {
 
     /// The automouse layer is the layout's (ADR 0035): it is saved on its layer, with or without a Navigator, and a
     /// Navigator's `automouseLayer` (older Sextant files) is read too.
-    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
-    func theAutomouseLayerIsSavedOnItsLayer() throws {
-        var layout = try Fixtures.layout("voyager-JRGQm.json")
+    @Test func theAutomouseLayerIsSavedOnItsLayer() throws {
+        var layout = try Fixtures.layout()
         layout.navigator = nil
-        #expect(try KeyboardLayout(oryxJSON: JSONEncoder().encode(layout)).automouseLayer == 7)
+        layout.automouseLayer = 1
+        #expect(try KeyboardLayout(oryxJSON: JSONEncoder().encode(layout)).automouseLayer == 1)
         layout.navigator = NavigatorConfig(kind: .trackpad, side: .right, options: ["automouseLayer": .number(2)])
         layout.automouseLayer = nil
         let decoded = try KeyboardLayout(oryxJSON: JSONEncoder().encode(layout))

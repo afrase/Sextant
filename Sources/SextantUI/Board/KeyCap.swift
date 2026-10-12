@@ -478,6 +478,7 @@ struct CapLegendView: View {
     var action: ActionLegend
     var u: CGFloat
     var isLabel = false
+    @Environment(\.capShadows) private var capShadows
 
     /// Words caps show instead of the catalog glyph (the ⎋ glyph is for menus and hints).
     nonisolated static let words: [String: String] = [
@@ -525,7 +526,7 @@ struct CapLegendView: View {
                 Circle().fill(swatch.color)
                     .overlay { Circle().strokeBorder(.black.opacity(0.15), lineWidth: 0.5) }
                     .frame(width: 0.30 * u, height: 0.30 * u)
-                    .shadow(color: swatch.color.opacity(0.7), radius: 0.08 * u)
+                    .shadow(color: swatch.color.opacity(capShadows ? 0.7 : 0), radius: 0.08 * u)
                 caption(String(localized: "Color"))
             }
         } else if let layer = action.layerName {

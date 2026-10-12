@@ -7,16 +7,16 @@ import Testing
 
 /// Macro steps reach `SEND_STRING` as `SS_TAP(X_…)`; a code with no `X_` name would not compile, so the generator refuses
 /// it on its key, as the live issue does (ADR 0042). Drafts aren't built.
-@Suite(.enabled(if: QMKGeneratorGoldenTests.reference != nil, "needs SEXTANT_REFERENCE"))
 struct MacroStepGeneratorTests {
     let identity = FirmwareIdentity(serial: "KlgM7/40xJ7M")
 
-    func layout() throws -> KeyboardLayout {
-        try KeyboardLayout(oryxJSON: Data(contentsOf: QMKGeneratorGoldenTests.example("voyager-XlrR4.json")))
+    func layout(_ file: String = "my-layout-KlgM7-40xJ7M.json") throws -> KeyboardLayout {
+        try KeyboardLayout(oryxJSON: Data(contentsOf: QMKGeneratorGoldenTests.example(file)))
     }
 
-    @Test func refusesAStepSendStringCantType() throws {
-        var layout = try layout()
+    @Test(.enabled(if: QMKGeneratorGoldenTests.reference != nil, "needs SEXTANT_REFERENCE"))
+    func refusesAStepSendStringCantType() throws {
+        var layout = try layout("voyager-XlrR4.json")
         let first = try #require(layout.macros.first)
         layout.updateMacro(at: first.locator) { $0.steps[2] = MacroStep(code: "MO") }
         guard case let .key(ref) = first.locator else { throw CocoaError(.featureUnsupported) }

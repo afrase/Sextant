@@ -147,9 +147,8 @@ struct MacroTests {
     }
 
     /// Drafts are written only when there are some, so every existing layout encodes exactly as before.
-    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
-    func draftsRoundTripAndAreLeftOutWhenEmpty() throws {
-        var layout = try Fixtures.layout("voyager-XlrR4.json")
+    @Test func draftsRoundTripAndAreLeftOutWhenEmpty() throws {
+        var layout = try Fixtures.layout()
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         let plain = try encoder.encode(layout)
