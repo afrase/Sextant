@@ -191,7 +191,8 @@ enum KeyText {
         return (capText(primary), primary.name)
     }
 
-    /// The error capsule's text for a live issue (spec §3.7): "Unknown keycode on Brd+Sys · key 45 · Tap".
+    /// The error capsule's text for a live issue (spec §3.7): "Unknown keycode on Brd+Sys · key 45 · Tap", "Empty
+    /// combo · Combo 3".
     static func issueText(_ issue: LayoutIssue, layout: KeyboardLayout) -> String {
         let what =
             switch issue.kind {
@@ -199,10 +200,20 @@ enum KeyText {
             case let .missingLayer(n): String(localized: "Layer \(n) doesn't exist")
             case let .unreachableLayer(n): String(localized: "Layer \(n) can't be reached")
             case let .macroTooLong(steps): String(localized: "Macro has \(steps) steps")
+            case let .macroStepNotTypable(step, code): String(localized: "Macro step \(step + 1) can't type \(code)")
             case .emptyCombo: String(localized: "Empty combo")
-            case .tapDanceUnsupported: String(localized: "Tap dance can't be built yet")
+            case let .comboKeyCount(n): String(localized: "Combo has \(n) keys, not 2–6")
+            case .duplicateComboTrigger: String(localized: "Another combo uses the same keys")
+            case let .comboKeyTransparent(n): String(localized: "Combo key \(n) is transparent")
+            case let .comboKeyTapDance(n): String(localized: "Combo key \(n) is a tap dance")
+            case let .rollingNeighbors(a, b): String(localized: "Combo keys \(a) and \(b) are rolling neighbors")
+            case .notInTapDance: String(localized: "Action can't run in a tap dance")
+            case .tappingTermIgnored: String(localized: "Tapping term ignored: per-key terms are off")
             case .nearSizeLimit: String(localized: "Firmware is near the size limit")
             }
+        if let id = issue.combo, let i = layout.combos.firstIndex(where: { $0.id == id }) {
+            return "\(what) · \(layout.combos[i].name ?? String(localized: "Combo \(i + 1)"))"
+        }
         guard let key = issue.key else { return what }
         var parts = [String(localized: "\(what) on \(layout.layers[safe: key.layer]?.title ?? "")"), String(localized: "key \(key.index)")]
         if let slot = key.slot { parts.append(slot.title) }

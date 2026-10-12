@@ -890,7 +890,7 @@ The picker is the command palette component in **assign scope**.
 - **Tap dance is not a separate document.** A key becomes a tap dance when its Double tap or Tap then hold slot is filled.
 - **Cap:** a `kind.tapDance` signal bar; the band follows §4.4.
 - **Inspector:** the summary sentence covers all slots: "Tap types A. Double-tap types Esc. Tap then hold: Left Command."
-- **Before generator support exists,** filling these slots raises a live issue: "Tap dance needs Sextant's v1 firmware generator; this key will build as tap only."
+- **The generator builds tap dances.** A slot whose action can't run inside a dance (a macro, a lighting key, TG, OSL and the like) raises a live issue on that slot: "Action can't run in a tap dance".
 
 ---
 
@@ -1001,9 +1001,15 @@ These follow research §4, "Safety rules for the flasher".
 - references to missing layers;
 - unreachable layers (a warning);
 - macros over 24 steps;
+- a macro step `SEND_STRING` can't type (v1);
 - empty combos;
-- tap dance before generator support;
+- combos outside 2–6 keys, duplicate trigger keys, and transparent or tap-dance combo keys (v1);
+- rolling-neighbor combo keys (a warning, v1);
+- a tap dance slot whose action can't run in a dance (v1);
+- a per-key tapping term while per-key terms are off (a warning, v1);
 - an estimated size near the limit (a warning).
+
+A combo's issue names the combo ("Empty combo · Combo 3").
 
 They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the next and previous issue.
 

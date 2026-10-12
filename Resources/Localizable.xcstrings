@@ -307,6 +307,9 @@
     "= %lld in binary" : {
 
     },
+    "Action can't run in a tap dance" : {
+
+    },
     "Add Layer" : {
 
     },
@@ -326,6 +329,9 @@
 
     },
     "Another app, such as Keymapp, is using the keyboard’s live connection" : {
+
+    },
+    "Another combo uses the same keys" : {
 
     },
     "Another window is flashing the keyboard. Try again when it finishes." : {
@@ -521,6 +527,28 @@
     },
     "Color for %@" : {
 
+    },
+    "Combo %lld" : {
+
+    },
+    "Combo has %lld keys, not 2–6" : {
+
+    },
+    "Combo key %lld is a tap dance" : {
+
+    },
+    "Combo key %lld is transparent" : {
+
+    },
+    "Combo keys %lld and %lld are rolling neighbors" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Combo keys %1$lld and %2$lld are rolling neighbors"
+          }
+        }
+      }
     },
     "Command Palette" : {
 
@@ -1227,6 +1255,16 @@
     "Macro has %lld steps" : {
 
     },
+    "Macro step %lld can't type %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Macro step %1$lld can't type %2$@"
+          }
+        }
+      }
+    },
     "Main" : {
 
     },
@@ -1841,9 +1879,6 @@
     "Tap dance" : {
 
     },
-    "Tap dance can't be built yet" : {
-
-    },
     "Tap sends %@." : {
 
     },
@@ -1863,6 +1898,9 @@
 
     },
     "Tap-toggle" : {
+
+    },
+    "Tapping term ignored: per-key terms are off" : {
 
     },
     "The DFU suffix checksum is wrong (%@, expected %@)." : {

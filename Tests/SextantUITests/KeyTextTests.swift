@@ -104,6 +104,23 @@ struct KeyTextTests {
         let issue = LayoutIssue(kind: .unknownKeycode("KC_FOO"), severity: .error, key: KeyRef(layer: 2, index: 45, slot: .tap))
         #expect(KeyText.issueText(issue, layout: layout) == "Unknown keycode KC_FOO on Brd+Sys · key 45 · Tap")
         #expect(KeyText.issueText(LayoutIssue(kind: .emptyCombo, severity: .warning, key: nil), layout: layout) == "Empty combo")
+        let dance = LayoutIssue(kind: .notInTapDance, severity: .error, key: KeyRef(layer: 0, index: 3, slot: .doubleTap))
+        #expect(KeyText.issueText(dance, layout: layout) == "Action can't run in a tap dance on Main · key 3 · Double tap")
+    }
+
+    /// A combo issue names its combo: its name, else its number.
+    @Test func comboIssueText() {
+        var combos = layout
+        combos.combos = [
+            Combo(id: "a", keyIndices: [1, 2], output: .code("KC_ESCAPE")),
+            Combo(id: "b", name: "Save", keyIndices: [3, 4], output: .code("KC_S")),
+        ]
+        func text(_ kind: LayoutIssue.Kind, _ combo: String) -> String {
+            KeyText.issueText(LayoutIssue(kind: kind, severity: .warning, key: nil, combo: combo), layout: combos)
+        }
+        #expect(text(.rollingNeighbors(1, 2), "a") == "Combo keys 1 and 2 are rolling neighbors · Combo 1")
+        #expect(text(.duplicateComboTrigger, "b") == "Another combo uses the same keys · Save")
+        #expect(text(.emptyCombo, "gone") == "Empty combo", "a combo that no longer exists isn't named")
     }
 }
 
@@ -154,5 +171,26 @@ struct KeyCapModelTests {
         below.layers[0].keys[19].glowColor = glow
         let inherited = KeyCapModel(layout: below, layer: 1, index: 19)
         #expect(inherited.isGhost && inherited.ownGlow == nil, "an inherited color is not the key's own")
+    }
+
+    /// Spec §4.8: the top-right corner shows one thing, issue > diff badge > LED dot; a combo number has the top left.
+    @Test func cornerPriority() {
+        let glow = HexColor(red: 0.16, green: 1, blue: 1)
+        let added = CapDecoration.Mark(symbol: "plus.circle.fill", color: Tokens.success, accessibilityText: "Added")
+        var lit = layout
+        lit.layers[0].keys[0].glowColor = glow
+        var model = KeyCapModel(layout: lit, layer: 0, index: 0)
+        #expect(model.decoration == CapDecoration() && model.topRight == .led(glow), "undecorated: today's LED dot")
+        model.decoration.badge = added
+        #expect(model.topRight == .mark(added), "a diff badge beats the LED dot")
+        model.decoration.number = CapDecoration.Mark(symbol: "3.circle.fill", color: Tokens.warning, accessibilityText: "Combo 3")
+        #expect(model.topRight == .mark(added), "the combo number has its own corner")
+        model.issue = .error
+        #expect(model.topRight == .issue(.error), "an issue beats everything")
+
+        lit.layers[0].keys[0] = Key(tap: .code("KC_NOPE"), glowColor: glow)
+        var unknown = KeyCapModel(layout: lit, layer: 0, index: 0)
+        unknown.decoration.badge = added
+        #expect(unknown.topRight == .issue(.warning), "an unknown code is a warning")
     }
 }

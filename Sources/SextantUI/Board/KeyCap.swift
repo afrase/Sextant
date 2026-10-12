@@ -20,8 +20,43 @@ public enum LegendMode: String, CaseIterable, Sendable {
     }
 }
 
+/// What a board mode adds to a cap (spec §4.7, §4.8): Changes (a diff badge and ring, unchanged keys at 40%), Combos
+/// (a number and ring, non-members at 45%) and Heatmap (a fill). The default adds nothing.
+struct CapDecoration: Equatable {
+    /// A corner badge: an SF Symbol in a colour, and its words for VoiceOver.
+    struct Mark: Equatable {
+        var symbol: String
+        var color: Token
+        var accessibilityText: String
+    }
+
+    var opacity = 1.0
+    /// A 2 pt ring, under an issue's ring and over the layer ring.
+    var ring: Token?
+    /// Top right, under an issue and over the LED dot: a diff badge.
+    var badge: Mark?
+    /// Top left: a combo number.
+    var number: Mark?
+    /// Over the face, under a live press: heat.
+    var fill: Token?
+}
+
+extension Token: Equatable {
+    public static func == (a: Self, b: Self) -> Bool {
+        a.light == b.light && a.dark == b.dark && a.lightAlpha == b.lightAlpha && a.darkAlpha == b.darkAlpha
+            && a.lightAlphaHC == b.lightAlphaHC && a.darkAlphaHC == b.darkAlphaHC
+    }
+}
+
 /// Everything one cap needs to draw. `Equatable`, so a change elsewhere on the board doesn't redraw it.
 struct KeyCapModel: Equatable {
+    /// The one thing the top-right corner shows (spec §4.8).
+    enum Corner: Equatable {
+        case issue(LayoutIssue.Severity)
+        case mark(CapDecoration.Mark)
+        case led(HexColor)
+    }
+
     var index: Int
     var legend: ResolvedLegend
     /// Tones of the displayed layer, when it has a colour (rings, hatching, pressed fill).
@@ -34,6 +69,7 @@ struct KeyCapModel: Equatable {
     var ownGlow: HexColor?
     /// Dimmed while the kind key points at another kind (spec §3.7).
     var isDimmed = false
+    var decoration = CapDecoration()
 
     init(layout: KeyboardLayout, layer: Int, index: Int, mode: LegendMode = .symbols, issue: LayoutIssue.Severity? = nil) {
         let legend = Legends.legend(layout: layout, layer: layer, index: index)
@@ -66,6 +102,14 @@ struct KeyCapModel: Equatable {
     /// Hold-only keys (Main 18 ⌃, 25 ⌘) show a quiet "hold" marker in the band position. A layer key's caption
     /// already says it.
     var isHoldOnly: Bool { mode == .symbols && legend.legend.primarySlot == .hold && legend.legend.primary?.layer == nil }
+
+    /// Issue > diff badge > LED dot; an unknown code counts as a warning.
+    var topRight: Corner? {
+        if let issue { return .issue(issue) }
+        if legend.legend.primary?.isUnknown == true, !isGhost { return .issue(.warning) }
+        if let badge = decoration.badge { return .mark(badge) }
+        return ownGlow.map(Corner.led)
+    }
 
     /// The signal-bar colour, for single-function special kinds and tap dances (spec §4.4). Reset is red.
     var bar: Token? {
@@ -105,6 +149,7 @@ struct KeyCap: View, Equatable {
     var body: some View {
         ZStack {
             face
+            if let fill = model.decoration.fill { shape.fill(fill.color) }
             if isPressed { pressedFill }
             content
                 .opacity(model.isGhost && !model.isActivator ? 0.4 : 1)
@@ -116,7 +161,7 @@ struct KeyCap: View, Equatable {
         .overlay { rings }
         .scaleEffect(isPressed && !reduceMotion ? 0.96 : 1)
         .animation(isPressed ? nil : SextantMotion.keyRelease, value: isPressed)
-        .opacity(model.isDimmed ? 0.35 : 1)
+        .opacity(min(model.isDimmed ? 0.35 : 1, model.decoration.opacity))
         .contentShape(shape)
     }
 
@@ -287,19 +332,23 @@ struct KeyCap: View, Equatable {
 
     // MARK: Corners and rings
 
-    /// Top right: issue > unknown code > LED dot (spec §4.8). Bottom right: the Differentiate Without Color glyph (§11).
+    /// Top right: ``KeyCapModel/topRight``. Top left: a combo number (spec §4.8). Bottom right: the Differentiate Without
+    /// Color glyph (§11).
     private var corners: some View {
         ZStack(alignment: .topTrailing) {
-            if let issue = model.issue {
-                badge(issue == .error ? Tokens.danger : Tokens.warning)
-            } else if legend.primary?.isUnknown == true, !model.isGhost {
-                badge(Tokens.warning)
-            } else if let glow = model.ownGlow {
+            switch model.topRight {
+            case let .issue(severity):
+                badge(severity == .error ? Tokens.danger : Tokens.warning)
+            case let .mark(mark):
+                markBadge(mark).offset(x: 4, y: -4)
+            case let .led(glow):
                 Circle()
                     .fill(glow.color)
                     .overlay { Circle().strokeBorder(Tokens.capEdge.color, lineWidth: 0.5) }
                     .frame(width: 0.11 * u, height: 0.11 * u)
                     .padding(0.09 * u)
+            case nil:
+                EmptyView()
             }
             if differentiateWithoutColor, !model.isGhost, model.mode == .symbols {
                 kindGlyph
@@ -310,6 +359,9 @@ struct KeyCap: View, Equatable {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+        .overlay(alignment: .topLeading) {
+            if let number = model.decoration.number { markBadge(number).offset(x: -4, y: -4) }
+        }
     }
 
     private func badge(_ token: Token) -> some View {
@@ -317,6 +369,15 @@ struct KeyCap: View, Equatable {
             .overlay { Text(verbatim: "!").font(.system(size: 10, weight: .heavy)).foregroundStyle(.white) }
             .frame(width: 14, height: 14)
             .offset(x: 4, y: -4)
+    }
+
+    /// Drawn like the issue badge: white shows through a filled symbol's cut-out ("plus.circle.fill", "3.circle.fill").
+    private func markBadge(_ mark: CapDecoration.Mark) -> some View {
+        Image(systemName: mark.symbol)
+            .font(.system(size: 14, weight: .bold))
+            .foregroundStyle(mark.color.color)
+            .background { Circle().fill(.white).padding(1) }
+            .frame(width: 14, height: 14)
     }
 
     @ViewBuilder private var kindGlyph: some View {
@@ -334,7 +395,7 @@ struct KeyCap: View, Equatable {
     /// A soft glow in the layer colour around the key holding the layer, behind the cap; only its inner edge shows
     /// through the near-clear ghost face, as a rim.
     @ViewBuilder private var halo: some View {
-        if glows, model.isActivator, model.issue == nil, let tones = model.layerTones {
+        if glows, model.isActivator, model.issue == nil, model.decoration.ring == nil, let tones = model.layerTones {
             // A shadow, not a blur: the ring covers the stroke, and offscreen snapshots don't draw blur.
             shape.inset(by: -1)
                 .stroke(tones.display.color, style: ringStyle)
@@ -353,6 +414,8 @@ struct KeyCap: View, Equatable {
         ZStack {
             if let issue = model.issue {
                 shape.inset(by: -2).stroke((issue == .error ? Tokens.danger : Tokens.warning).color, lineWidth: 2)
+            } else if let ring = model.decoration.ring {
+                shape.inset(by: -2).stroke(ring.color, lineWidth: 2)
             } else if model.isOwned, let tones = model.layerTones {
                 shape.inset(by: -1)
                     .stroke(tones.display.color, style: ringStyle)

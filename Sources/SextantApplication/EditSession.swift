@@ -11,6 +11,8 @@ public struct EditorSelection: Hashable, Sendable {
     public var keyIndex: Int?
     /// Slot the inspector edits.
     public var slot: KeySlot
+    /// Selected combo's id (the Combos page).
+    public var combo: String?
 
     public init(layer: Int = 0, keyIndex: Int? = nil, slot: KeySlot = .tap) {
         self.layer = layer
@@ -392,8 +394,10 @@ public final class EditSession {
     }
 
     // MARK: Undo plumbing
+    // Internal, not private: features add their edits in `EditSession+<Feature>.swift` (docs/v1-plan.md, rule 6).
 
-    private func target(_ layer: Int?, _ index: Int?) -> (Int, Int)? {
+    /// The key an edit acts on: the given layer and index, else the selection's; nil when there is no such key.
+    func target(_ layer: Int?, _ index: Int?) -> (Int, Int)? {
         let l = layer ?? selection.layer
         guard let i = index ?? selection.keyIndex, layout.key(layer: l, index: i) != nil else { return nil }
         return (l, i)
@@ -406,7 +410,7 @@ public final class EditSession {
 
     /// Applies an edit as one undo step. `select` adjusts the selection to the new layout before the redo
     /// snapshot is taken, so redo restores it too.
-    private func edit(
+    func edit(
         _ name: String, select: (inout EditorSelection, KeyboardLayout) -> Void = { _, _ in },
         _ mutate: (inout KeyboardLayout) -> Void
     ) {
@@ -420,7 +424,7 @@ public final class EditSession {
         registerUndo(restoring: before, name: name)
     }
 
-    private func edit(_ name: String, select: (inout EditorSelection) -> Void, _ mutate: (inout KeyboardLayout) -> Void) {
+    func edit(_ name: String, select: (inout EditorSelection) -> Void, _ mutate: (inout KeyboardLayout) -> Void) {
         edit(name, select: { selection, _ in select(&selection) }, mutate)
     }
 

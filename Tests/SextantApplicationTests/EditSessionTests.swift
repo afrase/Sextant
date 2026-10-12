@@ -43,6 +43,18 @@ struct EditSessionTests {
         #expect(session.canUndo && session.canRedo)
     }
 
+    @Test func undoRestoresTheSelectedCombo() async throws {
+        let (session, undo) = try await open()
+        session.selection.combo = "combo-0"
+        step(undo) { session.setTitle("Renamed") }
+        session.selection.combo = nil
+        undo.undo()
+        #expect(session.selection.combo == "combo-0")
+        session.selection.combo = "combo-1"
+        undo.redo()
+        #expect(session.selection.combo == "combo-0", "redo restores the selection the edit left")
+    }
+
     @Test func layerEditsKeepReferencesAndSelection() async throws {
         let (session, undo) = try await open()
         step(undo) { session.addLayer(title: "Games") }

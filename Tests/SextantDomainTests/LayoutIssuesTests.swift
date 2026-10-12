@@ -41,6 +41,20 @@ struct LayoutIssuesTests {
         #expect(issues[0].key == KeyRef(layer: 0, index: 3, slot: .tap))
     }
 
+    /// Combo issues carry the combo, so two broken combos are two issues.
+    @Test func comboIssuesNameTheirCombo() {
+        var layout = layout()
+        layout.combos = [
+            Combo(id: "a", keyIndices: [1], output: .code("KC_ESCAPE")),
+            Combo(id: "b", keyIndices: [2, 3], output: .code("KC_NOPE")),
+            Combo(id: "c", keyIndices: [4], output: .code("KC_TAB")),
+        ]
+        let issues = LayoutIssues.check(layout)
+        #expect(issues.map(\.kind) == [.emptyCombo, .unknownKeycode("KC_NOPE"), .emptyCombo])
+        #expect(issues.map(\.combo) == ["a", "b", "c"] && issues.allSatisfy { $0.key == nil })
+        #expect(Set(issues.map(\.id)).count == 3)
+    }
+
     @Test func combosAndTheAutomouseLayerReachLayers() {
         var layout = layout()
         layout.updateKey(layer: 1, index: 0) { $0 = .transparent }
