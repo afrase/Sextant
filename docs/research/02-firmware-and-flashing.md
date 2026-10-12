@@ -766,6 +766,7 @@ What does not transfer:
 3. **Is `IOUSBHost` usable under the App Sandbox** with only `com.apple.security.device.usb`, or must Sextant use IOUSBLib? Needs a 30-minute on-device test.
 4. **Byte-reproducibility** of ZSA builds with gcc 12.2.1 in a Debian container, and real compile time on this Mac (section 7.3 acceptance test).
 5. **Generator rules not yet observed:** `endEnter`, `dancesTapAction`, `legacyDualFunctionDances`, `ambidexLT`, `layerLockIdleTimeout`, `debounce`, `disableNKRO`, `lowPollingRate`, `tapCodeDelay`, the international variants, `holdOnOtherKeyPress`, `retroTapping`, `tappingForceHold`, steno. Resolve by finding public layouts that use them via the read-only GraphQL `searchLayouts` and diffing their `/source/` zips, as section 4 did.
+   **Decided 2026-10-12 without new samples (ADR 0040):** `layerLockIdleTimeout`, `debounce`, `disableNKRO`, `lowPollingRate`, `tapCodeDelay`, `holdOnOtherKeyPress`, `retroTapping` and `tappingForceHold` (with the mouse, RGB step, Auto Shift and Navigator options) use Sextant's own mapping. `dancesTapAction` and `ambidexLT` write nothing (JRGQm sets both), and neither do the international toggles (the codes carry the locale). Still unobserved: `endEnter`; still refused: `legacyDualFunctionDances` (v1 slice 2.3), steno and `liveTraining` off.
 6. The meaning of normal-mode PID **0x1978** (zapp lists it as Voyager).
 
 ---

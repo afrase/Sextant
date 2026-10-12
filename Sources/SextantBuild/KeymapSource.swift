@@ -105,8 +105,11 @@ struct KeymapSource {
         out.add("};")
     }
 
-    /// Per-key tapping terms. QMK keys them by keycode, so identical keys share the first one's term.
+    /// Per-key tapping terms. QMK keys them by keycode, so identical keys share the first one's term. Only dynamic
+    /// tapping term declares `g_tapping_term` (XlrR4, Oryx's one sample with per-key terms, has it); otherwise QMK uses
+    /// `TAPPING_TERM`.
     private func tappingTerms(_ out: inout SourceText) {
+        let global = features.usesDynamicTappingTerm ? "g_tapping_term" : "TAPPING_TERM"
         out.add("\nuint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {\n    switch (keycode) {")
         var seen: Set<String> = []
         for (li, layer) in layout.layers.enumerated() {
@@ -115,10 +118,10 @@ struct KeymapSource {
                 let delta = term - features.tappingTerm
                 let ref = KeyRef(layer: li, index: ki)
                 out.add("        case \(plan.tokens[li][ki]):", ref)
-                out.add("            return g_tapping_term \(delta < 0 ? "-" : "+")\(abs(delta));", ref)
+                out.add("            return \(global) \(delta < 0 ? "-" : "+")\(abs(delta));", ref)
             }
         }
-        out.add("        default:\n            return g_tapping_term;\n    }\n}")
+        out.add("        default:\n            return \(global);\n    }\n}")
     }
 
     /// The per-layer LED map: a key's glow colour, else its layer's colour, else off.

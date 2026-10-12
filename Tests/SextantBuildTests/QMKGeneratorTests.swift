@@ -41,15 +41,194 @@ struct QMKGeneratorTests {
     }
 
     @Test func refusesSettingsAndNavigatorOptionsItCantWrite() throws {
-        var layout = try userLayout()
-        layout.settings["retroTapping"] = .bool(true)
+        let clean = try userLayout()
+        for id in Self.stillRefused {
+            let setting = try #require(SettingsCatalog.voyager.setting(id: id))
+            var layout = clean
+            layout.settings[id] = .bool(setting.defaultValue != .bool(true))
+            #expect(throws: GeneratorError.unsupported("the “\(setting.title)” setting", nil)) {
+                try QMKGenerator().generate(layout, identity: identity)
+            }
+            layout.settings[id] = setting.defaultValue  // the default writes nothing
+            _ = try QMKGenerator().generate(layout, identity: identity)
+        }
+        var layout = clean
+        layout.settings["debounce"] = .text("5")  // a value of the wrong type
         #expect(throws: GeneratorError.self) { try QMKGenerator().generate(layout, identity: identity) }
-        layout.settings["retroTapping"] = .bool(false)  // the default writes nothing
-        _ = try QMKGenerator().generate(layout, identity: identity)
+        layout = clean
         layout.navigator?.options["invertScrollX"] = .bool(true)
         #expect(throws: GeneratorError.unsupported("the Navigator's “invertScrollX” option", nil)) {
             try QMKGenerator().generate(layout, identity: identity)
         }
+        layout = try Self.settingsLayout(.trackball)
+        layout.navigator?.options["oneShotAutoMouse"] = .bool(true)  // QMK's auto mouse has no one-shot mode
+        #expect(throws: GeneratorError.unsupported("the Navigator's “oneShotAutoMouse” option", nil)) {
+            try QMKGenerator().generate(layout, identity: identity)
+        }
+        layout = try Self.settingsLayout(.trackball)
+        layout.navigator?.options["aimLayers"] = .integers([1, 3])
+        #expect(throws: GeneratorError.unsupported("the Navigator's “aimLayers” option", nil)) {
+            try QMKGenerator().generate(layout, identity: identity)
+        }
+    }
+
+    // MARK: Settings (ADR 0040)
+
+    /// Changes to a layout's settings and the text they add to its firmware source.
+    struct Mapping: Sendable, CustomTestStringConvertible {
+        /// A Navigator option is tried on this Navigator only; a setting on the trackpad, and with both at once.
+        var only: NavigatorConfig.Kind?
+        var changes: [String: SettingValue]
+        var text: [String]
+        var testDescription: String { changes.keys.sorted().joined(separator: " + ") + (only.map { " (\($0))" } ?? "") }
+
+        init(_ changes: [String: SettingValue], _ text: String...) {
+            self.changes = changes
+            self.text = text
+        }
+
+        init(_ only: NavigatorConfig.Kind, _ changes: [String: SettingValue], _ text: String) {
+            self.only = only
+            self.changes = changes
+            self.text = [text]
+        }
+    }
+
+    /// Settings Oryx's samples show (research 02 §4.7; the goldens check them against Oryx's output).
+    static let oryxMappings: [Mapping] = [
+        Mapping(["tappingTerm": .number(250)], "#undef TAPPING_TERM\n#define TAPPING_TERM 250"),
+        Mapping(["flowTap": .number(120)], "#define FLOW_TAP_TERM 120"),
+        Mapping(["chordalHold": .bool(true)], "#define CHORDAL_HOLD"),
+        Mapping(["chordalHold": .bool(true), "chordalHoldExcludeThumbs": .bool(true)], "'*'"),
+        Mapping(["permissiveHold": .bool(true)], "#define PERMISSIVE_HOLD"),
+        Mapping(["oneShotTimeout": .number(2000)], "#undef ONESHOT_TIMEOUT\n#define ONESHOT_TIMEOUT 2000"),
+        Mapping(["comboTerm": .number(40)], "#define COMBO_TERM 40"),
+        Mapping(["rgbTimeout": .number(2)], "#define RGB_MATRIX_TIMEOUT 120000"),
+        Mapping(["wakeupDelay": .number(100)], "#define USB_SUSPEND_WAKEUP_DELAY 100"),
+        Mapping(["autoshift": .bool(true)], "AUTO_SHIFT_ENABLE = yes"),
+        Mapping(["autoshift": .bool(true), "autoshiftTimeout": .number(150)], "#define AUTO_SHIFT_TIMEOUT 150"),
+        Mapping(["mouseInterval": .number(14)], "#undef MOUSEKEY_INTERVAL\n#define MOUSEKEY_INTERVAL 14"),
+        Mapping(["mouseDelay": .number(8)], "#undef MOUSEKEY_DELAY\n#define MOUSEKEY_DELAY 8"),
+        Mapping(["capsLockStatus": .bool(true)], "#define CAPS_LOCK_STATUS"),
+        // Without dynamic tapping term keys there is no `g_tapping_term` to offset.
+        Mapping(["perKeyTappingTerm": .bool(true)], "#define TAPPING_TERM_PER_KEY", "return TAPPING_TERM;"),
+        Mapping(["disabledAnimations": .strings(["breathing"])], "#undef ENABLE_RGB_MATRIX_BREATHING"),
+        Mapping(["enableDynamicMacros": .bool(true)], "DYNAMIC_MACRO_ENABLE = yes"),
+        Mapping(["ambidexLT": .bool(true)]),
+        Mapping(["dancesTapAction": .bool(false)]),
+        Mapping(.trackpad, ["automouseTime": .number(500)], "#define AUTOMOUSE_TIMEOUT 500"),
+        Mapping(.trackpad, ["automouseThreshold": .number(20)], "#define AUTOMOUSE_THRESHOLD 20"),
+        Mapping(.trackball, ["automouseTime": .number(500)], "#define AUTO_MOUSE_TIME 500"),
+        Mapping(.trackball, ["automouseThreshold": .number(20)], "#define AUTO_MOUSE_THRESHOLD 20"),
+        Mapping(.trackball, ["sensitivity": .number(60)], "#define NAVIGATOR_TRACKBALL_CPI 60"),
+        Mapping(.trackball, ["invertScrollX": .bool(true)], "#define NAVIGATOR_SCROLL_INVERT_X"),
+        Mapping(.trackball, ["invertScrollY": .bool(true)], "#define NAVIGATOR_SCROLL_INVERT_Y"),
+    ]
+
+    /// Settings Oryx's samples never show, in Sextant's own mapping.
+    static let ownMappings: [Mapping] = [
+        Mapping(["debounce": .number(8)], "#undef DEBOUNCE\n#define DEBOUNCE 8"),
+        Mapping(["tapCodeDelay": .bool(true)], "#define TAP_CODE_DELAY 10"),
+        Mapping(["oneShotTapToggle": .number(3)], "#undef ONESHOT_TAP_TOGGLE\n#define ONESHOT_TAP_TOGGLE 3"),
+        Mapping(["retroTapping": .bool(true)], "#define RETRO_TAPPING"),
+        Mapping(["holdOnOtherKeyPress": .bool(true)], "#define HOLD_ON_OTHER_KEY_PRESS"),
+        Mapping(["tappingForceHold": .bool(true)], "#define QUICK_TAP_TERM 0"),
+        Mapping(["autoshiftModifiers": .bool(true)], "#define AUTO_SHIFT_MODIFIERS"),
+        Mapping(["autoshiftEnableSpecial": .bool(false)], "#define NO_AUTO_SHIFT_SYMBOLS"),
+        Mapping(["autoshiftEnableNumeric": .bool(false)], "#define NO_AUTO_SHIFT_NUMERIC"),
+        Mapping(["autoshiftEnableAlpha": .bool(false)], "#define NO_AUTO_SHIFT_ALPHA"),
+        Mapping(["autoshiftEnableTab": .bool(false)], "#define NO_AUTO_SHIFT_TAB"),
+        Mapping(["mouseMaxSpeed": .number(12)], "#undef MOUSEKEY_MAX_SPEED\n#define MOUSEKEY_MAX_SPEED 12"),
+        Mapping(["mouseTimeToMax": .number(60)], "#undef MOUSEKEY_TIME_TO_MAX\n#define MOUSEKEY_TIME_TO_MAX 60"),
+        Mapping(["mouseWheelInterval": .number(100)], "#undef MOUSEKEY_WHEEL_INTERVAL\n#define MOUSEKEY_WHEEL_INTERVAL 100"),
+        Mapping(["mouseWheelMaxSpeed": .number(4)], "#undef MOUSEKEY_WHEEL_MAX_SPEED\n#define MOUSEKEY_WHEEL_MAX_SPEED 4"),
+        Mapping(["mouseWheelTimeToMaxSpeed": .number(20)], "#undef MOUSEKEY_WHEEL_TIME_TO_MAX\n#define MOUSEKEY_WHEEL_TIME_TO_MAX 20"),
+        Mapping(["mouseWheelDelay": .number(200)], "#undef MOUSEKEY_WHEEL_DELAY\n#define MOUSEKEY_WHEEL_DELAY 200"),
+        Mapping(["rgbHueStep": .number(12)], "#undef RGB_MATRIX_HUE_STEP\n#define RGB_MATRIX_HUE_STEP 12"),
+        Mapping(["rgbBriStep": .number(8)], "#undef RGB_MATRIX_VAL_STEP\n#define RGB_MATRIX_VAL_STEP 8"),
+        Mapping(["rgbUsbSuspend": .bool(false)], "#undef RGB_MATRIX_SLEEP"),
+        Mapping(["layerLockIdleTimeout": .number(360)], "#undef LAYER_LOCK_IDLE_TIMEOUT\n#define LAYER_LOCK_IDLE_TIMEOUT 360000"),
+        Mapping(["lowPollingRate": .bool(true)], "#define USB_POLLING_INTERVAL_MS 10"),
+        Mapping(["disableNKRO": .bool(true)], "NKRO_ENABLE = no"),
+        Mapping(["disableUsbStartupCheck": .bool(true)], "NO_USB_STARTUP_CHECK = yes"),
+        Mapping(.trackpad, ["rotation": .number(-90)], "#define NAVIGATOR_TRACKPAD_ROTATION 270"),
+        Mapping(.trackpad, ["oneShotAutoMouse": .bool(true)], "#define AUTOMOUSE_ONESHOT\n"),
+        Mapping(
+            .trackpad, ["oneShotAutoMouse": .bool(true), "oneShotAutoMouseTimeout": .number(15)],
+            "#define AUTOMOUSE_ONESHOT_TIMEOUT 15000"),
+        Mapping(.trackball, ["rotation": .number(-30)], "#define NAVIGATOR_TRACKBALL_ROTATION 330"),
+        Mapping(.trackball, ["scrollOnly": .bool(true)], "#define NAVIGATOR_TRACKBALL_SCROLL_ONLY"),
+        Mapping(.trackball, ["aimSpeed": .number(0)], "#define NAVIGATOR_AIM_DIVIDER 4"),
+        Mapping(.trackball, ["turboSpeed": .number(2)], "#define NAVIGATOR_TURBO_MULTIPLIER 4"),
+        Mapping(.trackball, ["aimLayers": .integers([1])], "#define NAVIGATOR_AIM_LAYERS { 1 }"),
+        Mapping(.trackball, ["turboLayers": .integers([2])], "#define NAVIGATOR_TURBO_LAYERS { 2 }"),
+        Mapping(.trackball, ["dragScrollLayers": .integers([1, 2])], "#define NAVIGATOR_DRAG_SCROLL_LAYERS { 1, 2 }"),
+    ]
+
+    /// Settings the generator refuses to change until they're decided (ADR 0040; Space Cadet and legacy dances: v1 2.3).
+    static let stillRefused = ["liveTraining", "stenography", "geminipr", "legacyDualFunctionDances", "enableSpaceCadet"]
+
+    /// The user's layout with `kind`, an automouse layer, a mouse key, a layer lock key and a per-key tapping term, so
+    /// every setting reaches code the firmware compiles.
+    static func settingsLayout(_ kind: NavigatorConfig.Kind) throws -> KeyboardLayout {
+        var layout = try KeyboardLayout(
+            oryxJSON: Data(contentsOf: QMKGeneratorGoldenTests.examples.appending(path: "my-layout-KlgM7-full.json")))
+        layout.setNavigator(kind)
+        layout.automouseLayer = 2
+        layout.updateKey(layer: 1, index: 1) { $0 = Key("KC_MS_UP") }
+        layout.updateKey(layer: 1, index: 2) { $0 = Key("QK_LLCK") }
+        layout.updateKey(layer: 0, index: 51) { $0.tappingTerm = 240 }
+        return layout
+    }
+
+    /// Stores values as an import would, defaults included; nil removes one.
+    static func set(_ values: [String: SettingValue?], in layout: inout KeyboardLayout) throws {
+        for (id, value) in values {
+            let setting = try #require(SettingsCatalog.voyager.setting(id: id))
+            if setting.navigatorKinds != nil { layout.navigator?.options[id] = value } else { layout.settings[id] = value }
+        }
+    }
+
+    /// Every setting the generator writes, changed at once, with `kind` (RealToolchainTests compiles it).
+    static func everySettingChanged(_ kind: NavigatorConfig.Kind) throws -> KeyboardLayout {
+        var layout = try settingsLayout(kind)
+        for mapping in oryxMappings + ownMappings where mapping.only ?? kind == kind { try set(mapping.changes, in: &layout) }
+        return layout
+    }
+
+    func source(_ layout: KeyboardLayout) throws -> String {
+        try QMKGenerator().generate(layout, identity: identity).files.sorted { $0.key < $1.key }.map(\.value).joined(separator: "\n")
+    }
+
+    @Test(arguments: oryxMappings + ownMappings)
+    func writesEachChangedSetting(mapping: Mapping) throws {
+        var layout = try Self.settingsLayout(mapping.only ?? .trackpad)
+        let unchanged = try source(layout)
+        try Self.set(mapping.changes, in: &layout)
+        let changed = try source(layout)
+        for text in mapping.text { #expect(changed.contains(text) && !unchanged.contains(text), "\(text)") }
+    }
+
+    /// Imported layouts may store a default; Sextant's own lines appear only away from it.
+    @Test(arguments: ownMappings)
+    func writesNothingAtTheDefault(mapping: Mapping) throws {
+        var layout = try Self.settingsLayout(mapping.only ?? .trackpad)
+        let unchanged = try source(layout)
+        for id in mapping.changes.keys {
+            try Self.set([id: try #require(SettingsCatalog.voyager.setting(id: id)).unsetValue], in: &layout)
+        }
+        #expect(try source(layout) == unchanged)
+    }
+
+    /// Every setting the Voyager shows is written, or refused by name, and all of them build together.
+    @Test(arguments: [NavigatorConfig.Kind.trackpad, .trackball])
+    func writesEverySettingAtOnce(kind: NavigatorConfig.Kind) throws {
+        let shown = SettingsCatalog.voyager.sections.filter { $0.isVisibleOnVoyager && $0.id != "international" }
+            .flatMap(\.settings).filter(\.appliesToVoyager).map(\.id)
+        let mappings = Self.oryxMappings + Self.ownMappings
+        #expect(Set(shown) == Set(mappings.flatMap(\.changes.keys) + Self.stillRefused))
+        let changed = try source(Self.everySettingChanged(kind))
+        for text in mappings.filter({ $0.only ?? kind == kind }).flatMap(\.text) { #expect(changed.contains(text), "\(text)") }
     }
 
     /// A layout switched to another Navigator (ADR 0035) gets that module's firmware lines, as Oryx writes them for the
