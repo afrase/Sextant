@@ -118,10 +118,10 @@ struct KeymapPlan {
         }
         if key.isTransparent { return "KC_TRANSPARENT" }
         if key.doubleTap != nil || key.tapHold != nil {
-            for (slot, action) in key.actions where QMKCodes.statements(action) == nil {
+            for (slot, action) in key.actions where !action.runsInTapDance {
                 throw Self.unsupportedPart(action, KeyRef(layer: ref.layer, index: ref.index, slot: slot))
             }
-            if let tap = key.tap, !QMKCodes.isKeycode(tap) {
+            if let tap = key.tap, !tap.typesInTapDance {
                 throw .unsupported(
                     String(localized: "a tap dance whose tap isn't a key"), KeyRef(layer: ref.layer, index: ref.index, slot: .tap))
             }

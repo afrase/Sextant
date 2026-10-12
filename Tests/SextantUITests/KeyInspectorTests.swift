@@ -104,6 +104,45 @@ struct KeyInspectorTests {
         #expect(session.layout == copied)
     }
 
+    /// Spec §5.1 item 7: the row shows for a hold or a dance, read from the slots (a label or macro changes the kind),
+    /// and for any key with its own term.
+    @Test func tappingTermRowFollowsTheSlots() {
+        let macro = KeyAction(code: "KC_TRANSPARENT", macro: Macro(steps: [MacroStep(code: "KC_A")]))
+        #expect(TappingTermRow.shows(for: Key(tap: .code("KC_A"), hold: .momentary(1), customLabel: "Sym")))
+        #expect(TappingTermRow.shows(for: Key(tap: macro, doubleTap: .code("KC_B"))))
+        #expect(TappingTermRow.shows(for: Key(tapHold: .code("KC_LEFT_CTRL"))))
+        #expect(!TappingTermRow.shows(for: Key("KC_A")))
+        #expect(!TappingTermRow.shows(for: Key(tap: macro)))
+        #expect(TappingTermRow.shows(for: Key(tap: .code("KC_A"), tappingTerm: 150)), "an imported term can be set back")
+        #expect(TappingTermRow.delta(20) == "+20 ms from global")
+        #expect(TappingTermRow.delta(-30) == "−30 ms from global")
+        #expect(TappingTermRow.delta(0) == "Same as global")
+    }
+
+    /// A custom term turns per-key terms on, so the firmware uses it; one undo step takes both back.
+    @Test func settingATermIsOneUndoStepWithTheSetting() async throws {
+        let session = try #require(try await openUserLayout().session)
+        let undo = UndoManager()
+        undo.groupsByEvent = false
+        session.undoManager = undo
+        let before = session.layout
+        #expect(!before.perKeyTappingTermsOn)
+
+        undo.beginUndoGrouping()
+        session.setTappingTerm(250, layer: 0, index: 24)
+        undo.endUndoGrouping()
+        #expect(session.layout.key(layer: 0, index: 24)?.tappingTerm == 250 && session.layout.perKeyTappingTermsOn)
+        #expect(undo.undoActionName == "Set Tapping Term")
+        undo.undo()
+        #expect(session.layout == before)
+
+        // Back to Global leaves the setting: other keys may have terms.
+        session.undoManager = nil
+        session.setTappingTerm(250, layer: 0, index: 24)
+        session.setTappingTerm(nil, layer: 0, index: 24)
+        #expect(session.layout.key(layer: 0, index: 24)?.tappingTerm == nil && session.layout.perKeyTappingTermsOn)
+    }
+
     @Test func pickedColoursRoundToStoredHex() {
         let picked = HexColor(Color(.sRGB, red: 0.5004, green: 0.2, blue: 1, opacity: 1))
         #expect(picked == HexColor(hex: "#8033FF"))

@@ -131,6 +131,16 @@
         }
       }
     },
+    "%@%lld ms from global" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@%2$lld ms from global"
+          }
+        }
+      }
+    },
     "%@, hold for %@" : {
       "localizations" : {
         "en" : {
@@ -219,6 +229,9 @@
       }
     },
     "%lld keys use codes Sextant doesn't know yet. They're kept as they are and marked." : {
+
+    },
+    "%lld ms" : {
 
     },
     "%lld of %lld" : {
@@ -869,6 +882,9 @@
 
     },
     "Generating source" : {
+
+    },
+    "Global (%lld ms)" : {
 
     },
     "Go to" : {
@@ -1641,6 +1657,9 @@
     "Runs %@ · not in your library" : {
 
     },
+    "Same as global" : {
+
+    },
     "Save Revision…" : {
 
     },
@@ -1693,6 +1712,9 @@
 
     },
     "Set Navigator" : {
+
+    },
+    "Set Tapping Term" : {
 
     },
     "Set up" : {
@@ -1901,6 +1923,9 @@
 
     },
     "Tap-toggle" : {
+
+    },
+    "Tapping term" : {
 
     },
     "Tapping term ignored: per-key terms are off" : {
@@ -2298,6 +2323,9 @@
 
     },
     "matches this layout" : {
+
+    },
+    "ms" : {
 
     },
     "not connected" : {

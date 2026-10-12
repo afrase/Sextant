@@ -365,6 +365,33 @@ struct QMKGeneratorTests {
         #expect(try QMKGenerator().generate(layout, identity: identity).files["keymap.json"]?.contains("\"zsa/doubleclick\"") == true)
     }
 
+    /// The live issue's dance predicates (domain) and the C the generator writes for a dance slot must agree, or a
+    /// dance would pass the check and fail the build, or be flagged and build.
+    @Test func dancePredicatesAgreeWithTheStatementsAcrossTheCatalog() {
+        let macro = Macro(steps: [MacroStep(code: "KC_A")])
+        let codes = KeycodeCatalog.entries.flatMap { [$0.code] + $0.aliases } + ["FOO", "KC_FOO", "UK_FOO", "MO", "TO"]
+        for code in codes {
+            let variants = [
+                KeyAction(code: code), KeyAction(code: code, layer: 1), KeyAction(code: code, modifiers: [.leftShift, .rightCommand]),
+                KeyAction(code: code, color: HexColor(red: 1, green: 0, blue: 0)), KeyAction(code: code, macro: macro),
+            ]
+            for action in variants {
+                #expect(action.runsInTapDance == (QMKCodes.statements(action) != nil), "\(action)")
+                #expect(action.typesInTapDance == QMKCodes.isKeycode(action), "\(action)")
+            }
+        }
+    }
+
+    /// A term set in Sextant reaches the firmware: per-key terms on, and the key's offset from the global term.
+    @Test func writesATermSetInSextant() throws {
+        var layout = try userLayout()
+        layout.setTappingTerm(260, layer: 0, index: 51)
+        layout.settings["perKeyTappingTerm"] = .bool(true)
+        let files = try QMKGenerator().generate(layout, identity: identity).files
+        #expect(files["config.h"]?.contains("#define TAPPING_TERM_PER_KEY") == true)
+        #expect(files["keymap.c"]?.contains("        case LT(2, KC_SPACE):\n            return TAPPING_TERM +60;") == true)
+    }
+
     /// `ALL_T`/`MEH_T` are function-like macros; alone, Hyper and Meh are `KC_HYPR` and `KC_MEH`.
     @Test func writesALoneHyperOrMehAsItsKeycode() throws {
         var layout = try userLayout()

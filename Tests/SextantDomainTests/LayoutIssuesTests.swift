@@ -55,6 +55,52 @@ struct LayoutIssuesTests {
         #expect(Set(issues.map(\.id)).count == 3)
     }
 
+    /// Spec §6.5: a dance slot the firmware can't run is flagged on that slot, before any build.
+    @Test func flagsDanceSlotsThatCantRun() {
+        var layout = layout()
+        let macro = KeyAction(code: "KC_TRANSPARENT", macro: Macro(steps: [MacroStep(code: "KC_A")]))
+        layout.updateKey(layer: 0, index: 1) { $0 = Key(tap: .code("KC_A"), doubleTap: macro) }
+        layout.updateKey(layer: 0, index: 2) {
+            $0 = Key(tap: .code("KC_A"), hold: .toggle(1), tapHold: .setColor(HexColor(red: 1, green: 0, blue: 0)))
+        }
+        layout.updateKey(layer: 0, index: 3) { $0 = Key(tap: .momentary(1), doubleTap: .code("QK_BOOT")) }  // a layer isn't a tap
+        layout.updateKey(layer: 0, index: 4) { $0 = Key(doubleTap: KeyAction(code: "OSM", modifiers: .leftShift)) }
+        // These run: keys, chorded and lone modifiers, MO and TO, and a locale tap.
+        layout.updateKey(layer: 0, index: 5) {
+            $0 = Key(
+                tap: .code("UK_PND"), hold: .code("KC_LEFT_CTRL", modifiers: .leftShift), doubleTap: .code("ALL_T"), tapHold: .moveTo(2))
+        }
+        layout.updateKey(layer: 0, index: 6) { $0 = Key(tap: .code("KC_A"), hold: .toggle(1)) }  // not a dance
+
+        let flagged = LayoutIssues.check(layout).filter { $0.kind == .notInTapDance }
+        #expect(
+            flagged.compactMap(\.key) == [
+                KeyRef(layer: 0, index: 1, slot: .doubleTap), KeyRef(layer: 0, index: 2, slot: .hold),
+                KeyRef(layer: 0, index: 2, slot: .tapHold),
+                KeyRef(layer: 0, index: 3, slot: .tap), KeyRef(layer: 0, index: 3, slot: .doubleTap),
+                KeyRef(layer: 0, index: 4, slot: .doubleTap),
+            ])
+        #expect(flagged.allSatisfy { $0.severity == .error })
+    }
+
+    /// The firmware drops a key's own term while per-key terms are off, so an imported one warns.
+    @Test func warnsOfATappingTermThatPerKeyTermsIgnore() {
+        var layout = layout()
+        layout.updateKey(layer: 0, index: 51) { $0.tappingTerm = 250 }
+        let issues = LayoutIssues.check(layout)
+        #expect(issues.map(\.kind) == [.tappingTermIgnored] && issues.map(\.severity) == [.warning])
+        #expect(issues.first?.key == KeyRef(layer: 0, index: 51))
+        layout.settings["perKeyTappingTerm"] = .bool(true)
+        #expect(LayoutIssues.check(layout).isEmpty)
+    }
+
+    /// Oryx built every example: no dance slot it couldn't run, no term it ignored.
+    @Test(arguments: Fixtures.allLayoutFiles)
+    func oryxExamplesRaiseNoDanceOrTermIssues(file: String) throws {
+        let issues = LayoutIssues.check(try Fixtures.layout(file))
+        #expect(!issues.contains { $0.kind == .notInTapDance || $0.kind == .tappingTermIgnored }, "\(issues)")
+    }
+
     @Test func combosAndTheAutomouseLayerReachLayers() {
         var layout = layout()
         layout.updateKey(layer: 1, index: 0) { $0 = .transparent }

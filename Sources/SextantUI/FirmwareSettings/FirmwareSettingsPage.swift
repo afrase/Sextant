@@ -34,7 +34,9 @@ enum FirmwareSettings {
 
     private static func isCore(_ setting: Setting, in section: String) -> Bool {
         switch section {
-        case "tapping", "oneshot", "debounce", "navigator": true
+        // Oryx's firmware is the same with "Prefer tap in tap-and-hold dances" on or off (ADR 0041).
+        case "tapping": setting.id != "dancesTapAction"
+        case "oneshot", "debounce", "navigator": true
         case "rgb": setting.id == "rgbTimeout"
         default: false
         }

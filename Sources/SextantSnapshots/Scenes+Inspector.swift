@@ -7,7 +7,7 @@ import SwiftUI
 
 extension Scenes {
     /// The key inspector (spec §5.1–§5.3): a plain key, a dual-function key's hold, a layer hold, an inherited key,
-    /// a layer key and a key with its own LED colour.
+    /// a layer key, a key with its own LED colour, a tap dance slot that can't run and a custom tapping term.
     static func inspector(_ f: Fixtures) async -> [SnapshotScene] {
         var scenes: [SnapshotScene] = []
         func scene(_ name: String, _ model: LayoutWindowModel, id: UUID, slot: KeySlot = .tap) {
@@ -29,6 +29,21 @@ extension Scenes {
             await model.open(entry.id)
             model.session?.select(key: key)
             scene(name, model, id: entry.id)
+        }
+
+        // Z double-tapped toggles Brd+Sys, which a dance can't run; ⏎'s hold has its own term (ADR 0041). Each is in a
+        // library of its own, so the sidebar lists one layout.
+        var danced = base, timed = base
+        danced.updateKey(layer: 0, index: 19) { $0.doubleTap = .toggle(2) }
+        timed.setTappingTerm(250, layer: 0, index: 24)
+        timed.settings["perKeyTappingTerm"] = .bool(true)
+        for (layout, name, key, slot) in [(danced, "dance-flagged", 19, KeySlot.doubleTap), (timed, "term-custom", 24, .tap)] {
+            let store = PackageLibrary(root: root.appending(path: name))
+            guard let entry = try? await Library(store: store).add(imported: layout) else { continue }
+            let model = LayoutWindowModel(library: Library(store: store))
+            await model.open(entry.id)
+            model.session?.select(key: key)
+            scene(name, model, id: entry.id, slot: slot)
         }
         return scenes
     }
