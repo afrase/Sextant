@@ -82,9 +82,10 @@ enum QMKCodes {
         return held.map { "MOD_BIT(\(keycodes[$0]))" }.joined(separator: " | ")
     }
 
-    /// True for codes `register_code16` can send: HID keycodes (`KC_*`) and the locale codes `i18n.h` defines.
+    /// True for codes `register_code16` can send: HID keycodes (``KeyAction/isHIDCode``) and the locale codes `i18n.h`
+    /// defines.
     static func isKeycode(_ action: KeyAction) -> Bool {
-        action.macro == nil && (action.code.hasPrefix("KC_") || locale[action.code] != nil)
+        action.macro == nil && (action.isHIDCode || locale[action.code] != nil)
     }
 
     /// QMK's basic keycodes (`KC_A`…`KC_EXSEL`), the only taps `MT()` and `LT()` can carry.

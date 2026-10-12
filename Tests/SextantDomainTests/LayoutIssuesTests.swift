@@ -71,6 +71,9 @@ struct LayoutIssuesTests {
                 tap: .code("UK_PND"), hold: .code("KC_LEFT_CTRL", modifiers: .leftShift), doubleTap: .code("ALL_T"), tapHold: .moveTo(2))
         }
         layout.updateKey(layer: 0, index: 6) { $0 = Key(tap: .code("KC_A"), hold: .toggle(1)) }  // not a dance
+        // Spelled with KC_, but only their own handlers run them: ZSA's module keys and Auto Shift's and Space Cadet's aliases.
+        layout.updateKey(layer: 0, index: 7) { $0 = Key(tap: .code("KC_MS_DBL_CLICK"), doubleTap: .code("KC_MS_JIGGLER_TOGGLE")) }
+        layout.updateKey(layer: 0, index: 8) { $0 = Key(tap: .code("KC_A"), doubleTap: .code("KC_ASTG"), tapHold: .code("KC_LSPO")) }
 
         let flagged = LayoutIssues.check(layout).filter { $0.kind == .notInTapDance }
         #expect(
@@ -79,6 +82,8 @@ struct LayoutIssuesTests {
                 KeyRef(layer: 0, index: 2, slot: .tapHold),
                 KeyRef(layer: 0, index: 3, slot: .tap), KeyRef(layer: 0, index: 3, slot: .doubleTap),
                 KeyRef(layer: 0, index: 4, slot: .doubleTap),
+                KeyRef(layer: 0, index: 7, slot: .tap), KeyRef(layer: 0, index: 7, slot: .doubleTap),
+                KeyRef(layer: 0, index: 8, slot: .doubleTap), KeyRef(layer: 0, index: 8, slot: .tapHold),
             ])
         #expect(flagged.allSatisfy { $0.severity == .error })
     }

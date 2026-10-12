@@ -174,6 +174,8 @@ struct KeyLabelField: View {
     var stored: String
     var focus: FocusState<KeyField?>.Binding
     @State private var draft: String
+    /// The key the draft was typed for: it commits only onto a key with the same actions (see `TappingTermRow`).
+    @State private var typedFor: Key?
 
     init(model: LayoutWindowModel, session: EditSession, layerID: String, index: Int, stored: String, focus: FocusState<KeyField?>.Binding)
     {
@@ -197,7 +199,10 @@ struct KeyLabelField: View {
                     .controlSize(.small)
                     .focused(focus, equals: .label)
                     .onSubmit(commit)
-                    .onChange(of: draft) { if draft.count > 10 { draft = String(draft.prefix(10)) } }
+                    .onChange(of: draft) {
+                        if draft.count > 10 { draft = String(draft.prefix(10)) }
+                        typedFor = session.layout.layers.first { $0.id == layerID }?.keys[safe: index]
+                    }
                 Text("\(draft.count)/10 · Shown in Sextant only; not sent to the keyboard.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -214,10 +219,12 @@ struct KeyLabelField: View {
     }
 
     private func commit() {
-        // Not onto a session the window has already let go.
-        guard model.session === session, draft != stored, let layer = session.layout.layers.firstIndex(where: { $0.id == layerID }) else {
-            return
-        }
+        // Not onto a session the window has already let go, nor onto another key now in this place (a swap, Make
+        // Transparent).
+        guard model.session === session, draft != stored, let typedFor,
+            let layer = session.layout.layers.firstIndex(where: { $0.id == layerID }),
+            session.layout.key(layer: layer, index: index)?.hasSameActions(as: typedFor) == true
+        else { return }
         session.setLabel(draft, layer: layer, index: index)
     }
 }

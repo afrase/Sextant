@@ -320,6 +320,9 @@
     "= %lld in binary" : {
 
     },
+    "A tap dance's tap must be a key" : {
+
+    },
     "Action can't run in a tap dance" : {
 
     },
@@ -1928,7 +1931,7 @@
     "Tapping term" : {
 
     },
-    "Tapping term ignored: per-key terms are off" : {
+    "Tapping term ignored (Per-key tapping term is off)" : {
 
     },
     "The DFU suffix checksum is wrong (%@, expected %@)." : {

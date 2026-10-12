@@ -392,6 +392,18 @@ struct QMKGeneratorTests {
         #expect(files["keymap.c"]?.contains("        case LT(2, KC_SPACE):\n            return TAPPING_TERM +60;") == true)
     }
 
+    /// QMK defines `KC_NUBS` as `KC_NONUS_BACKSLASH`, and C rejects a second `case` for one value: keys spelled either
+    /// way get one case, with the first one's term.
+    @Test func writesOneTermCasePerKeycodeHoweverItIsSpelled() throws {
+        var layout = try userLayout()
+        layout.updateKey(layer: 0, index: 10) { $0 = Key(tap: .code("KC_NUBS"), hold: .code("KC_LEFT_SHIFT"), tappingTerm: 150) }
+        layout.updateKey(layer: 0, index: 11) { $0 = Key(tap: .code("KC_NONUS_BACKSLASH"), hold: .code("KC_LSFT"), tappingTerm: 250) }
+        layout.settings["perKeyTappingTerm"] = .bool(true)
+        let keymap = try #require(try QMKGenerator().generate(layout, identity: identity).files["keymap.c"])
+        #expect(keymap.contains("        case MT(MOD_LSFT, KC_NUBS):\n            return TAPPING_TERM -50;"))
+        #expect(!keymap.contains("case MT(MOD_LSFT, KC_NONUS_BACKSLASH):"))
+    }
+
     /// `ALL_T`/`MEH_T` are function-like macros; alone, Hyper and Meh are `KC_HYPR` and `KC_MEH`.
     @Test func writesALoneHyperOrMehAsItsKeycode() throws {
         var layout = try userLayout()

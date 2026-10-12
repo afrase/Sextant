@@ -113,7 +113,7 @@ struct KeymapPlan {
 
     private mutating func token(for key: Key, at ref: KeyRef) throws(GeneratorError) -> String {
         for (slot, action) in key.actions { try note(action, at: KeyRef(layer: ref.layer, index: ref.index, slot: slot)) }
-        if let term = key.tappingTerm, !(0...1000).contains(term) {
+        if let term = key.tappingTerm, !KeyboardLayout.tappingTermRange.contains(term) {
             throw .unsupported(String(localized: "a tapping term of \(term) ms"), ref)
         }
         if key.isTransparent { return "KC_TRANSPARENT" }

@@ -24,6 +24,18 @@ struct TappingTermTests {
         #expect(layout.key(layer: 0, index: 51)?.tappingTerm == nil && layout.key(layer: 1, index: 51)?.tappingTerm == nil)
     }
 
+    /// One keycode however it is spelled, and whatever Oryx's description says: an imported `KC_NUBS` and the picker's
+    /// `KC_NONUS_BACKSLASH` share a term.
+    @Test func setsTheTermOnKeysSpelledWithAnAlias() {
+        var layout = layout()
+        layout.updateKey(layer: 0, index: 10) { $0 = Key(tap: .code("KC_NUBS"), hold: .code("KC_LSFT")) }
+        layout.updateKey(layer: 1, index: 10) {
+            $0 = Key(tap: KeyAction(code: "KC_NONUS_BACKSLASH", description: "ISO key"), hold: .code("KC_LEFT_SHIFT"))
+        }
+        layout.setTappingTerm(150, layer: 1, index: 10)
+        #expect(layout.key(layer: 0, index: 10)?.tappingTerm == 150 && layout.key(layer: 1, index: 10)?.tappingTerm == 150)
+    }
+
     /// Oryx stores the global term as nil; the generator accepts 0...1000.
     @Test func storesTheGlobalTermAsNilAndBoundsTheRest() {
         var layout = layout()

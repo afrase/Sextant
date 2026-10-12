@@ -5,10 +5,16 @@ extension Key {
     /// not ``kind``, which a label or macro overrides.
     public var usesTappingTerm: Bool { hold != nil || doubleTap != nil || tapHold != nil }
 
-    /// True when both keys do the same thing in every slot. QMK looks tapping terms up by keycode, so such keys share one.
-    func hasSameActions(as other: Key) -> Bool {
-        tap == other.tap && hold == other.hold && doubleTap == other.doubleTap && tapHold == other.tapHold
-    }
+    /// True when both keys do the same thing in every slot, however their codes are spelled (`KC_NUBS` is
+    /// `KC_NONUS_BACKSLASH`). QMK looks tapping terms up by keycode, so such keys share one.
+    public func hasSameActions(as other: Key) -> Bool { keycodes == other.keycodes }
+
+    private var keycodes: [KeyAction?] { [tap, hold, doubleTap, tapHold].map { $0?.keycode } }
+}
+
+extension KeyAction {
+    /// The action as the firmware sees it: its code's canonical spelling, without Oryx's description.
+    fileprivate var keycode: KeyAction { KeyAction(code: canonicalCode, layer: layer, modifiers: modifiers, macro: macro, color: color) }
 }
 
 extension KeyboardLayout {

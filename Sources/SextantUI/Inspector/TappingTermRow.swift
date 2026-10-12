@@ -3,9 +3,9 @@ import SextantDomain
 import SwiftUI
 
 /// A key's own tapping term (spec §5.1 item 7): Global or Custom, a field with a 10 ms stepper, and how far it is from
-/// the global term. Custom shows the global term until the value changes; a value equal to it is stored as Global. A
-/// typed value commits on Return, when focus leaves or when the key changes; each stepper click is one step. Like the
-/// label, it finds its layer by id when it commits.
+/// the global term. Custom shows the global term until the value changes; a value equal to it is stored as Global, and
+/// the row stays on Custom so the stepper can step through it. A typed value commits on Return, when focus leaves or
+/// when the row goes; each stepper click is one step. Like the label, it finds its layer by id when it commits.
 struct TappingTermRow: View {
     var model: LayoutWindowModel
     var session: EditSession
@@ -15,9 +15,10 @@ struct TappingTermRow: View {
     var focus: FocusState<KeyField?>.Binding
     @State private var custom: Bool
     @State private var draft: Int
-    /// The field holds a typed value that isn't stored yet. Only that commits when the row goes, so a row that goes
-    /// because its key changed (a swap, an undo) can't write its old value onto the new key.
-    @State private var typed = false
+    /// The key a typed value that isn't stored yet was typed for. It commits only onto a key with the same actions, so
+    /// a swap, an undo or a button that leaves the field focused (Make Transparent, a slot's pop-up) can't put it on
+    /// another key.
+    @State private var typedFor: Key?
 
     init(model: LayoutWindowModel, session: EditSession, layerID: String, index: Int, stored: Int?, focus: FocusState<KeyField?>.Binding) {
         self.model = model
@@ -45,22 +46,24 @@ struct TappingTermRow: View {
             }
         }
         .onChange(of: focus.wrappedValue == .tappingTerm) { _, focused in if !focused { commitTyped() } }
-        // Undo, redo or reaching the global value: what is stored wins.
-        .onChange(of: stored) { custom = stored != nil }
+        // Undo, redo or an import that stores a term shows it. Reaching the global term keeps Custom, so a held stepper
+        // isn't removed mid-click; choosing Global, or another key, shows Global.
+        .onChange(of: stored) { if stored != nil { custom = true } }
         .onChange(of: term) {
             draft = term
-            typed = false
+            typedFor = nil
         }
         .onDisappear(perform: commitTyped)
     }
 
     @ViewBuilder private func field(global: Int) -> some View {
         // The field sets its value on every keystroke, and again unchanged when focus moves anywhere.
-        let text = Binding<Int>(get: { draft }, set: { if $0 != draft { (draft, typed) = ($0, true) } })
+        let text = Binding<Int>(get: { draft }, set: { if $0 != draft { (draft, typedFor) = ($0, key) } })
         let step = Binding<Int>(
             get: { draft },
             set: {
-                (draft, typed) = ($0, true); commitTyped()
+                typedFor = nil
+                commit($0)
             })
         HStack(spacing: 4) {
             TextField("Tapping term", value: text, format: .number.grouping(.never))
@@ -90,19 +93,24 @@ struct TappingTermRow: View {
     private func choose(_ custom: Bool) {
         self.custom = custom
         guard !custom else { return }
-        (draft, typed) = (session.layout.globalTappingTerm, false)
+        (draft, typedFor) = (session.layout.globalTappingTerm, nil)
         if stored != nil { commit(nil) }
     }
 
+    /// The key the row edits, found by its layer's id.
+    private var key: Key? { session.layout.layers.first { $0.id == layerID }?.keys[safe: index] }
+
     private func commitTyped() {
-        guard typed else { return }
-        typed = false
-        commit(draft)
+        guard let typed = typedFor else { return }
+        typedFor = nil
+        if key?.hasSameActions(as: typed) == true { commit(draft) }
     }
 
     private func commit(_ term: Int?) {
         // Not onto a session the window has already let go.
         guard model.session === session, let layer = session.layout.layers.firstIndex(where: { $0.id == layerID }) else { return }
         session.setTappingTerm(term, layer: layer, index: index)
+        // Show what was stored: the domain bounds the value, and 5000 over a stored 1000 changes nothing to observe.
+        draft = session.layout.key(layer: layer, index: index)?.tappingTerm ?? session.layout.globalTappingTerm
     }
 }

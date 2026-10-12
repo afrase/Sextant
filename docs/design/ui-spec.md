@@ -892,7 +892,7 @@ The picker is the command palette component in **assign scope**.
 - **Tap dance is not a separate document.** A key becomes a tap dance when its Double tap or Tap then hold slot is filled.
 - **Cap:** a `kind.tapDance` signal bar; the band follows §4.4.
 - **Inspector:** the summary sentence covers all slots: "Tap types A. Double-tap types Esc. Tap then hold: Left Command."
-- **The generator builds tap dances.** A slot whose action can't run inside a dance (a macro, a lighting key, a firmware key, TG, OSL and the like), or a tap that isn't a key, raises a live issue on that slot: "Action can't run in a tap dance" (ADR 0041).
+- **The generator builds tap dances.** A slot whose action can't run inside a dance (a macro, a lighting key, a firmware key, TG, OSL and the like), or a tap that isn't a key, raises a live issue on that slot: "Action can't run in a tap dance", or on the tap "A tap dance's tap must be a key" (ADR 0041).
 
 ---
 
