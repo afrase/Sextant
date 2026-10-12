@@ -61,8 +61,16 @@ struct QMKGeneratorTests {
             try QMKGenerator().generate(layout, identity: identity)
         }
         layout = try Self.settingsLayout(.trackball)
-        layout.navigator?.options["oneShotAutoMouse"] = .bool(true)  // QMK's auto mouse has no one-shot mode
-        #expect(throws: GeneratorError.unsupported("the Navigator's “oneShotAutoMouse” option", nil)) {
+        layout.navigator?.options["aimSpeed"] = .bool(true)  // a value of the wrong type
+        #expect(throws: GeneratorError.unsupported("the Navigator's “aimSpeed” option", nil)) {
+            try QMKGenerator().generate(layout, identity: identity)
+        }
+        // QMK's one-shot auto mouse has no idle timeout; the timeout is on whenever stored, and moot without one-shot.
+        layout = try Self.settingsLayout(.trackball)
+        layout.navigator?.options["oneShotAutoMouseTimeout"] = .number(10)
+        _ = try QMKGenerator().generate(layout, identity: identity)
+        layout.navigator?.options["oneShotAutoMouse"] = .bool(true)
+        #expect(throws: GeneratorError.unsupported("the Navigator's “oneShotAutoMouseTimeout” option", nil)) {
             try QMKGenerator().generate(layout, identity: identity)
         }
         layout = try Self.settingsLayout(.trackball)
@@ -110,8 +118,9 @@ struct QMKGeneratorTests {
         Mapping(["mouseInterval": .number(14)], "#undef MOUSEKEY_INTERVAL\n#define MOUSEKEY_INTERVAL 14"),
         Mapping(["mouseDelay": .number(8)], "#undef MOUSEKEY_DELAY\n#define MOUSEKEY_DELAY 8"),
         Mapping(["capsLockStatus": .bool(true)], "#define CAPS_LOCK_STATUS"),
-        // Without dynamic tapping term keys there is no `g_tapping_term` to offset.
-        Mapping(["perKeyTappingTerm": .bool(true)], "#define TAPPING_TERM_PER_KEY", "return TAPPING_TERM;"),
+        // Without dynamic tapping term keys there is no `g_tapping_term` to offset: the key's case (an offset that
+        // depends on the global term) and the default both use TAPPING_TERM.
+        Mapping(["perKeyTappingTerm": .bool(true)], "#define TAPPING_TERM_PER_KEY", "return TAPPING_TERM ", "return TAPPING_TERM;"),
         Mapping(["disabledAnimations": .strings(["breathing"])], "#undef ENABLE_RGB_MATRIX_BREATHING"),
         Mapping(["enableDynamicMacros": .bool(true)], "DYNAMIC_MACRO_ENABLE = yes"),
         Mapping(["ambidexLT": .bool(true)]),
@@ -157,6 +166,7 @@ struct QMKGeneratorTests {
             .trackpad, ["oneShotAutoMouse": .bool(true), "oneShotAutoMouseTimeout": .number(15)],
             "#define AUTOMOUSE_ONESHOT_TIMEOUT 15000"),
         Mapping(.trackball, ["rotation": .number(-30)], "#define NAVIGATOR_TRACKBALL_ROTATION 330"),
+        Mapping(.trackball, ["oneShotAutoMouse": .bool(true)], "#define AUTO_MOUSE_ONESHOT"),
         Mapping(.trackball, ["scrollOnly": .bool(true)], "#define NAVIGATOR_TRACKBALL_SCROLL_ONLY"),
         Mapping(.trackball, ["aimSpeed": .number(0)], "#define NAVIGATOR_AIM_DIVIDER 4"),
         Mapping(.trackball, ["turboSpeed": .number(2)], "#define NAVIGATOR_TURBO_MULTIPLIER 4"),
@@ -166,6 +176,8 @@ struct QMKGeneratorTests {
     ]
 
     /// Settings the generator refuses to change until they're decided (ADR 0040; Space Cadet and legacy dances: v1 2.3).
+    /// Lifting one means dropping it here and adding its `Mapping`, which also puts it in the every-setting layout that
+    /// RealToolchainTests compiles.
     static let stillRefused = ["liveTraining", "stenography", "geminipr", "legacyDualFunctionDances", "enableSpaceCadet"]
 
     /// The user's layout with `kind`, an automouse layer, a mouse key, a layer lock key and a per-key tapping term, so

@@ -126,6 +126,7 @@ struct Features {
                     "#define AUTO_MOUSE_TIME \(time)", "#define AUTO_MOUSE_THRESHOLD \(threshold)",
                     "#define AUTO_MOUSE_SCROLL_THRESHOLD AUTO_MOUSE_THRESHOLD / NAVIGATOR_SCROLL_DIVIDER",
                 ]
+                if navigatorFlag("oneShotAutoMouse") { out.append("#define AUTO_MOUSE_ONESHOT") }
             }
             for axis in ["X", "Y"] where navigatorFlag("invertScroll\(axis)") {
                 out.append("#define NAVIGATOR_SCROLL_INVERT_\(axis)")
@@ -270,25 +271,27 @@ struct Features {
 
     private static func pointing(_ navigator: NavigatorConfig, layers: Int) throws(GeneratorError) -> Pointing {
         let kind: Pointing
-        var written: Set<String> = ["automouseTime", "automouseThreshold", "rotation", "oneShotAutoMouseTimeout"]
+        var written: Set<String> = [
+            "automouseTime", "automouseThreshold", "rotation", "oneShotAutoMouse", "oneShotAutoMouseTimeout",
+        ]
         switch navigator.kind {
-        case .trackpad:
-            kind = .trackpad
-            written.insert("oneShotAutoMouse")
+        case .trackpad: kind = .trackpad
         case .trackball:
-            // Not one-shot auto-mouse: the trackball runs QMK's own auto mouse, which has no one-shot mode.
             kind = .trackball
             written.formUnion([
                 "sensitivity", "invertScrollX", "invertScrollY", "scrollOnly", "aimSpeed", "turboSpeed", "aimLayers", "turboLayers",
                 "dragScrollLayers",
             ])
+            // QMK's one-shot auto mouse has no idle timeout. With one-shot off, neither Navigator uses the timeout.
+            if navigator.options["oneShotAutoMouse"] == .bool(true) { written.remove("oneShotAutoMouseTimeout") }
         case .knob: throw .unsupported(String(localized: "the Navigator knob"), nil)
         }
         // Written values feed C defines, so they must fit the option, like settings, and name layers that exist.
         for (id, value) in navigator.options.sorted(by: { $0.key < $1.key }) {
             let setting = SettingsCatalog.voyager.setting(id: id)
             let outOfRange = value.doubleValue.map { v in setting?.range.map { !$0.contains(v) } ?? false } ?? false
-            let unwritten = !written.contains(id) && quietOptions[id] != value && setting?.defaultValue != value
+            // A toggleable slider (the one-shot timeout) is on whenever it is stored, even at its default.
+            let unwritten = !written.contains(id) && quietOptions[id] != value && setting?.unsetValue != value
             let misfit = setting.map { !fits(value, $0) } ?? false
             let missingLayer = if case let .integers(list) = value { list.contains { !(0..<layers).contains($0) } } else { false }
             if outOfRange || unwritten || misfit || missingLayer {
