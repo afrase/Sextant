@@ -23,6 +23,9 @@
     "%@ Copy" : {
 
     },
+    "%@ QMK Source" : {
+
+    },
     "%@ Sextant sets them up the first time you build, after you agree to the download." : {
 
     },
@@ -326,6 +329,9 @@
 
     },
     "Add tap" : {
+
+    },
+    "All Layers (PDF)…" : {
 
     },
     "Another app, such as Keymapp, is using the keyboard’s live connection" : {
@@ -944,6 +950,9 @@
 
     },
     "Identity" : {
+
+    },
+    "Image (PNG)…" : {
 
     },
     "Import" : {
@@ -1755,6 +1764,9 @@
     "Sextant couldn't save or load the layout. Check that the disk has space and try again." : {
 
     },
+    "Sextant couldn’t export the layout" : {
+
+    },
     "Sextant couldn’t record this flash in History. %@" : {
 
     },
@@ -1916,6 +1928,12 @@
         }
       }
     },
+    "The QMK source couldn’t be zipped. %@" : {
+
+    },
+    "The board couldn’t be drawn." : {
+
+    },
     "The bootloader stopped answering at %@" : {
 
     },
@@ -2000,6 +2018,9 @@
 
     },
     "The layer color is also its LED color on the keyboard." : {
+
+    },
+    "The layout couldn’t be written as JSON." : {
 
     },
     "The trackpad or trackball module on your keyboard, if any." : {

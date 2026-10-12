@@ -81,6 +81,8 @@ public final class BuildFlashSession {
     public private(set) var log: [String] = []
     /// The last successful build.
     public private(set) var artifact: BuildArtifact?
+    /// The last build while the layout is still the one it built, so its image has every edit (File ▸ Export ▸ Firmware).
+    public var currentArtifact: BuildArtifact? { builtLayout == session.layout ? artifact : nil }
     /// The serial the last build reports (``FirmwareIdentity``).
     public private(set) var identity: FirmwareIdentity?
 
@@ -168,6 +170,13 @@ public final class BuildFlashSession {
     /// ``LiveSession/match(_:libraryID:importedLayout:)``, compares against (ADR 0019).
     public func importedLayout() async -> KeyboardLayout? {
         await FirmwareIdentity.importedLayout(of: session.id, revisions: session.revisions, library: library)
+    }
+
+    /// The QMK source a build of the open layout compiles now, serial included (File ▸ Export ▸ QMK Source).
+    public func source() async throws(GeneratorError) -> GeneratedSource {
+        let layout = session.layout
+        let identity = FirmwareIdentity(layout: layout, libraryID: session.id, importedLayout: await importedLayout())
+        return try generator.generate(layout, identity: identity)
     }
 
     public func confirmReplace() {

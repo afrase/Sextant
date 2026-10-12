@@ -73,7 +73,8 @@ public final class EditSession {
         self.autosaveDelay = autosaveDelay
     }
 
-    private static func geometry(of layout: KeyboardLayout) -> BoardGeometry {
+    /// The board a layout shows: its Navigator's side moves the keys. Exports draw the same board as the window.
+    public static func geometry(of layout: KeyboardLayout) -> BoardGeometry {
         (layout.board ?? .voyager).geometry(navigator: layout.navigator.map { $0.side == .left ? .left : .right })
     }
 

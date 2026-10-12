@@ -1253,9 +1253,9 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 | Save Revision… | ⌘S | MVP |
 | Duplicate Layout | — | MVP |
 | Rename Layout… | — | MVP |
-| Export ▸ Layout JSON…, QMK Source (.zip)…, Firmware (.bin)…, Image (PNG/SVG)… | — | MVP (image v1) |
+| Export ▸ Layout JSON…, QMK Source (.zip)…, Firmware (.bin)…, Image (PNG)…, All Layers (PDF)… (one save panel; Firmware is the last build while the layout is unchanged; the PNG is the shown layer, the PDF a page per layer without cap shadows; no SVG, ADR 0044) | — | MVP (image v1) |
 | Show in Finder | — | MVP |
-| Print Layout… | ⌘P | v1 |
+| Print Layout… (every layer, a page each, through the system print sheet) | ⌘P | v1 |
 
 **Edit**
 

@@ -17,7 +17,7 @@ struct SextantCommands: Commands {
         // After, not replacing: the system group holds Close (⌘W) and Close All (⌥⌘W).
         CommandGroup(after: .saveItem) { FileSaveItems(window: window) }
         CommandGroup(replacing: .printItem) {
-            Button("Print Layout…") {}.keyboardShortcut("p").disabled(true)
+            Button("Print Layout…") { window?.printLayout() }.keyboardShortcut("p").disabled(window?.session == nil)
         }
         CommandGroup(after: .pasteboard) { EditItems(window: window) }
         CommandGroup(after: .sidebar) {

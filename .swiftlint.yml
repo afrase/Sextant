@@ -143,6 +143,6 @@ custom_rules:
   ui_imports:
     name: "UI imports"
     included: "Sources/SextantUI/.*\\.swift"
-    regex: "^import (?!(SwiftUI|AppKit|Foundation|Observation|Accessibility|UniformTypeIdentifiers|CoreGraphics|os|SextantApplication|SextantDomain)\\b)\\w+"
+    regex: "^import (?!(SwiftUI|AppKit|Foundation|Observation|Accessibility|UniformTypeIdentifiers|CoreGraphics|PDFKit|os|SextantApplication|SextantDomain)\\b)\\w+"
     message: "Views never touch adapters (SextantStorage, SextantOryx, SextantBuild, SextantDevice)."
     severity: error

@@ -8,6 +8,7 @@ extension View {
             .modifier(ImportSheetPresenter(model: model))
             .modifier(RenameLayoutAlert(model: model))
             .modifier(DeviceWiring(model: model))
+            .modifier(ExportPresenter(model: model))
     }
 }
 
