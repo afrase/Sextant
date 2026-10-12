@@ -43,6 +43,7 @@ Sextant is a native macOS 26 SwiftUI app for configuring the user's ZSA Voyager.
 - **Strings and accessibility:** String Catalogs for user-facing text, plus accessibility labels and VoiceOver on custom views, especially the board.
 - **Packaging:** a real `.app` bundle with hardened runtime and minimal entitlements, Developer ID signed and notarized (00-overview §8). All code lives in the local Swift package; the app target stays a thin shell.
 - **Formatting:** `swift format`, which ships with the toolchain.
+- **CI's compiler is older:** GitHub's macos-26 runner builds with Xcode 26.6 (Swift 6.3, macOS 26.5 SDK). Things that pass locally on Swift 6.4 but break there: a typed pattern catch in a loop (`catch .notFound where …` crashed the compiler), more than ten children in a `Commands` body (wrap some in `Group`), a method reference passed as a `Binding` setter (use a closure), and implicit `(Int, CGFloat)` to `(Int, Double)` conversions.
 
 ## Code
 
