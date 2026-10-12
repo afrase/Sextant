@@ -26,6 +26,20 @@ struct FirmwareIdentityTests {
     }
 
     /// The sidebar's "On keyboard" badge: Oryx's build of the layout's Oryx layout, or any Sextant build of it.
+    /// A macro draft isn't compiled, so it keeps Oryx's serial and doesn't move a Sextant one.
+    @Test func macroDraftsDontChangeTheIdentity() {
+        var drafted = layout
+        drafted.addMacroDraft()
+        #expect(FirmwareIdentity(layout: drafted, libraryID: id, importedLayout: layout).serial == "KlgM7/40xJ7M")
+        var edited = layout
+        edited.updateKey(layer: 0, index: 1) { $0 = Key("KC_Q") }
+        var editedDrafted = edited
+        editedDrafted.addMacroDraft()
+        #expect(
+            FirmwareIdentity(layout: editedDrafted, libraryID: id, importedLayout: drafted)
+                == FirmwareIdentity(layout: edited, libraryID: id, importedLayout: layout))
+    }
+
     @Test func anEntryKnowsItsBuildsOnTheKeyboard() {
         let oryx = LibraryEntry(id: id, title: "", origin: .oryx(layoutId: "KlgM7", revisionId: "40xJ7M"), modifiedAt: .now)
         #expect(oryx.isOnKeyboard(serial: "KlgM7/zzzzz") && oryx.isOnKeyboard(serial: "sx-1F3A9C2B-00000001"))

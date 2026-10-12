@@ -48,6 +48,11 @@ extension FirmwareIdentity {
     /// The identity a build of `layout` gets.
     /// - Parameter importedLayout: the layout of the latest import revision (``importedLayout(of:revisions:library:)``).
     public init(layout: KeyboardLayout, libraryID: UUID, importedLayout: KeyboardLayout?) {
+        // Macro drafts are never compiled (ADR 0042), so they don't change what a build calls itself.
+        var layout = layout
+        var importedLayout = importedLayout
+        layout.macroDrafts = []
+        importedLayout?.macroDrafts = []
         if let oryx = layout.oryx, layout == importedLayout {
             self.init(serial: oryx.serial)
             return
