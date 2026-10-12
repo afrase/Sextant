@@ -49,6 +49,29 @@ struct FirmwareIdentityTests {
         #expect(match("default/latest", oryx) == .otherLayout)
     }
 
+    /// History's ON KEYBOARD badge.
+    @Test func aSerialNamesTheRevisionItWasBuiltFrom() async throws {
+        let store = InMemoryLibrary()
+        let entry = try await store.create(
+            layout, origin: .oryx(layoutId: "KlgM7", revisionId: "40xJ7M"), firstRevision: RevisionDraft(source: .import, layout: layout))
+        var edited = layout
+        edited.title = "Edited"
+        var later = layout
+        later.title = "Later"
+        for (source, layout) in [(RevisionSource.flash, edited), (.save, edited), (.flash, later)] {
+            _ = try await store.appendRevision(RevisionDraft(source: source, layout: layout), to: entry.id)
+        }
+        let revisions = try await store.load(entry.id).revisions
+        func revision(_ serial: String) async -> String? {
+            await FirmwareIdentity.revision(runningSerial: serial, of: entry.id, revisions: revisions, library: store)?.summary.id
+        }
+        #expect(await revision("KlgM7/40xJ7M") == "1", "the import, not edited revisions that keep its Oryx info")
+        let sextant = FirmwareIdentity(layout: edited, libraryID: entry.id, importedLayout: layout).serial
+        #expect(await revision(sextant) == "2", "the newest flash with its content, not a save")
+        #expect(await revision("KlgM7/zzzzzz") == nil)
+        #expect(await revision("sx-\(entry.id.uuidString.prefix(8))-00000000") == nil)
+    }
+
     @Test func theBaselineIsTheLatestImportRevision() async throws {
         let store = InMemoryLibrary()
         let entry = try await store.create(layout, origin: .local, firstRevision: RevisionDraft(source: .import, layout: layout))
