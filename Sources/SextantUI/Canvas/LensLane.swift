@@ -4,6 +4,7 @@ import SwiftUI
 struct LensLane: View {
     var model: LayoutWindowModel
     @Environment(\.motion) private var motion
+    @AppStorage(SettingsKey.showsKeyPresses) private var showsPresses = true
 
     var body: some View {
         GlassEffectContainer(spacing: 8) {
@@ -36,7 +37,8 @@ struct LensLane: View {
                 Text(text).lineLimit(1)
                 Button("Show Key") { model.showIssue(key) }.buttonStyle(.borderless)
             case let .live(text):
-                let down = model.live?.pressedKeys.count ?? 0
+                // With presses off the board, the count leaves too (Settings › Keyboard).
+                let down = showsPresses ? model.live?.pressedKeys.count ?? 0 : 0
                 Circle().fill(Tokens.success.color).frame(width: 7, height: 7)
                 Text(down == 0 ? text : "\(text) · \(down == 1 ? String(localized: "1 key down") : String(localized: "\(down) keys down"))")
                     .lineLimit(1)

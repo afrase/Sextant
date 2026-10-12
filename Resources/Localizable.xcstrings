@@ -390,6 +390,9 @@
     "Bring your layout to Sextant" : {
 
     },
+    "Brings back notes you dismissed, such as the one about live data." : {
+
+    },
     "Brush" : {
 
     },
@@ -1466,6 +1469,9 @@
     "On keyboard" : {
 
     },
+    "Once the delay passes, shows the layer you’re holding over other apps. A locked layer can show a small reminder until the keyboard is back on its base layer." : {
+
+    },
     "One layer, authored by Sextant, ready to build on." : {
 
     },
@@ -1881,13 +1887,7 @@
     "Show overlay while a layer is held" : {
 
     },
-    "Shows notes you dismissed again, such as the one about live data." : {
-
-    },
     "Shows the Device popover" : {
-
-    },
-    "Shows the layer you hold above other apps once the delay passes. A locked layer can show a small reminder until the keyboard is back on its base layer." : {
 
     },
     "Side" : {

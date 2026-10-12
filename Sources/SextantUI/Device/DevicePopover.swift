@@ -21,6 +21,7 @@ public struct DevicePopover: View {
     @AppStorage(SettingsKey.seenLiveDataNote) private var seenLiveDataNote = false
     @AppStorage(SettingsKey.showsKeyPresses) private var showsPresses = true
     @State private var showsTrace = true
+    @Environment(RawHIDTrace.self) private var trace: RawHIDTrace?
 
     public init(model: LayoutWindowModel) { self.model = model }
 
@@ -53,9 +54,9 @@ public struct DevicePopover: View {
                     .disabled(!model.canFollow)
                     Toggle("Show key presses on the board", isOn: $showsPresses)
                 }
-                if live.trace.isOn {
+                if let trace, trace.isOn {
                     Divider()
-                    traceLog(live.trace)
+                    traceLog(trace)
                 }
                 Divider()
                 privacy(live)
@@ -92,19 +93,28 @@ public struct DevicePopover: View {
             if trace.entries.isEmpty {
                 Text("No reports yet.").font(.callout).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                let log = trace.entries.map { $0.line(board: model.board) }.joined(separator: "\n")
-                let text = Text(verbatim: log).font(.caption.monospaced()).textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                let lines = trace.entries.map { $0.line(board: model.board) }
+                // A report too long for one line wraps under its own bytes, so the time column stays clear.
+                let rows = VStack(alignment: .leading, spacing: 0) {
+                    ForEach(lines.indices, id: \.self) { n in
+                        HStack(alignment: .firstTextBaseline, spacing: 0) {
+                            Text(verbatim: lines[n].head).fixedSize()
+                            Text(verbatim: lines[n].report)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                .font(.caption.monospaced()).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
                 VStack(alignment: .leading, spacing: 8) {
                     // A short log takes its own height; a long one scrolls, opening on the newest report.
                     ViewThatFits(in: .vertical) {
-                        text
-                        ScrollView { text }.defaultScrollAnchor(.bottom)
+                        rows
+                        ScrollView { rows }.defaultScrollAnchor(.bottom)
                     }
                     .frame(maxHeight: 150)
                     Button("Copy Log") {
                         NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(log, forType: .string)
+                        NSPasteboard.general.setString(lines.map { $0.head + $0.report }.joined(separator: "\n"), forType: .string)
                     }
                     .controlSize(.small)
                 }
@@ -229,10 +239,11 @@ struct LayerPips: View {
 }
 
 extension HIDTraceEntry {
-    /// "12:04:31.207  ←  06 02 08 FE  down k40 · R8 C2": positions only, as the protocol carries nothing else.
-    func line(board: BoardDefinition) -> String {
-        let time = date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute().second().secondFraction(.fractional(3)))
-        var parts = [time, direction == .sent ? "→" : "←", bytes.map { String(format: "%02X", $0) }.joined(separator: " ")]
+    /// One log line in two columns, "21:04:31.207  ←  " and "06 02 08 FE  down k40 · R8 C2": positions only, as the
+    /// protocol carries nothing else. The clock is 24-hour, so a log that runs past noon still reads in order.
+    func line(board: BoardDefinition) -> (head: String, report: String) {
+        let time = date.formatted(Date.ISO8601FormatStyle(timeZone: .current).time(includingFractionalSeconds: true))
+        var report = bytes.map { String(format: "%02X", $0) }.joined(separator: " ")
         let key: (word: String, row: Int, column: Int)? =
             switch event {
             case let .keyDown(row, column): (String(localized: "down"), row, column)
@@ -241,9 +252,9 @@ extension HIDTraceEntry {
             }
         if let key {
             let index = board.keyIndex(matrixRow: key.row, column: key.column).map { "k\($0) · " } ?? ""
-            parts.append("\(key.word) \(index)R\(key.row) C\(key.column)")
+            report += "  \(key.word) \(index)R\(key.row) C\(key.column)"
         }
-        return parts.joined(separator: "  ")
+        return ("\(time)  \(direction == .sent ? "→" : "←")  ", report)
     }
 }
 

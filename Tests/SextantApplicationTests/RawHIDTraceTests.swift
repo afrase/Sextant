@@ -9,7 +9,7 @@ struct RawHIDTraceTests {
     }
 
     @Test func keepsTheNewestEntriesUpToItsCapacityInOrder() async {
-        let trace = RawHIDTrace()
+        let trace = RawHIDTrace { false }
         trace.isOn = true
         let total = RawHIDTrace.capacity + 100
         for n in 0..<total { trace.record(entry(n)) }
@@ -17,8 +17,21 @@ struct RawHIDTraceTests {
         #expect(trace.entries == (100..<total).map(entry))
     }
 
+    @Test func keepsNothingWhileSecureInputIsOn() async {
+        let secureInput = Flag()
+        secureInput.isOn = true
+        let trace = RawHIDTrace { secureInput.isOn }
+        trace.isOn = true
+        trace.record(entry(1))
+        #expect(await eventually { secureInput.reads == 1 }, "asked for the report as it reached the log")
+        secureInput.isOn = false
+        trace.record(entry(2))
+        #expect(await eventually { !trace.entries.isEmpty })
+        #expect(trace.entries == [entry(2)], "the report typed into the password field is gone")
+    }
+
     @Test func keepsNothingWhileOffAndTurningItOffClearsIt() async throws {
-        let trace = RawHIDTrace()
+        let trace = RawHIDTrace { false }
         trace.record(entry(1))
         trace.isOn = true
         trace.record(entry(2))

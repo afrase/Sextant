@@ -69,10 +69,14 @@ public struct KeyboardSettings: View {
             Group {
                 LabeledContent("Delay") {
                     HStack {
-                        Slider(value: Binding(get: { Double(delay) }, set: { delay = Int($0) }), in: 0...500, step: 10)
-                            .labelsHidden()
-                            .accessibilityLabel(String(localized: "Delay"))
-                            .accessibilityValue(String(localized: "\(delay) ms"))
+                        // The binding rounds to 10 ms steps: `step: 10` would draw 51 ticks, which run together into a dotted line.
+                        Slider(value: Binding(get: { Double(delay) }, set: { delay = Int(($0 / 10).rounded()) * 10 }), in: 0...500) {
+                            Text("Delay")
+                        } ticks: {
+                            SliderTickContentForEach(Array(stride(from: 0.0, through: 500, by: 100)), id: \.self, content: SliderTick.init)
+                        }
+                        .labelsHidden()
+                        .accessibilityValue(String(localized: "\(delay) ms"))
                         Text("\(delay) ms").monospacedDigit().foregroundStyle(.secondary).frame(width: 52, alignment: .trailing)
                     }
                 }
@@ -99,7 +103,7 @@ public struct KeyboardSettings: View {
         } footer: {
             Text(
                 """
-                Shows the layer you hold above other apps once the delay passes. A locked layer can show a small \
+                Once the delay passes, shows the layer you’re holding over other apps. A locked layer can show a small \
                 reminder until the keyboard is back on its base layer.
                 """
             )

@@ -1073,7 +1073,7 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
   - Active layer chip: "Brd+Sys · layer 2 · held by Space".
   - Status LEDs: 4 dots, with "= 2 in binary".
   - Keys down, as positions (mini caps of non-character keys; character keys appear as "•").
-  - An "Event monitor" disclosure listing time, down or up, `k40`, and `R8 C2`. It shows **positions only, never letters**. In v1 this is the "Raw-HID log" disclosure, shown while Settings › Advanced turns the log on (ADR 0045).
+  - An "Event monitor" disclosure listing time, down or up, `k40`, and `R8 C2`. It shows **positions only, never letters**. In v1 this is the "Raw-HID log" disclosure, shown while Settings › Advanced turns the log on; like the rest of the live view, it keeps nothing during secure input (ADR 0045).
 - **Controls:**
   - Follow the keyboard's layer (⌘L);
   - Show key presses on the board;
@@ -1085,7 +1085,7 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
 - **Pressed keys** light in every lens (§4.7). The default is on (Settings › Keyboard).
 - **Secure input.** While `IsSecureEventInputEnabled()` is true (polled at 1 Hz, and checked at every event for the press feed), presses are not shown, and the Device popover says "Paused: secure input is on".
 - **Follow** is a Maps-style tracking mode:
-  - It turns on automatically when a keyboard connects. This is the brief's "live" principle.
+  - It turns on automatically when a keyboard connects, unless Settings › Keyboard › "Follow the keyboard by default" is off. This is the brief's "live" principle.
   - When it is on, the displayed layer is the physical layer.
   - Choosing a layer by hand (sidebar, ⌘1–9, the jump menu) turns Follow off, and the toolbar toggle shows off.
   - ⌘L resumes it.
@@ -1122,9 +1122,9 @@ Typing statistics (WPM, today's count) appear only when heatmap recording is on,
 - it never becomes key.
 
 **Geometry**
-- Width: the smaller of 720 and 46% of the screen width. Sizes S, M and L are set in Settings.
+- Width: the smaller of 720 and 46% of the screen width. Sizes S, M (the default) and L are set in Settings.
 - Corner radius 24, padding 20.
-- Position: bottom centre, 72 pt above the bottom of the visible frame, on the screen that holds the pointer.
+- Position: bottom centre, 72 pt above the bottom of the visible frame, on the screen that holds the pointer. Settings › Keyboard can move it to top centre, 72 pt below the top of the visible frame, which keeps it clear of the menu bar and the notch.
 
 **Content**
 - Header row: a layer index tile in the layer colour, the layer name, "held with ⏎", the status-LED dots, and a trailing hint ("release to hide").
@@ -1132,12 +1132,12 @@ Typing statistics (WPM, today's count) appear only when heatmap recording is on,
 
 **Material**
 - `.glassEffect(.regular)`, or via `NSGlassEffectView`.
-- Option: tint with the layer colour at 20%.
+- Option: tint with the layer colour at 20% (off by default).
 - Under Reduce Transparency, an opaque dark panel.
 
 **Timing**
 - A momentary layer shows the HUD after a 150 ms hold delay (configurable from 0 to 500 ms). It fades in over 0.12 s and out over 0.18 s after release.
-- A toggled layer (`TG` or `TO`) shows a compact reminder pill instead: "Sym+Num locked", 32 pt tall, in the same position, until the keyboard returns to the base layer. Settings offers: full overlay, reminder, or nothing.
+- A toggled layer (`TG` or `TO`) shows a compact reminder pill instead: "Sym+Num locked", 32 pt tall, in the same position, until the keyboard returns to the base layer. Settings offers: full overlay, reminder (the default), or nothing.
 
 The HUD is hidden during secure input, in full-screen video (when the screen is captured), and while Sextant's own window is key and showing the same layer.
 
@@ -1222,7 +1222,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 | Keyboard | Show key presses on the board (on). Follow the keyboard by default (on). Overlay: on/off (on), delay (0–500 ms in 10 ms steps, 150), position (bottom or top center), size (S/M/L, M), tint with layer colour (off), toggled-layer behaviour (full overlay, reminder or nothing; reminder). Global shortcuts to move the keyboard to a layer (⌃⌥0–9, off by default) | v1 |
 | Build | Build tools: Apple container (recommended) or managed toolchain, with status, disk use, [Update] and [Remove]. Firmware source pinned to ZSA fork commit `93b2b9e` and modules `13890cd`. "Use Oryx's build when the layout is unchanged since import" | MVP |
 | Privacy | Heatmap recording (off by default), retention, [Clear Heatmap Data…]. Explanatory text about raw HID and secure input | MVP |
-| Advanced | Developer raw-HID log (positions only): the last 500 reports, in memory only, off at each launch, cleared when turned off, shown in the Device popover (ADR 0045). Reset all warnings | v1 |
+| Advanced | Developer raw-HID log (positions only): the last 500 reports, in memory only, off at each launch, cleared when turned off, paused during secure input, shown in the Device popover (ADR 0045). Reset all warnings | v1 |
 | Sync | Server URL, device pairing, end-to-end encryption (hidden until built) | Future |
 
 ### 8.10 Room left for Future sync
@@ -1609,7 +1609,7 @@ The "Set up the build tools" step (§7.3). Oryx's build is offered when it appli
 
 ### 12.3 First connect
 
-The device card becomes live and Follow turns on. A one-time inline note in the Device popover explains live data and privacy.
+The device card becomes live and Follow turns on, unless Settings › Keyboard turns that off. A one-time inline note in the Device popover explains live data and privacy.
 
 ### 12.4 Empty states
 

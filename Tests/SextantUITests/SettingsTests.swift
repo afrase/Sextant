@@ -43,16 +43,21 @@ struct SettingsTests {
         #expect(defaults.object(forKey: SettingsKey.seenLiveDataNote) == nil && !SettingsKey.hasDismissedNotes(in: defaults))
     }
 
-    /// The Device popover's log line: positions only, "down k40 · R8 C2".
-    @Test func aTracedKeyReportReadsAsItsPosition() {
+    /// The Device popover's log line: a 24-hour time, then positions only, "down k40 · R8 C2".
+    @Test func aTracedKeyReportReadsAsItsPosition() throws {
         let board = BoardDefinition.voyager
         let key = board.keys[40]
         let (row, column) = (UInt8(key.matrixRow), UInt8(key.matrixColumn))
+        let evening = try #require(
+            DateComponents(calendar: .current, year: 2026, month: 10, day: 12, hour: 21, minute: 41, second: 7, nanosecond: 24_000_000).date
+        )
         let pressed = HIDTraceEntry(
-            direction: .received, bytes: [0x06, column, row, 0xFE], event: .keyDown(row: key.matrixRow, column: key.matrixColumn))
+            date: evening, direction: .received, bytes: [0x06, column, row, 0xFE],
+            event: .keyDown(row: key.matrixRow, column: key.matrixColumn))
         let line = pressed.line(board: board)
-        #expect(line.hasSuffix(String(format: "←  06 %02X %02X FE  down k40 · R%d C%d", column, row, row, column)), "\(line)")
-        #expect(HIDTraceEntry(direction: .sent, bytes: [0x01]).line(board: board).hasSuffix("→  01"))
+        #expect(line.head == "21:41:07.024  ←  ")
+        #expect(line.report == String(format: "06 %02X %02X FE  down k40 · R%d C%d", column, row, row, column))
+        #expect(HIDTraceEntry(direction: .sent, bytes: [0x01]).line(board: board).head.hasSuffix("  →  "))
     }
 }
 

@@ -51,9 +51,6 @@ public final class LiveSession {
     public var followedLayer: Int? { isFollowing ? activeLayer : nil }
     /// A paired session is open, so ``send(_:)`` can write.
     public var canSend: Bool { liveCommands != nil }
-    /// The Developer raw-HID log, which the composition root wires into the link; here so every window and Settings reach
-    /// it (ADR 0045).
-    public let trace: RawHIDTrace
 
     @ObservationIgnored private let watcher: any DeviceWatcher
     @ObservationIgnored private let link: any KeyboardLink
@@ -76,14 +73,13 @@ public final class LiveSession {
     ///     again for each event ``activity()`` would deliver.
     public init(
         watcher: any DeviceWatcher, link: any KeyboardLink, board: BoardDefinition = .voyager,
-        clock: any Clock<Duration> = ContinuousClock(), trace: RawHIDTrace = RawHIDTrace(),
-        followsOnConnect: @escaping @MainActor () -> Bool = { true }, secureInputProbe: @escaping @Sendable () -> Bool
+        clock: any Clock<Duration> = ContinuousClock(), followsOnConnect: @escaping @MainActor () -> Bool = { true },
+        secureInputProbe: @escaping @Sendable () -> Bool
     ) {
         self.watcher = watcher
         self.link = link
         self.board = board
         self.clock = clock
-        self.trace = trace
         self.followsOnConnect = followsOnConnect
         self.secureInputProbe = secureInputProbe
     }

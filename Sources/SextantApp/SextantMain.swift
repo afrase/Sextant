@@ -59,18 +59,18 @@ struct SextantMain: App {
         let store = PackageLibrary(root: PackageLibrary.defaultRoot())
         let library = Library(store: store)
         let watcher = IOKitDeviceWatcher()
-        // The raw-HID log sees only what the link writes and reads, and only while it is on (ADR 0045).
-        let trace = RawHIDTrace()
+        // The raw-HID log sees only what the link writes and reads, only while it is on, and nothing during secure input
+        // (ADR 0045).
+        let trace = RawHIDTrace(secureInputProbe: SecureInputProbe.isEnabled)
         let link: any KeyboardLink = liveAccessEnabled ? RawHIDLink(trace: trace.record) : RefusingKeyboardLink()
         let flasher: any Flasher = flashingEnabled ? DFUFlasher() : RefusingFlasher()
         let live = LiveSession(
-            watcher: watcher, link: link, trace: trace, followsOnConnect: KeyboardSettings.followsOnConnect,
-            secureInputProbe: SecureInputProbe.isEnabled)
+            watcher: watcher, link: link, followsOnConnect: KeyboardSettings.followsOnConnect, secureInputProbe: SecureInputProbe.isEnabled)
         let oryx = OryxClient()
         let generator = QMKGenerator()
         let md5: @Sendable (Data) -> String = { Insecure.MD5.hash(data: $0).map { String(format: "%02x", $0) }.joined() }
         return SextantServices(
-            library: library, live: live, onKeyboard: OnKeyboard(library: library, store: store, live: live),
+            library: library, live: live, trace: trace, onKeyboard: OnKeyboard(library: library, store: store, live: live),
             makeImport: { ImportFromOryx(oryx: oryx, library: library) },
             makeBuildFlash: { session in
                 // ADR 0033: the native toolchain, every build sandboxed.

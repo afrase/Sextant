@@ -312,8 +312,9 @@ struct RawHIDLinkTests {
         #expect(hid.sent.value.count == 3 && hid.closed.value)
     }
 
-    /// The raw-HID log (ADR 0045) sees every report the session reads, drained ones too, and every one it writes. The
-    /// zero padding and the firmware's garbage after the stop byte are never kept.
+    /// The raw-HID log (ADR 0045) sees every report the session reads, drained ones too, and every one it writes, in the
+    /// wire's order: the fake answers inside each write, before the session writes again. The zero padding and the
+    /// firmware's garbage after the stop byte are never kept.
     @Test func theTraceSeesEveryReportTrimmedAtTheStopByte() async {
         let hid = FakeHID(
             onOpen: [report(0x05, 0x03, 0xFE)],
@@ -325,15 +326,15 @@ struct RawHIDLinkTests {
         let link = RawHIDLink(clock: ImmediateClock(), trace: { entry in traced.withLock { $0.append(entry) } }) { _, _ in hid }
         for await _ in link.session(with: keyboard, board: .voyager, commands: AsyncStream { _ in }) {}
         let expected: [(HIDTraceEntry.Direction, [UInt8])] = [
-            (.received, [0x05, 0x03, 0xFE]), (.sent, [0xFE]), (.received, [0xFE, 0x05, 0xFE]), (.sent, [0x00]), (.sent, [0x01]),
-            (.received, Array(Self.serialReply.prefix(14))), (.received, [0x05, 0x00, 0xFE]), (.received, [0x06, 0x01, 0x00, 0xFE]),
-            (.received, [0xFF, 0xFF]),
+            (.received, [0x05, 0x03, 0xFE]), (.sent, [0xFE]), (.received, [0xFE, 0x05, 0xFE]), (.sent, [0x00]),
+            (.received, Array(Self.serialReply.prefix(14))), (.sent, [0x01]), (.received, [0x05, 0x00, 0xFE]),
+            (.received, [0x06, 0x01, 0x00, 0xFE]), (.received, [0xFF, 0xFF]),
         ]
         #expect(traced.value.map(\.direction) == expected.map(\.0))
         #expect(traced.value.map(\.bytes) == expected.map(\.1))
         #expect(
             traced.value.map(\.event) == [
-                .layer(3), nil, .protocolVersion(5), nil, nil, .firmwareSerial("KlgM7/40xJ7M"), .layer(0), .keyDown(row: 0, column: 1),
+                .layer(3), nil, .protocolVersion(5), nil, .firmwareSerial("KlgM7/40xJ7M"), nil, .layer(0), .keyDown(row: 0, column: 1),
                 .error(0xFF),
             ])
     }
@@ -349,7 +350,8 @@ struct RawHIDLinkTests {
             #expect(OryxReport.encode(command, board: .voyager).map { OryxReport.trimmed($0, sent: true) } == bytes)
         }
         #expect(OryxReport.trimmed(OryxReport.command(0x01), sent: true) == [0x01])
-        #expect(OryxReport.trimmed(report(0x0B, 0x01), sent: false) == [0x0B], "no stop byte: only the id")
+        #expect(OryxReport.trimmed(report(0x0B, 0x01, 0x12, 0xFE), sent: false) == [0x0B, 0x01], "no stop byte: the state only")
+        #expect(OryxReport.trimmed(report(0x0C, 0x01), sent: false) == [0x0C], "a stop byte that never comes: only the id")
         #expect(OryxReport.trimmed([], sent: false).isEmpty)
     }
 }

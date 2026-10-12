@@ -14,7 +14,7 @@ extension Scenes {
         scenes += SnapshotScene.pair("settings-keyboard", size: CGSize(width: 520, height: 520), chrome: .window(title: "Keyboard")) {
             KeyboardSettings()
         }
-        let trace = RawHIDTrace()
+        let trace = RawHIDTrace { false }
         trace.isOn = true
         scenes += SnapshotScene.pair("settings-advanced", size: CGSize(width: 520, height: 250), chrome: .window(title: "Advanced")) {
             AdvancedSettings(trace: trace)
@@ -23,13 +23,13 @@ extension Scenes {
         // Following the keyboard on Brd+Sys with keys 51 and 13 down, the log open in the Device popover.
         let board = BoardDefinition.voyager
         let (k51, k13) = (board.keys[51], board.keys[13])
-        let log = RawHIDTrace()
+        let log = RawHIDTrace { false }
         log.isOn = true
         let keyboard = OneKeyboard(script: [
             .protocolVersion(5), .layer(2), .keyDown(row: k51.matrixRow, column: k51.matrixColumn),
             .keyDown(row: k13.matrixRow, column: k13.matrixColumn),
         ])
-        let live = LiveSession(watcher: keyboard, link: keyboard, trace: log, secureInputProbe: { false })
+        let live = LiveSession(watcher: keyboard, link: keyboard, secureInputProbe: { false })
         live.start()
         guard let model = await model(f, live: live) else { return scenes }
         Task { await model.followKeyboard() }
@@ -42,7 +42,7 @@ extension Scenes {
             "device-popover-trace", size: full,
             overlays: [
                 .popover(size: CGSize(width: 360, height: 0), anchor: CGRect(x: 560, y: 14, width: 150, height: 26)) {
-                    DevicePopover(model: model)
+                    DevicePopover(model: model).environment(log)
                 }
             ]
         ) { LayoutWindow(model: model, layoutID: .constant(f.entry.id)) }
@@ -62,8 +62,9 @@ extension Scenes {
     private static func session(keys: [BoardDefinition.KeyInfo]) -> [HIDTraceEntry] {
         let serial = Array("KlgM7/40xJ7M".utf8)
         var reports: [(HIDTraceEntry.Direction, [UInt8], LiveEvent?)] = [
-            (.sent, [0xFE], nil), (.received, [0xFE, 0x05, 0xFE], .protocolVersion(5)), (.sent, [0x00], nil), (.sent, [0x01], nil),
-            (.received, [0x00] + serial + [0xFE], .firmwareSerial("KlgM7/40xJ7M")), (.received, [0x05, 0x02, 0xFE], .layer(2)),
+            (.sent, [0xFE], nil), (.received, [0xFE, 0x05, 0xFE], .protocolVersion(5)), (.sent, [0x00], nil),
+            (.received, [0x00] + serial + [0xFE], .firmwareSerial("KlgM7/40xJ7M")), (.sent, [0x01], nil),
+            (.received, [0x05, 0x02, 0xFE], .layer(2)),
         ]
         for key in keys {
             reports.append(

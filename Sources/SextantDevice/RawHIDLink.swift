@@ -21,7 +21,8 @@ public struct RawHIDLink: KeyboardLink {
     private let makeTransport: @Sendable (KeyboardDevice, BoardDefinition) -> any HIDTransport
     private let trace: (@Sendable (HIDTraceEntry) -> Void)?
 
-    /// - Parameter trace: gets every report written and read, trimmed (the Developer raw-HID log, ADR 0045).
+    /// - Parameter trace: gets every report as it is written and as it arrives, trimmed (the Developer raw-HID log, ADR
+    ///   0045). Called from the transport's callback queue.
     public init(trace: (@Sendable (HIDTraceEntry) -> Void)? = nil) {
         self.init(clock: ContinuousClock(), trace: trace) { IOHIDTransport(device: $0, board: $1) }
     }
@@ -76,13 +77,15 @@ enum OryxReport {
 
     /// What the raw-HID log keeps of a report: a sent one without its zero padding (by command, since a trailing 0 can
     /// be a value), a received one up to and including its stop byte. The firmware's stack garbage after it is never
-    /// kept; a received report with no stop byte keeps only its id.
+    /// kept: `08`, `0B` and `FF` have no stop byte and keep exactly two bytes, and any other received report with no
+    /// stop byte keeps only its id.
     static func trimmed(_ report: [UInt8], sent: Bool) -> [UInt8] {
         guard let id = report.first else { return [] }
         let length =
             switch (sent, id) {
             case (true, _): commandLengths[id] ?? 1
-            case (false, 0x08), (false, 0xFF): 2
+            // `0B` answers `0A`, which Sextant never sends, but another host's reply reaches every open client.
+            case (false, 0x08), (false, 0x0B), (false, 0xFF): 2
             case (false, _): (report.dropFirst().firstIndex(of: stop) ?? 0) + 1
             }
         return Array(report.prefix(length))
@@ -144,7 +147,16 @@ private struct OryxSession: Sendable {
         defer { forward.cancel() }
         var reason: DeviceError?
         do {
-            try await open { feed.yield($0.map(Input.report) ?? .removed) }
+            try await open { bytes in
+                // Logged as it arrives, not when the loop gets to it, so the log keeps the wire's order and times.
+                if let trace, let bytes {
+                    trace(
+                        HIDTraceEntry(
+                            direction: .received, bytes: OryxReport.trimmed(bytes, sent: false),
+                            event: OryxReport.parse(bytes, board: board)))
+                }
+                feed.yield(bytes.map(Input.report) ?? .removed)
+            }
             reason = try await converse(inputs, feed, out)
         } catch let error as DeviceError {
             reason = error
@@ -229,10 +241,8 @@ private struct OryxSession: Sendable {
                     break
                 }
             case let .report(bytes):
-                let event = OryxReport.parse(bytes, board: board)
-                trace?(HIDTraceEntry(direction: .received, bytes: OryxReport.trimmed(bytes, sent: false), event: event))
                 if case .draining = phase { continue }
-                guard let event else { continue }
+                guard let event = OryxReport.parse(bytes, board: board) else { continue }
                 out.yield(event)
                 switch (phase, event) {
                 case let (.version, .protocolVersion(version)):
@@ -259,8 +269,9 @@ private struct OryxSession: Sendable {
     private func send(_ command: UInt8) async throws { try await send(OryxReport.command(command)) }
 
     private func send(_ report: [UInt8]) async throws {
-        try await transport.send(report)
+        // Logged before the write: the reply can arrive before the write returns. A write that fails ends the session.
         trace?(HIDTraceEntry(direction: .sent, bytes: OryxReport.trimmed(report, sent: true)))
+        try await transport.send(report)
         try await clock.sleep(for: Self.writeSpacing)
     }
 }

@@ -43,7 +43,7 @@ public struct AdvancedSettings: View {
                     .disabled(!hasDismissedNotes)
                 } label: {
                     Text("Reset all warnings")
-                    Text("Shows notes you dismissed again, such as the one about live data.")
+                    Text("Brings back notes you dismissed, such as the one about live data.")
                 }
             }
         }
