@@ -39,17 +39,28 @@ final class FakeDeviceWatcher: DeviceWatcher {
     }
 }
 
-/// A live link whose sessions the test drives.
+/// A live link whose sessions the test drives; it records every command each session receives.
 final class FakeKeyboardLink: KeyboardLink {
     private let sessions = Mutex<[AsyncStream<LiveEvent>.Continuation]>([])
+    private let received = Mutex<[[KeyboardCommand]]>([])
 
-    func session(with device: KeyboardDevice, board: BoardDefinition) -> AsyncStream<LiveEvent> {
+    func session(
+        with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>
+    ) -> AsyncStream<LiveEvent> {
         let (stream, continuation) = AsyncStream.makeStream(of: LiveEvent.self)
-        sessions.withLock { $0.append(continuation) }
+        let n = sessions.withLock {
+            $0.append(continuation)
+            return $0.count - 1
+        }
+        received.withLock { $0.append([]) }
+        Task { for await command in commands { received.withLock { $0[n].append(command) } } }
         return stream
     }
 
     var sessionCount: Int { sessions.withLock { $0.count } }
+
+    /// The commands each session received, oldest session first.
+    var commands: [[KeyboardCommand]] { received.withLock { $0 } }
 
     /// Sends events on the newest session; `.ended` also ends it.
     func send(_ events: LiveEvent...) {

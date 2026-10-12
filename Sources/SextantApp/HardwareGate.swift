@@ -4,9 +4,11 @@
 import SextantApplication
 import SextantDomain
 
-/// A live link that ends every session at once: live access is off.
+/// A live link that ends every session at once and never reads its commands: live access is off.
 struct RefusingKeyboardLink: KeyboardLink {
-    func session(with device: KeyboardDevice, board: BoardDefinition) -> AsyncStream<LiveEvent> {
+    func session(
+        with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>
+    ) -> AsyncStream<LiveEvent> {
         AsyncStream { continuation in
             continuation.yield(.ended(.hardwareAccessOff))
             continuation.finish()

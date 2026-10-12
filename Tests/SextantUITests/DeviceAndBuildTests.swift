@@ -350,7 +350,9 @@ private final class Link: KeyboardLink {
 
     var sessions: Int { open.withLock { $0.count } }
 
-    func session(with device: KeyboardDevice, board: BoardDefinition) -> AsyncStream<LiveEvent> {
+    func session(
+        with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>
+    ) -> AsyncStream<LiveEvent> {
         let (stream, continuation) = AsyncStream.makeStream(of: LiveEvent.self)
         open.withLock { $0.append(continuation) }
         return stream

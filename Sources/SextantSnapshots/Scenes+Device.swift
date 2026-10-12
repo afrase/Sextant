@@ -188,7 +188,9 @@ private final class SceneLink: KeyboardLink {
 
     init(events: [LiveEvent]) { self.events = events }
 
-    func session(with device: KeyboardDevice, board: BoardDefinition) -> AsyncStream<LiveEvent> {
+    func session(
+        with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>
+    ) -> AsyncStream<LiveEvent> {
         let (stream, continuation) = AsyncStream.makeStream(of: LiveEvent.self)
         events.forEach { continuation.yield($0) }
         if case .ended = events.last { continuation.finish() } else { open.withLock { $0.append(continuation) } }
