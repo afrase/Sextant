@@ -36,7 +36,7 @@ struct TappingTermRow: View {
         let term = stored ?? global
         LabeledContent("Tapping term") {
             VStack(alignment: .leading, spacing: 4) {
-                Picker("Tapping term", selection: Binding(get: { custom }, set: choose)) {
+                Picker("Tapping term", selection: Binding(get: { custom }, set: { choose($0) })) {
                     Text("Global (\(global) ms)").tag(false)
                     Text("Custom").tag(true)
                 }

@@ -10,18 +10,21 @@ struct SextantCommands: Commands {
     @AppStorage(BenchGrid.key) private var showsGrid = true
 
     var body: some Commands {
-        SidebarCommands()
-        InspectorCommands()
-        // New Layout takes ⌘N (spec §9.1); New Window has no shortcut.
-        CommandGroup(replacing: .newItem) { FileNewItems(window: window, library: library) }
-        // After, not replacing: the system group holds Close (⌘W) and Close All (⌥⌘W).
-        CommandGroup(after: .saveItem) { FileSaveItems(window: window) }
-        CommandGroup(replacing: .printItem) {
-            Button("Print Layout…") { window?.printLayout() }.keyboardShortcut("p").disabled(window?.session == nil)
-        }
-        CommandGroup(after: .pasteboard) { EditItems(window: window) }
-        CommandGroup(after: .sidebar) {
-            ViewMenuItems(window: window, showsGrid: $showsGrid)
+        // Grouped: the macOS 26 SDK's CommandsBuilder takes at most ten children.
+        Group {
+            SidebarCommands()
+            InspectorCommands()
+            // New Layout takes ⌘N (spec §9.1); New Window has no shortcut.
+            CommandGroup(replacing: .newItem) { FileNewItems(window: window, library: library) }
+            // After, not replacing: the system group holds Close (⌘W) and Close All (⌥⌘W).
+            CommandGroup(after: .saveItem) { FileSaveItems(window: window) }
+            CommandGroup(replacing: .printItem) {
+                Button("Print Layout…") { window?.printLayout() }.keyboardShortcut("p").disabled(window?.session == nil)
+            }
+            CommandGroup(after: .pasteboard) { EditItems(window: window) }
+            CommandGroup(after: .sidebar) {
+                ViewMenuItems(window: window, showsGrid: $showsGrid)
+            }
         }
         CommandMenu("Layer") { LayerMenu(window: window) }
         CommandMenu("Key") { KeyMenu(window: window) }
