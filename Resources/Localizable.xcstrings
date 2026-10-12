@@ -1940,6 +1940,12 @@
     "The keyboard didn't reconnect after flashing. Unplug it and plug it back in to check it." : {
 
     },
+    "The keyboard has no such layer or light." : {
+
+    },
+    "The keyboard isn’t connected live yet." : {
+
+    },
     "The keyboard reconnected as %@, not the new firmware. Put it in flash mode to try again." : {
 
     },

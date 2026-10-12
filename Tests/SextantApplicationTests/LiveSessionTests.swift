@@ -1,5 +1,6 @@
 import Clocks
 import Foundation
+import Observation
 import SextantApplication
 import SextantDomain
 import Synchronization
@@ -140,6 +141,7 @@ struct LiveSessionTests {
         watcher.attach(.bootloader(.stm32()))
         #expect(await eventually { live.connection == .bootloader(.stm32()) })
         #expect(live.firmwareSerial == nil && live.pressedKeys.isEmpty)
+        #expect(throws: DeviceError.notLive) { try live.send(.moveToLayer(0)) }
         live.stopFollowing()
         watcher.detach(9)
         #expect(await eventually { live.connection == .noKeyboard })
@@ -157,12 +159,179 @@ struct LiveSessionTests {
         #expect(live.match(layout, libraryID: UUID(), importedLayout: layout) == .current)
         #expect(live.match(layout, libraryID: UUID(), importedLayout: nil) == .thisLayout)
     }
+
+    // MARK: Commands (ADR 0038)
+
+    /// True once the newest link session's layer report has been published, which pairs it for commands.
+    func pair(_ live: LiveSession, layer: Int = 0) async -> Bool {
+        link.send(.layer(layer))
+        return await eventually {
+            await clock.advance(by: .milliseconds(17))
+            return live.canSend
+        }
+    }
+
+    @Test func sendsCommandsOnlyOverAPairedSession() async throws {
+        let live = start()
+        #expect(throws: DeviceError.notFound) { try live.send(.moveToLayer(1)) }
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { link.sessionCount == 1 })
+        link.send(.protocolVersion(5))
+        #expect(!live.canSend)
+        #expect(throws: DeviceError.notLive) { try live.send(.moveToLayer(1)) }
+        #expect(await pair(live))
+        try live.send(.moveToLayer(1))
+        try live.send(.setLED(index: 51, red: 255, green: 0, blue: 0))
+        #expect(await eventually { link.commands == [[.moveToLayer(1), .setLED(index: 51, red: 255, green: 0, blue: 0)]] })
+    }
+
+    @Test(arguments: [
+        KeyboardCommand.moveToLayer(32), .moveToLayer(-1), .setLED(index: 52, red: 0, green: 0, blue: 0),
+        .setLED(index: -1, red: 0, green: 0, blue: 0),
+    ])
+    func refusesLayersAndLightsOutsideTheBoard(_ command: KeyboardCommand) async throws {
+        let live = start()
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { link.sessionCount == 1 })
+        #expect(await pair(live))
+        #expect(throws: DeviceError.outOfRange) { try live.send(command) }
+        try live.send(.moveToLayer(31))
+        #expect(await eventually { link.commands == [[.moveToLayer(31)]] }, "only the allowed command arrives")
+    }
+
+    @Test func refusesWhileAnotherAppHoldsTheKeyboardOrAccessIsOff() async {
+        let live = start()
+        let keyboard = KeyboardDevice.voyager(serial: nil)
+        watcher.attach(.keyboard(keyboard))
+        #expect(await eventually { link.sessionCount == 1 })
+        #expect(await pair(live))
+        link.send(.ended(.heldByAnotherApp))
+        #expect(await reopens(after: .seconds(1)) { live.connection == .heldByAnotherApp(keyboard) && !live.canSend })
+        #expect(throws: DeviceError.heldByAnotherApp) { try live.send(.moveToLayer(1)) }
+        link.send(.ended(.hardwareAccessOff))
+        #expect(await eventually { live.connection == .hardwareAccessOff(keyboard) })
+        #expect(throws: DeviceError.hardwareAccessOff) { try live.send(.moveToLayer(1)) }
+        #expect(link.commands == [[], []])
+    }
+
+    @Test func aReconnectedSessionGetsItsOwnCommands() async throws {
+        let live = start()
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { link.sessionCount == 1 })
+        #expect(await pair(live))
+        try live.send(.moveToLayer(1))
+        link.send(.ended(.io("unplugged")))
+        #expect(await reopens(after: .seconds(1)) { !live.canSend })
+        #expect(throws: DeviceError.notLive) { try live.send(.moveToLayer(2)) }
+        #expect(await pair(live, layer: 1))
+        try live.send(.moveToLayer(0))
+        #expect(await eventually { link.commands == [[.moveToLayer(1)], [.moveToLayer(0)]] })
+        watcher.detach(1)
+        #expect(await eventually { !live.canSend })
+        #expect(throws: DeviceError.notFound) { try live.send(.moveToLayer(0)) }
+    }
+
+    /// The debounce still publishes a session's last state after it ends; that state must not open the command feed.
+    @Test func aSessionThatEndsBeforePublishingNeverTakesCommands() async {
+        let live = start()
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { link.sessionCount == 1 })
+        let wasSendable = Flag()
+        withObservationTracking {
+            _ = live.canSend
+        } onChange: {
+            Task { @MainActor in if live.canSend { wasSendable.isOn = true } }
+        }
+        link.send(.layer(0), .ended(.io("unplugged")))
+        #expect(await eventually { live.activeLayer == 0 })
+        try? await Task.sleep(for: .milliseconds(20))
+        #expect(!wasSendable.isOn && !live.canSend)
+    }
+
+    // MARK: Activity
+
+    @Test func activityDeliversEveryPressTheDebounceCollapses() async {
+        let live = start()
+        let seen = Recorded<LiveActivity>()
+        let stream = live.activity()
+        let reader = Task { for await activity in stream { seen.append(activity) } }
+        defer { reader.cancel() }
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { link.sessionCount == 1 })
+        // Two taps shorter than a frame, around a layer change: matrix (2, 2) is key 13 and (5, 0) is key 24.
+        link.send(
+            .layer(0), .keyDown(row: 2, column: 2), .keyUp(row: 2, column: 2), .layer(1), .keyDown(row: 5, column: 0),
+            .keyUp(row: 5, column: 0), .keyDown(row: 0, column: 0))
+        #expect(
+            await eventually {
+                seen.values == [
+                    .layer(0), .keyDown(index: 13, layer: 0), .keyUp(index: 13), .layer(1), .keyDown(index: 24, layer: 1),
+                    .keyUp(index: 24),
+                ]
+            })
+        #expect(live.activeLayer == nil && live.pressedKeys.isEmpty, "the debounced state hasn't published yet")
+    }
+
+    /// Asked at every event, not at the once-a-second poll: a password's first keys come right after its field focuses.
+    @Test func activityIsSilentDuringSecureInput() async {
+        let live = start()
+        let seen = Recorded<LiveActivity>()
+        let stream = live.activity()
+        let reader = Task { for await activity in stream { seen.append(activity) } }
+        defer { reader.cancel() }
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { link.sessionCount == 1 && secureInput.reads > 0 })
+        secureInput.isOn = true  // the poll saw it off and sleeps for a second
+        link.send(.layer(0), .keyDown(row: 2, column: 2), .keyUp(row: 2, column: 2))
+        // They reach the main actor's queue before the debounced state does, so once it shows they were dropped.
+        #expect(
+            await eventually {
+                await clock.advance(by: .milliseconds(17))
+                return live.activeLayer == 0
+            })
+        secureInput.isOn = false
+        link.send(.keyDown(row: 5, column: 0))
+        #expect(await eventually { seen.values == [.keyDown(index: 24, layer: 0)] })
+    }
+
+    /// Pairing reports the layer again after every reconnect; only a change is activity. Lighting replies and refusals
+    /// pass through.
+    @Test func activityReportsALayerOnlyWhenItChanges() async {
+        let live = start()
+        let seen = Recorded<LiveActivity>()
+        let stream = live.activity()
+        let reader = Task { for await activity in stream { seen.append(activity) } }
+        defer { reader.cancel() }
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { link.sessionCount == 1 })
+        link.send(.layer(0), .layer(0), .ended(.io("unplugged")))
+        #expect(
+            await eventually {
+                await clock.advance(by: .milliseconds(100))
+                return link.sessionCount == 2
+            })
+        link.send(.layer(0), .layer(2), .lighting(true), .error(0x04))
+        #expect(await eventually { seen.values == [.layer(0), .layer(2), .lighting(true), .refused(0x04)] })
+    }
+}
+
+/// Values a reading task collects for the test.
+final class Recorded<Value: Sendable>: Sendable {
+    private let storage = Mutex<[Value]>([])
+    var values: [Value] { storage.withLock { $0 } }
+    func append(_ value: Value) { storage.withLock { $0.append(value) } }
 }
 
 final class Flag: Sendable {
     private let value = Mutex(false)
+    private let readCount = Mutex(0)
     var isOn: Bool {
-        get { value.withLock { $0 } }
+        get {
+            readCount.withLock { $0 += 1 }
+            return value.withLock { $0 }
+        }
         set { value.withLock { $0 = newValue } }
     }
+    /// How often `isOn` was read.
+    var reads: Int { readCount.withLock { $0 } }
 }

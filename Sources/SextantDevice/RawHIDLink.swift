@@ -14,7 +14,8 @@ protocol HIDTransport: Sendable {
 }
 
 /// The live connection over Oryx's raw-HID protocol (research 03 §3, 00 §5). Writes to the keyboard (the version
-/// and serial queries and pairing), so the composition root wires it only after the user approves (ADR 0012).
+/// and serial queries, pairing, and commands once paired), so the composition root wires it only after the user
+/// approves (ADR 0012, 0038).
 public struct RawHIDLink: KeyboardLink {
     private let clock: any Clock<Duration>
     private let makeTransport: @Sendable (KeyboardDevice, BoardDefinition) -> any HIDTransport
@@ -26,10 +27,12 @@ public struct RawHIDLink: KeyboardLink {
         self.makeTransport = makeTransport
     }
 
-    public func session(with device: KeyboardDevice, board: BoardDefinition) -> AsyncStream<LiveEvent> {
+    public func session(
+        with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>
+    ) -> AsyncStream<LiveEvent> {
         let session = OryxSession(transport: makeTransport(device, board), board: board, clock: clock)
         return AsyncStream { out in
-            let task = Task { await session.run(out) }
+            let task = Task { await session.run(out, commands: commands) }
             out.onTermination = { _ in task.cancel() }
         }
     }
@@ -41,14 +44,37 @@ enum OryxReport {
     static let getFirmwareVersion: UInt8 = 0x00
     static let pairingInit: UInt8 = 0x01
     static let getProtocolVersion: UInt8 = 0xFE
+    private static let setLayer: UInt8 = 0x04
+    private static let rgbControl: UInt8 = 0x05
+    private static let setRGBLED: UInt8 = 0x06
+    private static let setRGBLEDAll: UInt8 = 0x09
     private static let stop: UInt8 = 0xFE
 
-    static func command(_ id: UInt8) -> [UInt8] { [id] + [UInt8](repeating: 0, count: size - 1) }
+    static func command(_ id: UInt8) -> [UInt8] { padded([id]) }
 
-    /// The event in an input report, or nil when it carries none (pairing success, errors, RGB replies) or is
-    /// malformed. Payloads end at the first 0xFE; the firmware leaves stack garbage after it. `08` and `0B` have no
-    /// stop byte, but carry nothing Sextant shows.
+    /// The report for a command, or nil when the firmware wouldn't bounds-check it (ADR 0038). Only `04 01`, `05`,
+    /// `06` and `09` are ever built: `04 00` (layer off) and every other command id are out of reach.
+    static func encode(_ command: KeyboardCommand, board: BoardDefinition) -> [UInt8]? {
+        guard command.isAllowed(on: board) else { return nil }
+        return switch command {
+        case let .moveToLayer(layer): padded([setLayer, 0x01, UInt8(layer)])  // 01: layer_move
+        case let .lighting(on): padded([rgbControl, on ? 0x01 : 0x00])
+        case let .setLED(index, red, green, blue): padded([setRGBLED, UInt8(index), red, green, blue])
+        case let .setAllLEDs(red, green, blue): padded([setRGBLEDAll, red, green, blue])
+        }
+    }
+
+    private static func padded(_ bytes: [UInt8]) -> [UInt8] { bytes + [UInt8](repeating: 0, count: size - bytes.count) }
+
+    /// The event in an input report, or nil when it carries none (pairing success, unused replies) or is malformed.
+    /// Payloads end at the first 0xFE; the firmware leaves stack garbage after it. `08` and `FF` have no stop byte:
+    /// exactly byte 1 counts.
     static func parse(_ report: [UInt8], board: BoardDefinition) -> LiveEvent? {
+        switch (report.first, report.count) {
+        case (0x08, 2...): return .lighting(report[1] != 0)
+        case (0xFF, 2...): return .error(report[1])
+        default: break
+        }
         guard let id = report.first, let end = report.dropFirst().firstIndex(of: stop) else { return nil }
         let p = Array(report[1..<end])
         switch (id, p.count) {
@@ -66,13 +92,14 @@ enum OryxReport {
 }
 
 /// One session (00 §5): drain stale reports, query the protocol version (400 ms, retried once) and the firmware
-/// serial, pair, wait up to 700 ms for the layer, then stream events until removal or cancellation.
+/// serial, pair, wait up to 700 ms for the layer, then stream events and write commands until removal, a failed
+/// write or cancellation.
 private struct OryxSession: Sendable {
     let transport: any HIDTransport
     let board: BoardDefinition
     let clock: any Clock<Duration>
 
-    private enum Input { case report([UInt8]), removed, deadline(Int) }
+    private enum Input { case report([UInt8]), removed, deadline(Int), command(KeyboardCommand), writeFailed(DeviceError) }
     private enum Phase { case draining, version(attempt: Int), pairing, live }
 
     /// fw21 and older paired with a key sequence; from protocol 2 (fw22) on, `01` pairs and the events are the same.
@@ -84,8 +111,11 @@ private struct OryxSession: Sendable {
     /// The firmware queues only 4 output reports; voyager-disco paces at 5 ms on hardware.
     private static let writeSpacing = Duration.milliseconds(5)
 
-    func run(_ out: AsyncStream<LiveEvent>.Continuation) async {
+    func run(_ out: AsyncStream<LiveEvent>.Continuation, commands: AsyncStream<KeyboardCommand>) async {
         let (inputs, feed) = AsyncStream.makeStream(of: Input.self)
+        // Commands join the same loop as reports, so each one meets the session's phase in order.
+        let forward = Task { for await command in commands { feed.yield(.command(command)) } }
+        defer { forward.cancel() }
         var reason: DeviceError?
         do {
             try await open { feed.yield($0.map(Input.report) ?? .removed) }
@@ -118,7 +148,20 @@ private struct OryxSession: Sendable {
     ) async throws -> DeviceError? {
         var timer: Task<Void, Never>?
         var deadline = 0
-        defer { timer?.cancel() }
+        // Paired writes go out from their own task, so their 5 ms pacing never holds back the reports behind them.
+        // The handshake's writes are all done before the first one.
+        let (writes, writer) = AsyncStream.makeStream(of: [UInt8].self)
+        let writing = Task {
+            do {
+                for await report in writes where !Task.isCancelled { try await send(report) }
+            } catch let error as DeviceError {
+                feed.yield(.writeFailed(error))
+            } catch {}  // cancelled
+        }
+        defer {
+            timer?.cancel()
+            writing.cancel()
+        }
         func arm(_ duration: Duration) {
             timer?.cancel()
             deadline += 1
@@ -132,6 +175,15 @@ private struct OryxSession: Sendable {
             switch input {
             case .removed:
                 return nil
+            case let .writeFailed(error):
+                return error
+            case let .command(command):
+                // Only a paired session writes; a command before then is dropped, never queued.
+                guard case .live = phase, let report = OryxReport.encode(command, board: board) else { continue }
+                writer.yield(report)
+                // The firmware drops a layer event that matches a value pairing never updates (research 03 O2), so a
+                // move can go unreported; pairing again always reports the layer.
+                if case .moveToLayer = command { writer.yield(OryxReport.command(OryxReport.pairingInit)) }
             case let .deadline(id):
                 guard id == deadline else { continue }
                 switch phase {
@@ -164,8 +216,8 @@ private struct OryxSession: Sendable {
                     phase = .pairing
                     arm(Self.pairingTimeout)
                 case (.pairing, .layer):
-                    // shortcut: an app that seizes the interface after this goes unnoticed (reports just stop), since
-                    // live mode never writes; watch kIOMessageServiceIsRequestingClose if LiveSession needs to say so.
+                    // shortcut: an app that seizes the interface after this goes unnoticed (reports just stop) until a
+                    // command's write fails; watch kIOMessageServiceIsRequestingClose if LiveSession must say so sooner.
                     phase = .live
                     timer?.cancel()
                 default:
@@ -176,8 +228,10 @@ private struct OryxSession: Sendable {
         return nil
     }
 
-    private func send(_ command: UInt8) async throws {
-        try await transport.send(OryxReport.command(command))
+    private func send(_ command: UInt8) async throws { try await send(OryxReport.command(command)) }
+
+    private func send(_ report: [UInt8]) async throws {
+        try await transport.send(report)
         try await clock.sleep(for: Self.writeSpacing)
     }
 }

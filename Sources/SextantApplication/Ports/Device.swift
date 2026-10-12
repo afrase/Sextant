@@ -62,6 +62,11 @@ public enum DeviceError: Error, Hashable, Sendable, LocalizedError {
     /// Hardware access is switched off until the user approves it (ADR 0012).
     case hardwareAccessOff
     case notFound
+    /// The keyboard is connected but no live session is paired (it is still pairing, or in flash mode), so it can't
+    /// take commands.
+    case notLive
+    /// A command value the keyboard wouldn't bounds-check (ADR 0038).
+    case outOfRange
     case io(String)
 
     public var errorDescription: String? {
@@ -70,6 +75,8 @@ public enum DeviceError: Error, Hashable, Sendable, LocalizedError {
             String(localized: "In use by Keymapp. Quit Keymapp or disconnect it there; Sextant connects automatically.")
         case .hardwareAccessOff: String(localized: "Live keyboard access is off.")
         case .notFound: String(localized: "No keyboard.")
+        case .notLive: String(localized: "The keyboard isn’t connected live yet.")
+        case .outOfRange: String(localized: "The keyboard has no such layer or light.")
         case let .io(detail): String(localized: "The keyboard connection failed. \(detail)")
         }
     }
@@ -83,15 +90,47 @@ public enum LiveEvent: Hashable, Sendable {
     case layer(Int)
     case keyDown(row: Int, column: Int)
     case keyUp(row: Int, column: Int)
+    /// Whether a host holds the board's lights, in reply to ``KeyboardCommand/lighting(_:)``.
+    case lighting(Bool)
+    /// The firmware refused a command (an Oryx error code, such as `0xFF` for an unknown command).
+    case error(UInt8)
     /// The stream ends after this.
     case ended(DeviceError?)
+}
+
+/// Everything Sextant may send to a keyboard over the live connection (ADR 0038). Nothing else is ever encoded: not
+/// disconnect, brightness steps, the status LEDs or automouse.
+public enum KeyboardCommand: Hashable, Sendable {
+    /// Moves the keyboard to a layer, like TO(n): momentary layers drop, the default layer stays.
+    case moveToLayer(Int)
+    /// Takes the board's lights (true) or gives them back (false), which reloads the board's own lighting.
+    case lighting(Bool)
+    /// One light, by key index; takes the lights.
+    case setLED(index: Int, red: UInt8, green: UInt8, blue: UInt8)
+    /// Every light; takes the lights.
+    case setAllLEDs(red: UInt8, green: UInt8, blue: UInt8)
+
+    /// False for values the firmware doesn't bounds-check: it shifts 1 by the layer, which is undefined from 32 on,
+    /// and indexes its LED array unchecked. A layer below 32 can still lie past the build's 8- or 16-bit layer state,
+    /// which then truncates to no layer at all and drops the board to its default layer: callers clamp to the layers
+    /// of the layout on the keyboard.
+    public func isAllowed(on board: BoardDefinition) -> Bool {
+        switch self {
+        case let .moveToLayer(layer): (0..<32).contains(layer)
+        case let .setLED(index, _, _, _): (0..<board.keyCount).contains(index)  // LED index = key index (BoardDefinition)
+        case .lighting, .setAllLEDs: true
+        }
+    }
 }
 
 /// The live connection to a keyboard in normal mode.
 public protocol KeyboardLink: Sendable {
     /// Opens the raw-HID interface (never seized), identifies and pairs, then streams events until the
-    /// consuming task is cancelled or the device goes away. Ends with `.ended`.
-    func session(with device: KeyboardDevice, board: BoardDefinition) -> AsyncStream<LiveEvent>
+    /// consuming task is cancelled or the device goes away. Ends with `.ended`. Writes `commands` only once paired,
+    /// and only those ``KeyboardCommand/isAllowed(on:)`` accepts; it drops the rest.
+    func session(
+        with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>
+    ) -> AsyncStream<LiveEvent>
 }
 
 // MARK: - Flashing
