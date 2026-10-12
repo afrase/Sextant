@@ -43,6 +43,38 @@ struct EditSessionTests {
         #expect(session.canUndo && session.canRedo)
     }
 
+    @Test func undoRestoresTheSelectedCombo() async throws {
+        let (session, undo) = try await open(Fixtures.data("voyager-m9dpx.json"))
+        session.selection.combo = "combo-0"
+        step(undo) { session.setTitle("Renamed") }
+        session.selection.combo = nil
+        undo.undo()
+        #expect(session.selection.combo == "combo-0")
+        session.selection.combo = "combo-1"
+        undo.redo()
+        #expect(session.selection.combo == "combo-0", "redo restores the selection the edit left")
+    }
+
+    /// m9dpx: combo-0 "Player 1" (layer 1), combo-1 "Game over" (layer 6). Ids are positions.
+    @Test func theSelectedComboNeverOutlivesItsCombo() async throws {
+        let (session, undo) = try await open(Fixtures.data("voyager-m9dpx.json"))
+        session.selection.combo = "combo-1"
+        step(undo) { session.deleteLayer(6) }
+        #expect(session.layout.combos.map(\.id) == ["combo-0"] && session.selection.combo == nil, "it went with its layer")
+        undo.undo()
+        #expect(session.selection.combo == "combo-1")
+
+        session.selection.combo = "combo-0"
+        var imported = session.layout
+        imported.combos.removeFirst()
+        imported.combos[0].id = "combo-0"  // as Oryx numbers them
+        undo.beginUndoGrouping()
+        try await session.applyImport(imported)
+        undo.endUndoGrouping()
+        #expect(session.layout.combos.map(\.id) == ["combo-0"] && session.layout.combos.first?.name == "Game over")
+        #expect(session.selection.combo == nil, "combo-0 is now another combo")
+    }
+
     @Test func layerEditsKeepReferencesAndSelection() async throws {
         let (session, undo) = try await open()
         step(undo) { session.addLayer(title: "Games") }

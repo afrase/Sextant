@@ -11,6 +11,8 @@ public struct EditorSelection: Hashable, Sendable {
     public var keyIndex: Int?
     /// Slot the inspector edits.
     public var slot: KeySlot
+    /// Selected combo's id (the Combos page).
+    public var combo: String?
 
     public init(layer: Int = 0, keyIndex: Int? = nil, slot: KeySlot = .tap) {
         self.layer = layer
@@ -33,8 +35,9 @@ public final class EditSession {
     /// The document.
     public private(set) var layout: KeyboardLayout
     public var selection = EditorSelection()
-    /// Revisions, oldest first.
-    public private(set) var revisions: [RevisionSummary]
+    /// Revisions, oldest first. Internal setter, like `revisionBaseline` and `library`: History's edits live in
+    /// `EditSession+History.swift` (docs/v1-plan.md, rule 6).
+    public internal(set) var revisions: [RevisionSummary]
     public private(set) var origin: LayoutOrigin
     /// The board's key shapes, with the Navigator disc on the layout's Navigator side.
     public private(set) var geometry: BoardGeometry
@@ -47,11 +50,11 @@ public final class EditSession {
     public var recoveredUnsavedChanges = false
     /// The layout as of the last revision, for "Edited" in the window subtitle (spec §3.4). Nil when the stored
     /// working copy already differed from its last revision at open: edited until the next revision.
-    private var revisionBaseline: KeyboardLayout?
+    var revisionBaseline: KeyboardLayout?
 
     /// The window's undo manager. Edits made while it is nil are not undoable.
     @ObservationIgnored public weak var undoManager: UndoManager?
-    @ObservationIgnored private let library: any LayoutLibrary
+    @ObservationIgnored let library: any LayoutLibrary
     @ObservationIgnored private let autosaveDelay: Duration
     @ObservationIgnored private var pendingSave: Task<Void, Never>?
     /// Recovery writes run in order; each waits for the one before.
@@ -317,12 +320,7 @@ public final class EditSession {
     /// the title (spec §8.1). Edits since the last revision are checkpointed first; a failure leaves the document as
     /// it was.
     public func applyImport(_ imported: KeyboardLayout) async throws(LibraryError) {
-        await flush()
-        // Unsaved edits would be checkpointed from a stale copy: stop rather than replace them.
-        if let saveError { throw saveError }
-        if try await library.load(id).hasEditsSinceLastRevision {
-            try await saveRevision(source: .save, message: String(localized: "Before importing from Oryx"))
-        }
+        try await checkpoint(String(localized: "Before importing from Oryx"))
         var next = imported
         next.title = layout.title
         let draft = RevisionDraft(source: .import, message: imported.oryx?.message, layout: next)
@@ -330,7 +328,11 @@ public final class EditSession {
         revisionBaseline = next
         edit(
             String(localized: "Import from Oryx"),
-            select: { selection, doc in selection.layer = min(selection.layer, max(doc.layers.count - 1, 0)) }
+            select: { selection, doc in
+                selection.layer = min(selection.layer, max(doc.layers.count - 1, 0))
+                // Oryx combo ids are positions, so the old id may now name another combo.
+                selection.combo = nil
+            }
         ) { $0 = next }
         await flush()
         // A temporary session (no window open) is discarded after this; its save error must not be.
@@ -338,6 +340,15 @@ public final class EditSession {
     }
 
     // MARK: Saving
+
+    /// Before an edit replaces the whole document (an import, a restore): writes pending edits, then records them as a
+    /// revision when the working copy has moved past the last one.
+    func checkpoint(_ message: String) async throws(LibraryError) {
+        await flush()
+        // Unsaved edits would be checkpointed from a stale copy: stop rather than replace them.
+        if let saveError { throw saveError }
+        if try await library.load(id).hasEditsSinceLastRevision { try await saveRevision(source: .save, message: message) }
+    }
 
     /// Writes any pending change now (window close, quit, before a build, Try Again). A failed save is still pending.
     public func flush() async {
@@ -392,8 +403,10 @@ public final class EditSession {
     }
 
     // MARK: Undo plumbing
+    // Internal, not private: features add their edits in `EditSession+<Feature>.swift` (docs/v1-plan.md, rule 6).
 
-    private func target(_ layer: Int?, _ index: Int?) -> (Int, Int)? {
+    /// The key an edit acts on: the given layer and index, else the selection's; nil when there is no such key.
+    func target(_ layer: Int?, _ index: Int?) -> (Int, Int)? {
         let l = layer ?? selection.layer
         guard let i = index ?? selection.keyIndex, layout.key(layer: l, index: i) != nil else { return nil }
         return (l, i)
@@ -406,7 +419,7 @@ public final class EditSession {
 
     /// Applies an edit as one undo step. `select` adjusts the selection to the new layout before the redo
     /// snapshot is taken, so redo restores it too.
-    private func edit(
+    func edit(
         _ name: String, select: (inout EditorSelection, KeyboardLayout) -> Void = { _, _ in },
         _ mutate: (inout KeyboardLayout) -> Void
     ) {
@@ -416,11 +429,13 @@ public final class EditSession {
         guard next != layout else { return }
         layout = next
         select(&selection, next)
+        // An edit can remove the selected combo: Delete Layer takes the combos limited to that layer.
+        if let combo = selection.combo, !next.combos.contains(where: { $0.id == combo }) { selection.combo = nil }
         changed()
         registerUndo(restoring: before, name: name)
     }
 
-    private func edit(_ name: String, select: (inout EditorSelection) -> Void, _ mutate: (inout KeyboardLayout) -> Void) {
+    func edit(_ name: String, select: (inout EditorSelection) -> Void, _ mutate: (inout KeyboardLayout) -> Void) {
         edit(name, select: { selection, _ in select(&selection) }, mutate)
     }
 
