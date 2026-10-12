@@ -1,6 +1,6 @@
 # 29. Layers and Lighting lens UI
 
-Status: accepted, 2026-10-11
+Status: accepted, 2026-10-11. The rename gesture is superseded by ADR 0036 (rename from the context menu).
 
 ## Context
 MVP steps 6 and 7 (spec §6.1, §6.2, §3.6–§3.8): layer management in the sidebar, Layer menu and layer summary, and the Lighting lens. `BoardView` takes the session plus presentation inputs (ADR 0025) and doesn't know the lens; its call site (`CanvasColumn`) belonged to another slice. A sidebar `List` row needs a context menu and double-click to rename in place. Colour pickers fire on every drag tick of the colour panel, and every `EditSession` edit is an undo step.

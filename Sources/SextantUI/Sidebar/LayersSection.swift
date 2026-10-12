@@ -2,8 +2,9 @@ import SextantApplication
 import SextantDomain
 import SwiftUI
 
-/// The open layout's layers, each a destination, and Add Layer (spec §3.6, §6.1). Drag to reorder; double-click
-/// renames in place.
+/// The open layout's layers, each a destination, and Add Layer (spec §3.6, §6.1). Drag to reorder; Rename… in the
+/// context menu renames in place. No double-click: a row tap gesture held every click's selection until the
+/// double-click timed out.
 struct LayersSection: View {
     var model: LayoutWindowModel
     var session: EditSession
@@ -87,10 +88,9 @@ private struct LayerRow: View {
             }
             if isLive { Image(systemName: "dot.radiowaves.left.and.right").foregroundStyle(Tokens.success.color) }
         }
-        // The whole row takes the double-click, not just its text; while renaming, the field gets it (word selection).
+        // The badge's tooltip covers the row up to the badge, not just the name: SwiftUI hit-tests for it.
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        .gesture(TapGesture(count: 2).onEnded { model.startRenaming(layer: index) }, isEnabled: !renaming)
         .badge(Text(verbatim: "\(own)").foregroundStyle(detail))
         .help(keysText(own: own))
         .accessibilityElement(children: renaming ? .contain : .combine)
