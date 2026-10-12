@@ -116,7 +116,7 @@ Small things that are not worth a port are injected as values: an `any Clock<Dur
 | `ImportFromOryx` | `@MainActor @Observable` | Steps: read link → fetch layout → fetch Oryx's firmware with md5 (optional) → convert; an `ImportSummary` preview; saves as a new layout or as a revision of an existing one with the same Oryx id, checkpointing local edits first (ADR 0024). Strips " [fork]". |
 | `LiveSession` | `@MainActor @Observable` | Consumes `DeviceWatcher` and `KeyboardLink`. State: connection (none / connected / bootloader / held by another app / access off), serial and `FirmwareMatch` (ADR 0019), active layer, pressed key indices (matrix → index via `BoardDefinition`), Follow mode, secure-input pause. Coalesces to ≤ 60 Hz, reconnects with backoff, never stores or logs events (ADR 0023). |
 | `OnKeyboard` | `@MainActor @Observable` | App-wide: which library entry, revision and layout the keyboard runs, from `LiveSession`'s serial alone (works with live access off). An Oryx serial names its import revision; a Sextant serial names the working copy when the fingerprint matches, else the newest matching flash revision; never unflashed edits (ADR 0039). Re-resolves on serial change, library refresh and the end of a flash. |
-| `BuildFlashSession` | `@MainActor @Observable` | The §7 state machine: issues gate → generate → compile (progress, log mapped through the source map) → size → wait for bootloader → validate image → flash → wait for re-enumeration and serial check → record a revision. Cancel is refused during erase / write / verify. |
+| `BuildFlashSession` | `@MainActor @Observable` | The §7 state machine: issues gate → generate → compile (progress, log mapped through the source map) → size → wait for bootloader → validate image → flash → wait for re-enumeration and serial check → record a revision, then release flash mode (`OnKeyboard` relies on that order, ADR 0039). Cancel is refused during erase / write / verify. |
 
 ### 3.3 Hardware gate
 
@@ -153,7 +153,7 @@ Library root: `~/Library/Application Support/Sextant/Library/`. One folder per l
 ```
 My MacOS Layout-1F3A9C.sextant/
   meta.json                 {"formatVersion":1,"id":"<UUID>","title":…,"origin":{"kind":"oryx","layoutId":"KlgM7","revisionId":"40xJ7M"},
-                             "createdAt":…,"modifiedAt":…,"contentHash":"sha256:…","onKeyboardRevision":null}
+                             "createdAt":…,"modifiedAt":…,"contentHash":"sha256:…"}
   layout.json               the working copy: KeyboardLayout in Oryx revision shape, pretty-printed, sorted keys
   revisions/
     0001-3b9f2c1e.json      {"id":…,"number":1,"parent":null,"createdAt":…,"source":"import|flash|save",

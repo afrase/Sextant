@@ -11,6 +11,7 @@ struct OnKeyboardTests {
     let layout: KeyboardLayout
     let store = InMemoryLibrary()
     let watcher = FakeDeviceWatcher()
+    let clock = TestClock()
     let live: LiveSession
     let library: Library
     let onKeyboard: OnKeyboard
@@ -32,6 +33,33 @@ struct OnKeyboardTests {
         await OnKeyboard.resolve(serial, entries: await store.entries(), store: store)
     }
 
+    /// Runs the real Build & Flash of `document` until it records the flash. `whileVerifying` runs once the image is
+    /// written, before the keyboard comes back.
+    func flash(_ document: EditSession, whileVerifying: () async -> Void = {}) async throws -> RevisionSummary? {
+        let generator = FakeGenerator()
+        let session = BuildFlashSession(
+            session: document, library: store, generator: generator, toolchain: FakeToolchain(), watcher: watcher,
+            flasher: FakeFlasher(), md5: { _ in "d41d8cd9" }, clock: clock, issues: { _ in [] }, live: live)
+        session.buildAndFlash(connectedKeyboard: nil)
+        #expect(await eventually { session.phase == .waitingForFlashMode(stillWaiting: false) && watcher.subscriberCount == 2 })
+        watcher.attach(.bootloader(.stm32()))
+        #expect(
+            await eventually {
+                await clock.advance(by: .milliseconds(100))
+                return session.phase == .verifying
+            })
+        await whileVerifying()
+        let serial = try #require(generator.lastIdentity?.serial)
+        watcher.detach(9)
+        watcher.attach(.keyboard(.voyager(id: 2, serial: serial)))
+        #expect(await eventually { if case .done = session.phase { true } else { false } })
+        guard case let .done(revision, nil) = session.phase else {
+            Issue.record("\(session.phase)")
+            return nil
+        }
+        return revision
+    }
+
     @Test func anOryxSerialNamesItsImportRevision() async throws {
         let entry = try await store.create(
             layout, origin: .oryx(layoutId: "KlgM7", revisionId: "40xJ7M"), firstRevision: RevisionDraft(source: .import, layout: layout))
@@ -44,15 +72,19 @@ struct OnKeyboardTests {
     @Test func aSextantSerialNamesWhatWasFlashedEvenAfterLaterEdits() async throws {
         let entry = try await store.create(layout, origin: .local, firstRevision: RevisionDraft(source: .save, layout: layout))
         let flashed = retitled(layout, "Flashed")
-        let revision = try await store.appendRevision(RevisionDraft(source: .flash, layout: flashed), to: entry.id)
         let serial = FirmwareIdentity(layout: flashed, libraryID: entry.id, importedLayout: nil).serial
         try await store.save(flashed, to: entry.id)
         var running = await resolve(serial)
-        #expect(running?.entry.id == entry.id && running?.revision == revision && running?.layout == flashed, "the working copy")
+        #expect(
+            running?.entry.id == entry.id && running?.revision == nil && running?.layout == flashed, "the working copy, not recorded yet")
+
+        let revision = try await store.appendRevision(RevisionDraft(source: .flash, layout: flashed), to: entry.id)
+        running = await resolve(serial)
+        #expect(running?.revision?.id == revision.id && running?.layout == flashed, "the working copy")
 
         try await store.save(retitled(layout, "Edited since"), to: entry.id)
         running = await resolve(serial)
-        #expect(running?.entry.id == entry.id && running?.revision == revision && running?.layout == flashed, "the flash revision")
+        #expect(running?.entry.id == entry.id && running?.revision?.id == revision.id && running?.layout == flashed, "the flash revision")
     }
 
     @Test func anythingElseIsNil() async throws {
@@ -76,23 +108,34 @@ struct OnKeyboardTests {
         #expect(await eventually { onKeyboard.running == nil }, "unplugged")
     }
 
-    @Test func aFlashShowsOnceItsRevisionIsRecorded() async throws {
+    /// Build & Flash records its revision before it lets go of flash mode; the release is what makes OnKeyboard look again.
+    @Test func aFlashEndsOnItsRecordedRevision() async throws {
+        let entry = try await library.importOryxJSON(Fixtures.userLayoutData)
+        let document = try await library.open(entry.id, autosaveDelay: .milliseconds(1))
         live.start()
         onKeyboard.start()
-        let entry = try await store.create(layout, origin: .local, firstRevision: RevisionDraft(source: .save, layout: layout))
-        await library.refresh()
-        let owner = NSObject()
-        #expect(live.claimFlashMode(for: entry.id, owner: owner))
-        // The keyboard comes back running the build before Build & Flash records it; the document has moved on.
-        let flashed = retitled(layout, "Flashed")
-        let serial = FirmwareIdentity(layout: flashed, libraryID: entry.id, importedLayout: nil).serial
-        watcher.attach(.keyboard(.voyager(serial: serial)))
-        #expect(await eventually { live.firmwareSerial == serial })
-        try await Task.sleep(for: .milliseconds(50))
-        #expect(onKeyboard.running == nil)
+        await store.beforeAppend { try? await Task.sleep(for: .milliseconds(30)) }  // as long as a disk write
+        document.setCode("KC_F13", layer: 0, index: 1)
+        let built = document.layout
+        let revision = try #require(
+            try await flash(document) {
+                // The document moves on while it flashes, so only the recorded revision can name what was flashed.
+                document.setCode("KC_F14", layer: 0, index: 1)
+                await document.flush()
+            })
+        #expect(await eventually { onKeyboard.running?.revision?.id == revision.id && onKeyboard.running?.layout == built })
+    }
 
-        let revision = try await store.appendRevision(RevisionDraft(source: .flash, layout: flashed), to: entry.id)
-        live.releaseFlashMode(owner: owner)
-        #expect(await eventually { onKeyboard.running?.revision == revision && onKeyboard.running?.layout == flashed })
+    /// The same Oryx layout imported twice claims one serial: the copy Sextant flashed wins over a newer twin.
+    @Test func theEntrySextantFlashedWinsOverATwin() async throws {
+        let flashed = try await library.importOryxJSON(Fixtures.userLayoutData)
+        let twin = try await library.importOryxJSON(Fixtures.userLayoutData)
+        #expect(library.entries.first?.id == twin.id, "the twin is newer")
+        let document = try await library.open(flashed.id, autosaveDelay: .milliseconds(1))
+        live.start()
+        onKeyboard.start()
+        _ = try await flash(document)
+        #expect(live.firmwareSerial == "KlgM7/40xJ7M")
+        #expect(await eventually { onKeyboard.running?.entry.id == flashed.id })
     }
 }

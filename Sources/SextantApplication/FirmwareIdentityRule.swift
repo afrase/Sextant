@@ -76,11 +76,18 @@ extension FirmwareIdentity {
 
     /// The revision of a library layout that a keyboard reporting `serial` runs, with its layout (ADR 0039): the newest
     /// import revision whose Oryx serial it is, or the newest flash revision whose Sextant serial it is. Nil when none
-    /// matches; unreadable revisions are skipped.
+    /// matches; unreadable revisions are skipped. A serial that can't be this layout's reads nothing.
     public static func revision(
-        runningSerial serial: String, of id: UUID, revisions: [RevisionSummary], library: any LayoutLibrary
+        runningSerial serial: String, of id: UUID, origin: LayoutOrigin, revisions: [RevisionSummary], library: any LayoutLibrary
     ) async -> (summary: RevisionSummary, layout: KeyboardLayout)? {
-        let source: RevisionSource = serial.hasPrefix(sextantPrefix(id)) ? .flash : .import
+        let source: RevisionSource
+        if serial.hasPrefix(sextantPrefix(id)) {
+            source = .flash
+        } else if case let .oryx(layoutId, _) = origin, serial.hasPrefix(layoutId + "/") {
+            source = .import
+        } else {
+            return nil
+        }
         for summary in revisions.reversed() where summary.source == source {
             let layout: KeyboardLayout
             do {

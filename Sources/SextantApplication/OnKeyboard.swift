@@ -10,7 +10,8 @@ import os
 public final class OnKeyboard {
     public struct Running: Equatable, Sendable {
         public let entry: LibraryEntry
-        /// Nil when only the working copy matches: the flash's revision couldn't be recorded.
+        /// Nil when only the working copy matches: the flash's revision isn't recorded yet, or recording it failed.
+        /// Compare it by `id`: storage keeps `createdAt` to the second, so a summary read back can differ in its date.
         public let revision: RevisionSummary?
         public let layout: KeyboardLayout
     }
@@ -35,9 +36,11 @@ public final class OnKeyboard {
         guard task == nil else { return }
         let (library, live) = (library, live)
         task = Task {
+            var flashed: UUID?
             // A flash records its revision before it lets go of flash mode, so the release picks the revision up.
-            for await (serial, entries, _) in Observations({ (live.firmwareSerial, library.entries, live.flashingLayoutID) }) {
-                let found = await Self.resolve(serial, entries: entries, store: store)
+            for await (serial, entries, flashing) in Observations({ (live.firmwareSerial, library.entries, live.flashingLayoutID) }) {
+                flashed = flashing ?? flashed
+                let found = await Self.resolve(serial, entries: entries, flashed: flashed, store: store)
                 if found != running { running = found }
             }
         }
@@ -45,9 +48,11 @@ public final class OnKeyboard {
 
     /// An Oryx serial names an import revision. A Sextant serial names the working copy when it has the same
     /// fingerprint (the same content), otherwise the newest flash revision that has it.
-    static func resolve(_ serial: String?, entries: [LibraryEntry], store: any LayoutLibrary) async -> Running? {
+    /// - Parameter flashed: the entry Sextant flashed last, which wins when two entries claim one Oryx serial (the same
+    ///   layout imported twice); otherwise the first of `entries` does.
+    static func resolve(_ serial: String?, entries: [LibraryEntry], flashed: UUID? = nil, store: any LayoutLibrary) async -> Running? {
         guard let serial else { return nil }
-        for entry in entries where entry.isOnKeyboard(serial: serial) {
+        for entry in entries.filter({ $0.id == flashed }) + entries.filter({ $0.id != flashed }) where entry.isOnKeyboard(serial: serial) {
             let stored: StoredLayout
             do {
                 stored = try await store.load(entry.id)
@@ -59,7 +64,8 @@ public final class OnKeyboard {
                 let revision = stored.revisions.last { $0.source == .flash && $0.contentHash == stored.contentHash }
                 return Running(entry: entry, revision: revision, layout: stored.layout)
             }
-            let found = await FirmwareIdentity.revision(runningSerial: serial, of: entry.id, revisions: stored.revisions, library: store)
+            let found = await FirmwareIdentity.revision(
+                runningSerial: serial, of: entry.id, origin: entry.origin, revisions: stored.revisions, library: store)
             if let found { return Running(entry: entry, revision: found.summary, layout: found.layout) }
         }
         return nil

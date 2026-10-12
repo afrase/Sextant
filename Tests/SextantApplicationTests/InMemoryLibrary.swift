@@ -16,6 +16,7 @@ actor InMemoryLibrary: LayoutLibrary {
     private(set) var items: [UUID: Item] = [:]
     private(set) var saveCount = 0
     private var loadHook: (@Sendable () async -> Void)?
+    private var appendHook: (@Sendable () async -> Void)?
 
     func entries() -> [LibraryEntry] { items.values.map(\.entry).sorted { $0.modifiedAt > $1.modifiedAt } }
 
@@ -28,10 +29,10 @@ actor InMemoryLibrary: LayoutLibrary {
         return StoredLayout(entry: i.entry, layout: i.layout, contentHash: Self.hash(i.layout), revisions: i.revisions)
     }
 
-    func create(_ layout: KeyboardLayout, origin: LayoutOrigin, firstRevision: RevisionDraft?) throws(LibraryError) -> LibraryEntry {
+    func create(_ layout: KeyboardLayout, origin: LayoutOrigin, firstRevision: RevisionDraft?) async throws(LibraryError) -> LibraryEntry {
         let entry = LibraryEntry(id: UUID(), title: layout.title, origin: origin, modifiedAt: Date())
         items[entry.id] = Item(entry: entry, layout: layout)
-        if let firstRevision { _ = try appendRevision(firstRevision, to: entry.id) }
+        if let firstRevision { _ = try await appendRevision(firstRevision, to: entry.id) }
         return entry
     }
 
@@ -49,7 +50,11 @@ actor InMemoryLibrary: LayoutLibrary {
         saveCount += 1
     }
 
-    func appendRevision(_ draft: RevisionDraft, to id: UUID) throws(LibraryError) -> RevisionSummary {
+    /// Runs `body` at the start of every revision append, e.g. to make recording a flash take as long as a disk write.
+    func beforeAppend(_ body: @escaping @Sendable () async -> Void) { appendHook = body }
+
+    func appendRevision(_ draft: RevisionDraft, to id: UUID) async throws(LibraryError) -> RevisionSummary {
+        await appendHook?()
         guard let item = items[id] else { throw .notFound(id) }
         let n = item.revisions.count + 1
         let s = RevisionSummary(
@@ -73,7 +78,7 @@ actor InMemoryLibrary: LayoutLibrary {
 
     func duplicate(_ id: UUID) async throws(LibraryError) -> LibraryEntry {
         let stored = try await load(id)
-        return try create(stored.layout, origin: .local, firstRevision: nil)
+        return try await create(stored.layout, origin: .local, firstRevision: nil)
     }
 
     func trash(_ id: UUID) throws(LibraryError) {

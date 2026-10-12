@@ -63,13 +63,16 @@ struct FirmwareIdentityTests {
         }
         let revisions = try await store.load(entry.id).revisions
         func revision(_ serial: String) async -> String? {
-            await FirmwareIdentity.revision(runningSerial: serial, of: entry.id, revisions: revisions, library: store)?.summary.id
+            await FirmwareIdentity.revision(
+                runningSerial: serial, of: entry.id, origin: entry.origin, revisions: revisions, library: store)?
+                .summary.id
         }
         #expect(await revision("KlgM7/40xJ7M") == "1", "the import, not edited revisions that keep its Oryx info")
         let sextant = FirmwareIdentity(layout: edited, libraryID: entry.id, importedLayout: layout).serial
         #expect(await revision(sextant) == "2", "the newest flash with its content, not a save")
         #expect(await revision("KlgM7/zzzzzz") == nil)
         #expect(await revision("sx-\(entry.id.uuidString.prefix(8))-00000000") == nil)
+        #expect(await revision("Q9x2/aa11") == nil, "another layout's serial")
     }
 
     @Test func theBaselineIsTheLatestImportRevision() async throws {
