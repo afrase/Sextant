@@ -10,7 +10,7 @@ Sextant is a native macOS 26 SwiftUI app for configuring the user's ZSA Voyager.
 - `docs/architecture.md`: the code design (targets, ports, adapters, concurrency, errors, `.sextant` format, testing).
 - `docs/progress.md`: what is done, what comes next, what is blocked. Read it first after a context reset.
 
-**Status:** code design done; the MVP build is under way (see `docs/progress.md`). Run `scripts/check` before every commit.
+**Status:** the MVP is done and v1 is under way (`docs/progress.md`, `docs/v1-plan.md`). Run `scripts/check` before every commit.
 
 ## Architecture: clean / hexagonal (decision 5)
 
@@ -26,7 +26,7 @@ Sextant is a native macOS 26 SwiftUI app for configuring the user's ZSA Voyager.
 **Testing follows the layers:**
 - domain and use cases: unit tests with in-memory fakes of the ports;
 - adapters: contract tests;
-- the generator: golden tests against `docs/research/oryx-examples/`.
+- the generator: golden tests against the user's layout in `docs/research/oryx-examples/` and, with `SEXTANT_REFERENCE` set, the other Oryx samples in the reference folder.
 
 ## Swift and macOS practices
 
@@ -35,7 +35,7 @@ Sextant is a native macOS 26 SwiftUI app for configuring the user's ZSA Voyager.
   - Device I/O lives in actors.
   - UI state is `@MainActor`.
   - Use async/await and `AsyncStream` for device events, with structured concurrency and cancellation.
-- **Design:** inject dependencies through initialisers. No singletons and no global mutable state.
+- **Design:** inject dependencies through initializers. No singletons and no global mutable state.
 - **Errors:** typed errors, with `LocalizedError` for anything the user sees. No `try!` or force-unwraps outside tests.
 - **SwiftUI:** use Observation (`@Observable`), not `ObservableObject`. Use the native scenes and controls the spec names: `NavigationSplitView`, `.inspector`, `Commands`, `Settings`, `MenuBarExtra`. Undo goes through `UndoManager`.
 - **Tests:** Swift Testing (`import Testing`, `@Test`, `#expect`).
@@ -46,12 +46,12 @@ Sextant is a native macOS 26 SwiftUI app for configuring the user's ZSA Voyager.
 
 ## Code
 
-- **Toolchain:** SwiftPM, Swift 6, macOS 26. Prefer established community libraries and tools over writing our own (ADR 0018): pin them exactly, permissive licences only, and ask before adding new ones (downloads).
+- **Toolchain:** SwiftPM, Swift 6, macOS 26. Prefer established community libraries and tools over writing our own (ADR 0018): pin them exactly, permissive licenses only, and ask before adding new ones (downloads).
 - **Module names:** never name a module exactly `Sextant`. Prefix every target with `Sextant`.
 - **`design/` is reference, not production code:**
-  - `design/PrototypeKit` (model, legends, keycodes, geometry, samples) is the seed for `SextantKit`. Port it; don't depend on it.
-  - Don't edit `design/explorations/` or `design/judging/`.
-- **Tests:** `docs/research/oryx-examples/` holds real Oryx JSON and its generated QMK source, for golden tests.
+  - `design/PrototypeKit` (model, legends, keycodes, geometry, samples) seeded `SextantDomain`. Port from it; don't depend on it.
+  - The early prototypes and their judging (`design/explorations/`, `design/judging/`) live in the reference folder, not the repo.
+- **Tests:** `docs/research/oryx-examples/` holds the user's own Oryx JSON and its generated QMK source, for golden tests. Other people's samples are in `~/Developer/Sextant-reference/`; tests read `SEXTANT_REFERENCE` (which `scripts/check` sets) and skip without it.
 - **No TCC prompts in automated runs.** Don't use screencapture or ScreenCaptureKit. Render UI offscreen, the way PrototypeKit's `SnapshotRunner` does.
 
 ## Hardware safety (non-negotiable)
@@ -67,5 +67,5 @@ Sextant is a native macOS 26 SwiftUI app for configuring the user's ZSA Voyager.
 ## External services and repo
 
 - **Oryx:** reads only, through its public GraphQL. No logins and no mutations.
-- **Branding:** no ZSA trade dress (logos, Voyager art, Oryx colours). Use "ZSA Voyager" in text only.
-- **Git:** commit when the user asks, and never push without asking. Before any public push, remove the ZSA-derived material: `docs/research/data/oryx-keycodes.json`, `docs/oryx-ui/`, and the other people's layouts in `docs/research/oryx-examples/`.
+- **Branding:** no ZSA trade dress (logos, Voyager art, Oryx colors). Use "ZSA Voyager" in text only.
+- **Git:** the repo is public at github.com/afrase/Sextant (MIT). Commit when the user asks, and never push without the user's OK. ZSA-derived material and other people's layouts live in `~/Developer/Sextant-reference`, never in the repo; tests read `SEXTANT_REFERENCE` (ADR 0055).

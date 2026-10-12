@@ -56,5 +56,5 @@ Still open (00 §9): build-backend default (pending the Phase 0 spike), firmware
 
 ## Future ideas (not scheduled)
 
-- **Sync and backup server** (2026-10-11, the user's idea). An optional self-hosted Go server for layout and revision backups and multi-Mac sync. Details are in `design/brief.md`, surface 16. Its consequence for the MVP: the document model gets stable IDs and append-only, hashed history from the start.
+- **Sync and backup server** (2026-10-11, the user's idea). An optional self-hosted Go server for layout and revision backups and multi-Mac sync. Details are in `docs/design/brief.md`, surface 16. Its consequence for the MVP: the document model gets stable IDs and append-only, hashed history from the start.
 - **Replacing the Ignition bootloader: not pursued.** It is possible in principle as a clean-room rewrite flashed over SWD. But it is the only path that can hard-brick the board, and it adds nothing Sextant needs, because Ignition already accepts any unsigned firmware. Revisit only as a hardware-lab project with an SWD probe.

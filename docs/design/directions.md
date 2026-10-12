@@ -1,12 +1,10 @@
 # Design directions
 
-Each direction is a runnable SwiftUI prototype in `design/explorations/`. Snapshots are rendered offscreen, so Liquid Glass is approximate in the PNGs; run the prototype to see the real thing.
+Each direction was a runnable SwiftUI prototype. The prototypes and their snapshots are kept outside the repo, in the reference folder (`design/explorations/`). Snapshots were rendered offscreen, so Liquid Glass is approximate in the PNGs.
 
 ## Instrument (direction A) (`a-instrument`)
 
-- **Run:** `cd /Users/aaron/Developer/Sextant/design/explorations/a-instrument && swift run SextantInstrument`
-- **Snapshots:** `cd /Users/aaron/Developer/Sextant/design/explorations/a-instrument && swift run SextantInstrument --snapshot snapshots   (optional: --only 01-main-dark,19-error  --scale 2)`
-- **Snapshot folder:** `/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots` (20 scenes)
+- **Snapshot folder:** `design/explorations/a-instrument/snapshots` in the reference folder (20 scenes)
 
 ### Concept
 
@@ -190,9 +188,7 @@ Reduce Motion should drop the transitions to fades (not yet wired).
 
 ## Chart Table (`b-chart-table`)
 
-- **Run:** `cd /Users/aaron/Developer/Sextant/design/explorations/b-chart-table && swift run SextantChart    (headless check of the same model intents the UI uses, no window: swift run SextantChart --selftest; all 25 checks pass)`
-- **Snapshots:** `cd /Users/aaron/Developer/Sextant/design/explorations/b-chart-table && swift run SextantChart --snapshot ./snapshots   (optional: --only 03-key-hold-edit,10-live  --scale 2). 23 scenes in about 70 s, all in-process: .prohibited activation policy, windows off-screen at alpha 0, no TCC.`
-- **Snapshot folder:** `/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots` (23 scenes)
+- **Snapshot folder:** `design/explorations/b-chart-table/snapshots` in the reference folder (23 scenes)
 
 ### Concept
 
@@ -327,9 +323,7 @@ NOT VERIFIED
 
 ## Console (`c-console`)
 
-- **Run:** `cd /Users/aaron/Developer/Sextant/design/explorations/c-console && swift run SextantConsole`
-- **Snapshots:** `cd /Users/aaron/Developer/Sextant/design/explorations/c-console && swift run SextantConsole --snapshot snapshots   (the directory is optional and defaults to ./snapshots; also takes --only 01-main-dark,10-live and --scale 2). Rendering is in-process through PrototypeKit's SnapshotRunner: activation policy is .prohibited, windows are offscreen at alpha 0, and no TCC APIs are used. All 21 scenes take about 60 s.`
-- **Snapshot folder:** `/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots` (21 scenes)
+- **Snapshot folder:** `design/explorations/c-console/snapshots` in the reference folder (21 scenes)
 
 ### Concept
 

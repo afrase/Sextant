@@ -16,6 +16,6 @@
 	<key>LSMinimumSystemVersion</key><string>26.0</string>
 	<key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
 	<key>NSHighResolutionCapable</key><true/>
-	<key>NSHumanReadableCopyright</key><string>Not affiliated with ZSA Technology Labs.</string>
+	<key>NSHumanReadableCopyright</key><string>© 2026 Aaron Frase. Not affiliated with ZSA Technology Labs.</string>
 </dict>
 </plist>

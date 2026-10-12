@@ -1,10 +1,10 @@
 # v1 plan
 
-Planned 2026-10-12 by the read-only `v1-plan` workflow (four readers, one planner) from ui-spec §13.5 and the code at c7f8422. Each slice runs in its own worktree: implement, three adversarial review lenses, verify, fix, re-verify, merge. Open questions for the user are at the end; answers go in the slice ADRs.
+Planned 2026-10-12 from ui-spec §13.5 and the code at c7f8422. Each slice is implemented, reviewed, verified and merged on its own branch. Open questions for the user are at the end; answers go in the slice ADRs.
 
 ## Summary
 
-v1 is about 21 slices in 5 waves. Sizes: 3 S, 9 M and 9 L (two of them close to XL). At about 7 agents per slice (implement, three review lenses, verify, fix, re-verify) that is roughly 150 agents.
+v1 is about 21 slices in 5 waves. Sizes: 3 S, 9 M and 9 L (two of them close to XL).
 
 **Wave 0 can start as soon as the three in-flight worktrees merge.** It needs no user answers and no hardware. Those worktrees touch LayersSection, PalettePanel, KeycodePicker, KeyCap and LayoutWindowModel, and they claim ADR 0036. Wave 0 builds the shared groundwork once, so later slices only add new files plus one-line hooks:
 - page routing, a board pick mode and assign targets;
@@ -50,7 +50,7 @@ Every v1 page, lens and live feature collides on the same few spots. Those are: 
 - Move NavigatorDisc out of BoardView.swift into its own file; Export, LayerMap and the HUD reuse it.
 - Tests: destination routing; Esc cancels a pick; a target that isn't a key never changes the selected key; window snapshots stay pixel-identical.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantUI/Sidebar/Sidebar.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Sidebar/LayoutPagesSection.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Window/LayoutWindowModel.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Window/WindowDetail.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/InspectorColumn.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Commands/LayerCommands.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Picker/KeycodePicker.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Picker/PalettePanel.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Board/BoardView.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Board/NavigatorDisc.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Canvas/LensLane.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantSnapshots/Scenes+Import.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/LayoutWindowModelTests.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/PaletteTests.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/ImportSliceTests.swift`
+**Owns:** `Sources/SextantUI/Sidebar/Sidebar.swift`, `Sources/SextantUI/Sidebar/LayoutPagesSection.swift`, `Sources/SextantUI/Window/LayoutWindowModel.swift`, `Sources/SextantUI/Window/WindowDetail.swift`, `Sources/SextantUI/Inspector/InspectorColumn.swift`, `Sources/SextantUI/Commands/LayerCommands.swift`, `Sources/SextantUI/Picker/KeycodePicker.swift`, `Sources/SextantUI/Picker/PalettePanel.swift`, `Sources/SextantUI/Board/BoardView.swift`, `Sources/SextantUI/Board/NavigatorDisc.swift (new)`, `Sources/SextantUI/Canvas/LensLane.swift`, `Sources/SextantSnapshots/Scenes+Import.swift`, `Tests/SextantUITests/LayoutWindowModelTests.swift`, `Tests/SextantUITests/PaletteTests.swift`, `Tests/SextantUITests/ImportSliceTests.swift`
 
 **Shared touches:** Rebase after the palette-dismissal worktree (PalettePanel, KeycodePicker, EditCommands, LayoutWindowModel) and the layer-rename worktree (LayersSection) merge. Regenerate Localizable.xcstrings at merge.
 
@@ -68,7 +68,7 @@ Every v1 page, lens and live feature collides on the same few spots. Those are: 
 - KeyCapModel decoration hook, shared by the Changes, Combos and Heatmap modes: dimmed (40–45%), a ring color, a corner mark as plain data (symbol, color, accessibility text) with the §4.8 priority (issue > diff > combo number > LED dot or index), and an optional fill for heat. The defaults draw exactly today's caps.
 - Tests: undo restores the combo selection; the corner-priority unit test; board snapshots stay pixel-identical.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Model/LayoutIssues.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Board/KeyText.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/EditSession.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Board/KeyCap.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/LayoutIssuesTests.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/EditSessionTests.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/KeyTextTests.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/BoardSnapshotTests.swift`
+**Owns:** `Sources/SextantDomain/Model/LayoutIssues.swift`, `Sources/SextantUI/Board/KeyText.swift`, `Sources/SextantApplication/EditSession.swift`, `Sources/SextantUI/Board/KeyCap.swift`, `Tests/SextantDomainTests/LayoutIssuesTests.swift`, `Tests/SextantApplicationTests/EditSessionTests.swift`, `Tests/SextantUITests/KeyTextTests.swift`, `Tests/SextantUITests/BoardSnapshotTests.swift`
 
 **Shared touches:** KeyCap.swift, KeyTextTests and the board snapshot references are being changed by the activator-glow worktree, so branch after it merges.
 
@@ -88,7 +88,7 @@ Every v1 page, lens and live feature collides on the same few spots. Those are: 
 - Never sent: 03, 08 (brightness steps), 07, 0A, 0B, 0C.
 - No UI and no callers yet.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantApplication/Ports/Device.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/LiveSession.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantDevice/RawHIDLink.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantApp/HardwareGate.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantSnapshots/Scenes+Device.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/DeviceFakes.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/LiveSessionTests.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/FlashModeClaimTests.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantDeviceTests/RawHIDLinkTests.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/DeviceAndBuildTests.swift`, `/Users/aaron/Developer/Sextant/docs/architecture.md (§3.1 port table)`
+**Owns:** `Sources/SextantApplication/Ports/Device.swift`, `Sources/SextantApplication/LiveSession.swift`, `Sources/SextantDevice/RawHIDLink.swift`, `Sources/SextantApp/HardwareGate.swift`, `Sources/SextantSnapshots/Scenes+Device.swift`, `Tests/SextantApplicationTests/DeviceFakes.swift`, `Tests/SextantApplicationTests/LiveSessionTests.swift`, `Tests/SextantApplicationTests/FlashModeClaimTests.swift`, `Tests/SextantDeviceTests/RawHIDLinkTests.swift`, `Tests/SextantUITests/DeviceAndBuildTests.swift`, `docs/architecture.md (§3.1 port table)`
 
 **Shared touches:** The port signature change reaches every KeyboardLink conformer and fake. It lands in wave 0 so nobody else is editing them.
 
@@ -107,7 +107,7 @@ Every v1 page, lens and live feature collides on the same few spots. Those are: 
 - Built once in the composition root and passed in SextantServices.
 - Tests with InMemoryLibrary: an Oryx serial; an sx- serial after later edits; an unknown serial.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantApplication/OnKeyboard.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/FirmwareIdentityRule.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/SextantServices.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantApp/SextantMain.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/OnKeyboardTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/FirmwareIdentityTests.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/InMemoryLibrary.swift`
+**Owns:** `Sources/SextantApplication/OnKeyboard.swift (new)`, `Sources/SextantApplication/FirmwareIdentityRule.swift`, `Sources/SextantUI/SextantServices.swift`, `Sources/SextantApp/SextantMain.swift`, `Tests/SextantApplicationTests/OnKeyboardTests.swift (new)`, `Tests/SextantApplicationTests/FirmwareIdentityTests.swift`, `Tests/SextantApplicationTests/InMemoryLibrary.swift`
 
 **Shared touches:** One line each in SextantMain and SextantServices.
 
@@ -134,7 +134,7 @@ Every v1 page, lens and live feature collides on the same few spots. Those are: 
 - Table test: each setting off its default writes its define, and the default writes nothing. Switch `refusesSettingsAndNavigatorOptionsItCantWrite` to a setting that stays refused. The 5 goldens stay byte-identical.
 - This slice owns RealToolchainTests' argument list for all of v1. Add JRGQm, m9dpx and XlrR4 (dances, combos, macros and a per-key term, never compiled under pin 93b2b9e), plus an every-setting-changed layout with a trackpad and with a trackball. Run with SEXTANT_REAL_TOOLCHAIN=1 on the already-installed toolchain, so nothing new is downloaded.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantBuild/QMKConfig.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantBuild/KeymapSource.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantBuild/KeymapTemplates.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantBuildTests/QMKGeneratorTests.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantBuildTests/RealToolchainTests.swift`, `/Users/aaron/Developer/Sextant/docs/research/02-firmware-and-flashing.md (§12 item 5)`
+**Owns:** `Sources/SextantBuild/QMKConfig.swift`, `Sources/SextantBuild/KeymapSource.swift`, `Sources/SextantBuild/KeymapTemplates.swift`, `Tests/SextantBuildTests/QMKGeneratorTests.swift`, `Tests/SextantBuildTests/RealToolchainTests.swift`, `docs/research/02-firmware-and-flashing.md (§12 item 5)`
 
 **Shared touches:** None in wave 0. Oryx never showed its output for about 6 of these: tapCodeDelay's value, NKRO, polling, aim divider, turbo multiplier and one-shot automouse. They follow question 4, and the rest of the slice doesn't wait for it.
 
@@ -162,7 +162,7 @@ These are the biggest gaps that need no keyboard. Tap dances and per-key terms f
 - goldens e5Rrr, JRGQm and XlrR4 unchanged;
 - snapshots of a flagged dance slot and a Custom term, light and dark.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Model/KeyAction+Dance.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Model/Layout+TappingTerm.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/EditSession+TappingTerm.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/TappingTermRow.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/KeyInspector.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantBuild/QMKCodes.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/FirmwareSettings/FirmwareSettingsPage.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/KeyInspectorTests.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantSnapshots/Scenes+Inspector.swift`
+**Owns:** `Sources/SextantDomain/Model/KeyAction+Dance.swift (new)`, `Sources/SextantDomain/Model/Layout+TappingTerm.swift (new)`, `Sources/SextantApplication/EditSession+TappingTerm.swift (new)`, `Sources/SextantUI/Inspector/TappingTermRow.swift (new)`, `Sources/SextantUI/Inspector/KeyInspector.swift`, `Sources/SextantBuild/QMKCodes.swift`, `Sources/SextantUI/FirmwareSettings/FirmwareSettingsPage.swift`, `Tests/SextantUITests/KeyInspectorTests.swift`, `Sources/SextantSnapshots/Scenes+Inspector.swift`
 
 **Shared touches:** QMKGenerator.swift (`KeymapPlan.token` only; Macros edits the macro emitter). LayoutIssues.swift (one call line in `check`). LayoutIssuesTests and QMKGeneratorTests get added cases. ui-spec §7.5.
 
@@ -197,7 +197,7 @@ These are the biggest gaps that need no keyboard. Tap dances and per-key terms f
 - undo names; step refusal; the recorder; goldens unchanged.
 - Snapshots: JRGQm, XlrR4, empty state, step inspector, recording, assign capsule; light and dark; 1120×640.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Model/Layout+Macros.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Model/OryxCodec.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantStorage/PackageLibrary.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/EditSession+Macros.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Macros/ (new: MacrosPage, MacrosModel, MacroTimeline, MacroStepInspector)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Picker/KeyRecorder.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantSnapshots/Scenes+Macros.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/LayoutCodecTests.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/MacroTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantStorageTests/PackageLibraryTests.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/KeyRecorderTests.swift`, `/Users/aaron/Developer/Sextant/docs/architecture.md (§6 format)`
+**Owns:** `Sources/SextantDomain/Model/Layout+Macros.swift (new)`, `Sources/SextantDomain/Model/OryxCodec.swift`, `Sources/SextantStorage/PackageLibrary.swift`, `Sources/SextantApplication/EditSession+Macros.swift (new)`, `Sources/SextantUI/Macros/ (new: MacrosPage, MacrosModel, MacroTimeline, MacroStepInspector)`, `Sources/SextantUI/Picker/KeyRecorder.swift`, `Sources/SextantSnapshots/Scenes+Macros.swift (new)`, `Tests/SextantDomainTests/LayoutCodecTests.swift`, `Tests/SextantDomainTests/MacroTests.swift (new)`, `Tests/SextantStorageTests/PackageLibraryTests.swift`, `Tests/SextantUITests/KeyRecorderTests.swift`, `docs/architecture.md (§6 format)`
 
 **Shared touches:** One-line hooks only:
 - Layout.swift (one stored field) and LayoutIssues.swift (one call line);
@@ -238,7 +238,7 @@ These are the biggest gaps that need no keyboard. Tap dances and per-key terms f
 - recordRevision; HistoryModel defaults; the prefill text.
 - Snapshots: the History window in light, dark and at 1120×640; the save sheet; the diff board with Increase Contrast and Differentiate Without Color.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Model/LayoutDiff+Summary.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/EditSession+History.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/BuildFlashSession.swift (record() only)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/History/ (new: HistoryModel, HistoryInspector, SaveRevisionSheet, ChangesStrip)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Board/BoardView.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Canvas/CanvasColumn.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Canvas/ContextStrip.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantSnapshots/SnapshotTool.swift (fixture: an edited revision)`, `/Users/aaron/Developer/Sextant/Sources/SextantSnapshots/Scenes+History.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/LayoutDiffTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/HistoryModelTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/BuildFlashSessionTests.swift`
+**Owns:** `Sources/SextantDomain/Model/LayoutDiff+Summary.swift (new)`, `Sources/SextantApplication/EditSession+History.swift (new)`, `Sources/SextantApplication/BuildFlashSession.swift (record() only)`, `Sources/SextantUI/History/ (new: HistoryModel, HistoryInspector, SaveRevisionSheet, ChangesStrip)`, `Sources/SextantUI/Board/BoardView.swift`, `Sources/SextantUI/Canvas/CanvasColumn.swift`, `Sources/SextantUI/Canvas/ContextStrip.swift`, `Sources/SextantSnapshots/SnapshotTool.swift (fixture: an edited revision)`, `Sources/SextantSnapshots/Scenes+History.swift (new)`, `Tests/SextantDomainTests/LayoutDiffTests.swift (new)`, `Tests/SextantUITests/HistoryModelTests.swift (new)`, `Tests/SextantApplicationTests/BuildFlashSessionTests.swift`
 
 **Shared touches:** One-line hooks only:
 - FileCommands (the ⌘S line, next to 1.4's Export submenu) and WindowPresentations (the sheet);
@@ -270,7 +270,7 @@ This is wave 1's only big BoardView edit.
 - a BoardImage snapshot reference.
 The user checks ⌘P in the app.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantUI/Export/ (new: BoardImage, LayoutExport, PrintLayout, optional BoardSVG)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Commands/SextantCommands.swift`, `/Users/aaron/Developer/Sextant/.swiftlint.yml`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/LayoutExportTests.swift (new)`
+**Owns:** `Sources/SextantUI/Export/ (new: BoardImage, LayoutExport, PrintLayout, optional BoardSVG)`, `Sources/SextantUI/Commands/SextantCommands.swift`, `.swiftlint.yml`, `Tests/SextantUITests/LayoutExportTests.swift (new)`
 
 **Shared touches:** FileCommands (the Export submenu, next to 1.3's ⌘S line), WindowPresentations (the exporter presenter, next to 1.3's sheet), one exporter-state line in LayoutWindowModel, one line in Scenes.swift.
 
@@ -299,7 +299,7 @@ The user checks ⌘P in the app.
 - presses are hidden when the setting is off; Reset clears seenLiveDataNote.
 - Snapshots: settings-keyboard in light and dark, settings-advanced, device-popover-trace.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantUI/Settings/SettingsView.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Settings/KeyboardSettings.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Settings/AdvancedSettings.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/RawHIDTrace.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/LiveSession.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantDevice/RawHIDLink.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Device/LiveWindow.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Device/DevicePopover.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/RawHIDTraceTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/SettingsTests.swift (new)`
+**Owns:** `Sources/SextantUI/Settings/SettingsView.swift`, `Sources/SextantUI/Settings/KeyboardSettings.swift (new)`, `Sources/SextantUI/Settings/AdvancedSettings.swift (new)`, `Sources/SextantApplication/RawHIDTrace.swift (new)`, `Sources/SextantApplication/LiveSession.swift`, `Sources/SextantDevice/RawHIDLink.swift`, `Sources/SextantUI/Device/LiveWindow.swift`, `Sources/SextantUI/Device/DevicePopover.swift`, `Tests/SextantApplicationTests/RawHIDTraceTests.swift (new)`, `Tests/SextantUITests/SettingsTests.swift (new)`
 
 **Shared touches:** Ports/Device.swift (HIDTraceEntry) and one wiring line in SextantMain. Branch after 0.3 merges, because it reshapes LiveSession and RawHIDLink.
 
@@ -335,7 +335,7 @@ Combos waits for Macros: its Choose Output takes a macro through the picker's Ma
 - creation mode and the Esc ladder.
 - Snapshots: JRGQm (dense) and m9dpx, creation, empty state; light and dark; 1120×640.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Model/Layout+Combos.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Board/BoardGeometry.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/EditSession+Combos.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Combos/ (new: CombosModel, ComboInspector, ComboOverlay, ComboCards)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Theme/Tokens.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantSnapshots/Scenes+Combos.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/ComboTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/TokenContrastTests.swift`
+**Owns:** `Sources/SextantDomain/Model/Layout+Combos.swift (new)`, `Sources/SextantDomain/Board/BoardGeometry.swift`, `Sources/SextantApplication/EditSession+Combos.swift (new)`, `Sources/SextantUI/Combos/ (new: CombosModel, ComboInspector, ComboOverlay, ComboCards)`, `Sources/SextantUI/Theme/Tokens.swift`, `Sources/SextantSnapshots/Scenes+Combos.swift (new)`, `Tests/SextantDomainTests/ComboTests.swift (new)`, `Tests/SextantUITests/TokenContrastTests.swift`
 
 **Shared touches:** One-line hooks or small hunks only:
 - QMKGenerator.swift (the combo loop only) and LayoutIssues.swift (one call line);
@@ -381,7 +381,7 @@ Combos waits for Macros: its Choose Output takes a macro through the picker's Ma
 - the pasteboard tests use a uniquely named NSPasteboard, never .general.
 The user checks ⌘C and ⌘V in the app.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantApplication/EditSession.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Model/CopiedKeys.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Board/KeyPasteboard.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/MultiKeyInspector.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/CopyLayerMenu.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/KeyDragSwap.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/KeyColour.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/LayerInspector.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Sidebar/LayersSection.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Commands/KeyCommands.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/Library.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/CopiedKeysTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/KeyPasteboardTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/LibraryManagementTests.swift`
+**Owns:** `Sources/SextantApplication/EditSession.swift`, `Sources/SextantDomain/Model/CopiedKeys.swift (new)`, `Sources/SextantUI/Board/KeyPasteboard.swift (new)`, `Sources/SextantUI/Inspector/MultiKeyInspector.swift (new)`, `Sources/SextantUI/Inspector/CopyLayerMenu.swift (new)`, `Sources/SextantUI/Inspector/KeyDragSwap.swift`, `Sources/SextantUI/Inspector/KeyColour.swift`, `Sources/SextantUI/Inspector/LayerInspector.swift`, `Sources/SextantUI/Sidebar/LayersSection.swift`, `Sources/SextantUI/Commands/KeyCommands.swift`, `Sources/SextantApplication/Library.swift`, `Tests/SextantDomainTests/CopiedKeysTests.swift (new)`, `Tests/SextantUITests/KeyPasteboardTests.swift (new)`, `Tests/SextantApplicationTests/LibraryManagementTests.swift`
 
 **Shared touches:** BoardView (click handling and rings; 2.1 adds only an overlay), InspectorColumn (one routing branch), ContextStrip ('3 keys selected'), LayerCommands (the Copy Layer To line), LayoutWindowModel (the selected count), KeycodePicker (`keySlotTarget` becomes the '3 keys' default target, ADR 0037; the picker's Macros rows call `session.assignMacro` on the tap rather than `target.assign`, so route them for multi-key targets too), Resources/Info.plist (optional UTType). The only slice allowed to edit EditSession.swift itself in wave 2.
 
@@ -411,7 +411,7 @@ The user checks ⌘C and ⌘V in the app.
 - goldens unchanged.
 - Snapshots: full page, search, Modified only, animation picker, trackball Navigator; light and dark; minimum size.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Settings/SettingsCatalogData.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Settings/SettingsCatalog.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Settings/LayoutSettings.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/EditSession+Settings.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantBuild/QMKConfig.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantBuild/QMKCodes.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/FirmwareSettings/FirmwareSettingsPage.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/FirmwareSettings/FirmwareSettingsInspector.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Commands/EditCommands.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantSnapshots/Scenes+Settings.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/LayoutSettingsTests.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/CatalogTests.swift`
+**Owns:** `Sources/SextantDomain/Settings/SettingsCatalogData.swift`, `Sources/SextantDomain/Settings/SettingsCatalog.swift`, `Sources/SextantDomain/Settings/LayoutSettings.swift`, `Sources/SextantApplication/EditSession+Settings.swift (new)`, `Sources/SextantBuild/QMKConfig.swift`, `Sources/SextantBuild/QMKCodes.swift`, `Sources/SextantUI/FirmwareSettings/FirmwareSettingsPage.swift`, `Sources/SextantUI/FirmwareSettings/FirmwareSettingsInspector.swift`, `Sources/SextantUI/Commands/EditCommands.swift`, `Sources/SextantSnapshots/Scenes+Settings.swift (new)`, `Tests/SextantDomainTests/LayoutSettingsTests.swift`, `Tests/SextantDomainTests/CatalogTests.swift`
 
 **Shared touches:** QMKGenerator.swift (the token branch; 2.1 edits the combo loop), QMKGeneratorTests (Space Cadet: out of `stillRefused`, one Mapping row), KeycodePicker (International gating), Scenes.swift.
 
@@ -438,7 +438,7 @@ The user checks ⌘C and ⌘V in the app.
 - snapshots layer-map-brdsys in light and dark.
 The real hot-key adapter stays out of `swift test`, where it would grab ⌃⌥digits system-wide.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantUI/Device/LayerMap.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Device/MoveKeyboardToLayerMenu.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/Ports/HotKeys.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/LayerShortcuts.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantSystem/CarbonHotKeys.swift (new; or the library adapter)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Commands/KeyboardCommands.swift`, `/Users/aaron/Developer/Sextant/Package.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/LayerShortcutsTests.swift (new)`
+**Owns:** `Sources/SextantUI/Device/LayerMap.swift (new)`, `Sources/SextantUI/Device/MoveKeyboardToLayerMenu.swift (new)`, `Sources/SextantApplication/Ports/HotKeys.swift (new)`, `Sources/SextantApplication/LayerShortcuts.swift (new)`, `Sources/SextantSystem/CarbonHotKeys.swift (new; or the library adapter)`, `Sources/SextantUI/Commands/KeyboardCommands.swift`, `Package.swift`, `Tests/SextantApplicationTests/LayerShortcutsTests.swift (new)`
 
 **Shared touches:** OnKeyboard.swift (one method), DevicePopover (one menu), KeyboardSettings.swift (one group, from 1.5), .swiftlint.yml, SextantMain and SextantServices (one line each), docs/architecture.md §1 and §3.1.
 
@@ -454,7 +454,7 @@ The real hot-key adapter stays out of `swift test`, where it would grab ⌃⌥di
 - At record(), store Sextant's built image with `storeFirmware`, so a revision can show its firmware size delta. Hide the delta when no image exists.
 - Tests: Flash This Revision builds and records the revision's layout through FakeGenerator, FakeToolchain and FakeFlasher; the zip holds the revision's GeneratedSource; the size delta appears and is hidden when missing.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantApplication/BuildFlashSession.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/History/HistoryInspector.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/BuildFlashSessionTests.swift`
+**Owns:** `Sources/SextantApplication/BuildFlashSession.swift`, `Sources/SextantUI/History/HistoryInspector.swift`, `Tests/SextantApplicationTests/BuildFlashSessionTests.swift`
 
 **Shared touches:** The Build & Flash sheet's entry point (LayoutWindowModel.build, one parameter).
 
@@ -494,7 +494,7 @@ These need wave 0's command channel and OnKeyboard, 1.5's settings, and 2.4's La
 - Snapshots of the panel as a plain view (tiles, list, no keyboard, access off, flashing; light and dark) and of the labels.
 The user checks template rendering, dismissal and focus in the app.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantUI/MenuBar/ (new: MenuBarPanel, MenuBarLabel, AppPresence)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Theme/SextantMark.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/SextantScenes.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantSnapshots/Scenes+MenuBar.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/MenuBarTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/AppPresenceTests.swift (new)`
+**Owns:** `Sources/SextantUI/MenuBar/ (new: MenuBarPanel, MenuBarLabel, AppPresence)`, `Sources/SextantUI/Theme/SextantMark.swift (new)`, `Sources/SextantUI/SextantScenes.swift`, `Sources/SextantSnapshots/Scenes+MenuBar.swift (new)`, `Tests/SextantUITests/MenuBarTests.swift (new)`, `Tests/SextantUITests/AppPresenceTests.swift (new)`
 
 **Shared touches:** LiveSession and BuildFlashSession (the flashProgress field, set next to isWritingFirmware), SettingsView (the General rows), SextantCommands (Main Window), LayoutWindow (window count and pending request), Scenes.swift.
 
@@ -527,7 +527,7 @@ The keyboard reports only the highest layer and the physical positions, so this 
 - Snapshots: the HUD in light, dark, tinted, sizes S and L, the pill, Reduce Transparency.
 The user checks focus and click-through in the app.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Model/LayerHold.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Overlay/ (new: OverlayModel, OverlayPanel, HUDView)`, `/Users/aaron/Developer/Sextant/Sources/SextantSnapshots/Scenes+Overlay.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/LayerHoldTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/OverlayModelTests.swift (new)`
+**Owns:** `Sources/SextantDomain/Model/LayerHold.swift (new)`, `Sources/SextantUI/Overlay/ (new: OverlayModel, OverlayPanel, HUDView)`, `Sources/SextantSnapshots/Scenes+Overlay.swift (new)`, `Tests/SextantDomainTests/LayerHoldTests.swift (new)`, `Tests/SextantUITests/OverlayModelTests.swift (new)`
 
 **Shared touches:** KeyboardCommands (the overlay line), DevicePopover (one toggle), LayoutWindow (reports key and layer), SextantMain or SextantScenes (lifetime), Package.swift (test dependency), Scenes.swift.
 
@@ -553,7 +553,7 @@ The user checks focus and click-through in the app.
 - with FakeKeyboardLink: the first frame is 09 then the 06 diffs; one painted key sends a single 06; brightness scaling; every release path sends 05 00; a second window's claim is refused; a reconnect re-sends; nothing is sent when not live.
 - Snapshots: the inspector connected and disconnected, light and dark.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Model/Layout+LED.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantBuild/KeymapSource.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/LightingPreview.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/LightingInspector.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/LightingPreviewTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/LayersAndLightingTests.swift`
+**Owns:** `Sources/SextantDomain/Model/Layout+LED.swift (new)`, `Sources/SextantBuild/KeymapSource.swift`, `Sources/SextantApplication/LightingPreview.swift (new)`, `Sources/SextantUI/Inspector/LightingInspector.swift`, `Tests/SextantApplicationTests/LightingPreviewTests.swift (new)`, `Tests/SextantUITests/LayersAndLightingTests.swift`
 
 **Shared touches:** KeyboardCommands (the preview line), SextantMain (quit and sleep release), LayoutWindow (close releases), LayoutWindowModel (feeds frames), SextantServices, Scenes+Layers.swift.
 
@@ -576,7 +576,7 @@ The user checks focus and click-through in the app.
 - presses are ignored during secure input.
 - A snapshot of the capsule.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantUI/Board/SelectByPress.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/SelectByPressTests.swift (new)`
+**Owns:** `Sources/SextantUI/Board/SelectByPress.swift (new)`, `Tests/SextantUITests/SelectByPressTests.swift (new)`
 
 **Shared touches:** KeyCommands (the ⇧⌘L line), LayoutWindowModel (one state line), LiveWindow, KeyRecorder (the shared monitor), LensLane (the capsule), BoardView (Esc rung), Scenes+Picker.swift.
 
@@ -617,7 +617,7 @@ Both run without a click per action, and each needs its own privacy or consent A
 - heat-ramp contrast.
 - Snapshots: light, dark, inspector, recording off, no data.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Heatmap/ (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Board/BoardDefinition.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Board/VoyagerKeys.swift (regenerated)`, `/Users/aaron/Developer/Sextant/scripts/gen-board-definition.py`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/Ports/Heatmap.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/HeatmapRecorder.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantStorage/HeatmapFiles.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Heatmap/ (new: HeatmapInspector, HeatmapStrip)`, `/Users/aaron/Developer/Sextant/Sources/SextantSnapshots/Scenes+Heatmap.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/HeatmapTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/HeatmapRecorderTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantStorageTests/HeatmapFilesTests.swift (new)`
+**Owns:** `Sources/SextantDomain/Heatmap/ (new)`, `Sources/SextantDomain/Board/BoardDefinition.swift`, `Sources/SextantDomain/Board/VoyagerKeys.swift (regenerated)`, `scripts/gen-board-definition.py`, `Sources/SextantApplication/Ports/Heatmap.swift (new)`, `Sources/SextantApplication/HeatmapRecorder.swift (new)`, `Sources/SextantStorage/HeatmapFiles.swift (new)`, `Sources/SextantUI/Heatmap/ (new: HeatmapInspector, HeatmapStrip)`, `Sources/SextantSnapshots/Scenes+Heatmap.swift (new)`, `Tests/SextantDomainTests/HeatmapTests.swift (new)`, `Tests/SextantApplicationTests/HeatmapRecorderTests.swift (new)`, `Tests/SextantStorageTests/HeatmapFilesTests.swift (new)`
 
 **Shared touches:** One-line hooks or small hunks only:
 - the Lens enum (the only v1 Lens case) in LayoutWindowModel;
@@ -650,7 +650,7 @@ Both run without a click per action, and each needs its own privacy or consent A
 - sidecar contract: a missing file reads as empty, Duplicate copies it, the hash doesn't change;
 - snapshots of the page, inspector and empty state, light and dark.
 
-**Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Model/AppLayerRules.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/Ports/System.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/AppLayerSwitcher.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantApp/WorkspaceAppWatcher.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/AppLayers/ (new: AppLayersPage, AppLayersInspector)`, `/Users/aaron/Developer/Sextant/Sources/SextantSnapshots/Scenes+AppLayers.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/AppLayerRulesTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/AppLayerSwitcherTests.swift (new)`
+**Owns:** `Sources/SextantDomain/Model/AppLayerRules.swift (new)`, `Sources/SextantApplication/Ports/System.swift (new)`, `Sources/SextantApplication/AppLayerSwitcher.swift (new)`, `Sources/SextantApp/WorkspaceAppWatcher.swift (new)`, `Sources/SextantUI/AppLayers/ (new: AppLayersPage, AppLayersInspector)`, `Sources/SextantSnapshots/Scenes+AppLayers.swift (new)`, `Tests/SextantDomainTests/AppLayerRulesTests.swift (new)`, `Tests/SextantApplicationTests/AppLayerSwitcherTests.swift (new)`
 
 **Shared touches:** One-line hooks or small hunks only:
 - Ports/LayoutLibrary.swift and PackageLibrary.swift (two methods); InMemoryLibrary and PackageLibraryTests;
