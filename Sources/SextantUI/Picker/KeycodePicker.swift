@@ -2,10 +2,23 @@ import Foundation
 import SextantApplication
 import SextantDomain
 
+/// What the keycode picker assigns to (spec §5.6). The selected key's slot is the default; combo outputs, macro steps
+/// and multi-selection bring their own, so they never edit the picker (ADR 0037).
+struct AssignTarget {
+    /// The scope token's text: "› Hold on Main" after the key's cap, or "Combo 3 › Output".
+    var title: String
+    /// The key whose cap the token shows and the board previews; nil when the target isn't a key.
+    var key: KeyRef?
+    /// The value being replaced: the footer's "Now …" and the ✓.
+    var current: KeyAction?
+    /// Writes the keycode, as one undo step.
+    var assign: @MainActor (KeyAction) -> Void
+}
+
 /// The floating panel's state (spec §5.6, §5.7): one component, two scopes.
-public struct Palette: Equatable {
+public struct Palette {
     public enum Scope: Equatable, Sendable {
-        /// The keycode picker: assigns to the selected key's slot.
+        /// The keycode picker: assigns to ``target``, or to the selected key's slot.
         case assign
         /// ⌘K: commands, keys, layers, keycodes and firmware settings.
         case general
@@ -20,12 +33,16 @@ public struct Palette: Equatable {
         didSet {
             highlight = 0
             category = nil
+            // Dropping the token drops its target: the general palette's keycodes assign to the selected key.
+            if scope != .assign { target = nil }
         }
     }
     var query = "" { didSet { if query != oldValue { highlight = 0 } } }
     /// The picker's category rail; nil is Suggested.
     var category: KeycodeCategory? { didSet { highlight = 0 } }
     var highlight = 0
+    /// The picker's own target; nil assigns to the selected key's slot.
+    var target: AssignTarget?
 }
 
 /// One result row or tile.
@@ -79,6 +96,13 @@ extension LayoutWindowModel {
         palette = Palette(scope: .assign, query: query)
     }
 
+    /// Opens the picker on a target that isn't the selected key's slot, on any page. It ends Record Key.
+    func openKeycodePicker(_ target: AssignTarget) {
+        guard session != nil else { return }
+        recorder = nil
+        palette = Palette(scope: .assign, target: target)
+    }
+
     /// Opens the command palette (⌘K, the toolbar's Search) or Find Key (⌘F). It ends Record Key.
     public func openPalette(_ scope: Palette.Scope = .general, query: String = "") {
         guard session != nil else { return }
@@ -94,8 +118,21 @@ extension LayoutWindowModel {
         if palette?.scope == .general { closePalette() } else { openPalette() }
     }
 
-    /// The picker shows keycodes only while a key is selected; otherwise it falls back to the general palette.
-    var isPicking: Bool { palette?.scope == .assign && hasSelectedKey }
+    /// The picker shows keycodes only while it has a target (``assignTarget``, without building it); otherwise it falls
+    /// back to the general palette.
+    var isPicking: Bool { palette?.scope == .assign && (palette?.target != nil || hasSelectedKey) }
+
+    /// What the picker assigns to: its own target, or the selected key's slot while a key is shown.
+    var assignTarget: AssignTarget? { palette?.target ?? keySlotTarget }
+
+    private var keySlotTarget: AssignTarget? {
+        guard hasSelectedKey, let session, let index = session.selection.keyIndex else { return nil }
+        let (layer, slot) = (session.selection.layer, session.selection.slot)
+        return AssignTarget(
+            title: String(localized: "› \(slot.title) on \(session.currentLayer?.title ?? "")"),
+            key: KeyRef(layer: layer, index: index, slot: slot), current: session.selectedAction
+        ) { session.setAction(self.assigned($0)) }
+    }
 
     /// The results for the open panel, in display order.
     var paletteItems: [PaletteItem] {
@@ -130,9 +167,9 @@ extension LayoutWindowModel {
         palette?.category = all[(at + (back ? all.count - 1 : 1)) % all.count]
     }
 
-    /// ⌥⇥: the next slot of the same key.
+    /// ⌥⇥: the next slot of the same key; other targets have no slots.
     func cycleSlot() {
-        guard let session, let key = session.selection.keyIndex else { return }
+        guard palette?.target == nil, let session, let key = session.selection.keyIndex else { return }
         let slots = KeySlot.allCases
         let at = slots.firstIndex(of: session.selection.slot) ?? 0
         session.select(key: key, slot: slots[(at + 1) % slots.count])
@@ -146,14 +183,15 @@ extension LayoutWindowModel {
 
     // MARK: Assigning
 
-    /// Assigns a keycode to the selected slot as one undo step. A plain HID keycode replacing a plain keycode keeps its
-    /// chord modifiers, as `EditSession.setCode` does. With `advance` (⌘⏎) the selection moves to the next key in reading
-    /// order and the picker stays open; otherwise it closes.
+    /// Assigns a keycode to the target as one undo step. On the selected slot, a plain HID keycode replacing a plain
+    /// keycode keeps its chord modifiers, as `EditSession.setCode` does, and with `advance` (⌘⏎) the selection moves to
+    /// the next key in reading order and the picker stays open; otherwise it closes.
     func assign(_ action: KeyAction, advance: Bool = false) {
-        guard let session, let index = session.selection.keyIndex else { return }
-        session.setAction(assigned(action))
+        guard let target = assignTarget else { return }
+        target.assign(action)
         recentKeycodes = [action] + recentKeycodes.filter { $0 != action }.prefix(7)
-        guard advance else {
+        // Another target has no next key: it closes, and the selection stays.
+        guard advance, palette?.target == nil, let session, let index = session.selection.keyIndex else {
             palette = nil
             return
         }
@@ -172,26 +210,21 @@ extension LayoutWindowModel {
         return KeyAction(code: action.code, modifiers: existing.modifiers)
     }
 
-    /// The selected cap as the highlighted keycode would make it, for the picker preview state (spec §4.7, §5.6).
+    /// The target's cap as the highlighted keycode would make it, for the picker preview state (spec §4.7, §5.6).
     var pickerPreview: KeyCapModel? {
-        guard isPicking, let session, let index = session.selection.keyIndex,
-            let action = paletteItems[safe: palette?.highlight ?? 0]?.keycode
+        guard isPicking, let session, let key = assignTarget?.key, let action = paletteItems[safe: palette?.highlight ?? 0]?.keycode
         else { return nil }
-        let (layer, slot) = (session.selection.layer, session.selection.slot)
         var layout = session.layout
-        layout.updateKey(layer: layer, index: index) { $0[slot] = assigned(action) }
-        return KeyCapModel(layout: layout, layer: layer, index: index, mode: legendMode)
+        layout.updateKey(layer: key.layer, index: key.index) { $0[key.slot ?? .tap] = assigned(action) }
+        return KeyCapModel(layout: layout, layer: key.layer, index: key.index, mode: legendMode)
     }
 
-    /// The scope token's text after the cap: "› Hold on Main".
-    var pickerTarget: String {
-        guard let session else { return "" }
-        return String(localized: "› \(session.selection.slot.title) on \(session.currentLayer?.title ?? "")")
-    }
+    /// The scope token's text: "› Hold on Main" after the cap.
+    var pickerTarget: String { assignTarget?.title ?? "" }
 
     /// The footer's current value: "Now KC_TRANSPARENT".
     var pickerCurrent: String {
-        guard let action = session?.selectedAction else { return String(localized: "Now empty") }
+        guard let action = assignTarget?.current else { return String(localized: "Now empty") }
         return String(localized: "Now \(Legends.legend(for: action).qmk)")
     }
 
@@ -209,7 +242,7 @@ extension LayoutWindowModel {
             query.isEmpty
             ? category.map { KeycodeCatalog.entries(in: $0).flatMap(pickable) } ?? suggestedKeycodes
             : KeycodeCatalog.search(query, category: category).flatMap(pickable)
-        let current = session.selectedAction
+        let current = assignTarget?.current
         return actions.map { action in
             let legend = Legends.legend(for: action, layerNames: session.layout.layerNames)
             let entry = KeycodeCatalog.entry(for: action.code)
@@ -237,7 +270,8 @@ extension LayoutWindowModel {
     /// Recents, then slot-aware suggestions: modifiers and layers for a hold, common keys otherwise.
     private var suggestedKeycodes: [KeyAction] {
         guard let session else { return [] }
-        let isHold = session.selection.slot == .hold || session.selection.slot == .tapHold
+        let slot = assignTarget?.key?.slot
+        let isHold = slot == .hold || slot == .tapHold
         let codes =
             isHold
             ? [
@@ -290,7 +324,8 @@ extension LayoutWindowModel {
         items += Self.ranked(commands, query).prefix(8)
         items += keyItems(query, limit: 6)
         items += Self.ranked(layerItems, query).prefix(5)
-        if let index = session.selection.keyIndex {
+        // Only where the key is shown: entering the assign scope on a page would find no target.
+        if hasSelectedKey, let index = session.selection.keyIndex {
             let key = session.legend(at: index).legend.primary.map(CapLegendView.capText) ?? String(localized: "Key \(index)")
             items += keycodeItems(query, category: nil).prefix(5).enumerated().map { n, item in
                 var item = item
@@ -363,7 +398,7 @@ extension LayoutWindowModel {
             PaletteItem(id: "setting-\(id)", group: .settings, title: title, detail: detail, leading: .symbol("slider.horizontal.3")) {
                 [weak self] in
                 self?.palette = nil
-                self?.showsFirmwareSettings = true
+                self?.destination = .firmwareSettings
                 self?.settingsScrollTarget = section
             }
         }
