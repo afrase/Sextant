@@ -639,7 +639,7 @@ The bench is the content surface behind the board. It is never glass.
      - Off.
      - The layout's 10 swatches.
      - Custom…, which opens a `ColorPicker`.
-   - Tapping term (v1): "Global (180 ms)" or Custom, with a field and stepper in 10 ms steps, showing the delta from global.
+   - Tapping term (v1): "Global (180 ms)" or Custom, with a field and stepper in 10 ms steps, showing the delta from global ("+20 ms from global"). It shows for a key with a hold, a double tap or a tap then hold, or one that already has its own term. A custom term turns on Per-key tapping term in the same undo step, "Set Tapping Term"; a value equal to the global term is stored as Global (ADR 0041).
 8. **Actions.**
    - [Record Key] at full width, with "⇧⌘R" right-aligned in secondary text.
    - [Make Transparent ⌘⌫] and [Disable ⇧⌘⌫] at half width each.
@@ -892,7 +892,7 @@ The picker is the command palette component in **assign scope**.
 - **Tap dance is not a separate document.** A key becomes a tap dance when its Double tap or Tap then hold slot is filled.
 - **Cap:** a `kind.tapDance` signal bar; the band follows §4.4.
 - **Inspector:** the summary sentence covers all slots: "Tap types A. Double-tap types Esc. Tap then hold: Left Command."
-- **The generator builds tap dances.** A slot whose action can't run inside a dance (a macro, a lighting key, TG, OSL and the like) raises a live issue on that slot: "Action can't run in a tap dance".
+- **The generator builds tap dances.** A slot whose action can't run inside a dance (a macro, a lighting key, a firmware key, TG, OSL and the like), or a tap that isn't a key, raises a live issue on that slot: "Action can't run in a tap dance", or on the tap "A tap dance's tap must be a key" (ADR 0041).
 
 ---
 
@@ -1206,6 +1206,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
   - a footer: "Default 200 ms · Reset to Default" when modified, and the setting id in mono on the trailing edge.
 - **Navigator section** (always shown, ADR 0035): it starts with "Navigator" (None · Trackpad · Trackball, segmented) and "Side" (Left · Right, disabled with None), then the attached kind's settings. Footer: "Choose the module attached to your keyboard. The change takes effect after you build and flash." A new kind starts from its defaults; moving keeps the options. The knob isn't offered.
 - **Coupling rules** appear inline, for example: "Turning on Chordal hold also turns on Exclude thumbs."
+- **Hidden:** "Prefer tap in tap-and-hold dances" (`dancesTapAction`), since Oryx's firmware is the same either way (ADR 0041).
 - **Search** matches titles, descriptions, ids and synonyms. It shows "11 settings match ‘hold’".
 
 **Inspector**

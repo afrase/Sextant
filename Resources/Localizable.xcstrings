@@ -131,6 +131,16 @@
         }
       }
     },
+    "%@%lld ms from global" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@%2$lld ms from global"
+          }
+        }
+      }
+    },
     "%@, hold for %@" : {
       "localizations" : {
         "en" : {
@@ -308,6 +318,9 @@
 
     },
     "= %lld in binary" : {
+
+    },
+    "A tap dance's tap must be a key" : {
 
     },
     "Action can't run in a tap dance" : {
@@ -896,6 +909,9 @@
 
     },
     "Generating source" : {
+
+    },
+    "Global (%lld ms)" : {
 
     },
     "Go to" : {
@@ -1701,6 +1717,9 @@
     "Runs %@ · not in your library" : {
 
     },
+    "Same as global" : {
+
+    },
     "Save Revision…" : {
 
     },
@@ -1753,6 +1772,9 @@
 
     },
     "Set Navigator" : {
+
+    },
+    "Set Tapping Term" : {
 
     },
     "Set up" : {
@@ -1975,7 +1997,10 @@
     "Tap-toggle" : {
 
     },
-    "Tapping term ignored: per-key terms are off" : {
+    "Tapping term" : {
+
+    },
+    "Tapping term ignored (Per-key tapping term is off)" : {
 
     },
     "The DFU suffix checksum is wrong (%@, expected %@)." : {
@@ -2382,6 +2407,9 @@
 
     },
     "matches this layout" : {
+
+    },
+    "ms" : {
 
     },
     "not connected" : {

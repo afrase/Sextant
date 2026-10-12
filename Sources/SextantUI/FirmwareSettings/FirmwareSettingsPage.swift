@@ -10,13 +10,18 @@ enum FirmwareSettings {
     static func sections(for layout: KeyboardLayout, catalog: SettingsCatalog = .voyager) -> [SettingsSection] {
         catalog.sections.compactMap { section in
             var section = section
-            section.settings = section.settings.filter { isCore($0, in: section.id) && applies($0, to: layout, catalog: catalog) }
+            section.settings = section.settings.filter {
+                !hidden.contains($0.id) && isCore($0, in: section.id) && applies($0, to: layout, catalog: catalog)
+            }
             return section.settings.isEmpty && section.id != navigator ? nil : section
         }
     }
 
     /// The Navigator section's id.
     static let navigator = "navigator"
+
+    /// Never shown: Oryx's firmware is the same with "Prefer tap in tap-and-hold dances" on or off (ADR 0041).
+    private static let hidden: Set<String> = ["dancesTapAction"]
 
     /// "Trackpad", or "None" without a Navigator.
     static func title(_ kind: NavigatorConfig.Kind?) -> String {

@@ -105,16 +105,17 @@ struct KeymapSource {
         out.add("};")
     }
 
-    /// Per-key tapping terms. QMK keys them by keycode, so identical keys share the first one's term. Only dynamic
-    /// tapping term declares `g_tapping_term` (XlrR4, Oryx's one sample with per-key terms, has it); otherwise QMK uses
-    /// `TAPPING_TERM`.
+    /// Per-key tapping terms. QMK keys them by keycode, so identical keys, however their codes are spelled, share the
+    /// first one's term (a second `case` for one keycode doesn't compile). Only dynamic tapping term declares
+    /// `g_tapping_term` (XlrR4, Oryx's one sample with per-key terms, has it); otherwise QMK uses `TAPPING_TERM`.
     private func tappingTerms(_ out: inout SourceText) {
         let global = features.usesDynamicTappingTerm ? "g_tapping_term" : "TAPPING_TERM"
         out.add("\nuint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {\n    switch (keycode) {")
         var seen: Set<String> = []
         for (li, layer) in layout.layers.enumerated() {
             for (ki, key) in layer.keys.enumerated() {
-                guard let term = key.tappingTerm, seen.insert(plan.tokens[li][ki]).inserted else { continue }
+                let keycode = plan.tokens[li][ki].replacing(/[A-Z_][A-Z0-9_]*/) { KeycodeCatalog.canonicalCode(String($0.output)) }
+                guard let term = key.tappingTerm, seen.insert(keycode).inserted else { continue }
                 let delta = term - features.tappingTerm
                 let ref = KeyRef(layer: li, index: ki)
                 out.add("        case \(plan.tokens[li][ki]):", ref)

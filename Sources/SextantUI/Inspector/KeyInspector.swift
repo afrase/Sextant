@@ -2,19 +2,20 @@ import SextantApplication
 import SextantDomain
 import SwiftUI
 
-/// The key editor (spec §5.1): header, issues, the inherited key, slot strip and editor, label, LED colour and
-/// actions. Every change is one undoable `EditSession` call; the label and colour commit when editing ends.
+/// The key editor (spec §5.1): header, issues, the inherited key, slot strip and editor, label, LED colour, tapping
+/// term and actions. Every change is one undoable `EditSession` call; the text fields and colour commit when editing ends.
 struct KeyInspector: View {
     var model: LayoutWindowModel
     var session: EditSession
     var index: Int
+    /// One focus for the key's text fields, so moving between them can't leave ⌘⌫ pointed at the key.
+    @FocusState private var focusedField: KeyField?
 
     var body: some View {
         let layout = session.layout
         let layer = session.selection.layer
         let cap = KeyCapModel(layout: layout, layer: layer, index: index)
         let own = layout.key(layer: layer, index: index) ?? .transparent
-        let layerID = layout.layers[safe: layer]?.id ?? ""
         VStack(alignment: .leading, spacing: 12) {
             header(cap, own: own)
             issues(layer: layer)
@@ -28,14 +29,7 @@ struct KeyInspector: View {
             )
             Divider()
             Text("Key").font(.headline)
-            // Keyed by the key they edit, so a commit as the selection moves lands on the key it was typed for.
-            Group {
-                KeyLabelField(model: model, session: session, layerID: layerID, index: index, stored: own.customLabel ?? "")
-                KeyColourRow(
-                    model: model, session: session, layerID: layerID, index: index, stored: own.glowColor,
-                    layerColor: layout.layers[safe: layer]?.color)
-            }
-            .id("\(layerID)/\(index)")
+            keySection(own, layer: layer)
             Divider()
             HStack {
                 Button {
@@ -55,6 +49,25 @@ struct KeyInspector: View {
             }
         }
         .labeledContentStyle(InspectorRowStyle())
+        .onChange(of: focusedField) { model.isEditingKeyLabel = focusedField != nil }
+    }
+
+    /// Label, LED colour and tapping term (spec §5.1 item 7). Keyed by the key they edit, so a commit as the selection
+    /// moves lands on the key it was typed for.
+    private func keySection(_ own: Key, layer: Int) -> some View {
+        let layerID = session.layout.layers[safe: layer]?.id ?? ""
+        return Group {
+            KeyLabelField(
+                model: model, session: session, layerID: layerID, index: index, stored: own.customLabel ?? "", focus: $focusedField)
+            KeyColourRow(
+                model: model, session: session, layerID: layerID, index: index, stored: own.glowColor,
+                layerColor: session.layout.layers[safe: layer]?.color)
+            if TappingTermRow.shows(for: own) {
+                TappingTermRow(
+                    model: model, session: session, layerID: layerID, index: index, stored: own.tappingTerm, focus: $focusedField)
+            }
+        }
+        .id("\(layerID)/\(index)")
     }
 
     /// The key's live issues (spec §5.1 item 2).
@@ -148,6 +161,9 @@ struct KeyInspector: View {
     }
 }
 
+/// The key inspector's text fields.
+enum KeyField: Hashable { case label, tappingTerm }
+
 /// The custom label (spec §5.1): up to 10 characters, committed on Return or when focus leaves, never per keystroke.
 /// It finds its layer by id when it commits, so a layer moved or deleted meanwhile can't redirect the edit.
 struct KeyLabelField: View {
@@ -156,17 +172,23 @@ struct KeyLabelField: View {
     let layerID: String
     let index: Int
     var stored: String
+    var focus: FocusState<KeyField?>.Binding
     @State private var draft: String
-    @FocusState private var focused: Bool
+    /// The key the draft was typed for: it commits only onto a key with the same actions (see `TappingTermRow`).
+    @State private var typedFor: Key?
 
-    init(model: LayoutWindowModel, session: EditSession, layerID: String, index: Int, stored: String) {
+    init(model: LayoutWindowModel, session: EditSession, layerID: String, index: Int, stored: String, focus: FocusState<KeyField?>.Binding)
+    {
         self.model = model
         self.session = session
         self.layerID = layerID
         self.index = index
         self.stored = stored
+        self.focus = focus
         _draft = State(initialValue: stored)
     }
+
+    private var focused: Bool { focus.wrappedValue == .label }
 
     var body: some View {
         LabeledContent("Label") {
@@ -175,19 +197,19 @@ struct KeyLabelField: View {
                     .labelsHidden()
                     // The spec's placeholder fits the 156 pt field only at small size.
                     .controlSize(.small)
-                    .focused($focused)
+                    .focused(focus, equals: .label)
                     .onSubmit(commit)
-                    .onChange(of: draft) { if draft.count > 10 { draft = String(draft.prefix(10)) } }
+                    .onChange(of: draft) {
+                        if draft.count > 10 { draft = String(draft.prefix(10)) }
+                        typedFor = session.layout.layers.first { $0.id == layerID }?.keys[safe: index]
+                    }
                 Text("\(draft.count)/10 · Shown in Sextant only; not sent to the keyboard.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .onChange(of: focused) {
-            model.isEditingKeyLabel = focused
-            if !focused { commit() }
-        }
+        .onChange(of: focused) { if !focused { commit() } }
         // Its own commit or an undo, redo or menu edit: either way the stored label wins.
         .onChange(of: stored) { draft = stored }
         .onDisappear {
@@ -197,8 +219,13 @@ struct KeyLabelField: View {
     }
 
     private func commit() {
-        // Not onto a session the window has already let go.
-        guard model.session === session, draft != stored, let layer = session.layout.layers.firstIndex(where: { $0.id == layerID }) else {
+        // Not onto a session the window has already let go, nor onto another key now in this place (a swap, Make
+        // Transparent).
+        guard model.session === session, draft != stored, let typedFor else { return }
+        guard let layer = session.layout.layers.firstIndex(where: { $0.id == layerID }),
+            session.layout.key(layer: layer, index: index)?.hasSameActions(as: typedFor) == true
+        else {
+            draft = stored  // the field never shows text that won't land
             return
         }
         session.setLabel(draft, layer: layer, index: index)

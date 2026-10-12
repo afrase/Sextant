@@ -225,8 +225,10 @@ enum KeyText {
             case let .comboKeyTransparent(i): String(localized: "Combo key \(member(i)) is transparent")
             case let .comboKeyTapDance(i): String(localized: "Combo key \(member(i)) is a tap dance")
             case let .rollingNeighbors(a, b): String(localized: "Keys \(member(a)) and \(member(b)) are rolling neighbors")
+            // A flagged tap may run, but the dance also types it on three or more taps.
+            case .notInTapDance where issue.key?.slot == .tap: String(localized: "A tap dance's tap must be a key")
             case .notInTapDance: String(localized: "Action can't run in a tap dance")
-            case .tappingTermIgnored: String(localized: "Tapping term ignored: per-key terms are off")
+            case .tappingTermIgnored: String(localized: "Tapping term ignored (Per-key tapping term is off)")
             case .nearSizeLimit: String(localized: "Firmware is near the size limit")
             }
         if let i = comboIndex { return "\(what) · \(layout.combos[i].name ?? String(localized: "Combo \(i + 1)"))" }

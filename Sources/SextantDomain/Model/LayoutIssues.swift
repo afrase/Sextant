@@ -49,8 +49,8 @@ public struct LayoutIssue: Hashable, Sendable, Identifiable {
 }
 
 public enum LayoutIssues {
-    /// Every live issue in `layout`, errors first, then in layer and key order. The generator builds tap dances, so
-    /// they raise no issue; the size estimate needs a build, so the build reports it.
+    /// Every live issue in `layout`, errors first, then in layer and key order. The generator builds tap dances, so only
+    /// a dance slot it can't run raises one; the size estimate needs a build, so the build reports it.
     public static func check(_ layout: KeyboardLayout) -> [LayoutIssue] {
         var issues: [LayoutIssue] = []
         var seen: Set<LayoutIssue> = []
@@ -72,6 +72,8 @@ public enum LayoutIssues {
         for (li, layer) in layout.layers.enumerated() {
             for (ki, key) in layer.keys.enumerated() {
                 for (slot, action) in key.actions { check(action, KeyRef(layer: li, index: ki, slot: slot)) }
+                for slot in key.slotsOutsideTapDance { add(.notInTapDance, KeyRef(layer: li, index: ki, slot: slot)) }
+                if key.tappingTerm != nil, !layout.perKeyTappingTermsOn { add(.tappingTermIgnored, KeyRef(layer: li, index: ki), .warning) }
             }
         }
         for combo in layout.combos {
