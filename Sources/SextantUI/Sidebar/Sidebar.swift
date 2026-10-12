@@ -1,9 +1,18 @@
 import SwiftUI
 
-/// What the sidebar selects; the destination selects the centre and the inspector (spec §2.2).
-enum Destination: Hashable {
+/// What the sidebar selects; the destination selects the centre and the inspector (spec §2.2). Every v1 page is
+/// declared here; a page without a sidebar row routes to nothing until its slice lands (ADR 0037).
+public enum Destination: Hashable {
     case layer(Int)
-    case firmwareSettings
+    case firmwareSettings, combos, macros, history, appLayers
+
+    /// Combos and History are board modes (spec §2.2); the other pages replace the board.
+    var showsBoard: Bool {
+        switch self {
+        case .layer, .combos, .history: true
+        case .firmwareSettings, .macros, .appLayers: false
+        }
+    }
 }
 
 /// The sidebar (spec §3.6): one section per file, so each can grow on its own.
@@ -26,18 +35,7 @@ struct Sidebar: View {
     /// Layouts are opened with their buttons, not selected.
     private var selection: Binding<Destination?> {
         Binding(
-            get: {
-                guard let session = model.session else { return nil }
-                return model.showsFirmwareSettings ? .firmwareSettings : .layer(session.selection.layer)
-            },
-            set: {
-                switch $0 {
-                case let .layer(index):
-                    model.showsFirmwareSettings = false
-                    model.session?.select(layer: index)
-                case .firmwareSettings: model.showsFirmwareSettings = true
-                case nil: break
-                }
-            })
+            get: { model.session == nil ? nil : model.destination },
+            set: { if let destination = $0 { model.destination = destination } })
     }
 }

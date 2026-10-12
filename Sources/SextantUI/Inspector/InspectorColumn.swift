@@ -8,14 +8,21 @@ struct InspectorColumn: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 if let session = model.session {
-                    if model.showsFirmwareSettings {
-                        FirmwareSettingsInspector(model: model, session: session)
-                    } else if model.lens == .lighting {
-                        LightingInspector(model: model, session: session)
-                    } else if let index = session.selection.keyIndex {
-                        KeyInspector(model: model, session: session, index: index)
-                    } else {
-                        LayerInspector(model: model, session: session)
+                    switch model.destination {
+                    case .firmwareSettings: FirmwareSettingsInspector(model: model, session: session)
+                    // Each v1 page replaces its own line when it lands (ADR 0037).
+                    case .combos: EmptyView()
+                    case .macros: EmptyView()
+                    case .history: EmptyView()
+                    case .appLayers: EmptyView()
+                    case .layer:
+                        if model.lens == .lighting {
+                            LightingInspector(model: model, session: session)
+                        } else if let index = session.selection.keyIndex {
+                            KeyInspector(model: model, session: session, index: index)
+                        } else {
+                            LayerInspector(model: model, session: session)
+                        }
                     }
                 } else {
                     Text("No layout open").foregroundStyle(.secondary)

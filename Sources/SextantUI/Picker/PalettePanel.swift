@@ -114,7 +114,9 @@ struct PaletteHost: ViewModifier {
                     return true
                 }
                 guard let point = window.contentView?.convert(location, from: nil) else { return false }
-                if !hits.keepsOpen(point, picking: model.isPicking) {
+                // A key click retargets only the selected key's picker; another target closes like any click outside,
+                // and so does every picker during a board pick, whose click it is (ADR 0037).
+                if !hits.keepsOpen(point, picking: model.isPicking && model.palette?.target == nil && model.boardPick == nil) {
                     model.closePalette()
                     model.paletteDismissingClick = event.eventNumber
                 }
@@ -206,20 +208,23 @@ struct PalettePanel: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            if isPicking, let index = session.selection.keyIndex {
+            if isPicking, let target = model.assignTarget {
                 // The scope token: "[Z] › Hold on Main". ⌫ on an empty field removes it.
                 HStack(spacing: 6) {
-                    KeyCap(model: KeyCapModel(layout: session.layout, layer: session.selection.layer, index: index), u: 24)
-                        .frame(width: 24, height: 24)
-                    Text(model.pickerTarget).font(.callout.weight(.medium)).lineLimit(1)
+                    if let key = target.key {
+                        KeyCap(model: KeyCapModel(layout: session.layout, layer: key.layer, index: key.index), u: 24)
+                            .frame(width: 24, height: 24)
+                    }
+                    Text(target.title).font(.callout.weight(.medium)).lineLimit(1)
                 }
-                .padding(.leading, 3)
+                .padding(.leading, target.key == nil ? 10 : 3)
                 .padding(.trailing, 10)
                 .frame(height: 30)
                 .background(Capsule().fill(Color.accentColor.opacity(0.14)))
                 .fixedSize()
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel(Text("Assigning to key \(index) \(model.pickerTarget)"))
+                .accessibilityLabel(
+                    target.key.map { Text("Assigning to key \($0.index) \(target.title)") } ?? Text("Assigning to \(target.title)"))
             } else {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
             }
@@ -324,6 +329,10 @@ struct PalettePanel: View {
 
     private var hints: String {
         if !isPicking { return String(localized: "↑↓ move · ⏎ run · esc close") }
+        // A feature's target has no next key, and Record Key records into the selected key, not the target.
+        if palette.target != nil {
+            return compact ? String(localized: "⏎ assign · esc close") : String(localized: "↑↓ move · ⏎ assign · ⇥ category · esc close")
+        }
         return compact
             ? String(localized: "⏎ assign · ⌘⏎ & next · esc close")
             : String(localized: "↑↓ move · ⏎ assign · ⌘⏎ assign & next · ⇥ category · ⇧⌘R record · esc close")
@@ -474,29 +483,25 @@ private struct CategoryRail: View {
     }
 }
 
-/// ⏎ and typing on the focused board open the picker on the selected key (spec §9.2, §5.5). A closed panel gives the
-/// board focus, so arrows and ⏎ go on working.
+/// ⏎ and typing on the focused board open the picker on the selected key, or ⏎ picks it during a board pick (spec
+/// §9.2, §5.5). A closed panel gives the board focus, so arrows and ⏎ go on working.
 struct BoardPickerKeys: ViewModifier {
-    var session: EditSession
     var isFocused: FocusState<Bool>.Binding
     @Environment(\.layoutWindow) private var window
 
     func body(content: Content) -> some View {
         content
             .onKeyPress(.return, phases: .down) { press in
-                press.modifiers.isEmpty ? open("") : .ignored
+                press.modifiers.isEmpty ? handle("") : .ignored
             }
             .onKeyPress(characters: .alphanumerics.union(.punctuationCharacters).union(.symbols), phases: .down) { press in
-                press.modifiers.isDisjoint(with: [.command, .control]) ? open(press.characters) : .ignored
+                press.modifiers.isDisjoint(with: [.command, .control]) ? handle(press.characters) : .ignored
             }
             .onChange(of: window?.boardFocusRequests) { isFocused.wrappedValue = true }
     }
 
-    /// Not in the Lighting lens, whose letters are its tools.
-    private func open(_ query: String) -> KeyPress.Result {
-        guard let window, window.lens == .keys, session.selection.keyIndex != nil else { return .ignored }
-        window.openKeycodePicker(prefilled: query)
-        return .handled
+    private func handle(_ query: String) -> KeyPress.Result {
+        window?.typeOnBoard(query) == true ? .handled : .ignored
     }
 }
 
@@ -510,10 +515,14 @@ struct PickerCapOverlay: View {
     @State private var dim = false
 
     var body: some View {
-        if let window, let session = window.session, let index = session.selection.keyIndex, let frame = board.frames[safe: index] {
+        let preview = window?.pickerPreview
+        // A preview sits on its target's key; Record Key on the selected one.
+        if let window, let session = window.session, let index = preview?.index ?? session.selection.keyIndex,
+            let frame = board.frames[safe: index]
+        {
             let shape = RoundedRectangle(cornerRadius: 0.16 * cap, style: .continuous)
             ZStack {
-                if let preview = window.pickerPreview {
+                if let preview {
                     shape.fill(LinearGradient(colors: [Tokens.capTop.color, Tokens.capBottom.color], startPoint: .top, endPoint: .bottom))
                     KeyCap(model: preview, u: cap, height: frame.size.height).opacity(0.75)
                     shape.inset(by: -1.5).stroke(Color.accentColor, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))

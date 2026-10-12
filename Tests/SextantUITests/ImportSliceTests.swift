@@ -61,10 +61,10 @@ struct ImportSliceTests {
         let session = try #require(model.session)
         session.select(layer: 1)
         session.select(key: 19)
-        model.showsFirmwareSettings = true
+        model.destination = .firmwareSettings
         #expect(!model.hasSelectedKey && !model.canOverrideKey && session.selection.keyIndex == 19)
         model.showIssue(KeyRef(layer: 0, index: 3))
-        #expect(!model.showsFirmwareSettings && model.hasSelectedKey, "Show Key returns to the board")
+        #expect(model.destination == .layer(0) && model.hasSelectedKey, "Show Key returns to the board")
     }
 
     /// Trashing the layout open here ends its session safely; another window's layout can't be trashed from here.

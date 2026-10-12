@@ -8,8 +8,8 @@ struct WindowDetail: View {
     var body: some View {
         content
             .modifier(LayerSwitchEffects(model: model))
-            // The page doesn't show the key Record Key would assign to.
-            .onChange(of: model.showsFirmwareSettings) { model.recorder = nil }
+            // A page doesn't show the key Record Key would assign to.
+            .onChange(of: model.page) { model.recorder = nil }
             // One alert, in the key window: every window shares the library.
             .alert(
                 Text("Sextant couldn't change the library"),
@@ -25,15 +25,21 @@ struct WindowDetail: View {
 
     @ViewBuilder private var content: some View {
         if let session = model.session {
-            // The palette floats over both pages: Firmware settings is one of its groups.
+            // The palette floats over every page: Firmware settings is one of its groups.
             Group {
-                if model.showsFirmwareSettings {
+                switch model.page {
+                case .firmwareSettings:
                     FirmwareSettingsPage(model: model, session: session)
                         .navigationTitle(session.layout.title)
                         .navigationSubtitle(
                             session.isEditedSinceRevision
                                 ? String(localized: "Firmware Settings · Edited") : String(localized: "Firmware Settings"))
-                } else {
+                // Each v1 page replaces its own line when it lands; until then no sidebar row reaches it (ADR 0037).
+                case .combos: EmptyView()
+                case .macros: EmptyView()
+                case .history: EmptyView()
+                case .appLayers: EmptyView()
+                case .layer, nil:
                     CanvasColumn(model: model, session: session)
                         .navigationTitle(session.layout.title)
                         .modifier(LayerSubtitle(model: model))
@@ -60,7 +66,7 @@ struct WindowDetail: View {
 // The two modifiers below read the selected layer in their own bodies, so a layer switch doesn't re-run WindowDetail
 // and rebuild the canvas column (the board would evaluate twice per switch).
 
-/// Choosing a layer by number or menu returns from a page to the board; Follow's layer changes don't.
+/// Choosing a layer by number or menu returns from a page that hides the board to the board; Follow's layer changes don't.
 private struct LayerSwitchEffects: ViewModifier {
     var model: LayoutWindowModel
 
@@ -68,7 +74,7 @@ private struct LayerSwitchEffects: ViewModifier {
         content.onChange(of: model.session?.selection.layer) {
             // A layer picked by hand ends Record Key too: it would assign to the layer it started on, now hidden.
             if !model.isFollowing {
-                model.showsFirmwareSettings = false
+                model.showBoard()
                 model.recorder = nil
             }
         }

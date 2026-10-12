@@ -5,7 +5,8 @@ import SextantApplication
 import SextantDomain
 import SwiftUI
 
-/// A board lens: a way of reading the same board (spec §2.2). Heatmap, Combos and Changes arrive in v1.
+/// A board lens: a way of reading the same board (spec §2.2). Heatmap arrives in v1; Combos and Changes are board modes
+/// of their destinations, not lenses, since every case is a View ▸ Lens item (ADR 0037).
 public enum Lens: String, CaseIterable, Sendable {
     case keys, lighting
 
@@ -101,6 +102,9 @@ public final class LayoutWindowModel {
     var paletteDismissingClick: Int?
     /// Record Key while it listens for the next key on the Mac's keyboard (spec §5.8); nil when off.
     var recorder: KeyRecorder?
+    /// A gesture that takes the board's key clicks instead of selection (choosing combo members, Assign to Key); nil
+    /// when off.
+    var boardPick: BoardPick?
     /// Keycodes assigned from the picker and commands run from the palette, newest first (Suggested, Recent).
     var recentKeycodes: [KeyAction] = []
     var recentCommands: [String] = []
@@ -108,8 +112,19 @@ public final class LayoutWindowModel {
     // MARK: import
     /// The Import from Oryx sheet's flow while the sheet is open (spec §8.1).
     var importFlow: ImportFromOryx?
-    /// The sidebar's destination is Firmware Settings rather than a layer (spec §2.2).
-    public var showsFirmwareSettings = false
+    /// The sidebar's destination (spec §2.2). A layer is the session's selected layer, so Follow and undo move it too;
+    /// choosing one leaves the page for its board.
+    public var destination: Destination {
+        get { page ?? .layer(session?.selection.layer ?? 0) }
+        set {
+            guard case let .layer(index) = newValue else { return page = newValue }
+            page = nil
+            session?.select(layer: index)
+        }
+    }
+    /// The page shown instead of the board; nil on the board, never a layer. Views that mustn't depend on the
+    /// selected layer read this rather than ``destination``.
+    private(set) var page: Destination?
     /// The Firmware Settings section to scroll to (the inspector's Sections list).
     var settingsScrollTarget: String?
     /// The layout whose Rename… alert is showing.
@@ -180,7 +195,10 @@ public final class LayoutWindowModel {
             buildFlash = makeBuildFlash?(next)
             loadError = nil
             // Choosing a layout is choosing a destination (spec §2.2): its board, not the last layout's settings page.
-            showsFirmwareSettings = false
+            page = nil
+            // A pick or a panel's assign target edits the layout it was made for.
+            cancelBoardPick()
+            palette = nil
             settingsScrollTarget = nil
             if next.recoveredUnsavedChanges { AccessibilityNotification.Announcement(Self.recoveredNotice).post() }
             return target
@@ -260,8 +278,8 @@ public final class LayoutWindowModel {
 
     // MARK: Command enablement
 
-    /// Key commands are off on the Firmware Settings page, where the selected key isn't shown (the selection stays).
-    var hasSelectedKey: Bool { !showsFirmwareSettings && session?.selection.keyIndex != nil }
+    /// Key commands are off on the pages, where the selected key isn't shown (the selection stays).
+    var hasSelectedKey: Bool { page == nil && session?.selection.keyIndex != nil }
     /// A text field may have focus (key label, layer rename, palette, import, layout rename): ⌘⌫ and ⇧⌘⌫ reach the menu
     /// before the field, so they must not edit the selected key.
     var isEditingText: Bool {
@@ -271,7 +289,7 @@ public final class LayoutWindowModel {
     var canShowNextLayer: Bool { session.map { $0.selection.layer < $0.layout.layers.count - 1 } ?? false }
     var canDeleteLayer: Bool { (session?.layout.layers.count ?? 0) > 1 }
     var canOverrideKey: Bool {
-        guard !showsFirmwareSettings, let session, let index = session.selection.keyIndex else { return false }
+        guard page == nil, let session, let index = session.selection.keyIndex else { return false }
         return session.layout.resolvedKey(layer: session.selection.layer, index: index).isInherited
     }
     /// Follow needs a keyboard that reports its layer.
@@ -288,23 +306,27 @@ public final class LayoutWindowModel {
 
     // MARK: Actions
 
-    // Layer commands act on the shown layer: from the Firmware Settings page, they show the board first.
+    /// Returns from a page that hides the board to the shown layer's board. Combos and History show the board, so they
+    /// stay while their layer changes.
+    func showBoard() { if page?.showsBoard == false { page = nil } }
+
+    // Layer commands act on the shown layer: from a page that hides it, they show the board first.
     func showAdjacentLayer(_ step: Int) {
         guard let session else { return }
-        showsFirmwareSettings = false
+        showBoard()
         session.select(layer: session.selection.layer + step)
     }
 
     func moveLayer(by step: Int) {
         guard let session else { return }
-        showsFirmwareSettings = false
+        showBoard()
         session.moveLayer(from: session.selection.layer, to: session.selection.layer + step)
     }
 
     /// Deletes the shown layer, asking first when keys still switch to it (spec §6.1).
     func requestDeleteLayer() {
         guard let session, canDeleteLayer else { return }
-        showsFirmwareSettings = false
+        showBoard()
         let layer = session.selection.layer
         if session.layout.keysActivating(layer: layer).isEmpty {
             session.deleteLayer(layer)
@@ -346,9 +368,30 @@ public final class LayoutWindowModel {
     }
 
     func showIssue(_ key: KeyRef) {
-        showsFirmwareSettings = false
-        session?.select(layer: key.layer)
+        destination = .layer(key.layer)
         session?.select(key: key.index, slot: key.slot)
+    }
+
+    /// A click on a board key, VoiceOver's activate, or ⏎ during a pick: a pick takes the key and ends when it says it is
+    /// done; otherwise the key is selected.
+    func click(key index: Int) {
+        if let pick = boardPick {
+            if pick.onPick(index) { boardPick = nil }
+        } else {
+            session?.select(key: index)
+        }
+    }
+
+    /// Ends the pick without finishing it (esc, its Cancel button).
+    func cancelBoardPick() {
+        let pick = boardPick
+        boardPick = nil
+        pick?.onCancel()
+    }
+
+    /// Esc on the board steps back one level (spec §9.3): a pick ends first (step 4), then the key is deselected (step 5).
+    func escapeBoard() {
+        if boardPick != nil { cancelBoardPick() } else { session?.select(key: nil) }
     }
 
     /// Opens the layout's package in Finder (File ▸ Show in Finder).

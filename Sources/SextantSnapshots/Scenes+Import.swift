@@ -34,7 +34,7 @@ extension Scenes {
             session.setSetting("tappingTerm", to: .number(180))
             session.setSetting("flowTap", to: .number(100))
             session.setSetting("automouseTime", to: .number(800))
-            firmware.showsFirmwareSettings = true
+            firmware.destination = .firmwareSettings
             let make = { LayoutWindow(model: firmware, layoutID: .constant(session.id)) }
             scenes += SnapshotScene.pair("firmware-settings", size: full) { make() }
             scenes += SnapshotScene.pair("firmware-settings-min", size: CGSize(width: 1120, height: 640)) { make() }
@@ -47,7 +47,7 @@ extension Scenes {
             if let model = await ownLibraryModel(importing: "my-layout-KlgM7-full.json"), let session = model.session {
                 session.moveNavigator(to: .left)
                 session.setNavigator(kind)
-                model.showsFirmwareSettings = true
+                model.destination = .firmwareSettings
                 scenes += SnapshotScene.pair("firmware-settings-\(name)", size: CGSize(width: full.width, height: height)) {
                     LayoutWindow(model: model, layoutID: .constant(session.id))
                 }

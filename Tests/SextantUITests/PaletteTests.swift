@@ -38,7 +38,7 @@ struct PaletteTests {
         model.openPalette(query: "tapping term")
         let row = try #require(model.paletteItems.first { $0.id == "setting-tappingTerm" })
         model.run(row)
-        #expect(model.palette == nil && model.showsFirmwareSettings && model.settingsScrollTarget == "tapping")
+        #expect(model.palette == nil && model.destination == .firmwareSettings && model.settingsScrollTarget == "tapping")
     }
 
     /// The Navigator has a row too (ADR 0035), and Navigator settings read the Navigator's options.
@@ -58,7 +58,7 @@ struct PaletteTests {
         let row = try #require(model.paletteItems.first { $0.id == "setting-navigator" })
         #expect(row.detail == "Trackpad · Left")
         model.run(row)
-        #expect(model.palette == nil && model.showsFirmwareSettings && model.settingsScrollTarget == "navigator")
+        #expect(model.palette == nil && model.destination == .firmwareSettings && model.settingsScrollTarget == "navigator")
     }
 
     @Test func holdSuggestsModifiersAndOtherLayers() async throws {
@@ -265,6 +265,62 @@ struct PaletteTests {
             #expect(CGRect(origin: .zero, size: column).contains(panel))
             #expect(panel.width >= column.width / 2 - 24, "key \(frame.index): narrows only by the key's reach")
         }
+    }
+
+    /// A target that isn't a key (a combo output, a macro step) gets the keycode; the selected key never changes (ADR 0037).
+    @Test func aTargetThatIsNotAKeyNeverChangesTheSelectedKey() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.select(key: 19, slot: .hold)
+        let before = session.layout
+        var assigned: [KeyAction] = []
+        let target = AssignTarget(title: "Combo 3 › Output", current: KeyAction(code: "KC_ESCAPE")) { assigned.append($0) }
+        model.openKeycodePicker(target)
+        #expect(model.isPicking && model.pickerTarget == "Combo 3 › Output" && model.pickerCurrent == "Now KC_ESCAPE")
+        #expect(model.paletteItems.first?.keycode == KeyAction(code: "KC_ESCAPE"), "Suggested is the target's, not the key's Hold")
+        model.cycleSlot()
+        model.palette?.query = "esc"
+        #expect(model.pickerPreview == nil && model.paletteItems.first?.isCurrent == true)
+        model.runHighlighted(advance: true)
+        #expect(assigned == [KeyAction(code: "KC_ESCAPE")] && model.palette == nil, "⌘⏎ has no next key")
+        #expect(session.selection == EditorSelection(layer: 0, keyIndex: 19, slot: .hold) && session.layout == before)
+
+        model.destination = .macros
+        model.openKeycodePicker(target)
+        #expect(model.isPicking, "a target works on any page")
+        model.dropScopeToken()
+        #expect(model.palette?.target == nil && !model.isPicking, "dropping the token drops its target")
+    }
+
+    /// A key target previews what it writes: the keycode as picked, without the selected slot's chord, and only on the
+    /// shown layer's board (ADR 0037).
+    @Test func aKeyTargetPreviewsWhatItWrites() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.select(key: 19)
+        session.setModifiers([.leftShift])
+        var assigned: [KeyAction] = []
+        model.openKeycodePicker(AssignTarget(title: "Key 5", key: KeyRef(layer: 0, index: 5, slot: .tap)) { assigned.append($0) })
+        model.palette?.query = "KC_B"
+        #expect(model.pickerPreview?.index == 5 && model.pickerPreview?.legend.legend.primary?.qmk == "KC_B")
+        model.runHighlighted()
+        #expect(assigned == [KeyAction(code: "KC_B")])
+        model.openKeycodePicker(AssignTarget(title: "Key 5 on Sym", key: KeyRef(layer: 2, index: 5, slot: .tap)) { _ in })
+        #expect(model.pickerPreview == nil, "the board shows layer 0")
+    }
+
+    /// ⌘K's layer rows and Find Key's hits show the board from a page, even on the layer already shown.
+    @Test func layerAndKeyRowsShowTheBoardFromAPage() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        model.destination = .firmwareSettings
+        model.openPalette(query: session.layout.layers[0].title)
+        model.run(try #require(model.paletteItems.first { $0.id.hasPrefix("layer-") }))
+        #expect(model.destination == .layer(0))
+        model.destination = .macros
+        model.openPalette(.keys)
+        model.run(try #require(model.paletteItems.first { $0.id.hasPrefix("key-0-") }))
+        #expect(model.destination == .layer(0) && model.hasSelectedKey)
     }
 
     @Test func paletteSearchRanksExactPrefixWordSubstring() {

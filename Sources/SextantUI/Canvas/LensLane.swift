@@ -11,8 +11,11 @@ struct LensLane: View {
                 if model.lens == .lighting, let session = model.session {
                     LightingCapsule(model: model, session: session).glassEffectTransition(.materialize)
                 }
-                // Status by priority: an issue > recording > the rest.
-                if model.recorder != nil, model.laneStatus?.isIssue != true {
+                // Status by priority: a pick (the only place that says what a click does) > an issue > recording > the rest.
+                // Record Key hides a pick while it holds the keyboard, since esc ends it first (spec §9.3).
+                if let pick = model.boardPick, model.recorder == nil {
+                    PickCapsule(model: model, prompt: pick.prompt).glassEffectTransition(.materialize)
+                } else if model.recorder != nil, model.laneStatus?.isIssue != true {
                     RecordingCapsule(model: model).glassEffectTransition(.materialize)
                 } else if let status = model.laneStatus {
                     capsule(status)
@@ -22,6 +25,7 @@ struct LensLane: View {
         }
         .animation(motion.standard, value: model.laneStatus)
         .animation(motion.standard, value: model.recorder != nil)
+        .animation(motion.standard, value: model.boardPick != nil)
     }
 
     @ViewBuilder private func capsule(_ status: LaneStatus) -> some View {
@@ -46,6 +50,24 @@ struct LensLane: View {
                 Text("Sextant couldn’t save: \(reason)").lineLimit(1).help(reason)
                 Button("Try Again") { Task { await model.session?.flush() } }.buttonStyle(.borderless)
             }
+        }
+        .font(.callout.weight(.medium))
+        .padding(.horizontal, 12)
+        .frame(height: 28)
+        .surface(Capsule(), interactive: true)
+    }
+}
+
+/// A board pick's prompt, with [Cancel] as esc does (spec §6.3, §6.4).
+private struct PickCapsule: View {
+    var model: LayoutWindowModel
+    var prompt: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "hand.point.up.left").foregroundStyle(Color.accentColor).accessibilityHidden(true)
+            Text(prompt).lineLimit(1)
+            Button("Cancel") { model.cancelBoardPick() }.buttonStyle(.borderless)
         }
         .font(.callout.weight(.medium))
         .padding(.horizontal, 12)

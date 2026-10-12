@@ -120,10 +120,10 @@ struct LayoutWindowModelTests {
         edited.updateKey(layer: 0, index: 13) { $0 = Key("KC_FROM_THE_FUTURE") }
         await store.saveRecovery(edited, for: entry.id)
         let model = LayoutWindowModel(library: library)
-        model.showsFirmwareSettings = true
+        model.destination = .firmwareSettings
         await model.open(nil)
         #expect(model.session?.layout.title == "Edited before the crash" && model.laneStatus == .recovered)
-        #expect(!model.showsFirmwareSettings, "a layout opens on its board")
+        #expect(model.page == nil, "a layout opens on its board")
         model.session?.recoveredUnsavedChanges = false  // OK
         #expect(model.laneStatus?.isIssue == true, "the unknown keycode's error comes back")
     }
@@ -133,6 +133,61 @@ struct LayoutWindowModelTests {
         #expect(model.kindsOnLayer == [.regular, .modifier, .dualFunction])
         model.session?.select(layer: 2)
         #expect(model.kindsOnLayer == [.regular, .lighting, .label, .transparent])
+    }
+
+    /// Spec §2.2: the destination is a layer's board or a page, and the layer is the session's (ADR 0037).
+    @Test func theDestinationIsALayerOrAPage() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.select(key: 19)
+        #expect(model.destination == .layer(0) && model.page == nil)
+        for page in [Destination.firmwareSettings, .combos, .macros, .history, .appLayers] {
+            model.destination = page
+            #expect(model.destination == page && model.page == page && !model.hasSelectedKey, "\(page) hides the key")
+        }
+        model.destination = .layer(2)
+        #expect(model.page == nil && session.selection.layer == 2 && model.hasSelectedKey, "choosing a layer shows its board")
+        session.select(layer: 1)
+        #expect(model.destination == .layer(1), "Follow and undo move the layer")
+        model.destination = .firmwareSettings
+        model.showAdjacentLayer(1)
+        #expect(model.destination == .layer(2), "a layer command shows the board")
+        model.destination = .history
+        model.showAdjacentLayer(-1)
+        #expect(model.destination == .history && session.selection.layer == 1, "Combos and History show the board already")
+    }
+
+    /// Spec §9.3: esc on the board ends a pick (step 4) before it deselects the key (step 5); a pick click never selects.
+    @Test func escCancelsAPickBeforeDeselecting() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.select(key: 19)
+        var picked: [Int] = []
+        var cancels = 0
+        let members: @MainActor (Int) -> Bool = { index in
+            picked.append(index)
+            return picked.count == 2
+        }
+        model.boardPick = BoardPick(prompt: "Click 2 keys", onPick: members) { cancels += 1 }
+        model.click(key: 3)
+        #expect(picked == [3] && model.boardPick != nil && session.selection.keyIndex == 19)
+        #expect(model.typeOnBoard("a") == false && model.palette == nil, "typing opens no picker under a pick")
+        model.escapeBoard()
+        #expect(model.boardPick == nil && cancels == 1 && session.selection.keyIndex == 19)
+        model.escapeBoard()
+        #expect(session.selection.keyIndex == nil)
+        model.click(key: 7)
+        #expect(session.selection.keyIndex == 7, "without a pick a click selects")
+
+        model.boardPick = BoardPick(prompt: "Click a key", onPick: members) { cancels += 1 }
+        #expect(model.typeOnBoard("") && picked == [3, 7], "⏎ picks the selected key, for the keyboard alone")
+        #expect(model.boardPick == nil && cancels == 1 && model.palette == nil, "a finished pick ends without cancelling")
+
+        let other = try await model.library.importOryxJSON(try #require(userLayoutData))
+        model.boardPick = BoardPick(prompt: "Click a key", onPick: { _ in true }) { cancels += 1 }
+        model.openKeycodePicker(AssignTarget(title: "Combo 1 › Output") { _ in })
+        await model.open(other.id)
+        #expect(model.boardPick == nil && cancels == 2 && model.palette == nil, "another layout cancels what was made for this one")
     }
 
     /// Spec §3.2: the window minimum is 640 plus the visible columns' minimums.

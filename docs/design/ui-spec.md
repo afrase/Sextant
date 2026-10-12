@@ -370,13 +370,14 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
 **Lens lane (36 pt)**
 - An `HStack` inside a `GlassEffectContainer(spacing: 8)`, centred. It holds at most:
   1. a **lens capsule**: Lighting tools, Heatmap summary, Combos "New Combo" plus instructions, or the History comparison;
-  2. a **status capsule**, by priority: error > recording > Follow/live > app rule.
+  2. a **status capsule**, by priority: board pick > error > recording > Follow/live > app rule. A board pick (choosing combo members, Assign to Key) comes first because only its prompt says what a click does. Record Key started during a pick hides it until recording ends, since esc ends recording first (§9.3, ADR 0037).
 - Capsules are 28 pt tall. They use `.glassEffect(.regular.interactive(), in: .capsule)` and appear with `.glassEffectTransition(.materialize)`.
 
 | Status capsule | Content | Action |
 |---|---|---|
 | Error | `xmark.octagon.fill` "Unknown keycode on Brd+Sys · key 45 · Tap · keymap.c:31" | [Show Key] (⌘') |
 | Recording | red dot "Listening for a key… esc cancels" | [Cancel] |
+| Board pick (v1) | `hand.point.up.left` "Click a key to play ‘Open Keymap’ on tap · esc cancels" | [Cancel] |
 | Live (Follow on) | green dot "LIVE · Brd+Sys held by Space · 2 keys down" | [Stop Following] |
 | App rule (v1) | "Xcode is frontmost → keyboard on Sym+Num" | [Rules…] |
 
@@ -707,6 +708,7 @@ The picker is the command palette component in **assign scope**.
 
 **Header**
 - A scope token shows the target: "[Z] › Hold on Main". ⌫ on an empty field removes the token and turns the panel into the general palette.
+- A target that isn't a key ("Combo 3 › Output", a macro step) has no cap and no board preview. ⌘⏎ assigns and closes, the footer leaves out "& next" and ⇧⌘R, and the selected key never changes (ADR 0037).
 - The search field is focused, with the placeholder "Search 320 keycodes, or type a character".
 
 **Category rail** (160 pt, labelled, with counts):
@@ -1330,7 +1332,7 @@ The board is one tab stop. These keys are handled with `.onKeyPress` and `.onMov
 | Key | Action |
 |---|---|
 | ← ↑ → ↓ | Move the selection to the geometric neighbour. Crosses the halves and reaches the thumbs (`BoardGeometry.neighbor`) |
-| ⏎ | Open the picker for the current slot |
+| ⏎ | Open the picker for the current slot. During a board pick (§6.3, §6.4), pick the selected key; typing and ⌫ then do nothing |
 | ⇥ / ⇧⇥ | Next / previous slot |
 | ⌫ | Make Transparent |
 | Space | Show the inherited key (peek) while held, on a transparent key (v1) |
