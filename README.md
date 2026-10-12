@@ -10,20 +10,20 @@ A native macOS app for configuring the ZSA Voyager: edit layouts on your Mac, im
 ![Sextant's layout window: the layer list, the board with the Z key selected, and the key inspector showing its tap and hold actions](docs/images/window-light.png)
 
 > [!NOTE]
-> Sextant is an independent project. It is not affiliated with or endorsed by ZSA Technology Labs. "ZSA", "Voyager", "Oryx" and "Keymapp" are ZSA's marks and are used here only to describe compatibility. The repo contains no ZSA artwork.
+> Sextant is an independent project. It is not affiliated with or endorsed by ZSA Technology Labs. ZSA, Voyager, Navigator, Oryx and Keymapp are trademarks of their respective owners and are used here only to describe compatibility. The repo contains no ZSA artwork.
 
 ## What it does
 
 - **Edits layouts locally,** with undo: layers, tap/hold/double-tap actions, modifier chords, labels, per-key LED colors and tapping terms, macros, firmware settings and the Navigator trackpad or trackball.
 - **Imports from Oryx** by pasting a layout link, or from the layout id the connected keyboard reports. It uses Oryx's public GraphQL read-only: no login and no changes to your Oryx account.
-- **Builds QMK firmware on your Mac** with a pinned toolchain that runs in a sandbox. The first build downloads about 190 MB of build tools, each checked by size and SHA-256.
+- **Builds QMK firmware on your Mac** with a pinned toolchain that runs in a sandbox. The first build downloads about 200 MB of build tools, each checked by size and SHA-256.
 - **Flashes the keyboard over DFU,** behind strict guards (see [Safety](#safety)).
 - **Shows the keyboard live:** the active layer and the keys you press, on the board. Off by default.
 - **Keeps history and exports:** saved revisions you can compare and restore, and export as layout JSON, QMK source, firmware, PNG or PDF.
 
 ## Status
 
-- The MVP is complete and v1 is under way ([docs/progress.md](docs/progress.md), [docs/v1-plan.md](docs/v1-plan.md)).
+- The MVP is complete and v1 is under way ([docs/progress.md](docs/progress.md), [docs/v1-plan.md](docs/v1-plan.md)). Sextant is developed with Claude Code, and those two files are its working log.
 - There is no signed release yet. Build it from source.
 - It has been tested on one Voyager with the STM32 bootloader. Images for the GD32 bootloader are refused. The Navigator trackball is untested.
 
@@ -111,7 +111,7 @@ Sextant is released under the [MIT License](LICENSE).
 
 ### Third-party software
 
-- **QMK firmware** (GPL-2.0-or-later) is downloaded at build time, pinned by checksum, and compiled on your Mac. It is not bundled with Sextant. So are the Arm GNU toolchain, Python and GNU make.
+- **QMK firmware** (GPL-2.0-or-later) is downloaded at build time, pinned by checksum, and compiled on your Mac. It is not bundled with Sextant. The Arm GNU toolchain, Python and GNU make are downloaded the same way.
 - **Swift packages**, pinned to exact versions:
 
   | Package | License | Used for |
@@ -123,7 +123,8 @@ Sextant is released under the [MIT License](LICENSE).
   | [swift-argument-parser](https://github.com/apple/swift-argument-parser) | Apache-2.0 | The snapshot tool |
   | [swift-clocks](https://github.com/pointfreeco/swift-clocks) | MIT | Tests |
   | [swift-snapshot-testing](https://github.com/pointfreeco/swift-snapshot-testing) | MIT | Tests |
-  | [swift-custom-dump](https://github.com/pointfreeco/swift-custom-dump), [swift-issue-reporting](https://github.com/pointfreeco/swift-issue-reporting), [swift-concurrency-extras](https://github.com/pointfreeco/swift-concurrency-extras) | MIT | Tests (via the two above) |
+  | [swift-issue-reporting](https://github.com/pointfreeco/swift-issue-reporting), [swift-concurrency-extras](https://github.com/pointfreeco/swift-concurrency-extras) | MIT | Tests (via swift-clocks) |
+  | [swift-custom-dump](https://github.com/pointfreeco/swift-custom-dump) | MIT | Resolved for swift-snapshot-testing, not built |
   | [swift-syntax](https://github.com/swiftlang/swift-syntax) | Apache-2.0 | Resolved for swift-snapshot-testing, not built |
   | [SwiftLintPlugins](https://github.com/SimplyDanny/SwiftLintPlugins) | MIT | Linting |
   | [Periphery](https://github.com/peripheryapp/periphery) | MIT | Unused-code report (`Tools/`) |

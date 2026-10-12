@@ -1,10 +1,10 @@
 # v1 plan
 
-Planned 2026-10-12 by the read-only `v1-plan` workflow (four readers, one planner) from ui-spec §13.5 and the code at c7f8422. Each slice runs in its own worktree: implement, three adversarial review lenses, verify, fix, re-verify, merge. Open questions for the user are at the end; answers go in the slice ADRs.
+Planned 2026-10-12 from ui-spec §13.5 and the code at c7f8422. Each slice is implemented, reviewed, verified and merged on its own branch. Open questions for the user are at the end; answers go in the slice ADRs.
 
 ## Summary
 
-v1 is about 21 slices in 5 waves. Sizes: 3 S, 9 M and 9 L (two of them close to XL). At about 7 agents per slice (implement, three review lenses, verify, fix, re-verify) that is roughly 150 agents.
+v1 is about 21 slices in 5 waves. Sizes: 3 S, 9 M and 9 L (two of them close to XL).
 
 **Wave 0 can start as soon as the three in-flight worktrees merge.** It needs no user answers and no hardware. Those worktrees touch LayersSection, PalettePanel, KeycodePicker, KeyCap and LayoutWindowModel, and they claim ADR 0036. Wave 0 builds the shared groundwork once, so later slices only add new files plus one-line hooks:
 - page routing, a board pick mode and assign targets;

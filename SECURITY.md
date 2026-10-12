@@ -6,6 +6,8 @@ Sextant writes firmware to a keyboard and can read its key events, so security r
 
 Report it privately through GitHub's private vulnerability reporting: open the repository's **Security** tab and choose **Report a vulnerability**. Please don't open a public issue, a pull request or a discussion, and don't send it by email.
 
+If the **Report a vulnerability** button isn't there, open an issue that asks for a private contact and leave out every detail of the problem.
+
 Include what you found, how to reproduce it, and what an attacker gains.
 
 ## In scope
