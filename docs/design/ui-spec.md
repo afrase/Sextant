@@ -531,7 +531,11 @@ Layer colours are user data, and they are also firmware LED colours.
 - Every key the layer **owns** (not inherited) gets a 1.25 pt ring in `layer.display`, outset by 1 pt.
   - Dark mode adds a 6 pt glow at 45%.
   - Light mode makes the ring 1.5 pt, with no glow.
-- **The key holding the displayed layer** (for example key 24 on Sym+Num) is hatched in the layer colour: 45° lines spaced 0.10u, at 30% in light mode and 38% in dark. It also gets the ring, even though it is transparent on that layer.
+- **The key holding the displayed layer** (for example key 24 on Sym+Num, Space on Brd+Sys) is the most prominent key on that layer, so it reads as "hold this to get here". It is static: no pulse.
+  - Face: tinted with `layer.display` at 10% light / 16% dark, and hatched in the layer colour: 45° lines spaced 0.10u, at 30% in light mode and 38% in dark.
+  - Its inherited legend and band draw at full strength, not at the transparent 40%.
+  - Ring: it gets the ring even though it is transparent on that layer, 0.5 pt thicker than an owned key's (2 pt light, 1.75 pt dark, 2.5 pt with Increase Contrast).
+  - Halo: a 0.12u glow in `layer.display` (75% light, 90% dark), drawn behind the cap so it can't wash the legend. An issue ring replaces both the ring and the halo.
 - **Atmosphere.** A radial wash of `layer.display` sits on the bench behind the board: 5% light, 7% dark, radius 0.6 × the board width. It crossfades over 0.3 s on layer change.
 
 ### 4.6 Transparent, inherited and disabled keys
@@ -1551,7 +1555,7 @@ Modifiers on caps and in hints are text glyphs (⌃ ⌥ ⇧ ⌘ ⇪ ⌫ ⌦ ⏎ 
   - Chrome text uses semantic colours.
   - Custom tokens meet 4.5:1 for text and 3:1 for graphics (§10.1).
   - Contrast is checked by unit tests.
-  - `colorSchemeContrast == .increased` switches to the High Contrast variants: 2 pt layer rings, kind bars 1 pt taller with a 0.5 pt dark edge, no grid, and opaque glass.
+  - `colorSchemeContrast == .increased` switches to the High Contrast variants: 2 pt layer rings (2.5 pt on the key holding the layer), kind bars 1 pt taller with a 0.5 pt dark edge, no grid, and opaque glass.
 - **Reduce Transparency.** Every app-drawn glass surface goes through `SurfaceStyle` and becomes opaque. The HUD becomes opaque.
 - **Reduce Motion:** §10.6.
 - **Differentiate Without Color.** When `accessibilityDifferentiateWithoutColor` is on:
