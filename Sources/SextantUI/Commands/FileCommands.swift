@@ -31,11 +31,14 @@ struct FileSaveItems: View {
         Button("Rename Layout…") { window?.layoutPendingRename = id }.disabled(id == nil)
         Button("Move Layout to Trash…") { window?.layoutPendingTrash = id }.disabled(id.map { window?.canTrash($0) != true } ?? true)
         Menu("Export") {
-            Button("Layout JSON…") {}
-            Button("QMK Source (.zip)…") {}
-            Button("Firmware (.bin)…") {}
+            Button("Layout JSON…") { Task { await window?.export(.layoutJSON) } }.disabled(window?.canExport(.layoutJSON) != true)
+            Button("QMK Source (.zip)…") { Task { await window?.export(.qmkSource) } }.disabled(window?.canExport(.qmkSource) != true)
+            Button("Firmware (.bin)…") { Task { await window?.export(.firmware) } }.disabled(window?.canExport(.firmware) != true)
+            Divider()
+            Button("Image (PNG)…") { Task { await window?.export(.image) } }.disabled(window?.canExport(.image) != true)
+            Button("All Layers (PDF)…") { Task { await window?.export(.pdf) } }.disabled(window?.canExport(.pdf) != true)
         }
-        .disabled(true)
+        .disabled(id == nil)
         Button("Show in Finder") { Task { await window?.showInFinder() } }.disabled(id == nil)
     }
 }

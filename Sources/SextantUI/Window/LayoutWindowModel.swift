@@ -133,6 +133,8 @@ public final class LayoutWindowModel {
     var layoutPendingTrash: UUID?
     /// A layout is loading (true until the first ``open(_:)`` finishes), so the empty states wait for it.
     var isOpening = true
+    /// File ▸ Export's file waiting for its save panel, or why it couldn't be made or saved.
+    var pendingExport: PendingExport?
 
     // MARK: device
     /// The open layout's Build & Flash, made per layout by `makeBuildFlash`; nil where building is off. Snapshots set

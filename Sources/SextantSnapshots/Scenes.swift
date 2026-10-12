@@ -66,6 +66,7 @@ enum Scenes {
         scenes += await settings(f)
         scenes += SnapshotScene.pair("activity", size: CGSize(width: 480, height: 14 * 40 + 16), chrome: .content) { activityStates }
         scenes += await layers(f)
+        scenes += await export(f)
         // The app icon, 1024 pt on a transparent canvas, one scene per detail tier (app-icon serves 128 px and up);
         // scripts/icon renders each at its pixel size into Resources/AppIcon.icns.
         for (name, pixels) in [("app-icon", 1024.0), ("app-icon-64", 64), ("app-icon-32", 32), ("app-icon-16", 16)] {

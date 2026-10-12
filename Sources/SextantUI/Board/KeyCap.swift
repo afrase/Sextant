@@ -49,6 +49,12 @@ struct CapDecoration: Equatable {
     var count: Count?
 }
 
+extension EnvironmentValues {
+    /// Caps cast their drop shadows. The PDF goes without: printing drops the shadows' soft masks and prints grey boxes
+    /// (ADR 0044).
+    @Entry var capShadows = true
+}
+
 extension Token: Equatable {
     public static func == (a: Self, b: Self) -> Bool {
         a.light == b.light && a.dark == b.dark && a.lightAlpha == b.lightAlpha && a.darkAlpha == b.darkAlpha
@@ -143,6 +149,7 @@ struct KeyCap: View, Equatable {
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.capShadows) private var capShadows
 
     private var legend: KeyLegend { model.legend.legend }
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 0.16 * u, style: .continuous) }
@@ -215,8 +222,8 @@ struct KeyCap: View, Equatable {
                 shape.inset(by: 1).stroke(Tokens.capHighlight.color, lineWidth: 1)
                     .mask(LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.25)))
             }
-            .shadow(color: .black.opacity(isDark ? 0.45 : 0.10), radius: isDark ? 2.5 : 1, y: isDark ? 2 : 1)
-            .shadow(color: .black.opacity(isDark ? 0 : 0.06), radius: 3, y: 2)
+            .shadow(color: .black.opacity(capShadows ? (isDark ? 0.45 : 0.10) : 0), radius: isDark ? 2.5 : 1, y: isDark ? 2 : 1)
+            .shadow(color: .black.opacity(capShadows && !isDark ? 0.06 : 0), radius: 3, y: 2)
     }
 
     /// Opacity of the pressed fill; the pressed ink's contrast math mixes with the same value.
