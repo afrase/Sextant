@@ -79,7 +79,8 @@ public final class LayoutWindowModel {
     /// Which layout the keyboard runs, app-wide; nil in tests and snapshots without a keyboard.
     @ObservationIgnored let onKeyboard: OnKeyboard?
     // MARK: inspector
-    /// The key label field has focus, so ⌘⌫ and ⇧⌘⌫ edit its text rather than make the key transparent or disable it.
+    /// A key inspector text field (the label or the tapping term) has focus, so ⌘⌫ and ⇧⌘⌫ edit its text rather than
+    /// make the key transparent or disable it.
     var isEditingKeyLabel = false
 
     // MARK: layers

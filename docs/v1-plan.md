@@ -383,7 +383,7 @@ The user checks ⌘C and ⌘V in the app.
 
 **Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantApplication/EditSession.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Model/CopiedKeys.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Board/KeyPasteboard.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/MultiKeyInspector.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/CopyLayerMenu.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/KeyDragSwap.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/KeyColour.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/LayerInspector.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Sidebar/LayersSection.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Commands/KeyCommands.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/Library.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/CopiedKeysTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/KeyPasteboardTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/LibraryManagementTests.swift`
 
-**Shared touches:** BoardView (click handling and rings; 2.1 adds only an overlay), InspectorColumn (one routing branch), ContextStrip ('3 keys selected'), LayerCommands (the Copy Layer To line), LayoutWindowModel (the selected count), KeycodePicker (`keySlotTarget` becomes the '3 keys' default target, ADR 0037), Resources/Info.plist (optional UTType). The only slice allowed to edit EditSession.swift itself in wave 2.
+**Shared touches:** BoardView (click handling and rings; 2.1 adds only an overlay), InspectorColumn (one routing branch), ContextStrip ('3 keys selected'), LayerCommands (the Copy Layer To line), LayoutWindowModel (the selected count), KeycodePicker (`keySlotTarget` becomes the '3 keys' default target, ADR 0037; the picker's Macros rows call `session.assignMacro` on the tap rather than `target.assign`, so route them for multi-key targets too), Resources/Info.plist (optional UTType). The only slice allowed to edit EditSession.swift itself in wave 2.
 
 **Hardware:** No.
 
@@ -406,6 +406,7 @@ The user checks ⌘C and ⌘V in the app.
 - Tests:
 - coupling and synonym search; undo steps;
 - legacy dances emit TD(); Space Cadet compiles under the real toolchain (take it out of QMKGeneratorTests' `stillRefused` and add one Mapping row; the every-setting layout is built from that table);
+- keep `dancesTapAction` hidden (ADR 0041's `FirmwareSettings.hidden`) when dropping `isCore`, and out of the changed total, the sidebar badge and the Changed list; fold the plan's "0040 amended: dancesTapAction" into ADR 0041 rather than deciding it again;
 - narrow `oneShotAutoMouseTimeout`'s navigatorKinds to the trackpad, so the page hides it on a trackball and setNavigator drops it (today it shows there, and turning it on stops the build by name);
 - goldens unchanged.
 - Snapshots: full page, search, Modified only, animation picker, trackball Navigator; light and dark; minimum size.
