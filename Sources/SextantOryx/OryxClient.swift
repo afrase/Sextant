@@ -7,7 +7,8 @@ import os
 /// Read-only Oryx client (decision 2): the public GraphQL `layout` query and firmware downloads. It never sends
 /// credentials and never calls a mutation.
 public struct OryxClient: OryxReader {
-    /// Oryx's `getLayout`, trimmed to the fields `KeyboardLayout`'s codec reads (research data/oryx-graphql-operations.json).
+    /// Oryx's `getLayout`, trimmed to the fields `KeyboardLayout`'s codec reads (research data/oryx-graphql-operations.json, in
+    /// the reference folder).
     private static let query = """
         query getLayout($hashId: String!, $revisionId: String!, $geometry: String) {
           layout(hashId: $hashId, geometry: $geometry, revisionId: $revisionId) {

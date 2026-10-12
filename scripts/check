@@ -4,6 +4,11 @@
 set -eu
 cd "$(dirname "$0")/.."
 
+# Other people's Oryx samples are kept outside the repo; the tests that need them skip without this.
+if [ -z "${SEXTANT_REFERENCE:-}" ] && [ -d "$HOME/Developer/Sextant-reference" ]; then
+    export SEXTANT_REFERENCE="$HOME/Developer/Sextant-reference"
+fi
+
 echo "› swift format (formatting, force-unwrap and force-try bans)"
 swift format lint --strict --recursive Sources Tests Package.swift
 
@@ -16,6 +21,9 @@ swift build --build-tests -Xswiftc -warnings-as-errors
 echo "› tests"
 swift test --skip-build
 
-echo "› Periphery (unused code, report only)"
-# shortcut: report-only while MVP APIs are still being consumed by later slices; add --strict at the end of the MVP.
-scripts/periphery || true
+# shortcut: report-only, so findings never fail the gate; add --strict once the report is clean.
+# Not on CI: nobody reads a report there, and .periphery.yml's index store (.build/out) is Swift Build's layout.
+if [ -z "${CI:-}" ]; then
+    echo "› Periphery (unused code, report only)"
+    scripts/periphery || true
+fi

@@ -8,5 +8,5 @@ xcuserdata/
 # macOS
 .DS_Store
 
-# Agent worktrees
-.claude/worktrees/
+# Local Claude Code state and agent worktrees
+.claude/

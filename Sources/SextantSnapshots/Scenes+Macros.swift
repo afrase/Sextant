@@ -65,7 +65,11 @@ extension Scenes {
 
     private static func importExample(_ file: String, into root: URL) async -> LibraryEntry? {
         let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        guard let data = try? Data(contentsOf: repo.appending(path: "docs/research/oryx-examples/\(file)")) else { return nil }
+        let path = "docs/research/oryx-examples/\(file)"
+        // Other people's samples are kept out of the repo, at the same path under $SEXTANT_REFERENCE; without it, no scenes.
+        let reference = ProcessInfo.processInfo.environment["SEXTANT_REFERENCE"].map { URL(fileURLWithPath: $0).appending(path: path) }
+        guard let data = (try? Data(contentsOf: repo.appending(path: path))) ?? reference.flatMap({ try? Data(contentsOf: $0) })
+        else { return nil }
         return try? await Library(store: PackageLibrary(root: root)).importOryxJSON(data)
     }
 }

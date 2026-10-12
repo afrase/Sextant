@@ -55,7 +55,9 @@ struct RealToolchainTests {
     /// e5Rrr's trackball with its automouse layer and Navigator keys; JRGQm, m9dpx and XlrR4 (tap dances, combos,
     /// macros, a per-key tapping term, a locale); and every setting the generator writes, changed at once, with each
     /// Navigator (ADR 0040). Needs the set-up toolchain (the test above); it downloads nothing.
-    @Test(arguments: ["trackball", "none", "e5Rrr", "JRGQm", "m9dpx", "XlrR4", "every-setting-trackpad", "every-setting-trackball"])
+    @Test(
+        arguments: ["trackball", "none", "every-setting-trackpad", "every-setting-trackball"]
+            + (QMKGeneratorGoldenTests.reference == nil ? [] : ["e5Rrr", "JRGQm", "m9dpx", "XlrR4"]))
     func buildsAnotherLayout(variant: String) async throws {
         try #require(installer.isInstalled)
         var layout: KeyboardLayout
@@ -68,7 +70,7 @@ struct RealToolchainTests {
         case "every-setting-trackball": layout = try QMKGeneratorTests.everySettingChanged(.trackball)
         default:
             layout = try KeyboardLayout(
-                oryxJSON: Data(contentsOf: QMKGeneratorGoldenTests.examples.appending(path: "voyager-\(variant).json")))
+                oryxJSON: Data(contentsOf: QMKGeneratorGoldenTests.example("voyager-\(variant).json")))
         }
         let kind = layout.navigator?.kind
         let source = try QMKGenerator().generate(layout, identity: FirmwareIdentity(serial: try #require(layout.oryx?.serial)))

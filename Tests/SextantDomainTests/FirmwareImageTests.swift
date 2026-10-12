@@ -5,7 +5,7 @@ import Testing
 /// Image validation against the real Oryx builds in `docs/research/oryx-examples/sources/*.zip`, unzipped at test
 /// time (the `.bin` files are never committed on their own).
 struct FirmwareImageTests {
-    static let builds = ["KlgM7-40xJ7M", "JRGQm", "e5Rrr", "m9dpx", "XlrR4"]
+    static let builds = ["KlgM7-40xJ7M"] + (Fixtures.reference == nil ? [] : ["JRGQm", "e5Rrr", "m9dpx", "XlrR4"])
     let board = BoardDefinition.voyager
 
     @Test(arguments: builds)
@@ -81,7 +81,7 @@ struct FirmwareImageTests {
         defer { try? FileManager.default.removeItem(at: folder) }
         let unzip = Process()
         unzip.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-        unzip.arguments = ["-q", "-j", Fixtures.examples.appending(path: "sources/\(build)-source.zip").path, "*.bin", "-d", folder.path]
+        unzip.arguments = ["-q", "-j", Fixtures.url("sources/\(build)-source.zip").path, "*.bin", "-d", folder.path]
         try unzip.run()
         unzip.waitUntilExit()
         try #require(unzip.terminationStatus == 0)

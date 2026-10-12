@@ -5,7 +5,7 @@ import Foundation
 ///
 /// `BoardGeometry.voyager` is built from ``BoardDefinition/voyager`` (column stagger, home row, matrix,
 /// QMK and LED coordinates) and calibrated against Oryx's own render
-/// (`docs/oryx-ui/01-layout-readonly-main.jpg`):
+/// (`docs/oryx-ui/01-layout-readonly-main.jpg`, kept outside the repo in the reference folder):
 /// - Column stagger: columns 2 and 4 of each half are raised 0.15u and the middle-finger column 0.30u
 ///   (Oryx's `translateY(-15% / -30%)`); `.qmk` uses QMK `keyboard.json`'s 0.25u / 0.5u instead.
 /// - Thumbs: per half, a 1u key (24 / 51) and a taller 1u × 1.35u key (25 / 50) sharing a top edge,

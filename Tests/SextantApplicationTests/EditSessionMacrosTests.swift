@@ -24,7 +24,8 @@ struct EditSessionMacrosTests {
         undo.endUndoGrouping()
     }
 
-    @Test func everyEditIsOneNamedUndoStep() async throws {
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func everyEditIsOneNamedUndoStep() async throws {
         let (session, undo) = try await open()
         let original = session.layout
         let first = try #require(session.layout.macros.first?.locator)
@@ -75,7 +76,8 @@ struct EditSessionMacrosTests {
         #expect(session.selection.macro == draft && session.selectedMacro != nil)
     }
 
-    @Test func deletingTheSelectedMacroClearsTheSelection() async throws {
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func deletingTheSelectedMacroClearsTheSelection() async throws {
         let (session, undo) = try await open()
         let first = try #require(session.layout.macros.first?.locator)
         session.selectMacro(first, step: 1)
@@ -88,7 +90,8 @@ struct EditSessionMacrosTests {
     }
 
     /// The selection names a key macro by position: layer edits carry it along, so it never lands on another macro.
-    @Test func theSelectedMacroFollowsItsLayer() async throws {
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func theSelectedMacroFollowsItsLayer() async throws {
         let (session, undo) = try await open("voyager-JRGQm.json")
         let teamsCam = MacroLocator.key(KeyRef(layer: 2, index: 32, slot: .tap))
         let macro = session.layout.macro(at: teamsCam)
@@ -104,7 +107,8 @@ struct EditSessionMacrosTests {
         #expect(session.selection.macro == .key(KeyRef(layer: 1, index: 32, slot: .tap)), "undo brings it back")
     }
 
-    @Test func deletingAStepSelectsTheOneTakingItsPlace() async throws {
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func deletingAStepSelectsTheOneTakingItsPlace() async throws {
         let (session, undo) = try await open()
         let first = try #require(session.layout.macros.first?.locator)
         let count = try #require(session.selectedMacro ?? session.layout.macro(at: first)).steps.count

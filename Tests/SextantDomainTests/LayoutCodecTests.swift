@@ -21,7 +21,10 @@ struct LayoutCodecTests {
         #expect(full.navigator?.side == .right)
         #expect(full.navigator?.options["scrollInertia"] == .bool(true))
         #expect(full.navigator?.options["aimSpeed"] == nil, "null options mean default and are dropped")
+    }
 
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func otherNavigatorsAndSwatchesComeAlong() throws {
         let e5 = try Fixtures.layout("voyager-e5Rrr.json")
         #expect(e5.navigator?.kind == .trackball)
         #expect(e5.navigator?.side == .left)
@@ -55,7 +58,8 @@ struct LayoutCodecTests {
 
     /// The automouse layer is the layout's (ADR 0035): it is saved on its layer, with or without a Navigator, and a
     /// Navigator's `automouseLayer` (older Sextant files) is read too.
-    @Test func theAutomouseLayerIsSavedOnItsLayer() throws {
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func theAutomouseLayerIsSavedOnItsLayer() throws {
         var layout = try Fixtures.layout("voyager-JRGQm.json")
         layout.navigator = nil
         #expect(try KeyboardLayout(oryxJSON: JSONEncoder().encode(layout)).automouseLayer == 7)
@@ -65,7 +69,8 @@ struct LayoutCodecTests {
         #expect(decoded.automouseLayer == 2 && decoded.navigator?.options.isEmpty == true)
     }
 
-    @Test func emptyListsEqualTheirDefault() throws {
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func emptyListsEqualTheirDefault() throws {
         let e5 = try Fixtures.layout("voyager-e5Rrr.json")
         let setting = try #require(SettingsCatalog.voyager.setting(id: "disabledAnimations"))
         #expect(e5.settings["disabledAnimations"] == setting.defaultValue)

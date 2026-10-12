@@ -5,8 +5,9 @@ import Testing
 
 @testable import SextantBuild
 
-/// Golden tests: the generator against the sources Oryx generated for five real layouts
-/// (`docs/research/oryx-examples/sources/*.zip`, unzipped at test time, never copied into the repo).
+/// Golden tests: the generator against the sources Oryx generated for real layouts
+/// (`docs/research/oryx-examples/sources/*.zip`, unzipped at test time, never copied into the repo): the user's, and
+/// four public ones from `$SEXTANT_REFERENCE` when it is set.
 ///
 /// Files are compared after normalising what doesn't reach the firmware: whitespace, `//` comments and the
 /// dual-function placeholder keycodes (Oryx picks them at random). Colours compare within Oryx's HSV rounding.
@@ -56,10 +57,22 @@ struct QMKGeneratorGoldenTests {
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         .appending(path: "docs/research/oryx-examples")
 
-    @Test(arguments: samples)
+    /// Other people's Oryx samples are kept out of the repo, at the same path under `$SEXTANT_REFERENCE`; nil (unset,
+    /// or no such folder) skips the tests that need them.
+    static let reference = ProcessInfo.processInfo.environment["SEXTANT_REFERENCE"]
+        .map { URL(fileURLWithPath: $0).appending(path: "docs/research/oryx-examples") }
+        .flatMap { FileManager.default.fileExists(atPath: $0.path) ? $0 : nil }
+
+    /// The repo's copy if there is one, else the reference folder's.
+    static func example(_ name: String) -> URL {
+        let own = examples.appending(path: name)
+        return FileManager.default.fileExists(atPath: own.path) ? own : (reference ?? examples).appending(path: name)
+    }
+
+    @Test(arguments: samples.filter { reference != nil || $0.zip.hasPrefix("KlgM7") })
     func matchesOryx(sample: Sample) throws {
-        let layout = try KeyboardLayout(oryxJSON: Data(contentsOf: Self.examples.appending(path: sample.json)))
-        let oryx = try Self.unzipSources(Self.examples.appending(path: "sources/\(sample.zip)"))
+        let layout = try KeyboardLayout(oryxJSON: Data(contentsOf: Self.example(sample.json)))
+        let oryx = try Self.unzipSources(Self.example("sources/\(sample.zip)"))
         let serial = try #require(layout.oryx?.serial)
         let generated = try QMKGenerator().generate(layout, identity: FirmwareIdentity(serial: serial))
 

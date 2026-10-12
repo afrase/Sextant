@@ -14,15 +14,14 @@ struct MacrosPageTests {
 
     func open(_ files: String...) async throws -> LayoutWindowModel {
         let library = Library(store: MemoryLibrary())
-        let examples = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().appending(path: "docs/research/oryx-examples")
-        for file in files { _ = try await library.importOryxJSON(Data(contentsOf: examples.appending(path: file))) }
+        for file in files { _ = try await library.importOryxJSON(Data(contentsOf: exampleURL(file))) }
         let model = LayoutWindowModel(library: library)
         await model.open(library.entries.first { $0.title == "Analyst Developer" }?.id)
         return model
     }
 
-    @Test func theStepPickerOffersOnlyKeysAStepCanType() async throws {
+    @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
+    func theStepPickerOffersOnlyKeysAStepCanType() async throws {
         let model = try await open("voyager-JRGQm.json")
         let session = try #require(model.session)
         model.destination = .macros
@@ -51,7 +50,8 @@ struct MacrosPageTests {
         #expect(session.selection.step == 1)
     }
 
-    @Test func assignToKeyPicksOnTheBoardAndComesBack() async throws {
+    @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
+    func assignToKeyPicksOnTheBoardAndComesBack() async throws {
         let model = try await open("voyager-JRGQm.json")
         let session = try #require(model.session)
         session.select(layer: 1)
@@ -72,7 +72,8 @@ struct MacrosPageTests {
     }
 
     /// Opening another layout cancels the pick; the page it started on belongs to the old layout.
-    @Test func anotherLayoutEndsThePickOnItsBoard() async throws {
+    @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
+    func anotherLayoutEndsThePickOnItsBoard() async throws {
         let model = try await open("voyager-JRGQm.json", "voyager-XlrR4.json")
         model.destination = .macros
         model.assignMacroToKey(teamsCam)
@@ -81,7 +82,8 @@ struct MacrosPageTests {
         #expect(model.boardPick == nil && model.page == nil)
     }
 
-    @Test func theMacrosCategoryPutsAMacroOnTheSelectedKeysTap() async throws {
+    @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
+    func theMacrosCategoryPutsAMacroOnTheSelectedKeysTap() async throws {
         let model = try await open("voyager-JRGQm.json")
         let session = try #require(model.session)
         session.select(layer: 0)
@@ -105,7 +107,8 @@ struct MacrosPageTests {
     }
 
     /// Choosing another page drops the pick, so it can't take a later click on the board (spec §6.3).
-    @Test func anotherPageDropsThePick() async throws {
+    @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
+    func anotherPageDropsThePick() async throws {
         let model = try await open("voyager-JRGQm.json")
         let session = try #require(model.session)
         model.destination = .macros
@@ -119,7 +122,8 @@ struct MacrosPageTests {
     }
 
     /// Show Key on an issue in a macro opens the macro at the step to fix: the board can't edit steps.
-    @Test func showKeyOnAMacroIssueOpensTheStep() async throws {
+    @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
+    func showKeyOnAMacroIssueOpensTheStep() async throws {
         let model = try await open("voyager-JRGQm.json")
         let session = try #require(model.session)
         session.insertStep(MacroStep(code: "MO"), at: 2, in: teamsCam)
@@ -132,7 +136,8 @@ struct MacrosPageTests {
     }
 
     /// A shifted symbol has no X_ name: the step picker types it as its key with Shift.
-    @Test func theStepPickerTypesShiftedSymbolsWithShift() async throws {
+    @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
+    func theStepPickerTypesShiftedSymbolsWithShift() async throws {
         let model = try await open("voyager-JRGQm.json")
         let session = try #require(model.session)
         session.selectMacro(teamsCam, step: 2)
@@ -148,7 +153,8 @@ struct MacrosPageTests {
         #expect(session.layout.macro(at: teamsCam)?.steps.first?.modifiers == [.leftControl, .leftCommand, .leftShift])
     }
 
-    @Test func documentsFindMacrosAndOpenThem() async throws {
+    @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
+    func documentsFindMacrosAndOpenThem() async throws {
         let model = try await open("voyager-JRGQm.json")
         model.openPalette(query: "teams cam")
         let row = try #require(model.paletteItems.first { $0.group == .documents })

@@ -21,7 +21,7 @@ struct LayoutExportTests {
         #expect(rep.size == size, "144 dpi, so it opens at its point size")
     }
 
-    @Test(arguments: [("my-layout-KlgM7-40xJ7M.json", 3), ("voyager-JRGQm.json", 12)])
+    @Test(arguments: [("my-layout-KlgM7-40xJ7M.json", 3)] + (referenceExamples == nil ? [] : [("voyager-JRGQm.json", 12)]))
     func thePDFHasAPagePerLayer(file: String, pages: Int) throws {
         let layout = try example(file)
         let pdf = try #require(BoardImage.pdf(layout, mode: .symbols).flatMap(PDFDocument.init(data:)))
@@ -32,12 +32,14 @@ struct LayoutExportTests {
     }
 
     /// The caps' shadows embed as soft-masked images, and printing drops the masks: they printed as grey boxes.
-    @Test func thePDFsCapsCastNoShadows() throws {
+    @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
+    func thePDFsCapsCastNoShadows() throws {
         let pdf = try #require(BoardImage.pdf(try example("voyager-JRGQm.json"), mode: .symbols))
         #expect(pdf.range(of: Data("/Subtype /Image".utf8)) == nil)
     }
 
-    @Test func layoutJSONRoundTrips() throws {
+    @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
+    func layoutJSONRoundTrips() throws {
         let layout = try example("voyager-JRGQm.json")
         #expect(try KeyboardLayout(oryxJSON: LayoutExport.json(layout)) == layout)
     }
@@ -124,7 +126,8 @@ struct LayoutExportTests {
         #expect(model.pendingExport?.file?.contentType == .pdf)
     }
 
-    @Test func boardImage() throws {
+    @Test(.disabled(if: skipsPixelSnapshots, "the reference is rendered on the developer's macOS"))
+    func boardImage() throws {
         let layout = try example("my-layout-KlgM7-40xJ7M.json")
         let renderer = ImageRenderer(content: BoardImage(layout: layout, layer: 1))
         renderer.scale = 1
@@ -135,8 +138,7 @@ struct LayoutExportTests {
     // MARK: Support
 
     private func example(_ file: String) throws -> KeyboardLayout {
-        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        return try KeyboardLayout(oryxJSON: Data(contentsOf: repo.appending(path: "docs/research/oryx-examples/\(file)")))
+        try KeyboardLayout(oryxJSON: Data(contentsOf: exampleURL(file)))
     }
 
     /// The user's layout open, with Build & Flash over a generator that writes the layout's title and serial.
