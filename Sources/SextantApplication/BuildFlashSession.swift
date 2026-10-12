@@ -420,11 +420,8 @@ public final class BuildFlashSession {
     private func record(_ built: KeyboardLayout) async {
         let message = String(localized: "Flashed \(Date.now.formatted(date: .abbreviated, time: .shortened))")
         do {
-            // Edited since the build: the revision must hold what was flashed, not the newer document, which stays edited.
-            let revision =
-                session.layout == built
-                ? try await session.saveRevision(source: .flash, message: message)
-                : try await session.recordRevision(RevisionDraft(source: .flash, message: message, layout: built))
+            // What was flashed, even when the document has moved on since the build (it then stays edited).
+            let revision = try await session.recordRevision(RevisionDraft(source: .flash, message: message, layout: built))
             phase = .done(revision: revision, saveError: nil)
         } catch {
             logger.error("Recording the flash failed: \(String(describing: error), privacy: .public)")

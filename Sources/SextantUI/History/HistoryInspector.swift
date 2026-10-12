@@ -22,7 +22,7 @@ struct HistoryInspector: View {
                 Timeline(history: history)
                 if let shown = history.shown {
                     Divider()
-                    RevisionDetails(model: model, history: history, shown: shown)
+                    RevisionDetails(history: history, shown: shown)
                 }
                 if let error = history.error {
                     Label(error.localizedDescription, systemImage: "exclamationmark.triangle.fill")
@@ -37,20 +37,42 @@ struct HistoryInspector: View {
 /// Newest first: a node on a line, the id in mono, its badges, the message, the date and the change count.
 private struct Timeline: View {
     var history: HistoryModel
+    /// The row the scrolling timeline centers on: the selected one, as when the palette chooses a revision.
+    @State private var position: String?
 
     var body: some View {
+        // Every flash adds a row: past a few, the timeline scrolls on its own so the selected revision's details stay in view.
+        if history.session.revisions.count > 4 {
+            ScrollView { rows.scrollTargetLayout() }
+                .scrollPosition(id: $position, anchor: .center)
+                .frame(height: 250)
+                .onAppear { position = history.selected?.id }
+                .onChange(of: history.selected?.id) { position = history.selected?.id }
+        } else {
+            rows
+        }
+    }
+
+    private var rows: some View {
         let revisions = Array(history.session.revisions.reversed())
         let onKeyboard = history.running?.revision?.id
-        VStack(alignment: .leading, spacing: 0) {
+        return VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(revisions.enumerated()), id: \.element.id) { n, revision in
                 let isSelected = revision.id == history.selected?.id
+                let isOnKeyboard = revision.id == onKeyboard
                 Button {
                     history.selectedID = revision.id
                     history.pinnedLayer = nil
                 } label: {
-                    row(revision, isSelected: isSelected, isOnKeyboard: revision.id == onKeyboard, isOldest: n == revisions.count - 1)
+                    row(revision, isSelected: isSelected, isOnKeyboard: isOnKeyboard, isOldest: n == revisions.count - 1)
                 }
                 .buttonStyle(.plain)
+                // Named as everywhere else ("Revision 2"), not by the id a screen reader would spell out.
+                .accessibilityLabel(
+                    ([String(localized: "Revision \(revision.number)"), HistoryModel.line(revision)]
+                        + (isOnKeyboard ? [String(localized: "on keyboard")] : [])).joined(separator: ", ")
+                )
+                .accessibilityValue(subtitle(revision))
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
@@ -98,7 +120,6 @@ private struct Timeline: View {
         }
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(isSelected ? Color.accentColor.opacity(0.12) : .clear))
         .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
     }
 
     private func subtitle(_ revision: RevisionSummary) -> String {
@@ -130,7 +151,6 @@ private struct RevisionBadge: View {
 
 /// The selected revision: where it came from, what changed against the comparison, and Restore.
 private struct RevisionDetails: View {
-    var model: LayoutWindowModel
     var history: HistoryModel
     var shown: HistoryModel.Shown
 
@@ -155,8 +175,7 @@ private struct RevisionDetails: View {
         }
         Divider()
         Button("Restore This Revision") { Task { await history.restore(revision) } }
-            // A flash that is writing keeps its document until it ends, as opening another layout does.
-            .disabled(!history.canRestore(revision) || model.buildFlash?.canStop == false)
+            .disabled(!history.canRestore(revision) || history.isRestoring)
         Text("Makes this revision the layout again and saves that as a new revision. Nothing is lost, and you can undo it.")
             .font(.callout)
             .foregroundStyle(.secondary)
@@ -227,9 +246,11 @@ private struct OtherChanges: View {
 
     static func lines(_ changes: LayoutChanges) -> [String] {
         let diff = changes.diff
-        var lines = diff.addedLayers.map { String(localized: "Added layer \($0.title)") }
+        var lines = changes.titleChanged ? [String(localized: "Renamed the layout")] : []
+        lines += diff.addedLayers.map { String(localized: "Added layer \($0.title)") }
         lines += diff.removedLayers.map { String(localized: "Removed layer \($0.title)") }
         lines += diff.renamedLayers.map { String(localized: "Renamed layer \($0.from) to \($0.to)") }
+        if changes.layersMoved { lines.append(String(localized: "Reordered layers")) }
         if !diff.recoloredLayers.isEmpty {
             lines.append(
                 diff.recoloredLayers.count == 1

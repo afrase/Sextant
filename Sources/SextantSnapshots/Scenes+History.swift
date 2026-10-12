@@ -1,6 +1,7 @@
 import Foundation
 import SextantApplication
 import SextantDomain
+import SextantStorage
 import SextantUI
 import SwiftUI
 
@@ -22,6 +23,23 @@ extension Scenes {
                 ChangesBoard(model: model).background(Tokens.benchBase.color).environment(\._accessibilityDifferentiateWithoutColor, true)
             })
 
+        // A long History scrolls its timeline, so the selected revision's details stay in view.
+        if let many = await historyModel(f), let session = many.session {
+            for n in 1...12 {
+                _ = try? await session.recordRevision(RevisionDraft(source: .flash, message: "Flash \(n)", layout: session.layout))
+            }
+            if let revision = session.revisions.dropFirst().first { await many.showRevision(revision.id) }
+            scenes.append(
+                SnapshotScene("window-history-many-light", size: full) { LayoutWindow(model: many, layoutID: .constant(many.session?.id)) })
+        }
+        // No revisions yet (§12.4): only a package made outside Sextant starts without one.
+        if let empty = await emptyHistoryModel() {
+            scenes.append(
+                SnapshotScene("window-history-empty-light", size: full) {
+                    LayoutWindow(model: empty, layoutID: .constant(empty.session?.id))
+                })
+        }
+
         // Save Revision over the window, with the message it suggests for the working copy's edit.
         if let saving = await historyModel(f) {
             saving.destination = .layer(0)
@@ -40,6 +58,19 @@ extension Scenes {
         model.activity = ActivityState(device: connected, status: .notOnKeyboard(edits: 7))
         session.select(layer: 2)
         if let revision = session.revisions.dropFirst().first { await model.showRevision(revision.id) }
+        return model
+    }
+
+    private static func emptyHistoryModel() async -> LayoutWindowModel? {
+        let store = PackageLibrary(root: FileManager.default.temporaryDirectory.appending(path: "sextant-snapshots-\(UUID().uuidString)"))
+        guard let data = try? Data(contentsOf: Fixtures.layoutFile), let layout = try? KeyboardLayout(oryxJSON: data),
+            let entry = try? await store.create(layout, origin: .local, firstRevision: nil)
+        else { return nil }
+        let library = Library(store: store)
+        await library.refresh()
+        let model = LayoutWindowModel(library: library)
+        await model.open(entry.id)
+        model.destination = .history
         return model
     }
 }

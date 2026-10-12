@@ -80,11 +80,22 @@ struct LayoutDiffTests {
         #expect(changes.diff.changes(onLayer: 3).allSatisfy { $0.kind == .added && $0.before == nil })
     }
 
-    /// Layers match by id, so one that only moved has no key changes.
+    /// Layers match by id, so one that only moved has no key changes; the move itself counts.
     @Test func aMovedLayerIsMatchedById() {
         var moved = layout
         moved.layers.swapAt(1, 2)
         let changes = moved.changes(from: layout)
-        #expect(changes.isEmpty)
+        #expect(changes.diff.isEmpty && changes.layersMoved && changes.count == 1)
+        var removed = layout
+        removed.layers.remove(at: 1)
+        #expect(!removed.changes(from: layout).layersMoved, "the layers after a removed one didn't move")
+    }
+
+    /// Rename Layout is an edit, so the revision it makes must not read as "no changes".
+    @Test func aRenameIsAChange() {
+        var renamed = layout
+        renamed.title = "Work"
+        let changes = renamed.changes(from: layout)
+        #expect(changes.titleChanged && changes.count == 1)
     }
 }

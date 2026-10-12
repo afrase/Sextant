@@ -1560,6 +1560,9 @@
     "No results" : {
 
     },
+    "No revisions yet" : {
+
+    },
     "None" : {
 
     },
@@ -1805,7 +1808,13 @@
         }
       }
     },
+    "Renamed the layout" : {
+
+    },
     "Rename…" : {
+
+    },
+    "Reordered layers" : {
 
     },
     "Replace and Flash" : {
@@ -2294,6 +2303,9 @@
     "This layout was saved by a newer version of Sextant. Update Sextant to open it." : {
 
     },
+    "This revision couldn’t be read" : {
+
+    },
     "Toggle" : {
 
     },
@@ -2558,6 +2570,9 @@
 
     },
     "off" : {
+
+    },
+    "on keyboard" : {
 
     },
     "on the top edge of the %@, above the %@ key" : {

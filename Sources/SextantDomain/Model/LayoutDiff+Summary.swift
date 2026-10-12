@@ -1,7 +1,8 @@
 import Foundation
 
-/// Everything that differs between two layouts: the key and layer diff, plus the settings, combos and Navigator, so a
-/// revision that changed only settings never reads as "no changes" (History, Save Revision's message; ADR 0043).
+/// Everything Sextant edits that differs between two layouts: the key and layer diff, plus the title, layer order,
+/// settings, combos and Navigator, so an edit never reads as "no changes" (History, Save Revision's message; ADR 0043).
+/// Oryx's swatches and revision info aren't counted: only an import changes them.
 public struct LayoutChanges: Hashable, Sendable {
     /// Keys and layers. Each own key on a layer the old layout lacks is added, so a new layer's keys show on the board.
     public var diff: LayoutDiff
@@ -12,13 +13,21 @@ public struct LayoutChanges: Hashable, Sendable {
     public var removedCombos: [Combo]
     /// The Navigator was attached, removed, changed kind or moved, or its automouse layer changed.
     public var navigatorChanged: Bool
+    /// The layout was renamed.
+    public var titleChanged: Bool
+    /// Layers both sides have are in another order (the diff matches them by id, so a move alone has no key changes).
+    public var layersMoved: Bool
 
-    public var isEmpty: Bool { diff.isEmpty && settings.isEmpty && addedCombos.isEmpty && removedCombos.isEmpty && !navigatorChanged }
+    public var isEmpty: Bool {
+        diff.isEmpty && settings.isEmpty && addedCombos.isEmpty && removedCombos.isEmpty && !navigatorChanged && !titleChanged
+            && !layersMoved
+    }
 
-    /// How many things changed: each key, layer, setting and combo, and the Navigator.
+    /// How many things changed: each key, layer, setting and combo, the Navigator, the title and the layer order.
     public var count: Int {
         diff.keyChanges.count + diff.addedLayers.count + diff.removedLayers.count + diff.renamedLayers.count
-            + diff.recoloredLayers.count + settings.count + addedCombos.count + removedCombos.count + (navigatorChanged ? 1 : 0)
+            + diff.recoloredLayers.count + settings.count + addedCombos.count + removedCombos.count
+            + [navigatorChanged, titleChanged, layersMoved].filter { $0 }.count
     }
 }
 
@@ -45,12 +54,15 @@ extension KeyboardLayout {
             return combo
         }
         let now = combos.map(content), was = old.combos.map(content)
+        let shared = Set(layers.map(\.id)).intersection(old.layers.map(\.id))
         return LayoutChanges(
             diff: diff,
             settings: differing(settings, old.settings).union(differing(navigator?.options ?? [:], old.navigator?.options ?? [:])).sorted(),
             addedCombos: combos.filter { !was.contains(content($0)) },
             removedCombos: old.combos.filter { !now.contains(content($0)) },
             navigatorChanged: navigator?.kind != old.navigator?.kind || navigator?.side != old.navigator?.side
-                || automouseLayer != old.automouseLayer)
+                || automouseLayer != old.automouseLayer,
+            titleChanged: title != old.title,
+            layersMoved: layers.map(\.id).filter(shared.contains) != old.layers.map(\.id).filter(shared.contains))
     }
 }

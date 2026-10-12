@@ -482,6 +482,7 @@ extension LayoutWindowModel {
             self.isFollowing.toggle()
         }
         add(String(localized: "Import from Oryx…"), "⇧⌘I") { self.openImport() }
+        add(String(localized: "Save Revision…"), "⌘S", if: canSaveRevision) { Task { await self.beginSaveRevision() } }
         add(String(localized: "Show in Finder")) { Task { await self.showInFinder() } }
         add(String(localized: "Change Keycode…"), "⏎", if: hasKey) { self.openKeycodePicker() }
         add(String(localized: "Record Key"), "⇧⌘R", if: hasKey) { self.startRecording() }

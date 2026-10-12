@@ -272,9 +272,10 @@ public final class LayoutWindowModel {
         return .live(text: [String(localized: "LIVE"), held.map { "\(name) \($0)" } ?? name].joined(separator: " · "))
     }
 
-    /// Kinds on the shown layer, in kind-key order (spec §3.7).
+    /// Kinds on the shown layer, in kind-key order (spec §3.7). History shows a revision's layer (ADR 0043).
     var kindsOnLayer: [KeyKind] {
-        guard let layer = session?.currentLayer else { return [] }
+        let display = page == .history ? history?.display : nil
+        guard let layer = display.map({ $0.layout.layers[safe: $0.layer] }) ?? session?.currentLayer else { return [] }
         let present = Set(layer.keys.map(\.kind))
         return KeyKind.allCases.filter(present.contains)
     }

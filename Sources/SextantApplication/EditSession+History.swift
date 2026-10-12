@@ -8,12 +8,13 @@ extension EditSession {
         try await library.layout(ofRevision: id, in: self.id)
     }
 
-    /// Appends a revision of a layout that isn't the document, such as a flash of a build older than the latest edits.
-    /// The "Edited" baseline stays, since the document still differs from it.
+    /// Appends a revision of a layout that needn't be the document, such as a flash of a build older than the latest
+    /// edits. It becomes the "Edited" baseline, as the library compares the working copy with the newest revision.
     @discardableResult
     public func recordRevision(_ draft: RevisionDraft) async throws(LibraryError) -> RevisionSummary {
         let summary = try await library.appendRevision(draft, to: id)
         revisions.append(summary)
+        revisionBaseline = draft.layout
         return summary
     }
 

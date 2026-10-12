@@ -27,21 +27,21 @@ final class HistoryModel {
         var marks: [KeyRef: KeyChange]
     }
 
-    /// A layer only the revision has, chosen in the strip, and the selected layer it was chosen over.
-    struct PinnedLayer {
-        var id: String
-        var over: Int
-    }
-
     let session: EditSession
     /// The revision the timeline selects; nil, or an id the layout lacks, selects the newest.
-    var selectedID: String?
+    var selectedID: String? {
+        // A revision compared with itself has nothing to show.
+        didSet { if case let .revision(id) = comparison, id == selected?.id { comparison = .parent } }
+    }
     var comparison = Comparison.parent
     /// The Save Revision sheet's message while the sheet is up.
     var saveMessage: String?
-    var pinnedLayer: PinnedLayer?
+    /// The id of a layer only the revision has, chosen in the strip; the page clears it when the selected layer changes.
+    var pinnedLayer: String?
     /// The last failed load or restore, for the inspector.
     var error: LibraryError?
+    /// A restore is running: a second one would append its revisions again.
+    private(set) var isRestoring = false
     /// Revision layouts by id once loaded. Revisions never change, so they stay.
     private(set) var layouts: [String: KeyboardLayout] = [:]
     /// Each revision's change count against its parent, for the timeline.
@@ -114,6 +114,12 @@ final class HistoryModel {
         }
     }
 
+    /// Why the page has nothing to show (`shown` is nil): no revisions yet, or the selected one is loading or unreadable.
+    var unavailable: String {
+        if selected == nil { return String(localized: "No revisions yet") }
+        return error == nil ? String(localized: "Loading revisions…") : String(localized: "This revision couldn’t be read")
+    }
+
     func title(_ comparison: Comparison) -> String {
         switch comparison {
         case .parent: String(localized: "Previous revision")
@@ -165,9 +171,7 @@ final class HistoryModel {
     /// by id, else the selected index, clamped. Layers match by id, so a revision with other layers never shows the
     /// wrong one.
     func shownLayer(in layout: KeyboardLayout) -> Int {
-        if let pin = pinnedLayer, pin.over == session.selection.layer, let i = layout.layers.firstIndex(where: { $0.id == pin.id }) {
-            return i
-        }
+        if let pin = pinnedLayer, let i = layout.layers.firstIndex(where: { $0.id == pin }) { return i }
         if let id = session.currentLayer?.id, let i = layout.layers.firstIndex(where: { $0.id == id }) { return i }
         return min(session.selection.layer, max(layout.layers.count - 1, 0))
     }
@@ -180,7 +184,7 @@ final class HistoryModel {
             pinnedLayer = nil
             session.select(layer: i)
         } else {
-            pinnedLayer = PinnedLayer(id: id, over: session.selection.layer)
+            pinnedLayer = id
         }
     }
 
@@ -194,6 +198,9 @@ final class HistoryModel {
     }
 
     func restore(_ revision: RevisionSummary) async {
+        guard !isRestoring else { return }
+        isRestoring = true
+        defer { isRestoring = false }
         error = nil
         do throws(LibraryError) {
             try await session.restoreRevision(revision)
@@ -204,11 +211,14 @@ final class HistoryModel {
         }
     }
 
-    /// Opens Save Revision with a message suggested from the changes since the last revision.
+    /// Opens Save Revision with a message suggested from the changes since the last revision, the only one it reads.
     func beginSave() async {
         guard session.isEditedSinceRevision else { return }
-        await load()
-        let last = session.revisions.last.flatMap { layouts[$0.id] }
+        var last = session.revisions.last.flatMap { layouts[$0.id] }
+        if last == nil, let revision = session.revisions.last {
+            // Unreadable, the sheet still opens, without a suggestion.
+            last = try? await session.revisionLayout(revision.id)
+        }
         saveMessage = last.map { Self.message(for: session.layout.changes(from: $0), in: session.layout) } ?? ""
     }
 
@@ -232,7 +242,9 @@ final class HistoryModel {
                 ? String(localized: "Edited 1 key on \(name)") : String(localized: "Edited \(keys.count) keys on \(name)")
         }
         let diff = changes.diff
-        if !(diff.addedLayers.isEmpty && diff.removedLayers.isEmpty && diff.renamedLayers.isEmpty && diff.recoloredLayers.isEmpty) {
+        if !(diff.addedLayers.isEmpty && diff.removedLayers.isEmpty && diff.renamedLayers.isEmpty && diff.recoloredLayers.isEmpty)
+            || changes.layersMoved
+        {
             return String(localized: "Edited layers")
         }
         if !changes.settings.isEmpty {
@@ -240,7 +252,8 @@ final class HistoryModel {
                 ? String(localized: "Changed 1 setting") : String(localized: "Changed \(changes.settings.count) settings")
         }
         if !(changes.addedCombos.isEmpty && changes.removedCombos.isEmpty) { return String(localized: "Edited combos") }
-        return changes.navigatorChanged ? String(localized: "Changed the Navigator") : ""
+        if changes.navigatorChanged { return String(localized: "Changed the Navigator") }
+        return changes.titleChanged ? String(localized: "Renamed the layout") : ""
     }
 
     /// Where a revision came from: "Imported from Oryx".

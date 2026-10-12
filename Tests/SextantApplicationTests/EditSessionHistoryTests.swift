@@ -82,14 +82,25 @@ struct EditSessionHistoryTests {
         #expect(session.revisions.count == 1)
     }
 
-    /// A flash of a build older than the document is recorded, but the document stays edited.
-    @Test func recordRevisionKeepsTheBaseline() async throws {
+    /// A flash of a build older than the document is recorded and becomes the baseline: the document stays edited, and
+    /// undoing back to the build clears "Edited", as the library sees it too.
+    @Test func recordRevisionMovesTheBaselineToWhatItRecords() async throws {
         let (session, undo) = try await open()
-        let built = session.layout
         step(undo) { session.setCode("KC_Q", layer: 0, index: 1) }
+        let built = session.layout
+        step(undo) { session.setCode("KC_W", layer: 0, index: 2) }
         let recorded = try await session.recordRevision(RevisionDraft(source: .flash, message: "Flashed", layout: built))
         #expect(session.revisions.last == recorded)
         #expect(try await session.revisionLayout(recorded.id) == built)
         #expect(session.isEditedSinceRevision)
+
+        undo.undo()
+        await session.flush()
+        #expect(!session.isEditedSinceRevision)
+        #expect(try await store.load(session.id).hasEditsSinceLastRevision == false)
+        undo.undo()
+        await session.flush()
+        #expect(session.isEditedSinceRevision)
+        #expect(try await store.load(session.id).hasEditsSinceLastRevision)
     }
 }
