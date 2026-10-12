@@ -221,10 +221,13 @@ struct KeyLabelField: View {
     private func commit() {
         // Not onto a session the window has already let go, nor onto another key now in this place (a swap, Make
         // Transparent).
-        guard model.session === session, draft != stored, let typedFor,
-            let layer = session.layout.layers.firstIndex(where: { $0.id == layerID }),
+        guard model.session === session, draft != stored, let typedFor else { return }
+        guard let layer = session.layout.layers.firstIndex(where: { $0.id == layerID }),
             session.layout.key(layer: layer, index: index)?.hasSameActions(as: typedFor) == true
-        else { return }
+        else {
+            draft = stored  // the field never shows text that won't land
+            return
+        }
         session.setLabel(draft, layer: layer, index: index)
     }
 }

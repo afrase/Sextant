@@ -103,7 +103,8 @@ struct TappingTermRow: View {
     private func commitTyped() {
         guard let typed = typedFor else { return }
         typedFor = nil
-        if key?.hasSameActions(as: typed) == true { commit(draft) }
+        // A key changed under the draft keeps what's stored: the field never shows a value that won't land.
+        if key?.hasSameActions(as: typed) == true { commit(draft) } else { draft = stored ?? session.layout.globalTappingTerm }
     }
 
     private func commit(_ term: Int?) {

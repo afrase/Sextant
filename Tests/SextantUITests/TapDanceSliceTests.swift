@@ -92,6 +92,27 @@ struct TapDanceSliceTests {
         #expect(session.layout.key(layer: 0, index: 30)?.tappingTerm == 250)
     }
 
+    /// An inspector control that changes the key's actions in place drops the draft, and the field shows what's
+    /// stored again rather than a value that will never land.
+    @Test(arguments: [false, true])
+    func aDroppedDraftShowsWhatIsStored(label: Bool) async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.setTappingTerm(250, layer: 0, index: 24)
+        session.select(key: 24)
+        let window = host(model)
+        defer { window.close() }
+        try type(label ? "Nav" : "300", into: label ? fields(window).first : fields(window).last, in: window)
+        session.setHoldLayer(2)
+        settle(window)
+        window.makeFirstResponder(nil)
+        settle(window)
+        let key = try #require(session.layout.key(layer: 0, index: 24))
+        #expect(key.customLabel == nil && key.tappingTerm == 250)
+        let field = try #require(label ? fields(window).first : fields(window).last)
+        #expect(field.stringValue == (label ? "" : "250"))
+    }
+
     /// Moving the selection to another key commits a draft onto the key it was typed for.
     @Test(arguments: [false, true])
     func aDraftCommitsWhenTheSelectionMoves(label: Bool) async throws {
