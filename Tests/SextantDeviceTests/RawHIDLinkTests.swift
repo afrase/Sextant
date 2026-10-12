@@ -199,7 +199,7 @@ struct RawHIDLinkTests {
         }
     }
 
-    /// Layer 32 would shift past the firmware's 32-bit layer state; LED 52 would write past its LED array.
+    /// Shifting by layer 32 is undefined in the firmware; LED 52 would write past its LED array.
     @Test(arguments: [
         KeyboardCommand.moveToLayer(32), .moveToLayer(255), .moveToLayer(256), .moveToLayer(-1),
         .setLED(index: 52, red: 1, green: 1, blue: 1), .setLED(index: 255, red: 1, green: 1, blue: 1),
@@ -217,10 +217,37 @@ struct RawHIDLinkTests {
         let hid = FakeHID(script: [[report(0xFE, 0x05, 0xFE)], [], [report(0x04, 0xFE), report(0x05, 0x00, 0xFE)], [nil]])
         let events = await events(hid, commands: commands) {
             feed.yield(.moveToLayer(32))
-            feed.yield(.moveToLayer(2))
+            feed.yield(.setAllLEDs(red: 1, green: 2, blue: 3))
         }
         #expect(events == [.protocolVersion(5), .layer(0), .ended(nil)])
-        #expect(hid.sent.value.map { Array($0.prefix(3)) } == [[0xFE, 0, 0], [0x00, 0, 0], [0x01, 0, 0], [0x04, 0x01, 0x02]])
+        #expect(hid.sent.value.map { Array($0.prefix(4)) } == [[0xFE, 0, 0, 0], [0x00, 0, 0, 0], [0x01, 0, 0, 0], [0x09, 1, 2, 3]])
+    }
+
+    /// `01` is out but the layer hasn't come back: the board may not be paired yet, so nothing more is written.
+    @Test func dropsCommandsWhilePairing() async throws {
+        let clock = TestClock()
+        let hid = FakeHID(script: [[report(0xFE, 0x05, 0xFE)], [], [report(0x04, 0xFE)]])
+        let (commands, feed) = AsyncStream.makeStream(of: KeyboardCommand.self)
+        let link = RawHIDLink(clock: clock, makeTransport: { _, _ in hid })
+        let ended = Locked(false)
+        let consumer = Task {
+            for await event in link.session(with: keyboard, board: .voyager, commands: commands) {
+                if case .ended = event { ended.value = true }
+            }
+        }
+        defer { consumer.cancel() }
+        try await waitUntil {
+            await clock.advance(by: .milliseconds(1))
+            return hid.sent.value.count == 3
+        }
+        // Queued behind the pause after `01`, so the loop meets it in the pairing phase, before the 700 ms deadline.
+        feed.yield(.moveToLayer(1))
+        try await Task.sleep(for: .milliseconds(20))
+        try await waitUntil {
+            await clock.advance(by: .milliseconds(10))
+            return ended.value
+        }
+        #expect(hid.sent.value.map { $0[0] } == [0xFE, 0x00, 0x01])
     }
 
     /// Commands share the handshake's write path: never closer than 5 ms, as the firmware's 4-report queue needs.
@@ -240,13 +267,39 @@ struct RawHIDLinkTests {
             await clock.advance(by: .milliseconds(1))
             return paired.value
         }
-        for command in [KeyboardCommand.lighting(true), .setAllLEDs(red: 1, green: 2, blue: 3), .lighting(false)] { feed.yield(command) }
+        let sequence: [KeyboardCommand] = [.moveToLayer(1), .lighting(true), .setAllLEDs(red: 1, green: 2, blue: 3), .lighting(false)]
+        sequence.forEach { feed.yield($0) }
         try await waitUntil {
             await clock.advance(by: .milliseconds(1))
-            return hid.sent.value.count == 6
+            return hid.sent.value.count == 8
         }
         let times = hid.sentAt.value
         #expect(zip(times, times.dropFirst()).allSatisfy { $0.duration(to: $1) >= .milliseconds(5) }, "\(times)")
+        // The firmware may drop the move's own layer event (research 03 O2); pairing again reports the layer.
+        #expect(
+            hid.sent.value.dropFirst(3).map { Array($0.prefix(2)) } == [[0x04, 0x01], [0x01, 0], [0x05, 0x01], [0x09, 1], [0x05, 0]])
+    }
+
+    /// The pause after each paired write holds back only the next write, never the keyboard's reports.
+    @Test func reportsDontWaitBehindQueuedWrites() async throws {
+        let clock = TestClock()
+        // A key goes down while the first of three LED writes goes out.
+        let hid = FakeHID(
+            script: [[report(0xFE, 0x05, 0xFE)], [], [report(0x05, 0x00, 0xFE)], [report(0x06, 0x01, 0x00, 0xFE)]], clock: clock)
+        let (commands, feed) = AsyncStream.makeStream(of: KeyboardCommand.self)
+        let link = RawHIDLink(clock: clock, makeTransport: { _, _ in hid })
+        let seen = Locked<[LiveEvent]>([])
+        let consumer = Task {
+            for await event in link.session(with: keyboard, board: .voyager, commands: commands) { seen.value.append(event) }
+        }
+        defer { consumer.cancel() }
+        try await waitUntil {
+            await clock.advance(by: .milliseconds(1))
+            return seen.value.contains(.layer(0))
+        }
+        for index in 0..<3 { feed.yield(.setLED(index: index, red: 1, green: 2, blue: 3)) }
+        try await waitUntil { seen.value.contains(.keyDown(row: 0, column: 1)) }
+        #expect(hid.sent.value.count == 4, "the clock hasn't moved, so only the first LED write is out")
     }
 
     /// Keymapp seizing the interface after pairing shows up at the next command's write.

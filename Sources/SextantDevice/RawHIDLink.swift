@@ -92,14 +92,14 @@ enum OryxReport {
 }
 
 /// One session (00 §5): drain stale reports, query the protocol version (400 ms, retried once) and the firmware
-/// serial, pair, wait up to 700 ms for the layer, then stream events and write commands until removal or
-/// cancellation.
+/// serial, pair, wait up to 700 ms for the layer, then stream events and write commands until removal, a failed
+/// write or cancellation.
 private struct OryxSession: Sendable {
     let transport: any HIDTransport
     let board: BoardDefinition
     let clock: any Clock<Duration>
 
-    private enum Input { case report([UInt8]), removed, deadline(Int), command(KeyboardCommand) }
+    private enum Input { case report([UInt8]), removed, deadline(Int), command(KeyboardCommand), writeFailed(DeviceError) }
     private enum Phase { case draining, version(attempt: Int), pairing, live }
 
     /// fw21 and older paired with a key sequence; from protocol 2 (fw22) on, `01` pairs and the events are the same.
@@ -113,7 +113,7 @@ private struct OryxSession: Sendable {
 
     func run(_ out: AsyncStream<LiveEvent>.Continuation, commands: AsyncStream<KeyboardCommand>) async {
         let (inputs, feed) = AsyncStream.makeStream(of: Input.self)
-        // Commands join the same loop as reports, so every write is serialized and paced.
+        // Commands join the same loop as reports, so each one meets the session's phase in order.
         let forward = Task { for await command in commands { feed.yield(.command(command)) } }
         defer { forward.cancel() }
         var reason: DeviceError?
@@ -148,7 +148,20 @@ private struct OryxSession: Sendable {
     ) async throws -> DeviceError? {
         var timer: Task<Void, Never>?
         var deadline = 0
-        defer { timer?.cancel() }
+        // Paired writes go out from their own task, so their 5 ms pacing never holds back the reports behind them.
+        // The handshake's writes are all done before the first one.
+        let (writes, writer) = AsyncStream.makeStream(of: [UInt8].self)
+        let writing = Task {
+            do {
+                for await report in writes where !Task.isCancelled { try await send(report) }
+            } catch let error as DeviceError {
+                feed.yield(.writeFailed(error))
+            } catch {}  // cancelled
+        }
+        defer {
+            timer?.cancel()
+            writing.cancel()
+        }
         func arm(_ duration: Duration) {
             timer?.cancel()
             deadline += 1
@@ -162,10 +175,15 @@ private struct OryxSession: Sendable {
             switch input {
             case .removed:
                 return nil
+            case let .writeFailed(error):
+                return error
             case let .command(command):
                 // Only a paired session writes; a command before then is dropped, never queued.
                 guard case .live = phase, let report = OryxReport.encode(command, board: board) else { continue }
-                try await send(report)
+                writer.yield(report)
+                // The firmware drops a layer event that matches a value pairing never updates (research 03 O2), so a
+                // move can go unreported; pairing again always reports the layer.
+                if case .moveToLayer = command { writer.yield(OryxReport.command(OryxReport.pairingInit)) }
             case let .deadline(id):
                 guard id == deadline else { continue }
                 switch phase {

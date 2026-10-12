@@ -1075,7 +1075,7 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
 
 **Live behaviour**
 - **Pressed keys** light in every lens (§4.7). The default is on (Settings › Keyboard).
-- **Secure input.** While `IsSecureEventInputEnabled()` is true (polled at 1 Hz), presses are not shown, and the Device popover says "Paused: secure input is on".
+- **Secure input.** While `IsSecureEventInputEnabled()` is true (polled at 1 Hz, and checked at every event for the press feed), presses are not shown, and the Device popover says "Paused: secure input is on".
 - **Follow** is a Maps-style tracking mode:
   - It turns on automatically when a keyboard connects. This is the brief's "live" principle.
   - When it is on, the displayed layer is the physical layer.
