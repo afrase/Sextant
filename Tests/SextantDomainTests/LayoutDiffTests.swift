@@ -52,7 +52,8 @@ struct LayoutDiffTests {
     }
 
     /// Oryx numbers combo ids by position, so deleting the first combo renumbers the rest.
-    @Test func combosAreComparedByContentNotId() throws {
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func combosAreComparedByContentNotId() throws {
         let m9dpx = try Fixtures.layout("voyager-m9dpx.json")
         var renumbered = m9dpx
         renumbered.combos = m9dpx.combos.reversed().enumerated().map { n, combo in

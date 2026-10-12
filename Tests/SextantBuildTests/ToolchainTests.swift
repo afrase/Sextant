@@ -56,12 +56,13 @@ struct ToolchainTests {
         return out
     }
 
-    @Test(arguments: [
-        ("KlgM7-40xJ7M-source.zip", 65786), ("JRGQm-source.zip", 75512), ("e5Rrr-source.zip", 67326),
-        ("m9dpx-source.zip", 70222), ("XlrR4-source.zip", 44504),
-    ])
+    @Test(
+        arguments: [
+            ("KlgM7-40xJ7M-source.zip", 65786), ("JRGQm-source.zip", 75512), ("e5Rrr-source.zip", 67326),
+            ("m9dpx-source.zip", 70222), ("XlrR4-source.zip", 44504),
+        ].filter { QMKGeneratorGoldenTests.reference != nil || $0.0.hasPrefix("KlgM7") })
     func readsOryxBuildLogs(zip: String, size: Int) throws {
-        let text = try QMKGeneratorGoldenTests.unzipped(QMKGeneratorGoldenTests.examples.appending(path: "sources/\(zip)")) {
+        let text = try QMKGeneratorGoldenTests.unzipped(QMKGeneratorGoldenTests.example("sources/\(zip)")) {
             try String(contentsOf: $0.appending(path: "build.log"), encoding: .utf8)
         }
         var log = BuildLog(sourceMap: [:])

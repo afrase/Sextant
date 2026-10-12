@@ -112,10 +112,19 @@ actor InMemoryLibrary: LayoutLibrary {
 enum Fixtures {
     static let userLayoutData = (try? data("my-layout-KlgM7-40xJ7M.json")) ?? Data()
 
-    /// A file under `docs/research/oryx-examples/` (never copied into the test bundle).
+    static let examples = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        .deletingLastPathComponent().appending(path: "docs/research/oryx-examples")
+
+    /// Other people's Oryx samples are kept out of the repo, at the same path under `$SEXTANT_REFERENCE`; nil (unset,
+    /// or no such folder) skips the tests that need them.
+    static let reference = ProcessInfo.processInfo.environment["SEXTANT_REFERENCE"]
+        .map { URL(fileURLWithPath: $0).appending(path: "docs/research/oryx-examples") }
+        .flatMap { FileManager.default.fileExists(atPath: $0.path) ? $0 : nil }
+
+    /// A file under `docs/research/oryx-examples/` (never copied into the test bundle): the repo's copy if there is
+    /// one, else the reference folder's.
     static func data(_ name: String) throws -> Data {
-        try Data(
-            contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-                .deletingLastPathComponent().appending(path: "docs/research/oryx-examples/\(name)"))
+        let own = examples.appending(path: name)
+        return try Data(contentsOf: FileManager.default.fileExists(atPath: own.path) ? own : (reference ?? examples).appending(path: name))
     }
 }

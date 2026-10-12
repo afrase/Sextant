@@ -65,7 +65,8 @@ func runChecks() -> Int {
     let missing = userCodes.filter { KeycodeCatalog.entry(for: $0) == nil && !KeycodeCatalog.layerFunctions.contains($0) }
     check(missing.isEmpty, "every code in the user's layout is catalogued (\(userCodes.count) codes) \(missing.sorted())")
     // Wider coverage: the public example layouts in the research folder (read-only).
-    let examples = URL(fileURLWithPath: "/Users/aaron/Developer/Sextant/docs/research/oryx-examples")
+    let examples = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        .deletingLastPathComponent().deletingLastPathComponent().appending(path: "docs/research/oryx-examples")
     var exampleCodes = Set<String>()
     for f in (try? FileManager.default.contentsOfDirectory(at: examples, includingPropertiesForKeys: nil)) ?? [] where f.pathExtension == "json" {
         guard let l = try? KeyboardLayout(oryxFile: f) else { print("     (could not decode \(f.lastPathComponent))"); continue }

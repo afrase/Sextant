@@ -151,8 +151,14 @@ struct PackageLibraryTests {
             "voyager-m9dpx.json": "f064e3bc8d582434f694dfc6f4e897f33a1c9fbc83d8cdeb25bb0106b167297c",
             "voyager-XlrR4.json": "610dbc2fea545fe6cf71e24206a1cba50e7e55fed13960d837b4f73d829a9c5e",
         ]
+        // Other people's samples are kept out of the repo, at the same path under `$SEXTANT_REFERENCE`.
+        let reference = ProcessInfo.processInfo.environment["SEXTANT_REFERENCE"]
+            .map { URL(fileURLWithPath: $0).appending(path: "docs/research/oryx-examples") }
+            .flatMap { FileManager.default.fileExists(atPath: $0.path) ? $0 : nil }
         for (file, hash) in expected {
-            let fixture = try KeyboardLayout(oryxJSON: Data(contentsOf: examples.appending(path: file)))
+            let own = examples.appending(path: file)
+            guard let url = FileManager.default.fileExists(atPath: own.path) ? own : reference?.appending(path: file) else { continue }
+            let fixture = try KeyboardLayout(oryxJSON: Data(contentsOf: url))
             #expect(try PackageLibrary.contentHash(fixture) == "sha256:\(hash)", "\(file)")
         }
     }

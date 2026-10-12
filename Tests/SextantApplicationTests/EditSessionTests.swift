@@ -43,7 +43,8 @@ struct EditSessionTests {
         #expect(session.canUndo && session.canRedo)
     }
 
-    @Test func undoRestoresTheSelectedCombo() async throws {
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func undoRestoresTheSelectedCombo() async throws {
         let (session, undo) = try await open(Fixtures.data("voyager-m9dpx.json"))
         session.selection.combo = "combo-0"
         step(undo) { session.setTitle("Renamed") }
@@ -56,7 +57,8 @@ struct EditSessionTests {
     }
 
     /// m9dpx: combo-0 "Player 1" (layer 1), combo-1 "Game over" (layer 6). Ids are positions.
-    @Test func theSelectedComboNeverOutlivesItsCombo() async throws {
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func theSelectedComboNeverOutlivesItsCombo() async throws {
         let (session, undo) = try await open(Fixtures.data("voyager-m9dpx.json"))
         session.selection.combo = "combo-1"
         step(undo) { session.deleteLayer(6) }

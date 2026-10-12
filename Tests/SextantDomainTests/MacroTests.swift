@@ -5,7 +5,8 @@ import Testing
 
 /// The macro library and its edits (spec §6.3, ADR 0042).
 struct MacroTests {
-    @Test func theLibraryListsKeysThenCombosThenDrafts() throws {
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func theLibraryListsKeysThenCombosThenDrafts() throws {
         var jr = try Fixtures.layout("voyager-JRGQm.json")
         var macros = jr.macros
         #expect(macros.count == 67, "66 keys and 1 combo")
@@ -42,7 +43,8 @@ struct MacroTests {
         #expect(missing.0 == nil && missing.1 == nil)
     }
 
-    @Test func unassigningAndRemovingEmptyTheSlot() throws {
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func unassigningAndRemovingEmptyTheSlot() throws {
         var layout = try Fixtures.layout("voyager-JRGQm.json")
         let first = try #require(layout.macros.first)
         let unassigned = layout.unassignMacro(at: first.locator, draftID: "x")
@@ -64,7 +66,8 @@ struct MacroTests {
     }
 
     /// Oryx names a macro by labelling its key, and the cap shows the label first: the label follows the name.
-    @Test func aKeysLabelFollowsItsMacrosName() throws {
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func aKeysLabelFollowsItsMacrosName() throws {
         var layout = try Fixtures.layout("voyager-JRGQm.json")
         let teamsCam = MacroLocator.key(KeyRef(layer: 2, index: 32, slot: .tap))
         // Assigning drops the target's own label ("End Teams"), so the cap names the macro it now plays.
@@ -122,11 +125,15 @@ struct MacroTests {
         }
     }
 
-    @Test func stepsThatCannotTypeRaiseAnIssueOnTheirKey() throws {
+    @Test func noExampleHasAStepThatCannotType() throws {
         for file in Fixtures.allLayoutFiles {
             #expect(
                 !LayoutIssues.check(try Fixtures.layout(file)).contains { if case .macroStepNotTypable = $0.kind { true } else { false } })
         }
+    }
+
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func stepsThatCannotTypeRaiseAnIssueOnTheirKey() throws {
         var layout = try Fixtures.layout("voyager-JRGQm.json")
         let first = try #require(layout.macros.first)
         layout.updateMacro(at: first.locator) { $0.steps[1].code = "MO" }
@@ -141,7 +148,7 @@ struct MacroTests {
 
     /// Drafts are written only when there are some, so every existing layout encodes exactly as before.
     @Test func draftsRoundTripAndAreLeftOutWhenEmpty() throws {
-        var layout = try Fixtures.layout("voyager-XlrR4.json")
+        var layout = try Fixtures.layout()
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         let plain = try encoder.encode(layout)

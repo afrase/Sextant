@@ -54,10 +54,13 @@ struct ImportSummaryTests {
         #expect(summary.navigator == nil)
     }
 
-    @Test func countsMacrosCombosAndTheNavigator() throws {
+    @Test func countsTheNavigator() throws {
         let full = ImportSummary(try Fixtures.layout("my-layout-KlgM7-full.json"))
         #expect(full.navigator?.kind == .trackpad && full.navigator?.side == .right)
+    }
 
+    @Test(.enabled(if: Fixtures.reference != nil, "needs SEXTANT_REFERENCE"))
+    func countsMacrosAndCombos() throws {
         let jr = ImportSummary(try Fixtures.layout("voyager-JRGQm.json"))
         #expect(jr.layers == 12)
         #expect(jr.macros == 66)

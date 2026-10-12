@@ -9,6 +9,23 @@ let userLayoutData = try? Data(
     contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         .appending(path: "docs/research/oryx-examples/my-layout-KlgM7-40xJ7M.json"))
 
+/// Other people's Oryx samples are kept out of the repo, at the same path under `$SEXTANT_REFERENCE`; nil (unset, or no
+/// such folder) skips the tests that need them.
+let referenceExamples = ProcessInfo.processInfo.environment["SEXTANT_REFERENCE"]
+    .map { URL(fileURLWithPath: $0).appending(path: "docs/research/oryx-examples") }
+    .flatMap { FileManager.default.fileExists(atPath: $0.path) ? $0 : nil }
+
+/// An Oryx example under `docs/research/oryx-examples/`: the repo's copy if there is one, else the reference folder's.
+func exampleURL(_ name: String) -> URL {
+    let examples = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        .deletingLastPathComponent().appending(path: "docs/research/oryx-examples")
+    let own = examples.appending(path: name)
+    return FileManager.default.fileExists(atPath: own.path) ? own : (referenceExamples ?? examples).appending(path: name)
+}
+
+/// Committed pixel references are rendered on the developer's macOS; CI's fonts and drawing differ slightly.
+let skipsPixelSnapshots = ProcessInfo.processInfo.environment["CI"]?.isEmpty == false
+
 /// A window model with the user's layout open.
 @MainActor
 func openUserLayout() async throws -> LayoutWindowModel {

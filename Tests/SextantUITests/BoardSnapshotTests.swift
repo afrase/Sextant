@@ -7,6 +7,7 @@ import Testing
 
 /// Reference images of the board, rendered offscreen with `ImageRenderer` (no window, no TCC). References live
 /// in `__Snapshots__/BoardSnapshotTests`; a missing one is recorded and the test fails once.
+@Suite(.disabled(if: skipsPixelSnapshots, "the references are rendered on the developer's macOS"))
 @MainActor
 struct BoardSnapshotTests {
     @Test(arguments: [ColorScheme.light, .dark])

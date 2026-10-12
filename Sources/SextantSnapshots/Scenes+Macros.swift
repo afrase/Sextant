@@ -10,9 +10,7 @@ extension Scenes {
     /// its picker, Record Steps, Assign to Key's capsule on the board, and ⌘K's Documents group.
     static func macros(_ f: Fixtures) async -> [SnapshotScene] {
         // A library of its own inside the fixtures' folder (removed with it), so the other scenes' sidebars don't list it.
-        guard let root = await f.windowModel().library.location(of: f.entry.id)?.deletingLastPathComponent().appending(path: "macros"),
-            let jr = await importExample("voyager-JRGQm.json", into: root),
-            let xl = await importExample("voyager-XlrR4.json", into: root)
+        guard let root = await f.windowModel().library.location(of: f.entry.id)?.deletingLastPathComponent().appending(path: "macros")
         else { return [] }
         func open(_ entry: LibraryEntry) async -> LayoutWindowModel {
             let model = LayoutWindowModel(library: Library(store: PackageLibrary(root: root)))
@@ -42,10 +40,13 @@ extension Scenes {
         let brackets = MacroLocator.key(KeyRef(layer: 1, index: 35, slot: .tap))
         let min = CGSize(width: 1120, height: 640)
 
-        var scenes = await pair("macros-jrgqm", jr) { $0.session?.selectMacro(teamsCam, step: 1) }
+        // The empty page is the user's layout; the rest need other people's samples (under $SEXTANT_REFERENCE).
+        var scenes = await pair("macros-empty", f.entry, make: { await model(f) }) { $0.destination = .macros }
+        guard let jr = await importExample("voyager-JRGQm.json", into: root), let xl = await importExample("voyager-XlrR4.json", into: root)
+        else { return scenes }
+        scenes += await pair("macros-jrgqm", jr) { $0.session?.selectMacro(teamsCam, step: 1) }
         scenes += await pair("macros-jrgqm-min", jr, size: min) { $0.session?.selectMacro(teamsCam, step: 0) }
         scenes += await pair("macros-xlrr4", xl) { $0.session?.selectMacro(.key(KeyRef(layer: 3, index: 6, slot: .tap)), step: 2) }
-        scenes += await pair("macros-empty", f.entry, make: { await model(f) }) { $0.destination = .macros }
         scenes += await pair("macros-step-picker", jr) {
             $0.session?.selectMacro(teamsCam, step: 1)
             $0.openStepPicker(step: 1, in: teamsCam)
@@ -65,7 +66,11 @@ extension Scenes {
 
     private static func importExample(_ file: String, into root: URL) async -> LibraryEntry? {
         let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        guard let data = try? Data(contentsOf: repo.appending(path: "docs/research/oryx-examples/\(file)")) else { return nil }
+        let path = "docs/research/oryx-examples/\(file)"
+        // Other people's samples are kept out of the repo, at the same path under $SEXTANT_REFERENCE; without it, no scenes.
+        let reference = ProcessInfo.processInfo.environment["SEXTANT_REFERENCE"].map { URL(fileURLWithPath: $0).appending(path: path) }
+        guard let data = (try? Data(contentsOf: repo.appending(path: path))) ?? reference.flatMap({ try? Data(contentsOf: $0) })
+        else { return nil }
         return try? await Library(store: PackageLibrary(root: root)).importOryxJSON(data)
     }
 }

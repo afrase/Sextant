@@ -56,7 +56,8 @@ struct OryxClientTests {
         #expect(variables == ["hashId": "KlgM7", "revisionId": "latest"])
     }
 
-    @Test(arguments: ["my-layout-KlgM7-full.json", "voyager-default.json", "voyager-JRGQm.json"])
+    @Test(
+        arguments: ["my-layout-KlgM7-full.json"] + (Self.reference == nil ? [] : ["voyager-default.json", "voyager-JRGQm.json"]))
     func decodesOryxReplies(_ file: String) async throws {
         StubProtocol.reply(.http(200, try fixture(file)))
         let layout = try await client.layout(OryxReference(layoutID: "KlgM7"))
@@ -147,10 +148,19 @@ struct OryxClientTests {
         #expect(StubProtocol.sent.isEmpty)
     }
 
+    /// Other people's Oryx samples are kept out of the repo, at the same path under `$SEXTANT_REFERENCE`; nil (unset,
+    /// or no such folder) skips the tests that need them.
+    static let reference = ProcessInfo.processInfo.environment["SEXTANT_REFERENCE"]
+        .map { URL(fileURLWithPath: $0).appending(path: "docs/research/oryx-examples") }
+        .flatMap { FileManager.default.fileExists(atPath: $0.path) ? $0 : nil }
+
+    /// The repo's copy if there is one, else the reference folder's.
     private func fixture(_ name: String) throws -> Data {
-        try Data(
-            contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-                .deletingLastPathComponent().appending(path: "docs/research/oryx-examples/\(name)"))
+        let examples = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appending(path: "docs/research/oryx-examples")
+        let own = examples.appending(path: name)
+        return try Data(
+            contentsOf: FileManager.default.fileExists(atPath: own.path) ? own : (Self.reference ?? examples).appending(path: name))
     }
 }
 
