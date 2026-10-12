@@ -164,7 +164,7 @@ public struct BoardGeometry: Hashable, Sendable {
             case .up: CGPoint(x: 0, y: -1)
             case .down: CGPoint(x: 0, y: 1)
             }
-        var best: (Int, Double)?
+        var best: (Int, CGFloat)?
         for k in keys where k.index != index {
             let v = CGPoint(x: k.center.x - from.x, y: k.center.y - from.y)
             let along = v.x * d.x + v.y * d.y
