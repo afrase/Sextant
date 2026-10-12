@@ -29,8 +29,8 @@ public final class LiveSession {
     public private(set) var protocolVersion: UInt8?
     /// The keyboard's highest active layer.
     public private(set) var activeLayer: Int?
-    /// Follow mode: the displayed layer tracks ``activeLayer``. On when a keyboard connects; off when a
-    /// layer is chosen by hand (``stopFollowing()``); ``follow()`` resumes it.
+    /// Follow mode: the displayed layer tracks ``activeLayer``. On when a keyboard connects, unless the user turned
+    /// that off (`followsOnConnect`); off when a layer is chosen by hand (``stopFollowing()``); ``follow()`` resumes it.
     public private(set) var isFollowing = false
     /// macOS secure input is on (a password field has focus): presses are hidden.
     public private(set) var isSecureInputOn = false
@@ -57,6 +57,7 @@ public final class LiveSession {
     @ObservationIgnored private let board: BoardDefinition
     @ObservationIgnored private let clock: any Clock<Duration>
     @ObservationIgnored private let secureInputProbe: @Sendable () -> Bool
+    @ObservationIgnored private let followsOnConnect: @MainActor () -> Bool
     @ObservationIgnored private var devices: [ConnectedDevice] = []
     @ObservationIgnored private var keyboard: KeyboardDevice?
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
@@ -66,16 +67,20 @@ public final class LiveSession {
     /// The layer ``activity()`` last reported for this keyboard.
     @ObservationIgnored private var deliveredLayer: Int?
 
-    /// - Parameter secureInputProbe: `IsSecureEventInputEnabled`, polled once a second while a keyboard is connected
-    ///   and asked again for each event ``activity()`` would deliver.
+    /// - Parameters:
+    ///   - followsOnConnect: whether Follow turns on when a keyboard connects (Settings › Keyboard), asked at each connect.
+    ///   - secureInputProbe: `IsSecureEventInputEnabled`, polled once a second while a keyboard is connected and asked
+    ///     again for each event ``activity()`` would deliver.
     public init(
         watcher: any DeviceWatcher, link: any KeyboardLink, board: BoardDefinition = .voyager,
-        clock: any Clock<Duration> = ContinuousClock(), secureInputProbe: @escaping @Sendable () -> Bool
+        clock: any Clock<Duration> = ContinuousClock(), followsOnConnect: @escaping @MainActor () -> Bool = { true },
+        secureInputProbe: @escaping @Sendable () -> Bool
     ) {
         self.watcher = watcher
         self.link = link
         self.board = board
         self.clock = clock
+        self.followsOnConnect = followsOnConnect
         self.secureInputProbe = secureInputProbe
     }
 
@@ -178,7 +183,7 @@ public final class LiveSession {
         keyboard = device
         connection = .connected(device)
         firmwareSerial = device.serial
-        isFollowing = true
+        isFollowing = followsOnConnect()
         linkTask = Task { await runLink(device) }
         // Only presses need hiding, so the probe runs only while a keyboard can send them.
         secureInputTask = Task {
@@ -218,7 +223,7 @@ public final class LiveSession {
             let (activity, tap) = AsyncStream.makeStream(of: LiveActivity.self)
             async let delivered: Void = deliver(activity, from: device)
             let events = link.session(with: device, board: board, commands: commands)
-            let final = await clock.publish(events, board: board, tap: tap) { state in
+            let final = await clock.publish(events, board: board, tap: tap, secureInput: secureInputProbe) { state in
                 show(state, from: device)
                 // The debounce flushes the last state after the session ends; an ended session takes no commands.
                 if state.isLive, !state.hasEnded, liveCommands == nil, !Task.isCancelled, keyboard == device {
@@ -293,11 +298,12 @@ extension Clock where Duration == Swift.Duration {
     /// throttle if that lag ever shows.
     fileprivate func publish(
         _ events: AsyncStream<LiveEvent>, board: BoardDefinition, tap: AsyncStream<LiveActivity>.Continuation,
-        to body: @MainActor (LinkState) -> Void
+        secureInput: @escaping @Sendable () -> Bool, to body: @MainActor (LinkState) -> Void
     ) async -> LinkState {
         var last = LinkState()
         let states = events.reductions(into: LinkState()) { state, event in
-            if let activity = state.apply(event, board: board) { tap.yield(activity) }
+            // Asked as the event arrives, so a press made during secure input never waits for the main actor.
+            if let activity = state.apply(event, board: board), !secureInput() { tap.yield(activity) }
         }
         for await state in states.debounce(for: .seconds(1) / 60, clock: self) {
             last = state

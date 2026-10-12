@@ -76,14 +76,15 @@ extension LayoutWindowModel {
         return count > 0 ? count : nil
     }
 
-    /// Feeds the window from the keyboard for its lifetime (spec §8.2): presses light the board, the shown layer
-    /// tracks the keyboard's while following, and choosing a layer by hand (sidebar, ⌘1–9, the jump menu, Show Key)
-    /// stops following. Also loads the import the serial is matched against. The window runs it; snapshots run it for
-    /// views shown without a window.
-    public func followKeyboard() async {
+    /// Feeds the window from the keyboard for its lifetime (spec §8.2): presses light the board unless Settings ›
+    /// Keyboard turns them off, the shown layer tracks the keyboard's while following, and choosing a layer by hand
+    /// (sidebar, ⌘1–9, the jump menu, Show Key) stops following. Also loads the import the serial is matched against. The
+    /// window runs it; snapshots run it for views shown without a window.
+    public func followKeyboard(settings: UserDefaults = .standard) async {
         guard let live else { return }
+        let showsPresses = ObservedSetting(SettingsKey.showsKeyPresses, default: true, in: settings)
         var last: LiveInputs?
-        for await now in Observations({ LiveInputs(live: live, session: self.session) }) {
+        for await now in Observations({ LiveInputs(live: live, session: self.session, showsPresses: showsPresses.isOn) }) {
             pressedKeys.update(now.pressed)
             if now.document != last?.document { importedLayout = await buildFlash?.importedLayout() }
             if now.followed != last?.followed || now.document?.id != last?.document?.id {
@@ -112,12 +113,35 @@ private struct LiveInputs: Equatable, Sendable {
     var document: Document?
 
     @MainActor
-    init(live: LiveSession, session: EditSession?) {
+    init(live: LiveSession, session: EditSession?, showsPresses: Bool) {
         followed = live.followedLayer
-        pressed = live.pressedKeys
+        pressed = showsPresses ? live.pressedKeys : []
         layer = session?.selection.layer
         document = session.map { Document(id: $0.id, importID: $0.revisions.last { $0.source == .import }?.id) }
     }
+}
+
+/// A Bool setting as observable state, so ``LayoutWindowModel/followKeyboard(settings:)`` reacts the moment it changes
+/// (Settings or the Device popover), not at the next press.
+@MainActor
+@Observable
+private final class ObservedSetting {
+    private(set) var isOn = false
+    @ObservationIgnored private let read: () -> Bool
+    @ObservationIgnored private var observer: (any NSObjectProtocol)?
+
+    init(_ key: String, default value: Bool, in defaults: UserDefaults) {
+        read = { defaults.object(forKey: key) as? Bool ?? value }
+        isOn = read()
+        observer = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: defaults, queue: .main) {
+            [weak self] _ in
+            MainActor.assumeIsolated {
+                if let self, self.isOn != self.read() { self.isOn.toggle() }
+            }
+        }
+    }
+
+    isolated deinit { observer.map(NotificationCenter.default.removeObserver) }
 }
 
 extension ActivityState.Device {

@@ -123,6 +123,26 @@ public enum KeyboardCommand: Hashable, Sendable {
     }
 }
 
+/// One report the live link wrote or read, for the Developer raw-HID log (ADR 0045). The protocol carries matrix
+/// positions, never characters.
+public struct HIDTraceEntry: Hashable, Sendable {
+    public enum Direction: Hashable, Sendable { case sent, received }
+
+    public var date: Date
+    public var direction: Direction
+    /// The report up to its stop byte; a sent one without its zero padding.
+    public var bytes: [UInt8]
+    /// What a received report means, when it means something.
+    public var event: LiveEvent?
+
+    public init(date: Date = .now, direction: Direction, bytes: [UInt8], event: LiveEvent? = nil) {
+        self.date = date
+        self.direction = direction
+        self.bytes = bytes
+        self.event = event
+    }
+}
+
 /// The live connection to a keyboard in normal mode.
 public protocol KeyboardLink: Sendable {
     /// Opens the raw-HID interface (never seized), identifies and pairs, then streams events until the

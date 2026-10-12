@@ -19,18 +19,27 @@ protocol HIDTransport: Sendable {
 public struct RawHIDLink: KeyboardLink {
     private let clock: any Clock<Duration>
     private let makeTransport: @Sendable (KeyboardDevice, BoardDefinition) -> any HIDTransport
+    private let trace: (@Sendable (HIDTraceEntry) -> Void)?
 
-    public init() { self.init(clock: ContinuousClock()) { IOHIDTransport(device: $0, board: $1) } }
+    /// - Parameter trace: gets every report as it is written and as it arrives, trimmed (the Developer raw-HID log, ADR
+    ///   0045). Called from the transport's callback queue.
+    public init(trace: (@Sendable (HIDTraceEntry) -> Void)? = nil) {
+        self.init(clock: ContinuousClock(), trace: trace) { IOHIDTransport(device: $0, board: $1) }
+    }
 
-    init(clock: any Clock<Duration>, makeTransport: @escaping @Sendable (KeyboardDevice, BoardDefinition) -> any HIDTransport) {
+    init(
+        clock: any Clock<Duration>, trace: (@Sendable (HIDTraceEntry) -> Void)? = nil,
+        makeTransport: @escaping @Sendable (KeyboardDevice, BoardDefinition) -> any HIDTransport
+    ) {
         self.clock = clock
+        self.trace = trace
         self.makeTransport = makeTransport
     }
 
     public func session(
         with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>
     ) -> AsyncStream<LiveEvent> {
-        let session = OryxSession(transport: makeTransport(device, board), board: board, clock: clock)
+        let session = OryxSession(transport: makeTransport(device, board), board: board, clock: clock, trace: trace)
         return AsyncStream { out in
             let task = Task { await session.run(out, commands: commands) }
             out.onTermination = { _ in task.cancel() }
@@ -66,6 +75,25 @@ enum OryxReport {
 
     private static func padded(_ bytes: [UInt8]) -> [UInt8] { bytes + [UInt8](repeating: 0, count: size - bytes.count) }
 
+    /// What the raw-HID log keeps of a report: a sent one without its zero padding (by command, since a trailing 0 can
+    /// be a value), a received one up to and including its stop byte. The firmware's stack garbage after it is never
+    /// kept: `08`, `0B` and `FF` have no stop byte and keep exactly two bytes, and any other received report with no
+    /// stop byte keeps only its id.
+    static func trimmed(_ report: [UInt8], sent: Bool) -> [UInt8] {
+        guard let id = report.first else { return [] }
+        let length =
+            switch (sent, id) {
+            case (true, _): commandLengths[id] ?? 1
+            // `0B` answers `0A`, which Sextant never sends, but another host's reply reaches every open client.
+            case (false, 0x08), (false, 0x0B), (false, 0xFF): 2
+            case (false, _): (report.dropFirst().firstIndex(of: stop) ?? 0) + 1
+            }
+        return Array(report.prefix(length))
+    }
+
+    /// The bytes `encode` pads for each command; the handshake's queries are one byte.
+    private static let commandLengths: [UInt8: Int] = [setLayer: 3, rgbControl: 2, setRGBLED: 5, setRGBLEDAll: 4]
+
     /// The event in an input report, or nil when it carries none (pairing success, unused replies) or is malformed.
     /// Payloads end at the first 0xFE; the firmware leaves stack garbage after it. `08` and `FF` have no stop byte:
     /// exactly byte 1 counts.
@@ -98,6 +126,7 @@ private struct OryxSession: Sendable {
     let transport: any HIDTransport
     let board: BoardDefinition
     let clock: any Clock<Duration>
+    let trace: (@Sendable (HIDTraceEntry) -> Void)?
 
     private enum Input { case report([UInt8]), removed, deadline(Int), command(KeyboardCommand), writeFailed(DeviceError) }
     private enum Phase { case draining, version(attempt: Int), pairing, live }
@@ -118,7 +147,16 @@ private struct OryxSession: Sendable {
         defer { forward.cancel() }
         var reason: DeviceError?
         do {
-            try await open { feed.yield($0.map(Input.report) ?? .removed) }
+            try await open { bytes in
+                // Logged as it arrives, not when the loop gets to it, so the log keeps the wire's order and times.
+                if let trace, let bytes {
+                    trace(
+                        HIDTraceEntry(
+                            direction: .received, bytes: OryxReport.trimmed(bytes, sent: false),
+                            event: OryxReport.parse(bytes, board: board)))
+                }
+                feed.yield(bytes.map(Input.report) ?? .removed)
+            }
             reason = try await converse(inputs, feed, out)
         } catch let error as DeviceError {
             reason = error
@@ -231,6 +269,8 @@ private struct OryxSession: Sendable {
     private func send(_ command: UInt8) async throws { try await send(OryxReport.command(command)) }
 
     private func send(_ report: [UInt8]) async throws {
+        // Logged before the write: the reply can arrive before the write returns. A write that fails ends the session.
+        trace?(HIDTraceEntry(direction: .sent, bytes: OryxReport.trimmed(report, sent: true)))
         try await transport.send(report)
         try await clock.sleep(for: Self.writeSpacing)
     }

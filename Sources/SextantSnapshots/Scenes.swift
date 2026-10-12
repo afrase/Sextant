@@ -63,6 +63,7 @@ enum Scenes {
         scenes += await picker(f)
         scenes += await `import`(f)
         scenes += await device(f)
+        scenes += await settings(f)
         scenes += SnapshotScene.pair("activity", size: CGSize(width: 480, height: 14 * 40 + 16), chrome: .content) { activityStates }
         scenes += await layers(f)
         // The app icon, 1024 pt on a transparent canvas, one scene per detail tier (app-icon serves 128 px and up);

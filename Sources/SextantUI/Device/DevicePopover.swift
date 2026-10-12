@@ -1,3 +1,4 @@
+import AppKit
 import SextantApplication
 import SextantDomain
 import SwiftUI
@@ -12,11 +13,15 @@ extension View {
     }
 }
 
-/// The Device popover (spec §8.2): identity, the live layer and keys, Follow, and how live data stays private.
+/// The Device popover (spec §8.2): identity, the live layer and keys, Follow, the raw-HID log when it is on, and how
+/// live data stays private.
 public struct DevicePopover: View {
     var model: LayoutWindowModel
     /// First connect shows a note about live data once (spec §12.3).
-    @AppStorage("seenLiveDataNote") private var seenLiveDataNote = false
+    @AppStorage(SettingsKey.seenLiveDataNote) private var seenLiveDataNote = false
+    @AppStorage(SettingsKey.showsKeyPresses) private var showsPresses = true
+    @State private var showsTrace = true
+    @Environment(RawHIDTrace.self) private var trace: RawHIDTrace?
 
     public init(model: LayoutWindowModel) { self.model = model }
 
@@ -47,6 +52,11 @@ public struct DevicePopover: View {
                         }
                     }
                     .disabled(!model.canFollow)
+                    Toggle("Show key presses on the board", isOn: $showsPresses)
+                }
+                if let trace, trace.isOn {
+                    Divider()
+                    traceLog(trace)
                 }
                 Divider()
                 privacy(live)
@@ -75,6 +85,43 @@ public struct DevicePopover: View {
         .font(.caption)
         .foregroundStyle(.secondary)
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// The Developer raw-HID log (Settings › Advanced), newest last. It also serves as the spec's event monitor.
+    private func traceLog(_ trace: RawHIDTrace) -> some View {
+        DisclosureGroup(isExpanded: $showsTrace) {
+            if trace.entries.isEmpty {
+                Text("No reports yet.").font(.callout).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                let lines = trace.entries.map { $0.line(board: model.board) }
+                // A report too long for one line wraps under its own bytes, so the time column stays clear.
+                let rows = VStack(alignment: .leading, spacing: 0) {
+                    ForEach(lines.indices, id: \.self) { n in
+                        HStack(alignment: .firstTextBaseline, spacing: 0) {
+                            Text(verbatim: lines[n].head).fixedSize()
+                            Text(verbatim: lines[n].report)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+                .font(.caption.monospaced()).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 8) {
+                    // A short log takes its own height; a long one scrolls, opening on the newest report.
+                    ViewThatFits(in: .vertical) {
+                        rows
+                        ScrollView { rows }.defaultScrollAnchor(.bottom)
+                    }
+                    .frame(maxHeight: 150)
+                    Button("Copy Log") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(lines.map { $0.head + $0.report }.joined(separator: "\n"), forType: .string)
+                    }
+                    .controlSize(.small)
+                }
+            }
+        } label: {
+            Text("Raw-HID log").font(.headline)
+        }
     }
 
     private func header(_ live: LiveSession) -> some View {
@@ -188,6 +235,26 @@ struct LayerPips: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(localized: "Status lights show layer \(layer)"))
+    }
+}
+
+extension HIDTraceEntry {
+    /// One log line in two columns, "21:04:31.207  ←  " and "06 02 08 FE  down k40 · R8 C2": positions only, as the
+    /// protocol carries nothing else. The clock is 24-hour, so a log that runs past noon still reads in order.
+    func line(board: BoardDefinition) -> (head: String, report: String) {
+        let time = date.formatted(Date.ISO8601FormatStyle(timeZone: .current).time(includingFractionalSeconds: true))
+        var report = bytes.map { String(format: "%02X", $0) }.joined(separator: " ")
+        let key: (word: String, row: Int, column: Int)? =
+            switch event {
+            case let .keyDown(row, column): (String(localized: "down"), row, column)
+            case let .keyUp(row, column): (String(localized: "up"), row, column)
+            default: nil
+            }
+        if let key {
+            let index = board.keyIndex(matrixRow: key.row, column: key.column).map { "k\($0) · " } ?? ""
+            report += "  \(key.word) \(index)R\(key.row) C\(key.column)"
+        }
+        return ("\(time)  \(direction == .sent ? "→" : "←")  ", report)
     }
 }
 

@@ -56,6 +56,27 @@ struct LiveSessionTests {
         #expect(live.isFollowing)
     }
 
+    /// Settings › Keyboard › Follow the keyboard by default, asked at each connect.
+    @Test func followStaysOffAtConnectWhenTheUserTurnedThatOff() async {
+        let follows = Flag()
+        let live = LiveSession(watcher: watcher, link: link, clock: clock, followsOnConnect: { follows.isOn }) { false }
+        live.start()
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { link.sessionCount == 1 })
+        link.send(.protocolVersion(5), .layer(2))
+        #expect(
+            await eventually {
+                await clock.advance(by: .milliseconds(17))
+                return live.activeLayer == 2
+            })
+        #expect(!live.isFollowing && live.followedLayer == nil)
+
+        follows.isOn = true
+        watcher.detach(1)
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { live.isFollowing }, "the next connect asks again")
+    }
+
     @Test func secureInputHidesPresses() async {
         let live = start()
         watcher.attach(.keyboard(.voyager(serial: nil)))
@@ -292,6 +313,30 @@ struct LiveSessionTests {
         secureInput.isOn = false
         link.send(.keyDown(row: 5, column: 0))
         #expect(await eventually { seen.values == [.keyDown(index: 24, layer: 0)] })
+    }
+
+    /// Asked as each event arrives too: a press made during secure input stays out even when the field loses focus
+    /// before the main actor would deliver it. The probe here says "on" only off the main thread, so it is on as events
+    /// arrive and off by the time the main actor sees them.
+    @Test func aPressFromAPasswordFieldNeverWaitsForTheMainActor() async {
+        let live = LiveSession(watcher: watcher, link: link, clock: clock) { pthread_main_np() == 0 }
+        live.start()
+        defer { live.stop() }
+        let seen = Recorded<LiveActivity>()
+        let stream = live.activity()
+        let reader = Task { for await activity in stream { seen.append(activity) } }
+        defer { reader.cancel() }
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { link.sessionCount == 1 })
+        link.send(.layer(0), .keyDown(row: 2, column: 2))
+        // The activity reaches the main actor's queue before the debounced state does, so once the press shows it
+        // has been dropped or delivered.
+        #expect(
+            await eventually {
+                await clock.advance(by: .milliseconds(17))
+                return live.pressedKeys == [13]
+            })
+        #expect(seen.values.isEmpty)
     }
 
     /// Pairing reports the layer again after every reconnect; only a change is activity. Lighting replies and refusals
