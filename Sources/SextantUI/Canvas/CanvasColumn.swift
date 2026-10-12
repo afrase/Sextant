@@ -30,7 +30,14 @@ struct CanvasColumn: View {
             ContextStrip(model: model, session: session).frame(height: 76)
             BoardFooter(model: model).frame(height: 32)
         }
-        .background(Bench())
+        .background {
+            ZStack {
+                Bench().ignoresSafeArea(edges: .top)
+                // AppKit puts an opaque white "hard" pocket with a hairline under the toolbar of a split column that
+                // has no scroll view; an empty one turns it into the soft pocket, which shows the bench through.
+                ScrollView {}.allowsHitTesting(false).accessibilityHidden(true)
+            }
+        }
     }
 }
 
