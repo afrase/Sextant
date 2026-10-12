@@ -38,7 +38,7 @@ extension KeyboardLayout: Codable {
         var data: Box?
     }
 
-    private enum LayoutKeys: String, CodingKey { case hashId, title, geometry, revision }
+    private enum LayoutKeys: String, CodingKey { case hashId, title, geometry, revision, macroDrafts }
     private enum RevisionKeys: String, CodingKey {
         case hashId, qmkVersion, md5, createdAt, title, config, layers, combos, navigators, swatch
     }
@@ -96,6 +96,7 @@ extension KeyboardLayout: Codable {
             automouseLayer: automouseLayer,
             swatch: try r.decodeIfPresent(Swatch.self, forKey: .swatch)?.colors ?? [],
             oryx: oryx)
+        macroDrafts = try c.decodeIfPresent([MacroDraft].self, forKey: .macroDrafts) ?? []
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -103,6 +104,8 @@ extension KeyboardLayout: Codable {
         try c.encodeIfPresent(oryx?.layoutId, forKey: .hashId)
         try c.encode(title, forKey: .title)
         try c.encode(geometry, forKey: .geometry)
+        // Only when there are some, so a layout without drafts keeps its content hash (ADR 0042).
+        if !macroDrafts.isEmpty { try c.encode(macroDrafts, forKey: .macroDrafts) }
         var r = c.nestedContainer(keyedBy: RevisionKeys.self, forKey: .revision)
         try r.encodeIfPresent(oryx?.revisionId, forKey: .hashId)
         try r.encodeIfPresent(oryx?.firmwareVersion, forKey: .qmkVersion)

@@ -68,6 +68,48 @@ struct KeyRecorderTests {
         #expect(!model.record(keyCode: 0x00, flags: 0, isKeyDown: true), "not recording: events pass through")
     }
 
+    /// Every key Record Steps can hear is one a macro can type.
+    @Test func everyMappedKeyCanBeAStep() {
+        for code in KeyRecorder.codes.values { #expect(MacroStep.canType(code), "\(code)") }
+        for code in ["KC_LEFT_CTRL", "KC_LEFT_SHIFT", "KC_RIGHT_SHIFT", "KC_LEFT_GUI", "KC_RIGHT_GUI", "KC_LEFT_ALT", "KC_RIGHT_ALT"] {
+            #expect(MacroStep.canType(code), "\(code)")
+        }
+    }
+
+    /// Record Steps (spec §6.3): each key is the next step, pauses round to 10 ms and stop at 5 s, a lone modifier is a
+    /// step, and esc stops.
+    @MainActor @Test func recordStepsAddsEachKeyUntilEsc() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.newMacro()
+        let draft = try #require(session.selection.macro)
+        model.macros.recordsPauses = true
+        model.startRecordingSteps(in: draft)
+        #expect(model.recordStep(keyCode: 0x28, flags: 0, isKeyDown: true, at: 10))
+        model.recordStep(keyCode: 0x0E, flags: leftShift, isKeyDown: true, at: 10.1234)
+        model.recordStep(keyCode: 0xFF, flags: 0, isKeyDown: true, at: 10.5)
+        #expect(model.macros.stepRecorder?.cannotMap == true, "recording goes on after a key Sextant can't map")
+        model.recordStep(keyCode: 0x3C, flags: rightShift, isKeyDown: false, at: 11)
+        model.recordStep(keyCode: 0x3C, flags: 0, isKeyDown: false, at: 17)
+        #expect(
+            session.layout.macro(at: draft)?.steps == [
+                MacroStep(code: "KC_K", delay: 120), MacroStep(code: "KC_E", modifiers: [.leftShift], delay: 5000),
+                MacroStep(code: "KC_RIGHT_SHIFT"),
+            ])
+        #expect(session.selection.step == 2, "each step is selected, so the next goes after it")
+        model.recordStep(keyCode: 0x35, flags: 0, isKeyDown: true, at: 18)
+        #expect(model.macros.stepRecorder == nil && session.layout.macro(at: draft)?.steps.count == 3, "esc stops, unrecorded")
+        #expect(!model.recordStep(keyCode: 0x00, flags: 0, isKeyDown: true, at: 19), "not recording: events pass through")
+
+        // Without pauses the waits stay 0; recording stops at Oryx's 24 steps.
+        model.macros.recordsPauses = false
+        session.selectMacro(draft, step: nil)
+        model.startRecordingSteps(in: draft)
+        for i in 0..<21 { model.recordStep(keyCode: 0x00, flags: 0, isKeyDown: true, at: 20 + Double(i)) }
+        let steps = try #require(session.layout.macro(at: draft)?.steps)
+        #expect(steps.count == 24 && steps.suffix(21).allSatisfy { $0.delay == 0 } && model.macros.stepRecorder == nil)
+    }
+
     /// Follow can show another layer while a layer key is held for the key being recorded (F1 on a function layer).
     @MainActor @Test func recordingAssignsToTheLayerItStartedOn() async throws {
         let model = try await openUserLayout()

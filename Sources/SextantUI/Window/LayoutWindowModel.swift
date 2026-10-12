@@ -105,6 +105,8 @@ public final class LayoutWindowModel {
     /// A gesture that takes the board's key clicks instead of selection (choosing combo members, Assign to Key); nil
     /// when off.
     var boardPick: BoardPick?
+    /// The Macros page's state (spec §6.3).
+    let macros = MacrosModel()
     /// Keycodes assigned from the picker and commands run from the palette, newest first (Suggested, Recent).
     var recentKeycodes: [KeyAction] = []
     var recentCommands: [String] = []

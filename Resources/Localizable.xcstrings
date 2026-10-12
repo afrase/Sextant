@@ -4,6 +4,9 @@
     "" : {
 
     },
+    "#" : {
+
+    },
     "%@ B" : {
 
     },
@@ -131,6 +134,19 @@
         }
       }
     },
+    "%@ › New Step" : {
+
+    },
+    "%@ › Step %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ › Step %2$lld"
+          }
+        }
+      }
+    },
     "%@, hold for %@" : {
       "localizations" : {
         "en" : {
@@ -221,6 +237,9 @@
     "%lld keys use codes Sextant doesn't know yet. They're kept as they are and marked." : {
 
     },
+    "%lld ms" : {
+
+    },
     "%lld of %lld" : {
       "localizations" : {
         "en" : {
@@ -242,6 +261,9 @@
       }
     },
     "%lld own" : {
+
+    },
+    "%lld steps" : {
 
     },
     "%lld · %@" : {
@@ -267,10 +289,23 @@
     "%lld%%" : {
 
     },
+    "%lld/%lld steps" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld/%2$lld steps"
+          }
+        }
+      }
+    },
     "%lld/10 · Shown in Sextant only; not sent to the keyboard." : {
 
     },
     ", hold %@" : {
+
+    },
+    ", then wait %lld ms" : {
 
     },
     "1 edit" : {
@@ -295,6 +330,9 @@
         }
       }
     },
+    "1 step" : {
+
+    },
     "1 year" : {
 
     },
@@ -307,6 +345,18 @@
     "= %lld in binary" : {
 
     },
+    "A key types a sequence of up to 24 steps" : {
+
+    },
+    "A macro can’t type %@. Choose another key." : {
+
+    },
+    "A macro can’t type this key" : {
+
+    },
+    "A macro types a sequence of keys from one key press." : {
+
+    },
     "Action can't run in a tap dance" : {
 
     },
@@ -314,6 +364,9 @@
 
     },
     "Add Layout" : {
+
+    },
+    "Add Step" : {
 
     },
     "Add a Reset key (QK_BOOT) to a layer to enter flash mode from the keyboard." : {
@@ -337,6 +390,9 @@
     "Another window is flashing the keyboard. Try again when it finishes." : {
 
     },
+    "Assign Macro to Key" : {
+
+    },
     "Assign to %@ %@…" : {
       "localizations" : {
         "en" : {
@@ -346,6 +402,9 @@
           }
         }
       }
+    },
+    "Assign to Key…" : {
+
     },
     "Assigned %@" : {
 
@@ -456,6 +515,9 @@
     "Change Keycode…" : {
 
     },
+    "Change Key…" : {
+
+    },
     "Change Modifiers" : {
 
     },
@@ -520,6 +582,9 @@
 
     },
     "Clear…" : {
+
+    },
+    "Click a key to play ‘%@’ on tap · esc cancels" : {
 
     },
     "Close" : {
@@ -628,10 +693,19 @@
     "Default %@" : {
 
     },
+    "Delete" : {
+
+    },
     "Delete Layer" : {
 
     },
     "Delete Layer…" : {
+
+    },
+    "Delete Macro" : {
+
+    },
+    "Delete Step" : {
 
     },
     "Delete and Clear References" : {
@@ -659,6 +733,9 @@
 
     },
     "Do nothing" : {
+
+    },
+    "Documents" : {
 
     },
     "Done" : {
@@ -700,6 +777,9 @@
     "Duplicate Layout" : {
 
     },
+    "Duplicate Step" : {
+
+    },
     "Duplicated from %@" : {
 
     },
@@ -715,7 +795,16 @@
     "Empty" : {
 
     },
+    "Empty Macro" : {
+
+    },
     "Empty combo" : {
+
+    },
+    "End with Return" : {
+
+    },
+    "End with ⏎ Return" : {
 
     },
     "Erase" : {
@@ -895,6 +984,9 @@
     "Hold + mods" : {
 
     },
+    "Hold Option While Typing" : {
+
+    },
     "Hold activates %@ (%@)." : {
       "localizations" : {
         "en" : {
@@ -936,6 +1028,9 @@
           }
         }
       }
+    },
+    "Hold ⌥ while typing (Unicode)" : {
+
     },
     "Holding" : {
 
@@ -1003,6 +1098,9 @@
     "It reconnected and reported %@ ✓." : {
 
     },
+    "Keep pauses" : {
+
+    },
     "Keep presses for" : {
 
     },
@@ -1023,6 +1121,16 @@
     },
     "Key kinds" : {
 
+    },
+    "Key: %@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Key: %1$@, %2$@"
+          }
+        }
+      }
     },
     "Keyboard" : {
 
@@ -1234,6 +1342,9 @@
     "Listening for a key… esc cancels" : {
 
     },
+    "Listening for keys… esc stops" : {
+
+    },
     "Live" : {
 
     },
@@ -1258,6 +1369,9 @@
     "Macro has %lld steps" : {
 
     },
+    "Macro name" : {
+
+    },
     "Macro step %lld can't type %@" : {
       "localizations" : {
         "en" : {
@@ -1267,6 +1381,15 @@
           }
         }
       }
+    },
+    "Macros" : {
+
+    },
+    "Macros are stored on the keyboard as plain keystrokes. Never put a password in one." : {
+
+    },
+    "Macros · Edited" : {
+
     },
     "Main" : {
 
@@ -1292,6 +1415,12 @@
     "Modifiers" : {
 
     },
+    "Mods" : {
+
+    },
+    "More" : {
+
+    },
     "Move Down" : {
 
     },
@@ -1314,6 +1443,9 @@
 
     },
     "Move Navigator to Right" : {
+
+    },
+    "Move Step" : {
 
     },
     "Move Up" : {
@@ -1355,6 +1487,9 @@
     "New Layout" : {
 
     },
+    "New Macro" : {
+
+    },
     "New Window" : {
 
     },
@@ -1380,6 +1515,9 @@
 
     },
     "No layout open" : {
+
+    },
+    "No macros yet" : {
 
     },
     "No results" : {
@@ -1542,6 +1680,9 @@
     "Put the keyboard in flash mode" : {
 
     },
+    "QMK" : {
+
+    },
     "QMK Codes" : {
 
     },
@@ -1572,13 +1713,28 @@
     "Record Key" : {
 
     },
+    "Record Step" : {
+
+    },
+    "Record Steps" : {
+
+    },
     "Record a heatmap of key presses" : {
+
+    },
+    "Record the time between keys as each step’s wait, rounded to 10 ms." : {
 
     },
     "Redo" : {
 
     },
     "Regular" : {
+
+    },
+    "Remove Macro from Key" : {
+
+    },
+    "Remove from Key" : {
 
     },
     "Rename" : {
@@ -1594,6 +1750,9 @@
 
     },
     "Rename Layout…" : {
+
+    },
+    "Rename Macro" : {
 
     },
     "Rename…" : {
@@ -1671,6 +1830,12 @@
     "Select a key to see it on every layer · ⏎ edits · ⌘K finds anything" : {
 
     },
+    "Select a macro" : {
+
+    },
+    "Select a step" : {
+
+    },
     "Send a key when tapped" : {
 
     },
@@ -1693,6 +1858,12 @@
 
     },
     "Set Navigator" : {
+
+    },
+    "Set Step Key" : {
+
+    },
+    "Set Wait" : {
 
     },
     "Set up" : {
@@ -1729,6 +1900,9 @@
 
     },
     "Sextant can’t map that key. Try another, or search for it." : {
+
+    },
+    "Sextant can’t map that key. Try another." : {
 
     },
     "Sextant can’t read the keyboard’s layer" : {
@@ -1839,6 +2013,16 @@
     "Status lights show layer %lld" : {
 
     },
+    "Step %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Step %1$lld of %2$lld"
+          }
+        }
+      }
+    },
     "Step %lld of 3: %@" : {
       "localizations" : {
         "en" : {
@@ -1850,6 +2034,19 @@
       }
     },
     "Step %lld of 5" : {
+
+    },
+    "Step %lld, %@%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Step %1$lld, %2$@%3$@"
+          }
+        }
+      }
+    },
+    "Steps" : {
 
     },
     "Still waiting? Connect the cable straight to this Mac rather than through a hub, then press the reset button once more." : {
@@ -2005,6 +2202,9 @@
     "The trackpad or trackball module on your keyboard, if any." : {
 
     },
+    "Then wait" : {
+
+    },
     "These keys go back to the layer color. You can undo this." : {
 
     },
@@ -2050,6 +2250,9 @@
 
     },
     "This layout was saved by a newer version of Sextant. Update Sextant to open it." : {
+
+    },
+    "Timeline" : {
 
     },
     "Toggle" : {
@@ -2109,6 +2312,9 @@
     "Turn off features you don’t use in Firmware Settings, such as RGB animations, then build again." : {
 
     },
+    "Types: %@" : {
+
+    },
     "Undo" : {
 
     },
@@ -2131,6 +2337,15 @@
 
     },
     "Verifying" : {
+
+    },
+    "Wait" : {
+
+    },
+    "Wait after this step" : {
+
+    },
+    "Wait in milliseconds" : {
 
     },
     "Waiting" : {
@@ -2248,6 +2463,9 @@
     "hold for %@" : {
 
     },
+    "holding ⌥: %@" : {
+
+    },
     "home row" : {
 
     },
@@ -2300,7 +2518,13 @@
     "matches this layout" : {
 
     },
+    "ms" : {
+
+    },
     "not connected" : {
+
+    },
+    "not on a key yet" : {
 
     },
     "off" : {
@@ -2338,6 +2562,19 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "one-shot from %1$@ (key %2$lld)"
+          }
+        }
+      }
+    },
+    "plays from %@" : {
+
+    },
+    "plays on %@ of %@ key %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "plays on %1$@ of %2$@ key %3$lld"
           }
         }
       }
@@ -2390,6 +2627,9 @@
 
     },
     "trackpad" : {
+
+    },
+    "—" : {
 
     },
     "› %@ on %@" : {

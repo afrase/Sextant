@@ -145,6 +145,10 @@ struct KeymapPlan {
     /// The C expression for one action; registers the macro or colour key it needs.
     private mutating func expression(_ action: KeyAction, at ref: KeyRef?) throws(GeneratorError) -> String {
         if let macro = action.macro {
+            // `SS_TAP(X_…)` with a code that has no `X_` name would not compile (ADR 0042).
+            if let step = macro.steps.first(where: { !MacroStep.canType($0.code) }) {
+                throw .unsupported(String(localized: "“\(step.code)” as a macro step"), ref)
+            }
             macros.append(MacroUse(macro: macro, key: ref))
             return "ST_MACRO_\(macros.count - 1)"
         }

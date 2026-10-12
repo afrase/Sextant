@@ -12,7 +12,7 @@ struct InspectorColumn: View {
                     case .firmwareSettings: FirmwareSettingsInspector(model: model, session: session)
                     // Each v1 page replaces its own line when it lands (ADR 0037).
                     case .combos: EmptyView()
-                    case .macros: EmptyView()
+                    case .macros: MacroStepInspector(model: model, session: session)
                     case .history: EmptyView()
                     case .appLayers: EmptyView()
                     case .layer:

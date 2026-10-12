@@ -36,7 +36,7 @@ struct WindowDetail: View {
                                 ? String(localized: "Firmware Settings · Edited") : String(localized: "Firmware Settings"))
                 // Each v1 page replaces its own line when it lands; until then no sidebar row reaches it (ADR 0037).
                 case .combos: EmptyView()
-                case .macros: EmptyView()
+                case .macros: MacrosPage(model: model, session: session)
                 case .history: EmptyView()
                 case .appLayers: EmptyView()
                 case .layer, nil:

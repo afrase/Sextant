@@ -714,7 +714,8 @@ The picker is the command palette component in **assign scope**.
 **Category rail** (160 pt, labelled, with counts):
 - Suggested (recents, plus slot-aware suggestions: layers and modifiers for Hold);
 - Letters, Digits, Modifiers, Punctuation, Navigation, Editing, Function Keys, Media, Mouse, Lighting, Layers, System, Firmware, International, Numpad, Navigator;
-- Macros (v1), and Special (Transparent, Disabled).
+- Macros (v1): the layout's macros. On a key's slot a choice goes on the key's tap, as Assign to Key puts it; another target, such as a combo's output, gets a copy.
+- Special (Transparent, Disabled).
 
 **Results**
 - Browsing a category shows a keycap tile grid: 64 pt tiles, each with its legend and short code.
@@ -846,22 +847,26 @@ The picker is the command palette component in **assign scope**.
 **Centre column**
 - **Header:** the page title "Macros", the subtitle "A key types a sequence of up to 24 steps", and [New Macro].
 - **Left: a 200 pt macro library list.** Each row shows the name, "8 steps · 210 ms", and the assigned key, or "not on a key yet".
+  - An unnamed macro shows its key's label, else what it types in quotes ("“keymap⏎”"), else "Empty Macro".
+  - Macros on keys and combos come first, in layer and key order, then the ones on no key yet (drafts, ADR 0042). A macro on several keys is a row per copy.
+  - Row context menu: Assign to Key…, Remove from Key (it becomes a draft), Delete Macro. ⌫ deletes the selected macro.
 - **Right: the editor.**
-  - Title, plus "8/24 steps · ≈0.29 s · plays on tap of Brd+Sys key 17", and [Assign to Key…].
+  - Title (an editable name), plus "8/24 steps · ≈0.29 s · plays on tap of Brd+Sys key 17", [Assign to Key…], and a ⋯ menu with Remove from Key and Delete Macro.
   - **Timeline lane.**
     - Steps are drawn as keycaps.
     - Delays are proportional gaps: hatched, labelled "150 ms", and drawn over a time ruler in ms.
     - Modifier badges sit on the caps, e.g. "⇧⌘" on O.
-  - **Step table:** #, Key, Mods, Wait, QMK. Steps can be reordered by dragging.
+  - Above the table: [Add Step] (the picker, offering only keys a step can type), [Record Steps] and a "Keep pauses" checkbox.
+  - **Step table:** #, Key, Mods, Wait, QMK. Steps can be reordered by dragging. ⌫ deletes the selected step; a double click opens its key in the picker. A step `SEND_STRING` can't type shows a warning.
   - **Options:** "End with ⏎ Return" and "Hold ⌥ while typing (Unicode)".
   - **Preview:** "Types: ⇧⌘O ⧗150 k e y m a p ⧗60 ⏎".
   - A footer warning, with `lock.fill`: "Macros are stored on the keyboard as plain keystrokes. Never put a password in one."
 
-**Inspector (step).** Key tile (opens the picker), the modifier grid, "Then wait" (slider plus field, 0–5000 ms), [Duplicate] and [Delete].
+**Inspector (step).** Key tile (opens the picker as "Open Keymap › Step 3", offering only keys `SEND_STRING` can type), the modifier grid, "Then wait" (slider plus field, 0–5000 ms; a drag is one undo step), [Duplicate] and [Delete].
 
 **Actions**
-- **Record Steps.** Captures continuously through the same local monitor as Record Key. Esc stops. Delays are captured rounded to 10 ms; this is optional.
-- **Assign to Key…** switches to the board with the status capsule "Click a key to play ‘Open Keymap’ on tap · esc cancels".
+- **Record Steps.** Captures continuously through the same local monitor as Record Key. Each key, or a lone modifier, becomes the next step after the selected one. Esc stops, and so do leaving the page, choosing another macro, the window resigning key, and reaching 24 steps. With "Keep pauses" (off by default) the time between two keys becomes the first one's wait, rounded to 10 ms and capped at 5 s.
+- **Assign to Key…** switches to the board with the status capsule "Click a key to play ‘Open Keymap’ on tap · esc cancels". The click puts the macro on that key's tap and clears its other slots. A draft moves there; a macro already on a key is copied. The page comes back when the pick ends, unless another page was chosen meanwhile. The capsule's [Cancel] also answers esc, so esc cancels even if the board missed it.
 
 ### 6.4 Combos lens (v1)
 

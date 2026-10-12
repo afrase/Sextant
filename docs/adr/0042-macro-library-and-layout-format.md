@@ -1,0 +1,31 @@
+# 42. Macro library and the layout format
+
+Status: accepted, 2026-10-12. v1 plan slice 1.2 (the Macros page). Builds on ADRs 0007 (Oryx-shaped documents) and 0037 (pages, board picks, assign targets).
+
+## Context
+Spec §6.3 asks for a Macros page: a library list, each macro's steps on a timeline and in a table, a step inspector, Record Steps, and Assign to Key. The list includes macros that are "not on a key yet". Oryx's shape keeps a macro only inline, on a key's slot or a combo's output, so it has nowhere to put an unassigned one. Content hashes rest on that shape: the "Edited" baseline, the sx- fingerprint and the match against Oryx's own build. An older Sextant that reads a field it doesn't know drops it at its next save.
+
+Separately, the generator wrote each step as `SS_TAP(X_<code>)` after only an identifier check, so a step holding `MO`, a `QK_` code or a locale code built a keymap that didn't compile.
+
+## Decision
+- **Assigned macros stay inline, in Oryx's shape.** The library (`KeyboardLayout.macros`) lists them by `MacroLocator`: a key's slot or a combo, in layer, key and slot order, then combos, then drafts.
+- **Unassigned macros are drafts.** They live in a new top-level `macroDrafts` field of `layout.json` (id plus Oryx's macro object). It is Sextant's own field and is written only when there are drafts, so every existing layout encodes byte for byte as before. A test pins the content hash of all seven fixtures.
+- **formatVersion 2 only for packages with drafts.** This build reads formats up to 2. A package is written as 1 until it holds drafts, then as 2, so an older build refuses it (`.newerFormat`) instead of dropping the drafts. It stays 2 after the drafts go, because revisions saved since may hold them. Packages without drafts stay readable by older builds.
+- **Assigning puts a macro on a key's tap and clears the key's other slots.** The generator plays a macro only from a tap, never inside a dual-function key or a tap dance. A draft moves onto the key. A macro already on a key or a combo is copied, as Oryx keeps one copy per key, so editing one copy leaves the others alone. An unnamed macro that leaves its key takes the key's label as its name, since Oryx users name macros by labelling their keys (JRGQm's "Teams Cam").
+- **Removing a macro** empties its key slot (a key left with nothing becomes transparent, keeping its label and color), turns a combo's output into `KC_NO` (which the issues flag as an empty combo), or deletes the draft. Remove from Key moves a key's macro into the drafts.
+- **A step must have an `X_` name.** `MacroStep.canType` checks the 360 names in the pinned QMK's `send_string_keycodes.h`. A step on a key or combo that fails it raises `.macroStepNotTypable` on that slot (an unknown code stays `unknownKeycode` only). The generator refuses the same step in its macro emitter ("“MO” as a macro step"). Drafts never reach the firmware, so they raise nothing. The step's key tile opens the picker through an `AssignTarget` whose new `accepts` filter offers only those codes.
+- **Titles.** A macro shows its name; else its key's label; else what it types, in quotes ("“keymap⏎”"); else "Empty Macro". The preview follows the spec: "⇧⌘O ⧗150 k e y m a p ⧗60 ⏎". It shows the last wait only before a closing Return, since the firmware skips it otherwise.
+- **Edits** live in `EditSession+Macros.swift`: one named undo step each ("New Macro", "Add Step", "Set Wait", "Assign Macro to Key", "Record Step" and so on). `EditorSelection` gains `macro` and `step`, so undo brings back the selection with the macro.
+- **Record Steps** shares Record Key's local monitor and positional mapping. Each key, or a lone modifier, becomes the next step after the selected one, as its own undo step. Esc stops it, and so do leaving the page, choosing another macro, the window resigning key, and reaching 24 steps. "Keep pauses" (off by default) records the time between keys as the earlier step's wait, rounded to 10 ms and capped at 5 s.
+- **Assign to Key** is a `BoardPick` that starts on the Macros page and switches to the board. The page comes back when the pick ends, unless the user chose another page or layout meanwhile.
+- **The pick capsule's Cancel button answers esc** (`.keyboardShortcut(.cancelAction)` in LensLane). A probe drove Sextant's own offscreen window with key events. Right after Assign to Key switched to the board, ⏎ always reached the board, but about 1 esc in 25 missed the board's exit command even though the board had focus. Moving the pick start a run-loop turn later didn't help. With the shortcut, all 240 esc trials and 18 timed esc and ⏎ scenarios passed. Esc still reaches the palette's monitor and Record Key first, and the capsule is hidden while recording.
+- **The picker's Macros category** (`KeycodeCategory.macros`) lists the library. On the selected key's slot, a choice does what Assign to Key does (tap, other slots cleared, a draft moves). Another target, such as a combo's output, gets a copy. ⌘K's Documents group finds macros by title and opens them on the page.
+- **Never log macro contents:** they can hold secrets. Nothing in this slice logs them.
+
+## Consequences
+- JRGQm's 66 per-key macros and its combo macro list in full, duplicates included, since each copy is its own macro.
+- Re-importing from Oryx replaces the whole document, drafts included. The pre-import checkpoint revision keeps them, and undo restores them. Carrying drafts across an import needs one line in `EditSession.applyImport`, which rule 6 of the plan keeps out of feature slices.
+- The recovery copy has no format version. If Sextant crashes before a draft's first autosave and an older build then opens the package, that build drops the draft.
+- "Hold ⌥ while typing" keeps each step's modifiers and waits; the generator emits Oryx's `SS_LALT(…)` wrap as before. The copy is Sextant's own.
+- Macro rows in the picker have no live board preview: a macro row isn't a keycode.
+- The five goldens and every existing snapshot reference are unchanged. New design-QA scenes: `macros-jrgqm`, `-jrgqm-min`, `-xlrr4`, `-empty`, `-step-picker`, `-recording-min`, `-assign` and `palette-macros`, each in light and dark.

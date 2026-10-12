@@ -13,6 +13,9 @@ public struct EditorSelection: Hashable, Sendable {
     public var slot: KeySlot
     /// Selected combo's id (the Combos page).
     public var combo: String?
+    /// Selected macro and its selected step (the Macros page).
+    public var macro: MacroLocator?
+    public var step: Int?
 
     public init(layer: Int = 0, keyIndex: Int? = nil, slot: KeySlot = .tap) {
         self.layer = layer
