@@ -129,6 +129,22 @@ private struct OryxSession: Sendable {
     let trace: (@Sendable (HIDTraceEntry) -> Void)?
 
     private enum Input { case report([UInt8]), removed, deadline(Int), command(KeyboardCommand), writeFailed(DeviceError) }
+
+    /// The one pending timeout: arming another cancels it, and only the newest id counts. A struct rather than a nested
+    /// function over captured vars, which crashes Swift 6.3's compiler (MandatoryAllocBoxToStack).
+    private struct Deadline {
+        private(set) var id = 0
+        private var task: Task<Void, Never>?
+
+        mutating func arm(_ duration: Duration, clock: any Clock<Duration>, feed: AsyncStream<Input>.Continuation) {
+            task?.cancel()
+            id += 1
+            let id = id
+            task = Task { if (try? await clock.sleep(for: duration)) != nil { feed.yield(.deadline(id)) } }
+        }
+
+        func cancel() { task?.cancel() }
+    }
     private enum Phase { case draining, version(attempt: Int), pairing, live }
 
     /// fw21 and older paired with a key sequence; from protocol 2 (fw22) on, `01` pairs and the events are the same.
@@ -184,8 +200,7 @@ private struct OryxSession: Sendable {
     private func converse(
         _ inputs: AsyncStream<Input>, _ feed: AsyncStream<Input>.Continuation, _ out: AsyncStream<LiveEvent>.Continuation
     ) async throws -> DeviceError? {
-        var timer: Task<Void, Never>?
-        var deadline = 0
+        var deadline = Deadline()
         // Paired writes go out from their own task, so their 5 ms pacing never holds back the reports behind them.
         // The handshake's writes are all done before the first one.
         let (writes, writer) = AsyncStream.makeStream(of: [UInt8].self)
@@ -197,18 +212,12 @@ private struct OryxSession: Sendable {
             } catch {}  // cancelled
         }
         defer {
-            timer?.cancel()
+            deadline.cancel()
             writing.cancel()
-        }
-        func arm(_ duration: Duration) {
-            timer?.cancel()
-            deadline += 1
-            let id = deadline
-            timer = Task { if (try? await clock.sleep(for: duration)) != nil { feed.yield(.deadline(id)) } }
         }
 
         var phase = Phase.draining
-        arm(Self.drainTime)
+        deadline.arm(Self.drainTime, clock: clock, feed: feed)
         for await input in inputs {
             switch input {
             case .removed:
@@ -223,16 +232,16 @@ private struct OryxSession: Sendable {
                 // move can go unreported; pairing again always reports the layer.
                 if case .moveToLayer = command { writer.yield(OryxReport.command(OryxReport.pairingInit)) }
             case let .deadline(id):
-                guard id == deadline else { continue }
+                guard id == deadline.id else { continue }
                 switch phase {
                 case .draining:
                     try await send(OryxReport.getProtocolVersion)
                     phase = .version(attempt: 1)
-                    arm(Self.versionTimeout)
+                    deadline.arm(Self.versionTimeout, clock: clock, feed: feed)
                 case .version(attempt: 1):
                     try await send(OryxReport.getProtocolVersion)
                     phase = .version(attempt: 2)
-                    arm(Self.versionTimeout)
+                    deadline.arm(Self.versionTimeout, clock: clock, feed: feed)
                 case .version:
                     return .io(String(localized: "The keyboard didn't answer. Its firmware may not have Oryx's live protocol."))
                 case .pairing:
@@ -252,12 +261,12 @@ private struct OryxSession: Sendable {
                     try await send(OryxReport.getFirmwareVersion)
                     try await send(OryxReport.pairingInit)
                     phase = .pairing
-                    arm(Self.pairingTimeout)
+                    deadline.arm(Self.pairingTimeout, clock: clock, feed: feed)
                 case (.pairing, .layer):
                     // shortcut: an app that seizes the interface after this goes unnoticed (reports just stop) until a
                     // command's write fails; watch kIOMessageServiceIsRequestingClose if LiveSession must say so sooner.
                     phase = .live
-                    timer?.cancel()
+                    deadline.cancel()
                 default:
                     break
                 }
