@@ -29,16 +29,16 @@ struct BoardSnapshotTests {
         try assertBoard(BoardView(session: session, issues: issues, pressed: pressed), scheme: scheme)
     }
 
-    /// The decoration hook (ADR 0037b): a diff badge and ring over the LED dot, a combo number and ring beside an
+    /// The decoration hook (ADR 0037): a diff badge and ring over the LED dot, a combo number and ring beside an
     /// issue, a key at 40%, and the coolest and hottest heat fills with counts, whose legend ink follows the fill.
     @Test(arguments: [ColorScheme.light, .dark])
     func decoratedCaps(scheme: ColorScheme) throws {
         var layout = try KeyboardLayout(oryxJSON: #require(userLayoutData))
         layout.layers[0].keys[19].glowColor = HexColor(red: 0.16, green: 1, blue: 1)
-        func cap(_ index: Int, issue: LayoutIssue.Severity? = nil, _ decorate: (inout CapDecoration) -> Void) -> KeyCap {
+        func cap(_ index: Int, issue: LayoutIssue.Severity? = nil, _ decorate: (inout CapDecoration) -> Void) -> some View {
             var model = KeyCapModel(layout: layout, layer: 0, index: index, issue: issue)
             decorate(&model.decoration)
-            return KeyCap(model: model, u: 64)
+            return KeyCap(model: model, u: 64).frame(width: 64, height: 64)
         }
         func heat(_ light: String, _ dark: String) -> Token? {
             HexColor(hex: light).flatMap { l in HexColor(hex: dark).map { Token(light: l, dark: $0) } }

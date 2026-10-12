@@ -165,7 +165,9 @@ public struct BoardView: View {
                     .accessibilitySortPriority(order[safe: frame.index] ?? 0)
                     .accessibilityRotorEntry(id: frame.index, in: rotors)
                 } else if let model = models[safe: frame.index] {
-                    let value = KeyText.value(model.legend, layout: layout, layer: layer, index: frame.index, geometry: session.geometry)
+                    let value = KeyText.value(
+                        model.legend, layout: layout, layer: layer, index: frame.index, geometry: session.geometry,
+                        decoration: model.decoration)
                     BoardKey(model: model, u: cap, height: frame.size.height, press: pressed?.state(frame.index))
                         .onTapGesture { select(frame.index) }
                         .help(value)
@@ -253,6 +255,7 @@ public struct BoardView: View {
         return (0..<session.layout.keyCount).map { index in
             var model = KeyCapModel(layout: session.layout, layer: layer, index: index, mode: mode, issue: severity[index])
             model.isDimmed = highlightedKind.map { $0 != model.legend.ownKind } ?? false
+            if let window { model.decoration = window.capDecoration(layer: layer, index: index) }
             return model
         }
     }

@@ -33,7 +33,8 @@ public actor PackageLibrary: LayoutLibrary {
         moveToTrash: @escaping @Sendable (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }
     ) {
         self.root = root
-        self.now = now
+        // Whole seconds, as `.iso8601` stores them, so what a call returns equals what a later read gives.
+        self.now = { Date(timeIntervalSince1970: now().timeIntervalSince1970.rounded(.down)) }
         self.moveToTrash = moveToTrash
     }
 

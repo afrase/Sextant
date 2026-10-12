@@ -221,7 +221,7 @@ These are the biggest gaps that need no keyboard. Tap dances and per-key terms f
 - appends a .save revision 'Restored revision 3'.
 - `EditSession+History`, also:
 - recordRevision closes BuildFlashSession.record()'s shortcut, so a flash of an older build shows up in `revisions`;
-- revisionLayout(id), cached.
+- revisionLayout(id), cached in HistoryModel (an extension can't add the cache's stored property).
 - History page, model and inspector:
 - HistoryModel: comparison with the parent, Current, On keyboard, or Choose…;
 - HistoryInspector: a timeline with ORYX, LOCAL and ON KEYBOARD badges (ON KEYBOARD through OnKeyboard), details, a per-layer bar, a changes table, and Restore.
@@ -315,7 +315,7 @@ Combos waits for Macros: its Choose Output takes a macro through the picker's Ma
 
 - Domain (Layout+Combos.swift):
 - create a combo, delete it, toggle a member key, set its output, layer and name;
-- issue producers: duplicate trigger set on the same layer, transparent or tap-dance members, 2–6 keys, and rolling neighbors from BoardGeometry neighbors (warning).
+- issue producers: duplicate trigger set on the same layer, transparent or tap-dance members, more than 6 keys (`comboTooManyKeys`; `emptyCombo` already covers fewer than 2), and rolling neighbors from BoardGeometry neighbors (warning).
 - Generator: refuse the bad members in KeymapPlan's combo loop.
 - `EditSession+Combos`: one named undo step each, with selection by combo id.
 - UI per §6.4:
@@ -383,7 +383,7 @@ The user checks ⌘C and ⌘V in the app.
 
 **Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantApplication/EditSession.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Model/CopiedKeys.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Board/KeyPasteboard.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/MultiKeyInspector.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/CopyLayerMenu.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/KeyDragSwap.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/KeyColour.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Inspector/LayerInspector.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Sidebar/LayersSection.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Commands/KeyCommands.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/Library.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/CopiedKeysTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantUITests/KeyPasteboardTests.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantApplicationTests/LibraryManagementTests.swift`
 
-**Shared touches:** BoardView (click handling and rings; 2.1 adds only an overlay), InspectorColumn (one routing branch), ContextStrip ('3 keys selected'), LayerCommands (the Copy Layer To line), LayoutWindowModel (the selected count), Resources/Info.plist (optional UTType). The only slice allowed to edit EditSession.swift itself in wave 2.
+**Shared touches:** BoardView (click handling and rings; 2.1 adds only an overlay), InspectorColumn (one routing branch), ContextStrip ('3 keys selected'), LayerCommands (the Copy Layer To line), LayoutWindowModel (the selected count), KeycodePicker (`keySlotTarget` becomes the '3 keys' default target, ADR 0037), Resources/Info.plist (optional UTType). The only slice allowed to edit EditSession.swift itself in wave 2.
 
 **Hardware:** No.
 
@@ -405,13 +405,14 @@ The user checks ⌘C and ⌘V in the app.
 - No ZSA description text ships; the catalog summaries are already Sextant's own.
 - Tests:
 - coupling and synonym search; undo steps;
-- legacy dances emit TD(); Space Cadet compiles under the real toolchain (add it to the every-setting layout);
+- legacy dances emit TD(); Space Cadet compiles under the real toolchain (take it out of QMKGeneratorTests' `stillRefused` and add one Mapping row; the every-setting layout is built from that table);
+- narrow `oneShotAutoMouseTimeout`'s navigatorKinds to the trackpad, so the page hides it on a trackball and setNavigator drops it (today it shows there, and turning it on stops the build by name);
 - goldens unchanged.
 - Snapshots: full page, search, Modified only, animation picker, trackball Navigator; light and dark; minimum size.
 
 **Owns:** `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Settings/SettingsCatalogData.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Settings/SettingsCatalog.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantDomain/Settings/LayoutSettings.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantApplication/EditSession+Settings.swift (new)`, `/Users/aaron/Developer/Sextant/Sources/SextantBuild/QMKConfig.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantBuild/QMKCodes.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/FirmwareSettings/FirmwareSettingsPage.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/FirmwareSettings/FirmwareSettingsInspector.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantUI/Commands/EditCommands.swift`, `/Users/aaron/Developer/Sextant/Sources/SextantSnapshots/Scenes+Settings.swift (new)`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/LayoutSettingsTests.swift`, `/Users/aaron/Developer/Sextant/Tests/SextantDomainTests/CatalogTests.swift`
 
-**Shared touches:** QMKGenerator.swift (the token branch; 2.1 edits the combo loop), RealToolchainTests (add Space Cadet to 0.5's every-setting layout), KeycodePicker (International gating), Scenes.swift.
+**Shared touches:** QMKGenerator.swift (the token branch; 2.1 edits the combo loop), QMKGeneratorTests (Space Cadet: out of `stillRefused`, one Mapping row), KeycodePicker (International gating), Scenes.swift.
 
 **Hardware:** No raw HID. Changes reach the board through a flash, with the user's OK each time. NKRO, polling, steno and the trackball can only be checked on the device or with a steno host.
 
@@ -681,18 +682,18 @@ Rules that keep merges clean:
 - Separate functions per slice: 1.1 `KeymapPlan.token` (dance predicate), 1.2 the macro emitter (step refusal), 2.1 the combo loop (member refusal), 2.3 a token branch (legacyDualFunctionDances).
 - QMKConfig.swift belongs to 0.5, then 2.3.
 - QMKGeneratorGoldenTests must stay byte-identical for every slice, including 3.3's ledColor refactor.
-- RealToolchainTests' argument list belongs to 0.5 for all of v1; 2.3 adds Space Cadet to its every-setting layout.
+- RealToolchainTests' argument list belongs to 0.5 for all of v1; 2.3 adds Space Cadet through QMKGeneratorTests' Mapping table, which builds the every-setting layout.
 
 9. **Layout.swift.** New domain operations go in new files: Layout+Macros, Layout+Combos, Layout+TappingTerm, LayoutDiff+Summary, Layout+LED. Layout.swift itself gets one stored field, for macro drafts.
 
 10. **The layout format.** Only 1.2 changes layout.json: an optional drafts field, written only when non-empty, with formatVersion 2 only for packages that have drafts. App Layers uses a sidecar file and the Heatmap stores outside the packages, so content hashes and sx- fingerprints never move.
 
 11. **KeyCap and BoardView.**
-- Slice 0.2's decoration hook lets Changes, Combos and Heatmap fill in values from their own files without editing KeyCap.
+- Slice 0.2's decoration hook lets Changes, Combos and Heatmap fill in values from their own files without editing KeyCap: each adds one case to `LayoutWindowModel.capDecoration(layer:index:)` (LayoutWindowModel+Decorations.swift), which BoardView already reads.
 - Slice 0.1's pick-mode hook and Esc rung let Combos and Macros avoid BoardView click code; it also moves NavigatorDisc out of BoardView.
 - Only one slice per wave makes a big BoardView edit: 1.3 (the display layout for Changes) and 2.2 (click handling and rings). 2.1 adds only an overlay layer and 3.4 one Esc rung.
 
-12. **Picker and palette.** Slice 0.1's assign-target value means Combos, Macros and Multi-select never edit the assign path. The Documents group gets one appended line each from Macros, History and Combos. International gating comes from 2.3.
+12. **Picker and palette.** Slice 0.1's assign-target value means Combos and Macros never edit the assign path; Multi-select edits only `keySlotTarget`. The Documents group gets one appended line each from Macros, History and Combos. International gating comes from 2.3.
 
 13. **LayoutWindowModel.** Each feature keeps its state in its own `@Observable` model (MacrosModel, HistoryModel, CombosModel, overlay and heatmap models) behind one stored property. No feature logic goes in LayoutWindowModel.swift.
 
