@@ -3,7 +3,8 @@ import SextantApplication
 import SextantDomain
 import SwiftUI
 
-/// The keyboard for the session's current layer, fitted into whatever space it gets (spec §3.3, §4).
+/// The keyboard for the session's current layer, or a read-only ``BoardDisplay``, fitted into whatever space it gets
+/// (spec §3.3, §4).
 ///
 /// The frame is a pure function of the available size and the layout's board (ADR 0017), so nothing outside
 /// the board area can move it. The board is one tab stop: arrows move the selection, ⇥ / ⇧⇥ change slot,
@@ -34,9 +35,13 @@ public struct BoardView: View {
     /// previewing, and the next stroke starts from nothing.
     @GestureState private var isPainting = false
     @Environment(\.layoutWindow) private var window
+    @Environment(\.boardDisplay) private var display
     /// A pick takes clicks first (ADR 0037), so it stops painting and swapping until it ends.
     private var hasBoardPick: Bool { window?.boardPick != nil }
-    private var brush: Brush? { hasBoardPick ? nil : lensBrush }
+    /// A display is read-only: no painting, swapping, ⌫ or edit actions.
+    private var brush: Brush? { hasBoardPick || display != nil ? nil : lensBrush }
+    private var layout: KeyboardLayout { display?.layout ?? session.layout }
+    private var layer: Int { display?.layer ?? session.selection.layer }
 
     public init(
         session: EditSession, mode: LegendMode = .symbols, issues: [KeyRef: LayoutIssue.Severity] = [:], pressed: PressedKeys? = nil,
@@ -59,8 +64,6 @@ public struct BoardView: View {
     }
 
     public var body: some View {
-        let layout = session.layout
-        let layer = session.selection.layer
         let models = capModels()
         GeometryReader { proxy in
             let geometry = session.geometry
@@ -75,7 +78,7 @@ public struct BoardView: View {
                 keys(board, models: models, cap: cap)
                     .frame(width: board.size.width, height: board.size.height)
                     .keySwapGesture(session, board: board)
-                    .environment(\.swapsKeys, swapsKeys && !hasBoardPick)
+                    .environment(\.swapsKeys, swapsKeys && !hasBoardPick && display == nil)
                     // The board draws its own focus ring (spec §11): the selection glow, or this outline before a key is chosen.
                     .overlay {
                         if isFocused && session.selection.keyIndex == nil && !focusedByPointer {
@@ -102,7 +105,7 @@ public struct BoardView: View {
         }
         .onKeyPress(.delete) {
             // Not under a pick's prompt, which says what the keys do now.
-            guard session.selection.keyIndex != nil, !hasBoardPick else { return .ignored }
+            guard session.selection.keyIndex != nil, !hasBoardPick, display == nil else { return .ignored }
             session.makeTransparent()
             return .handled
         }
@@ -116,8 +119,9 @@ public struct BoardView: View {
             String(localized: "Keyboard, \(layout.layers[safe: layer]?.title ?? "") layer, \(layout.keyCount) keys")
         )
         .accessibilityRotor(Text("Layers")) {
-            // Each entry needs its own target, so entry n lands on key n of the layer it switches to.
-            ForEach(Array(layout.layers.prefix(layout.keyCount).enumerated()), id: \.offset) { index, item in
+            // Each entry needs its own target, so entry n lands on key n of the layer it switches to. The document's
+            // layers: a display shows the one with the same id.
+            ForEach(Array(session.layout.layers.prefix(layout.keyCount).enumerated()), id: \.offset) { index, item in
                 AccessibilityRotorEntry(Text(verbatim: item.title), id: index, in: rotors) { session.select(layer: index) }
             }
         }
@@ -138,13 +142,17 @@ public struct BoardView: View {
                 AccessibilityRotorEntry(Text(verbatim: KeyText.label(model.legend, index: model.index)), id: model.index, in: rotors)
             }
         }
+        .accessibilityRotor(Text("Changed keys")) {
+            // History's Changes board only (spec §4.11), for the same reason as Painted keys.
+            ForEach(display == nil ? [] : models.filter { $0.decoration.badge != nil }, id: \.index) { model in
+                AccessibilityRotorEntry(Text(verbatim: KeyText.label(model.legend, index: model.index)), id: model.index, in: rotors)
+            }
+        }
     }
 
     // MARK: Keys
 
     private func keys(_ board: BoardLayout, models: [KeyCapModel], cap: CGFloat) -> some View {
-        let layout = session.layout
-        let layer = session.selection.layer
         let order = Self.readingOrder(session.geometry)
         return ZStack(alignment: .topLeading) {
             if layout.navigator != nil, let nav = board.navigator {
@@ -174,12 +182,15 @@ public struct BoardView: View {
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(KeyText.label(model.legend, index: frame.index))
                         .accessibilityValue(value)
-                        .accessibilityHint(window?.boardPick.map { Text($0.prompt) } ?? Text("Press Return to change. Actions available."))
+                        .accessibilityHint(
+                            window?.boardPick.map { Text($0.prompt) }
+                                ?? (display == nil ? Text("Press Return to change. Actions available.") : Text(verbatim: ""))
+                        )
                         .accessibilityAction { select(frame.index) }
                         .accessibilityAddTraits(frame.index == session.selection.keyIndex ? [.isButton, .isSelected] : .isButton)
                         .accessibilitySortPriority(order[safe: frame.index] ?? 0)
                         .accessibilityRotorEntry(id: frame.index, in: rotors)
-                        .accessibilityActions { keyActions(model) }
+                        .accessibilityActions { if display == nil { keyActions(model) } }
                 }
             }
             selectionRing(board, cap: cap)
@@ -249,11 +260,11 @@ public struct BoardView: View {
     }
 
     private func capModels() -> [KeyCapModel] {
-        let layer = session.selection.layer
+        let (layout, layer) = (layout, layer)
         var severity: [Int: LayoutIssue.Severity] = [:]
         for (ref, s) in issues where ref.layer == layer && severity[ref.index] != .error { severity[ref.index] = s }
-        return (0..<session.layout.keyCount).map { index in
-            var model = KeyCapModel(layout: session.layout, layer: layer, index: index, mode: mode, issue: severity[index])
+        return (0..<layout.keyCount).map { index in
+            var model = KeyCapModel(layout: layout, layer: layer, index: index, mode: mode, issue: severity[index])
             model.isDimmed = highlightedKind.map { $0 != model.legend.ownKind } ?? false
             if let window { model.decoration = window.capDecoration(layer: layer, index: index) }
             return model
@@ -323,6 +334,17 @@ private struct BoardKey: View {
             .equatable()
             .onHover { isHovered = $0 }
     }
+}
+
+/// A layout the board shows instead of the document, read-only, on one of its layers: History's Changes board (ADR
+/// 0043). The board keeps the session's geometry, so keys never move.
+struct BoardDisplay {
+    var layout: KeyboardLayout
+    var layer: Int
+}
+
+extension EnvironmentValues {
+    @Entry var boardDisplay: BoardDisplay?
 }
 
 /// A gesture in progress that takes the board's key clicks instead of selection (spec §9.3 step 4): choosing a combo's

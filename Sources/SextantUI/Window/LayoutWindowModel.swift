@@ -76,6 +76,8 @@ public final class LayoutWindowModel {
     @ObservationIgnored let makeImport: (@MainActor () -> ImportFromOryx)?
     /// The Build & Flash state machine for the open layout; nil where building is off (tests, snapshots).
     @ObservationIgnored let makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)?
+    /// Which layout the keyboard runs, app-wide; nil in tests and snapshots without a keyboard.
+    @ObservationIgnored let onKeyboard: OnKeyboard?
     // MARK: inspector
     /// The key label field has focus, so ⌘⌫ and ⇧⌘⌫ edit its text rather than make the key transparent or disable it.
     var isEditingKeyLabel = false
@@ -112,6 +114,8 @@ public final class LayoutWindowModel {
     // MARK: import
     /// The Import from Oryx sheet's flow while the sheet is open (spec §8.1).
     var importFlow: ImportFromOryx?
+    /// The open layout's History page and Save Revision sheet (spec §8.7), made per layout.
+    var history: HistoryModel?
     /// The sidebar's destination (spec §2.2). A layer is the session's selected layer, so Follow and undo move it too;
     /// choosing one leaves the page for its board.
     public var destination: Destination {
@@ -151,17 +155,20 @@ public final class LayoutWindowModel {
 
     public init(
         library: Library, live: LiveSession? = nil, makeImport: (@MainActor () -> ImportFromOryx)? = nil,
-        makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)? = nil
+        makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)? = nil, onKeyboard: OnKeyboard? = nil
     ) {
         self.library = library
         self.live = live
         self.makeImport = makeImport
         self.makeBuildFlash = makeBuildFlash
+        self.onKeyboard = onKeyboard
     }
 
     /// A window over the composition root's use cases.
     public convenience init(services: SextantServices) {
-        self.init(library: services.library, live: services.live, makeImport: services.makeImport, makeBuildFlash: services.makeBuildFlash)
+        self.init(
+            library: services.library, live: services.live, makeImport: services.makeImport, makeBuildFlash: services.makeBuildFlash,
+            onKeyboard: services.onKeyboard)
     }
 
     /// Opens `id`, or the most recently modified layout no other window has open when `id` is nil, no longer in the
@@ -193,6 +200,7 @@ public final class LayoutWindowModel {
             }
             session = next
             buildFlash = makeBuildFlash?(next)
+            history = HistoryModel(session: next, onKeyboard: onKeyboard)
             loadError = nil
             // Choosing a layout is choosing a destination (spec §2.2): its board, not the last layout's settings page.
             page = nil

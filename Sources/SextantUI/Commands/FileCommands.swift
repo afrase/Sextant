@@ -26,7 +26,8 @@ struct FileSaveItems: View {
 
     var body: some View {
         let id = window?.session?.id
-        Button("Save Revision…") {}.keyboardShortcut("s").disabled(true)
+        Button("Save Revision…") { Task { await window?.beginSaveRevision() } }
+            .keyboardShortcut("s").disabled(window?.canSaveRevision != true)
         Button("Duplicate Layout") { if let id { Task { await window?.library.duplicate(id) } } }.disabled(id == nil)
         Button("Rename Layout…") { window?.layoutPendingRename = id }.disabled(id == nil)
         Button("Move Layout to Trash…") { window?.layoutPendingTrash = id }.disabled(id.map { window?.canTrash($0) != true } ?? true)

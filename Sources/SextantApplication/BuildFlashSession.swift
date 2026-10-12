@@ -420,14 +420,11 @@ public final class BuildFlashSession {
     private func record(_ built: KeyboardLayout) async {
         let message = String(localized: "Flashed \(Date.now.formatted(date: .abbreviated, time: .shortened))")
         do {
-            let revision: RevisionSummary
-            if session.layout == built {
-                revision = try await session.saveRevision(source: .flash, message: message)
-            } else {
-                // Edited since the build: the revision must hold what was flashed, not the newer document.
-                // shortcut: the open session's revision list misses it until reopened; add an EditSession API when History lands.
-                revision = try await library.appendRevision(RevisionDraft(source: .flash, message: message, layout: built), to: session.id)
-            }
+            // Edited since the build: the revision must hold what was flashed, not the newer document, which stays edited.
+            let revision =
+                session.layout == built
+                ? try await session.saveRevision(source: .flash, message: message)
+                : try await session.recordRevision(RevisionDraft(source: .flash, message: message, layout: built))
             phase = .done(revision: revision, saveError: nil)
         } catch {
             logger.error("Recording the flash failed: \(String(describing: error), privacy: .public)")

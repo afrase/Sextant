@@ -48,7 +48,7 @@ public struct Palette {
 /// One result row or tile.
 struct PaletteItem: Identifiable {
     enum Group {
-        case importOryx, suggested, recent, commands, keys, layers, keycodes, settings
+        case importOryx, suggested, recent, commands, keys, layers, keycodes, settings, documents
 
         var title: String {
             switch self {
@@ -60,6 +60,7 @@ struct PaletteItem: Identifiable {
             case .layers: String(localized: "Layers")
             case .keycodes: String(localized: "Keycodes")
             case .settings: String(localized: "Firmware settings")
+            case .documents: String(localized: "Documents")
             }
         }
     }
@@ -355,6 +356,7 @@ extension LayoutWindowModel {
             }
         }
         items += settingItems(query)
+        items += revisionItems(query)
         return items
     }
 

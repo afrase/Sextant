@@ -13,7 +13,7 @@ struct InspectorColumn: View {
                     // Each v1 page replaces its own line when it lands (ADR 0037).
                     case .combos: EmptyView()
                     case .macros: EmptyView()
-                    case .history: EmptyView()
+                    case .history: HistoryInspector(model: model)
                     case .appLayers: EmptyView()
                     case .layer:
                         if model.lens == .lighting {
