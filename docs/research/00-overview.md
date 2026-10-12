@@ -8,9 +8,9 @@ Conventions:
 - `02 §8.5` means section 8.5 of `02-firmware-and-flashing.md`. Each report cites primary sources (repo@commit:path:line, URL or bundle offset) and ends with an "Independent verification" section. Where a verification contradicted its author, this overview follows the verification.
 - **INFERRED** marks a conclusion drawn by reasoning, not read in a source.
 - **[00-verified]** marks a fact I re-checked myself for this overview. "Bundle" means `downloads/oryx-frontend/index-xhNfd6BI.js` (md5 `34fbb4d676e5dd056e2acf1999f26dae`, fetched 2026-10-11). Offsets are **byte** offsets into that file and are valid only for that deploy.
-- Paths were written relative to the study session's scratchpad. In this repo: `study/*` → `docs/research/data/*`; `oryx/layout*.json`, `oryx/examples/*` → `docs/research/oryx-examples/`; the generated Oryx source zips (golden tests) → `docs/research/oryx-examples/sources/`. `downloads/*` (bundles, clones) were not kept.
+- Paths were written relative to the study session's scratchpad. In this repo: `study/*` → `docs/research/data/*`; `oryx/layout*.json`, `oryx/examples/*` → `docs/research/oryx-examples/`; the generated Oryx source zips (golden tests) → `docs/research/oryx-examples/sources/`. `downloads/*` (bundles, clones) were not kept. Later, everything ZSA-derived (the `oryx-*` extracts, `04-oryx-settings-catalog.json`, the Oryx screenshots) and other people's layouts with their source zips moved out of the repo to a private reference folder at the same paths; the repo keeps the author's own layout.
 
-**Report 01 (Oryx internals)** was blocked from being written during the study, so this overview cites its artifacts directly. Afterwards it was rendered from the agent's structured findings plus its independent verification: [01-oryx-internals.md](01-oryx-internals.md). Gap 10.A.1 still applies to the parts noted there.
+**Report 01 (Oryx internals)** was written up after this overview, which cites its artifacts directly. It combines the study's findings with an independent verification: [01-oryx-internals.md](01-oryx-internals.md). Gap 10.A.1 still applies to the parts noted there.
 
 | Report | Scope |
 |---|---|
@@ -247,7 +247,7 @@ The native editor, document model and DFU flasher are common to every option. Th
 | Risk | **High policy and breakage risk**: no ToS, unannounced writes, App Store 5.2.2 needs authorization, any Oryx deploy can break it. Brick risk: low, same as Oryx. | Generator divergence on unobserved rules (02 §12.5); about 1 GB toolchain management; fork drift (`firmware26`). Brick risk: low. The target is always `zsa/voyager`, linked at 0x08002000, and the reset button always reaches Ignition (02 §8.7). | Firmware maintenance; a `raw_hid_receive` clash and command-ID collisions to solve (03 §7.1); EEPROM bitfield differences between the ZSA fork and upstream (05 verification O6). Brick risk: soft-brick possible, still recoverable via the reset button. | as (b) |
 | Fidelity to Oryx | 100 %, but capped at Oryx's features | High, and can exceed Oryx (QMK extras). Keeps the Oryx live protocol and Navigator modules. | Partial unless reimplemented (per-layer RGB, DUAL_FUNC, Navigator); gains instant remap | High; Oryx's own binary is available for imported revisions |
 | Offline | No | Yes, after a one-time fork and toolchain download | Yes | Yes; import needs the network once |
-| ZSA services / ToS | Total dependence; ToS-grey writes | GitHub repos only; no Oryx at runtime | None | Read-only Oryx endpoints, precedented by zapp; ask ZSA (04 §5.1) |
+| ZSA services / ToS | Total dependence; ToS-grey writes | GitHub repos only; no Oryx at runtime | None | Read-only Oryx endpoints, precedented by zapp (04 §5.1) |
 | Extra upside | none | Full QMK power; custom C | The same driver serves Corne and about 2,000 VIA boards (05 §5.2) | Gradual migration: works on day 1 with Oryx's binaries |
 
 Other hybrids considered:
@@ -361,7 +361,7 @@ Not legal advice. This digests 04 §5 and its verification.
 - ZSA publishes **no Terms of Service or API terms**. The footer link 301s to `/privacy`, which has no terms.
 - `configure.zsa.io/robots.txt` disallows everything but `/`, and it does not cover `oryx.zsa.io`.
 - Read-only access to the user's own layouts mirrors ZSA's own zapp and is defensible. It is **not** a granted right.
-- **Email `contact@zsa.io` before any public release.** Do not use mutations or emulate the auth phrase without permission. Disclose in the privacy text that requests reveal IP and layout ID to ZSA. (04 §5.1 and verification rows 3-5.)
+- Do not use mutations or emulate the auth phrase. Disclose in the privacy text that requests reveal IP and layout ID to ZSA. (04 §5.1 and verification rows 3-5.)
 
 **Licences**
 - QMK and `zsa/qmk_modules` are GPL-2.0. Generating source and running a toolchain on the user's Mac creates no obligation for a closed Sextant.
@@ -437,7 +437,7 @@ The GPL firmware still documents the hardware well (05 §2.2-§2.3):
 | # | Question | Options | Recommendation |
 |---|---|---|---|
 | 1 | Primary architecture | (a) Oryx-backed sync; (b) local build; (c) dynamic-keymap firmware; (d1) local build + read-only Oryx | **(d1)**. (d2) dynamic keymap later as R&D. |
-| 2 | Relationship with Oryx | none; read-only import; two-way sync | **Read-only import** now. Email ZSA before release; consider write-back only with written permission. |
+| 2 | Relationship with Oryx | none; read-only import; two-way sync | **Read-only import** now; write-back only with ZSA's written permission. |
 | 3 | Default build backend | Apple Containerization with gcc 12.2.1 (exact ZSA compiler, macOS 26+); managed native toolchain (gcc 15.2, faster, more moving parts); user-installed QMK | **Container default, native fallback**, pending the Phase 0 spike (reproducibility, speed, disk) |
 | 4 | Firmware identity of Sextant builds (`SERIAL_NUMBER`, Oryx module) | keep the imported Oryx `layout/revision`; a Sextant namespace (e.g. `sx:<doc>/<build>`); `default/latest` | **Keep the `zsa/oryx` module and use a Sextant-namespaced serial.** Reusing an Oryx ID would make Keymapp, typ.ing and zapp show a stale Oryx layout. They cannot fetch local layouts anyway (03 §4). INFERRED; confirm Keymapp's behaviour on a non-Oryx serial. |
 | 5 | Distribution and app licence | closed Developer ID; open source MIT; open source GPL-3.0; Mac App Store | **Developer ID + notarized.** Pick free/open vs. commercial first. If open, GPL-3.0 makes the QMK, VIA and Vial data reusable as-is. If commercial: closed, clean-room tables, no zapp-core. |
@@ -509,7 +509,7 @@ The GPL firmware still documents the hardware well (05 §2.2-§2.3):
 **F. Not researched yet**
 
 27. Keymapp's behaviour when the serial is not an Oryx ID (decision 4).
-28. A ZSA permission email: not sent.
+28. A ZSA permission email: not sent, by the author's choice.
 29. Reddit (r/zsaVoyager, r/ErgoMechKeyboards) pain points: blocked (04 §1).
 30. Trademark verification in USPTO TSDR (needs an API key), CIPO and EUIPO.
 31. Accessibility of the native editor (VoiceOver, keyboard-only); no report covered it.

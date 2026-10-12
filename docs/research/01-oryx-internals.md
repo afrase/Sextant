@@ -1,6 +1,6 @@
 # 01 — Oryx web app internals
 
-> Rendered from the research agent's structured return value: the harness blocked the agent from writing this file directly.
+> Written up from the study's structured findings.
 > Where **Independent verification** (bottom) disagrees with a finding, the verification wins.
 
 ## Summary
@@ -239,21 +239,12 @@ In firmware, a layer colour becomes a per-LED HSV ledmap row (#00F0FF → {131,2
 - The pixel grid model is derived from CSS and was not rendered (Chrome tools were off-limits); the `height:2%` thumb-key rule is assumed negligible.
 - Is the real thumb-cluster angle 30° (Oryx render) or 35° (community Vial KLE)? ZSA publishes no top-shell or PCB CAD.
 - What is the licence of the oryx icon font (oryx-BM0RGHzK.ttf), and may Sextant redistribute it? If not, map the glyph names to SF Symbols.
-- The final report could not be written as study/01-oryx-internals.md because the harness blocked report .md files. Should the orchestrator render keyFindings into that file?
 
 ## Artifacts
 
-- `docs/research/data/oryx-keycodes.json`
 - `docs/research/data/voyager-geometry.json`
-- `docs/research/data/oryx-design-tokens.json`
-- `docs/research/data/oryx-config-settings.json`
-- `docs/research/data/oryx-graphql-operations.json`
 - `docs/research/data/oryx-schema.reconstructed.graphql`
-- `docs/research/oryx-examples/voyager-default.json`
-- `docs/research/oryx-examples/voyager-JRGQm.json`
-- `docs/research/oryx-examples/voyager-m9dpx.json`
-- `docs/research/oryx-examples/voyager-e5Rrr.json`
-- `docs/research/oryx-examples/voyager-XlrR4.json`
+- Kept outside the repo, in the reference folder at the same paths: `oryx-keycodes.json`, `oryx-design-tokens.json`, `oryx-config-settings.json`, `oryx-graphql-operations.json`, and the sample layouts `voyager-default.json`, `voyager-JRGQm.json`, `voyager-m9dpx.json`, `voyager-e5Rrr.json`, `voyager-XlrR4.json`
 - `scratchpad/oryx/layout-full.json`
 - `scratchpad/downloads/oryx-web/assets`
 - `scratchpad/downloads/oryx-web/metadata.json`
@@ -281,8 +272,6 @@ Other corrections:
 - The alias map leaves tap/hold codes unchanged and rewrites only macro-step codes.
 - The STL plate thickness is 2.32 mm, and ZSA does publish other hardware files (a Voyager leg STL, ErgoDox schematics).
 - crkbd ships both a CC-BY-4.0 and an MIT licence file.
-
-The report file 01-oryx-internals.md does not exist, so I did not append to it, and subagent rules stop me from creating it. This structured output is the verification record.
 
 | # | Claim | Verdict | Evidence | Correction |
 |---|---|---|---|---|
@@ -320,4 +309,4 @@ The report file 01-oryx-internals.md does not exist, so I did not append to it, 
 - The user's layout stores hold-only keys (tap null, hold KC_LEFT_CTRL at index 18; hold KC_LEFT_GUI at index 25), and the generator compiles them as plain keycodes. Serialization and round-tripping must preserve the tap:null/hold:X form.
 - The hexUrl that GraphQL returns is a Rails active_storage redirect: a 302 to a presigned DigitalOcean Spaces URL that expires after 604800 s. /firmware/<rev> serves the binary directly with a 200, and /source/<rev> serves the zip, which includes <name>.bin.md5 and build.log.
 - Not re-verified: Legend-LTsHAjDy.js beyond the legend strings, and the live USB PID of the attached keyboard (ioreg and hidutil showed no USB devices from this sandbox). Rocket-CfXlil5s.js was checked only from the saved copy, not refetched.
-- I did not append the '## Independent verification' section to the report: docs/research/data/01-oryx-internals.md does not exist, and subagent rules forbid creating report .md files. These results are returned here instead. Fresh evidence is in scratchpad/downloads/factcheck-01/ (index-live.js, index-live.css, Bvxi2_Kp.js, fw-40xJ7M.bin, layout-now.json, src-now/, voyager-keyboard.json, crkbd-info.json, zapp-lib.rs, metadata.json, wh.json) and the helper scripts are in scratchpad/scripts/fc01/.
+- Fresh evidence from this check was kept in the study session's scratchpad (not in the repo): scratchpad/downloads/factcheck-01/ (index-live.js, index-live.css, Bvxi2_Kp.js, fw-40xJ7M.bin, layout-now.json, src-now/, voyager-keyboard.json, crkbd-info.json, zapp-lib.rs, metadata.json, wh.json) and the helper scripts are in scratchpad/scripts/fc01/.

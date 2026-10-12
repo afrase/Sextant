@@ -2,7 +2,7 @@
 
 ## API summary
 
-PrototypeKit 1.0.0 is an SPM library for macOS 26 with no dependencies. Add it with `.package(path: "/Users/aaron/Developer/Sextant/design/PrototypeKit")` and product "PrototypeKit". Every public type has doc comments; Sources/PrototypeKit/PrototypeKit.swift is the map. It is utilities only: no colours, fonts or styling.
+PrototypeKit 1.0.0 is an SPM library for macOS 26 with no dependencies. Add it with `.package(path: "design/PrototypeKit")` and product "PrototypeKit". Every public type has doc comments; Sources/PrototypeKit/PrototypeKit.swift is the map. It is utilities only: no colours, fonts or styling.
 
 Name changes, to avoid SwiftUI/AppKit clashes:
 - The layout type is `KeyboardLayout`, not `Layout`, because `Layout` is a SwiftUI protocol.
@@ -177,7 +177,7 @@ Use `MockDevice.frozen(at:)`, `BuildFlashSimulator.at(.waitingForBootloader)` an
 
 BUILD AND RUN
 - `swift build` and a clean rebuild pass with zero warnings and zero errors (Swift 6 language mode).
-- `swift run PrototypeKitDemo` runs about 120 self-checks, all passing, then writes 12 PNGs to /Users/aaron/Developer/Sextant/design/PrototypeKit/snapshots/.
+- `swift run PrototypeKitDemo` runs about 120 self-checks, all passing, then writes 12 PNGs to design/PrototypeKit/snapshots/.
 - Flags: `--check` runs the checks only; `--snapshot <dir> [--only a,b]` renders only.
 - The images:
   - board-main-light and board-main-dark: the required neutral render of Main.
@@ -188,7 +188,7 @@ BUILD AND RUN
   - glass-content-* and glass-imagerenderer-*: glass on the two windowless paths.
 - I looked at every PNG.
 
-VERIFIED AGAINST docs/oryx-ui/01-layout-readonly-main.jpg
+VERIFIED AGAINST Oryx's read-only layout view (the screenshot is kept in the reference folder)
 - Stagger: column 3 is highest and columns 2 and 4 are half-raised, mirrored on the right half (0.15/0.30u, taken from voyager-geometry.json's translateY values).
 - Thumbs: both pairs are rotated ±30°. The inner thumb (25/50) is 1u × 1.35u and top-aligned with the outer one (24/51).
 - Navigator: the circle sits by the right half's inner edge.

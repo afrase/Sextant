@@ -17,7 +17,7 @@ Related reports:
 - Machine-readable companions:
   - `study/04-oryx-settings-catalog.json`: all 14 settings sections and 100 settings, verified against the bundle (see `_verified`).
   - `study/04-prior-art-repos.tsv`: GitHub metadata for 69 repositories.
-  - `study/oryx-keycodes.json`: another researcher's keycode catalog derived from `configure.zsa.io/metadata.json`. Its schema changed while I worked, so treat its field names as unstable.
+  - `study/oryx-keycodes.json` (now kept outside the repo, in the reference folder): another researcher's keycode catalog derived from `configure.zsa.io/metadata.json`. Its schema changed while I worked, so treat its field names as unstable.
 
 ---
 
@@ -73,7 +73,7 @@ Related reports:
   - `configure.zsa.io/robots.txt` disallows everything except `/`.
 - **Unauthenticated read precedent.** The GraphQL endpoint and `/firmware/{revisionId}` need no authentication. ZSA's own open-source Zapp reads them.
 - **Sextant's policy:** read-only, per-user, cached access to the user's own layouts is defensible, but it is not a granted right (INFERRED).
-  - Ask ZSA (`contact@zsa.io`) for written permission before release. Mac App Store guideline 5.2.2 needs that authorization anyway.
+  - Mac App Store guideline 5.2.2 requires that authorization for a third-party service be provided on request.
   - Never use mutations or Keymapp's auth-phrase login without permission.
 - **Trademarks** (third-party aggregators; verify in USPTO TSDR):
   - MOONLANDER and ERGODOX EZ are registered.
@@ -590,7 +590,7 @@ Metadata (stars, language, license, created and pushed dates) is from `gh api re
 ---
 ## 4. Open-source knowledge about the Voyager, and what the Corne teaches (user request)
 
-> User request (relayed by the harness): "We should also look for any information open source about the keyboard. Corne keyboards are open source and are similar."
+> User request: "We should also look for any information open source about the keyboard. Corne keyboards are open source and are similar."
 
 This section is a concise digest aimed at feature and UX scope. **`study/05-open-hardware-and-configurators.md`** (another researcher) covers the Voyager's hardware, its matrix and LED mapping, Corne and other open splits, and open configurators in much more depth. Where the two differ, prefer 05 on hardware facts.
 
@@ -683,7 +683,6 @@ This section is a concise digest aimed at feature and UX scope. **`study/05-open
 | Read only layouts the user names: a pasted URL or hashId, or the `layoutId/revisionId` read from the board's USB serial (`SERIAL_NUMBER`). This mirrors what Zapp and Keymapp do | Crawl `configure.zsa.io` (robots) or enumerate or search public layouts in bulk. Don't mirror other people's layouts |
 | Send a descriptive `User-Agent` (e.g. `Sextant/1.0 (+https://…; contact)`); cache by revision hash (compiled revisions appear immutable: new edits create a new revision hashId, per `layout.new`/fork behaviour; verify); back off on errors | Poll aggressively. One metadata check per user action, or at most a slow timer, like starview's 5 min or oryx-bench's 60 s |
 | Treat write-back, private layouts and login as **opt-in features requiring ZSA's written OK** | Emulate Keymapp's auth-phrase login (`/account/auth_phrase` → `oryx.zsa.io/authenticate/auth_phrase`) or replay Oryx mutations without permission |
-| Email `contact@zsa.io` describing Sextant and asking for (a) permission to read the GraphQL/firmware/source endpoints, (b) any rate limits, (c) whether write-back is acceptable. ZSA's support is email-first ([zsa.io/help](https://www.zsa.io/help)) | Rely on silence as consent for a commercial product. Mac App Store guideline 5.2.2 requires that "Authorization must be provided upon request" for third-party services |
 | Disclose in Sextant's privacy policy that requests to `oryx.zsa.io` reveal the user's IP address and layout ID to ZSA | Store Oryx tokens unless write-back is approved; if so, use the Keychain |
 
 ### 5.2 Trademarks
@@ -799,7 +798,7 @@ Evidence is limited to reachable sources. Reddit was blocked (section 1), so thi
 
 ## 7. Open questions
 
-1. **Permission and rate limits.** Will ZSA authorize Sextant's read access to `oryx.zsa.io/graphql`, `/firmware/…` and `/source/…` (and possibly writes)? Are there rate limits? (Email `contact@zsa.io`, 5.1.)
+1. **Permission and rate limits.** Will ZSA authorize Sextant's read access to `oryx.zsa.io/graphql`, `/firmware/…` and `/source/…` (and possibly writes)? Are there rate limits? (5.1.)
 2. **Default drift.** The Tap Flow default is 150 ms in the May 2025 blog but 100 in the bundle. The thumb exclusion for Chordal Hold is "by default" in a Jun 2025 note but an opt-in toggle (default off) in the bundle. Confirm by generating source for a fresh layout. This matters for import fidelity.
 3. **Voyager MCU variants.** STM32F303xB-class per QMK PR #23912 (05 §2.1) versus GD32F303CB (RMK port). Which boards get Oryx's `alt` firmware variant? This affects local builds and DFU (with 03 §9 item 3).
 4. **Layer cap.** Is the 32-layer cap enforced server-side? How does Oryx block OSL/LM targets ≥ 16 in the UI? (KC encodes `maxLayers: 16`.)

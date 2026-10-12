@@ -33,7 +33,7 @@ Decided: local-first hybrid architecture, minimum **macOS 26** (Liquid Glass), a
   - colour keys and `QK_BOOT` ("Reset").
 - Geometry: `../research/data/voyager-geometry.json`.
 - Matrix and LED map: `../research/data/voyager-matrix-led-map.json`.
-- Settings catalog (100 settings, 14 sections): `../research/data/oryx-config-settings.json` and `../research/data/04-oryx-settings-catalog.json`.
+- Settings catalog (100 settings, 14 sections): the Oryx settings extracts `oryx-config-settings.json` and `04-oryx-settings-catalog.json`, kept in the reference folder.
 
 ## Principles
 
@@ -89,7 +89,7 @@ Decided: local-first hybrid architecture, minimum **macOS 26** (Liquid Glass), a
     - **MVP implication:** documents and revisions get stable UUIDs, content hashes and append-only history from day one, so adding sync later needs no migration.
     - **Open:** a self-hosted server versus iCloud, which needs no server but only works between Apple devices.
 
-## Oryx lessons (from `../oryx-ui/README.md`)
+## Oryx lessons (from the Oryx screenshot tour, kept in the reference folder)
 
 **Keep:**
 - colour-coded key kinds;

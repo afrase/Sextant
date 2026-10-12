@@ -10,7 +10,7 @@ Three directions were built as runnable SwiftUI prototypes on a shared kit (`des
 
 ## Mac-native craft
 
-**Scope:** MAC-NATIVE CRAFT: would Apple ship this? Judged on HIG conformance on macOS 26, correct Liquid Glass (glass on controls and navigation, never on content; GlassEffectContainer grouping; legibility), system controls, toolbar, sidebar and inspector conventions, SF Symbols, SF Pro and SF Mono, semantic colour and accent, light/dark parity, accessibility (contrast, Reduce Transparency, Reduce Motion, VoiceOver feasibility for the board), keyboard navigation, window resizing and minimum sizes, and menu bar extra and HUD conventions. Evidence: every snapshot of all three directions, a read of the live-path code (glass, commands, focus, accessibility), and new renders at each direction's declared minimum window size. Those renders were made in-process and offscreen in /Users/aaron/Developer/Sextant/design/judging/native-craft/minsize/out-{a,b,c}/.
+**Scope:** MAC-NATIVE CRAFT: would Apple ship this? Judged on HIG conformance on macOS 26, correct Liquid Glass (glass on controls and navigation, never on content; GlassEffectContainer grouping; legibility), system controls, toolbar, sidebar and inspector conventions, SF Symbols, SF Pro and SF Mono, semantic colour and accent, light/dark parity, accessibility (contrast, Reduce Transparency, Reduce Motion, VoiceOver feasibility for the board), keyboard navigation, window resizing and minimum sizes, and menu bar extra and HUD conventions. Evidence: every snapshot of all three directions, a read of the live-path code (glass, commands, focus, accessibility), and new renders at each direction's declared minimum window size. Those renders were made in-process and offscreen in `design/judging/native-craft/minsize/out-{a,b,c}/`, kept in the reference folder.
 
 **Winner:** Instrument (a-instrument)
 
@@ -582,7 +582,4 @@ All of these can be fixed. The best fix for the first comes straight from Instru
 - Console's through-layers stack, on-board flash callouts, record-arm styling, menu bar tiles and macro time ruler.
 
 **Snapshot files**
-- /Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/
-- /Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/
-- /Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/
-- My 2x board crops are in /private/tmp/claude-501/-Users-aaron-Developer/ddf7da44-df94-4702-ad26-d64a9e4c9626/scratchpad/crops/ (a01-left, a02-left, a10-right, b01-left, b02-left, b10-right, c01-left, c02-left, c10-right).
+- In the reference folder: `design/explorations/<direction>/snapshots/` (a-instrument, b-chart-table, c-console).

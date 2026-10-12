@@ -8,9 +8,9 @@
     ],
     "recommendation": "Shown by default and remembered per window. The task-flow judge rated Instrument's sidebar the most discoverable surface, and one ⌃⌘S gives the hero board when you want it.",
     "snapshotRefs": [
-      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/01-main-dark.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/01-main-dark.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/01-main-dark.png"
+      "design/explorations/a-instrument/snapshots/01-main-dark.png",
+      "design/explorations/b-chart-table/snapshots/01-main-dark.png",
+      "design/explorations/c-console/snapshots/01-main-dark.png"
     ]
   },
   {
@@ -22,10 +22,10 @@
     ],
     "recommendation": "The hybrid. It keeps the precision-instrument feel and lets you feel the layer change, while avoiding the themed look the visual judge said could tip into gimmick. You can still turn the grid off in Settings.",
     "snapshotRefs": [
-      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/02-main-light.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/02-main-light.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/05-layer-symnum.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/05-layer-symnum.png"
+      "design/explorations/a-instrument/snapshots/02-main-light.png",
+      "design/explorations/b-chart-table/snapshots/02-main-light.png",
+      "design/explorations/b-chart-table/snapshots/05-layer-symnum.png",
+      "design/explorations/c-console/snapshots/05-layer-symnum.png"
     ]
   },
   {
@@ -36,8 +36,8 @@
     ],
     "recommendation": "⌘R / ⌘B / ⌘. as in Xcode. You live in Xcode, and it keeps a fast 'just build and check the size' action separate from flashing.",
     "snapshotRefs": [
-      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/07-flash-guide.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/11-menubar.png"
+      "design/explorations/a-instrument/snapshots/07-flash-guide.png",
+      "design/explorations/c-console/snapshots/11-menubar.png"
     ]
   },
   {
@@ -49,9 +49,9 @@
     ],
     "recommendation": "The ring plus the segmented bar. The ring is Sextant's signature moment. The bar and facts keep the progress honest, showing one labelled number per phase.",
     "snapshotRefs": [
-      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/08-flash-progress.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/08-flash-progress.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/08-flash-progress.png"
+      "design/explorations/b-chart-table/snapshots/08-flash-progress.png",
+      "design/explorations/a-instrument/snapshots/08-flash-progress.png",
+      "design/explorations/c-console/snapshots/08-flash-progress.png"
     ]
   },
   {
@@ -62,9 +62,9 @@
     ],
     "recommendation": "Single-hue. The visual judge found it far more refined, and it doesn't fight the layer colours or the calm chrome.",
     "snapshotRefs": [
-      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/13-heatmap.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/13-heatmap.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/13-heatmap.png"
+      "design/explorations/b-chart-table/snapshots/13-heatmap.png",
+      "design/explorations/a-instrument/snapshots/13-heatmap.png",
+      "design/explorations/c-console/snapshots/13-heatmap.png"
     ]
   },
   {
@@ -76,9 +76,9 @@
     ],
     "recommendation": "Highlights on, heatmap opt-in. The brief asks for live by default. Highlights are transient and never show letters, but a heatmap stores history, so it should be your explicit choice.",
     "snapshotRefs": [
-      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/10-live.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/10-live.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/10-live.png"
+      "design/explorations/a-instrument/snapshots/10-live.png",
+      "design/explorations/c-console/snapshots/10-live.png",
+      "design/explorations/b-chart-table/snapshots/10-live.png"
     ]
   },
   {
@@ -89,8 +89,8 @@
     ],
     "recommendation": "The managed library. It lets Sextant match a connected keyboard's serial to its layout instantly, keeps append-only history together, and makes the future sync server much simpler. Packages stay plain JSON you can still version with git.",
     "snapshotRefs": [
-      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/01-main-dark.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/15-history-diff.png"
+      "design/explorations/a-instrument/snapshots/01-main-dark.png",
+      "design/explorations/a-instrument/snapshots/15-history-diff.png"
     ]
   },
   {
@@ -102,9 +102,9 @@
     ],
     "recommendation": "The tiles and native rows, without default typing stats. The task-flow judge called the stats decorative, and they come from keystroke data.",
     "snapshotRefs": [
-      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/11-menubar.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/11-menubar.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/11-menubar.png"
+      "design/explorations/c-console/snapshots/11-menubar.png",
+      "design/explorations/a-instrument/snapshots/11-menubar.png",
+      "design/explorations/b-chart-table/snapshots/11-menubar.png"
     ]
   },
   {
@@ -115,9 +115,9 @@
     ],
     "recommendation": "Neutral glass by default, with 'Tint with layer colour' as a Settings option. It stays legible over any wallpaper or app, and the rings already carry the layer colour.",
     "snapshotRefs": [
-      "/Users/aaron/Developer/Sextant/design/explorations/a-instrument/snapshots/12-overlay-hud.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/c-console/snapshots/12-overlay-hud.png",
-      "/Users/aaron/Developer/Sextant/design/explorations/b-chart-table/snapshots/12-overlay-hud.png"
+      "design/explorations/a-instrument/snapshots/12-overlay-hud.png",
+      "design/explorations/c-console/snapshots/12-overlay-hud.png",
+      "design/explorations/b-chart-table/snapshots/12-overlay-hud.png"
     ]
   }
 ]

@@ -4,16 +4,16 @@ Version 1.0 · 2026-10-11 · Status: the chosen direction for MVP and v1. The us
 
 **Inputs**
 - `docs/design/brief.md`
-- `docs/oryx-ui/README.md`
+- the Oryx screenshot tour (kept in the reference folder)
 - `docs/research/00-overview.md`, sections 2, 3, 5 and 6
-- the three design explorations under `design/explorations/` (a-instrument, b-chart-table, c-console) and their snapshots
+- the three design explorations under `design/explorations/` (a-instrument, b-chart-table, c-console) and their snapshots, kept in the reference folder
 - the three judge reports: Mac-native craft, task flow, and visual delight
 
 **Conventions**
 - **Phase tags.** **MVP**, **v1** and **Future** mark the build phase. They follow the brief and research §3.
 - **Units.** Sizes are in points. `u` means the side of one rendered 1u keycap: the cap itself, not the pitch.
 - **Colours.** Values are written *light / dark*.
-- **Snapshot references.** `A-nn` refers to `design/explorations/a-instrument/snapshots/nn-*.png`. `B-nn` is the same for b-chart-table and `C-nn` for c-console.
+- **Snapshot references.** `A-nn` refers to `design/explorations/a-instrument/snapshots/nn-*.png` in the reference folder. `B-nn` is the same for b-chart-table and `C-nn` for c-console.
 - **Real data.** Examples use the user's real layout, "My MacOS Layout" (`KlgM7/40xJ7M`). It has three layers: Main (no colour), Sym+Num (`#00F0FF`) and Brd+Sys (`#42FF00`). Keys are named by Oryx index; for example, key 24 is `LT(1, KC_ENTER)`.
 - **Layer numbering.** Layers are numbered from 0 everywhere ("Layer 1 · Sym+Num"), to match QMK.
 
