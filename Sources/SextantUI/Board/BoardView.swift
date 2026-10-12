@@ -35,8 +35,8 @@ public struct BoardView: View {
     @GestureState private var isPainting = false
     @Environment(\.layoutWindow) private var window
     /// A pick takes clicks first (ADR 0037), so it stops painting and swapping until it ends.
-    private var isPicking: Bool { window?.boardPick != nil }
-    private var brush: Brush? { isPicking ? nil : lensBrush }
+    private var hasBoardPick: Bool { window?.boardPick != nil }
+    private var brush: Brush? { hasBoardPick ? nil : lensBrush }
 
     public init(
         session: EditSession, mode: LegendMode = .symbols, issues: [KeyRef: LayoutIssue.Severity] = [:], pressed: PressedKeys? = nil,
@@ -75,7 +75,7 @@ public struct BoardView: View {
                 keys(board, models: models, cap: cap)
                     .frame(width: board.size.width, height: board.size.height)
                     .keySwapGesture(session, board: board)
-                    .environment(\.swapsKeys, swapsKeys && !isPicking)
+                    .environment(\.swapsKeys, swapsKeys && !hasBoardPick)
                     // The board draws its own focus ring (spec §11): the selection glow, or this outline before a key is chosen.
                     .overlay {
                         if isFocused && session.selection.keyIndex == nil && !focusedByPointer {
@@ -101,12 +101,16 @@ public struct BoardView: View {
             press.modifiers.contains(.control) ? .ignored : cycleSlot(back: press.key == Self.backTab || press.modifiers.contains(.shift))
         }
         .onKeyPress(.delete) {
-            guard session.selection.keyIndex != nil else { return .ignored }
+            // Not under a pick's prompt, which says what the keys do now.
+            guard session.selection.keyIndex != nil, !hasBoardPick else { return .ignored }
             session.makeTransparent()
             return .handled
         }
-        .modifier(BoardPickerKeys(session: session, isFocused: $isFocused))
+        .modifier(BoardPickerKeys(isFocused: $isFocused))
         .onExitCommand { if let window { window.escapeBoard() } else { session.select(key: nil) } }
+        // A pick starting, or the board appearing for one (Assign to Key leaves the Macros page), focuses the board, so
+        // ⏎ picks the selected key and esc cancels (spec §9.2, §9.3).
+        .onChange(of: hasBoardPick, initial: true) { if hasBoardPick { isFocused = true } }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
             String(localized: "Keyboard, \(layout.layers[safe: layer]?.title ?? "") layer, \(layout.keyCount) keys")
@@ -279,7 +283,7 @@ public struct BoardView: View {
     private static let backTab = KeyEquivalent("\u{19}")
 
     private func select(_ index: Int) {
-        if let window, isPicking { window.pick(key: index) } else { session.select(key: index) }
+        if let window { window.click(key: index) } else { session.select(key: index) }
         isFocused = true
     }
 

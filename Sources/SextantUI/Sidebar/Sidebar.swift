@@ -5,6 +5,14 @@ import SwiftUI
 public enum Destination: Hashable {
     case layer(Int)
     case firmwareSettings, combos, macros, history, appLayers
+
+    /// Combos and History are board modes (spec §2.2); the other pages replace the board.
+    var showsBoard: Bool {
+        switch self {
+        case .layer, .combos, .history: true
+        case .firmwareSettings, .macros, .appLayers: false
+        }
+    }
 }
 
 /// The sidebar (spec §3.6): one section per file, so each can grow on its own.

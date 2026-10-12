@@ -96,6 +96,20 @@ extension LayoutWindowModel {
         palette = Palette(scope: .assign, query: query)
     }
 
+    /// ⏎ (an empty query) or a typed character on the focused board (spec §9.2): the picker opens on the selected key,
+    /// pre-filled, but not in the Lighting lens, whose letters are its tools. During a pick, ⏎ picks the selected key and
+    /// typing does nothing (ADR 0037). Returns whether the key press was used.
+    func typeOnBoard(_ query: String) -> Bool {
+        guard let index = session?.selection.keyIndex else { return false }
+        guard boardPick == nil else {
+            if query.isEmpty { click(key: index) }
+            return query.isEmpty
+        }
+        guard lens == .keys, hasSelectedKey else { return false }
+        openKeycodePicker(prefilled: query)
+        return true
+    }
+
     /// Opens the picker on a target that isn't the selected key's slot, on any page. It ends Record Key.
     func openKeycodePicker(_ target: AssignTarget) {
         guard session != nil else { return }
@@ -210,12 +224,15 @@ extension LayoutWindowModel {
         return KeyAction(code: action.code, modifiers: existing.modifiers)
     }
 
-    /// The target's cap as the highlighted keycode would make it, for the picker preview state (spec §4.7, §5.6).
+    /// The target's cap as the highlighted keycode would make it, for the picker preview state (spec §4.7, §5.6). The
+    /// board shows only its own layer's keys.
     var pickerPreview: KeyCapModel? {
-        guard isPicking, let session, let key = assignTarget?.key, let action = paletteItems[safe: palette?.highlight ?? 0]?.keycode
+        guard isPicking, let session, let key = assignTarget?.key, key.layer == session.selection.layer,
+            let action = paletteItems[safe: palette?.highlight ?? 0]?.keycode
         else { return nil }
         var layout = session.layout
-        layout.updateKey(layer: key.layer, index: key.index) { $0[key.slot ?? .tap] = assigned(action) }
+        // As `assign` writes it: only the selected slot keeps its chord.
+        layout.updateKey(layer: key.layer, index: key.index) { $0[key.slot ?? .tap] = palette?.target == nil ? assigned(action) : action }
         return KeyCapModel(layout: layout, layer: key.layer, index: key.index, mode: legendMode)
     }
 
@@ -369,7 +386,8 @@ extension LayoutWindowModel {
                 leading: .cap(KeyCapModel(layout: layout, layer: hit.layer, index: hit.index))
             ) { [weak self] in
                 self?.palette = nil
-                session.select(layer: hit.layer)
+                // The destination, not the layer: on a page the key's layer may already be the shown one.
+                self?.destination = .layer(hit.layer)
                 session.select(key: hit.index)
             }
         }
@@ -383,7 +401,7 @@ extension LayoutWindowModel {
                 note: String(localized: "Layer \(index)"), leading: .chip(layer.color)
             ) { [weak self] in
                 self?.palette = nil
-                session.select(layer: index)
+                self?.destination = .layer(index)
             }
         }
     }

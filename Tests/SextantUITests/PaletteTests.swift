@@ -292,6 +292,37 @@ struct PaletteTests {
         #expect(model.palette?.target == nil && !model.isPicking, "dropping the token drops its target")
     }
 
+    /// A key target previews what it writes: the keycode as picked, without the selected slot's chord, and only on the
+    /// shown layer's board (ADR 0037).
+    @Test func aKeyTargetPreviewsWhatItWrites() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.select(key: 19)
+        session.setModifiers([.leftShift])
+        var assigned: [KeyAction] = []
+        model.openKeycodePicker(AssignTarget(title: "Key 5", key: KeyRef(layer: 0, index: 5, slot: .tap)) { assigned.append($0) })
+        model.palette?.query = "KC_B"
+        #expect(model.pickerPreview?.index == 5 && model.pickerPreview?.legend.legend.primary?.qmk == "KC_B")
+        model.runHighlighted()
+        #expect(assigned == [KeyAction(code: "KC_B")])
+        model.openKeycodePicker(AssignTarget(title: "Key 5 on Sym", key: KeyRef(layer: 2, index: 5, slot: .tap)) { _ in })
+        #expect(model.pickerPreview == nil, "the board shows layer 0")
+    }
+
+    /// ⌘K's layer rows and Find Key's hits show the board from a page, even on the layer already shown.
+    @Test func layerAndKeyRowsShowTheBoardFromAPage() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        model.destination = .firmwareSettings
+        model.openPalette(query: session.layout.layers[0].title)
+        model.run(try #require(model.paletteItems.first { $0.id.hasPrefix("layer-") }))
+        #expect(model.destination == .layer(0))
+        model.destination = .macros
+        model.openPalette(.keys)
+        model.run(try #require(model.paletteItems.first { $0.id.hasPrefix("key-0-") }))
+        #expect(model.destination == .layer(0) && model.hasSelectedKey)
+    }
+
     @Test func paletteSearchRanksExactPrefixWordSubstring() {
         #expect(PaletteSearch.score("main", ["Main"]) > PaletteSearch.score("main", ["Mainly"]))
         #expect(PaletteSearch.score("lay", ["Layer 1"]) > PaletteSearch.score("lay", ["New Layer"]))

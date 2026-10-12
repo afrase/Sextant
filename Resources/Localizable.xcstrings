@@ -2358,10 +2358,16 @@
         }
       }
     },
+    "↑↓ move · ⏎ assign · ⇥ category · esc close" : {
+
+    },
     "↑↓ move · ⏎ assign · ⌘⏎ assign & next · ⇥ category · ⇧⌘R record · esc close" : {
 
     },
     "↑↓ move · ⏎ run · esc close" : {
+
+    },
+    "⏎ assign · esc close" : {
 
     },
     "⏎ assign · ⌘⏎ & next · esc close" : {

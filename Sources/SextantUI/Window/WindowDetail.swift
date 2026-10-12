@@ -66,7 +66,7 @@ struct WindowDetail: View {
 // The two modifiers below read the selected layer in their own bodies, so a layer switch doesn't re-run WindowDetail
 // and rebuild the canvas column (the board would evaluate twice per switch).
 
-/// Choosing a layer by number or menu returns from a page to the board; Follow's layer changes don't.
+/// Choosing a layer by number or menu returns from a page that hides the board to the board; Follow's layer changes don't.
 private struct LayerSwitchEffects: ViewModifier {
     var model: LayoutWindowModel
 

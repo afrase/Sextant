@@ -197,7 +197,7 @@ public final class LayoutWindowModel {
             // Choosing a layout is choosing a destination (spec §2.2): its board, not the last layout's settings page.
             page = nil
             // A pick or a panel's assign target edits the layout it was made for.
-            boardPick = nil
+            cancelBoardPick()
             palette = nil
             settingsScrollTarget = nil
             if next.recoveredUnsavedChanges { AccessibilityNotification.Announcement(Self.recoveredNotice).post() }
@@ -306,26 +306,27 @@ public final class LayoutWindowModel {
 
     // MARK: Actions
 
-    /// Returns from a page to the shown layer's board.
-    func showBoard() { page = nil }
+    /// Returns from a page that hides the board to the shown layer's board. Combos and History show the board, so they
+    /// stay while their layer changes.
+    func showBoard() { if page?.showsBoard == false { page = nil } }
 
-    // Layer commands act on the shown layer: from a page, they show the board first.
+    // Layer commands act on the shown layer: from a page that hides it, they show the board first.
     func showAdjacentLayer(_ step: Int) {
         guard let session else { return }
-        page = nil
+        showBoard()
         session.select(layer: session.selection.layer + step)
     }
 
     func moveLayer(by step: Int) {
         guard let session else { return }
-        page = nil
+        showBoard()
         session.moveLayer(from: session.selection.layer, to: session.selection.layer + step)
     }
 
     /// Deletes the shown layer, asking first when keys still switch to it (spec §6.1).
     func requestDeleteLayer() {
         guard let session, canDeleteLayer else { return }
-        page = nil
+        showBoard()
         let layer = session.selection.layer
         if session.layout.keysActivating(layer: layer).isEmpty {
             session.deleteLayer(layer)
@@ -371,9 +372,14 @@ public final class LayoutWindowModel {
         session?.select(key: key.index, slot: key.slot)
     }
 
-    /// A click on a key while a pick is on goes to it; the pick ends when it says it is done.
-    func pick(key index: Int) {
-        if boardPick?.onPick(index) == true { boardPick = nil }
+    /// A click on a board key, VoiceOver's activate, or ⏎ during a pick: a pick takes the key and ends when it says it is
+    /// done; otherwise the key is selected.
+    func click(key index: Int) {
+        if let pick = boardPick {
+            if pick.onPick(index) { boardPick = nil }
+        } else {
+            session?.select(key: index)
+        }
     }
 
     /// Ends the pick without finishing it (esc, its Cancel button).

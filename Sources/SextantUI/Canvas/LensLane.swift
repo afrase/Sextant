@@ -12,7 +12,8 @@ struct LensLane: View {
                     LightingCapsule(model: model, session: session).glassEffectTransition(.materialize)
                 }
                 // Status by priority: a pick (the only place that says what a click does) > an issue > recording > the rest.
-                if let pick = model.boardPick {
+                // Record Key hides a pick while it holds the keyboard, since esc ends it first (spec §9.3).
+                if let pick = model.boardPick, model.recorder == nil {
                     PickCapsule(model: model, prompt: pick.prompt).glassEffectTransition(.materialize)
                 } else if model.recorder != nil, model.laneStatus?.isIssue != true {
                     RecordingCapsule(model: model).glassEffectTransition(.materialize)
