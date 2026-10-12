@@ -86,6 +86,14 @@ private struct MacroLibraryList: View {
 
     var body: some View {
         let layout = session.layout
+        ScrollViewReader { proxy in
+            list(layout)
+                // New Macro, ⌘K and Assign to Key select rows the list may not show (drafts come last).
+                .onChange(of: session.selection.macro, initial: true) { _, macro in if let macro { proxy.scrollTo(macro) } }
+        }
+    }
+
+    private func list(_ layout: KeyboardLayout) -> some View {
         List(selection: Binding(get: { session.selection.macro }, set: { if $0 != session.selection.macro { session.selectMacro($0) } })) {
             ForEach(library) { entry in
                 let isDraft = if case .draft = entry.locator { true } else { false }
@@ -106,6 +114,8 @@ private struct MacroLibraryList: View {
             }
         }
         .onDeleteCommand { if let locator = session.selection.macro { session.deleteMacro(locator) } }
+        // Every row's natural height: without it List estimates the rows it hasn't drawn, and scrollTo stops short of far ones.
+        .environment(\.defaultMinListRowHeight, 56)
         .accessibilityLabel(Text("Macros"))
     }
 }
@@ -234,7 +244,11 @@ private struct MacroNameField: View {
     }
 
     private func commit() {
-        if draft != stored { session.renameMacro(locator, to: draft) }
+        guard draft != stored else { return }
+        // Remove from Key moves the macro to the drafts, and the selection with it, before this field ends.
+        if let target = session.layout.macro(at: locator) != nil ? locator : session.selection.macro {
+            session.renameMacro(target, to: draft)
+        }
     }
 }
 
@@ -267,7 +281,8 @@ private struct MacroStepTable: View {
                     Text(verbatim: Legends.legend(for: KeyAction(code: row.step.code)).text)
                 }
             }
-            TableColumn("Mods") { row in Text(verbatim: row.step.modifiers.glyphs) }.width(44)
+            // Wide enough for ⌃⌥⇧⌘, which macros often hold.
+            TableColumn("Mods") { row in Text(verbatim: row.step.modifiers.glyphs) }.width(54)
             TableColumn("Wait") { row in
                 Text(row.step.delay == 0 ? "—" : "\(row.step.delay) ms").monospacedDigit().foregroundStyle(.secondary)
             }

@@ -83,8 +83,19 @@ extension KeyboardLayout {
         return .draft(id)
     }
 
+    /// Names the macro; nil clears the name. A macro on a key's tap then shows its name there instead of the key's label,
+    /// which until now stood for its name (Oryx names macros by labelling their keys).
+    public mutating func renameMacro(at locator: MacroLocator, to name: String?) {
+        guard macro(at: locator) != nil else { return }
+        updateMacro(at: locator) { $0.name = name }
+        if name != nil, case let .key(ref) = locator, ref.slot == .tap {
+            updateKey(layer: ref.layer, index: ref.index) { $0.customLabel = nil }
+        }
+    }
+
     /// Removes the macro: its key slot empties (a key left with nothing turns transparent), a combo's output becomes
-    /// `KC_NO` (an empty combo the issues flag), and a draft goes.
+    /// `KC_NO` (an empty combo the issues flag), and a draft goes. A macro leaving a key's tap takes the key's label,
+    /// its name, with it: left behind, the label would show on a key that no longer plays the macro.
     public mutating func removeMacro(at locator: MacroLocator) {
         guard macro(at: locator) != nil else { return }
         switch locator {
@@ -92,6 +103,7 @@ extension KeyboardLayout {
             guard let slot = ref.slot else { return }
             updateKey(layer: ref.layer, index: ref.index) { key in
                 key[slot] = nil
+                if slot == .tap { key.customLabel = nil }
                 if key.filledSlots.isEmpty { key.tap = .transparent }
             }
         case let .combo(id):
@@ -102,15 +114,16 @@ extension KeyboardLayout {
     }
 
     /// Puts the macro on a key's tap and clears the key's other slots: the generator plays a macro only from a key's
-    /// tap, never inside a dual-function key or a tap dance. A draft moves; a macro on a key or combo is copied, as Oryx
-    /// keeps a copy per key. Returns the macro's new place, or nil when there is no such macro or key.
+    /// tap, never inside a dual-function key or a tap dance. The key's label goes too, so the cap shows the macro's name.
+    /// A draft moves; a macro on a key or combo is copied, as Oryx keeps a copy per key. Returns the macro's new place,
+    /// or nil when there is no such macro or key.
     @discardableResult
-    public mutating func assignMacro(at locator: MacroLocator, toKey layer: Int, index: Int) -> MacroLocator? {
+    public mutating func assignMacro(at locator: MacroLocator, layer: Int, index: Int) -> MacroLocator? {
         guard let macro = movableMacro(at: locator), key(layer: layer, index: index) != nil else { return nil }
         if case .draft = locator { removeMacro(at: locator) }
         updateKey(layer: layer, index: index) { key in
             key.tap = KeyAction(code: "KC_TRANSPARENT", macro: macro)
-            (key.hold, key.doubleTap, key.tapHold) = (nil, nil, nil)
+            (key.hold, key.doubleTap, key.tapHold, key.customLabel) = (nil, nil, nil, nil)
         }
         return .key(KeyRef(layer: layer, index: index, slot: .tap))
     }
@@ -172,6 +185,16 @@ extension MacroStep {
     /// not compile (ADR 0042).
     public static func canType(_ code: String) -> Bool {
         code.hasPrefix("KC_") && typable.contains(String(code.dropFirst(3)))
+    }
+
+    /// The step that types `code`, or nil when no step can. A shifted symbol has no `X_` name of its own, so it becomes
+    /// its US key with Left Shift (`KC_LCBR`, "{", is ⇧`KC_LBRC`).
+    public static func typing(_ code: String) -> MacroStep? {
+        if canType(code) { return MacroStep(code: code) }
+        guard code.hasPrefix("KC_"), let label = KeycodeCatalog.entry(for: code)?.label,
+            let base = KeycodeCatalog.entries.first(where: { $0.shiftedLabel == label && canType($0.code) })
+        else { return nil }
+        return MacroStep(code: base.code, modifiers: .leftShift)
     }
 
     /// Every `X_` name in the pinned QMK's `send_string_keycodes.h`, without the prefix.

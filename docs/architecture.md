@@ -167,7 +167,7 @@ My MacOS Layout-1F3A9C.sextant/
 
 - Folder names are for humans; identity is `meta.json` `id`. Renaming a layout rewrites `meta.json` and renames the folder.
 - `contentHash` is SHA-256 over the canonical (sorted-keys) JSON of `layout`, written as `sha256:<hex>`. It powers "Edited since revision", "Flash Oryx's build" (hash equals an imported revision) and future sync.
-- `formatVersion` greater than the build's is refused with a typed error, never misread. This build reads 2. It writes 1 until a package holds macro drafts, then 2, and keeps it at 2 after they go, since revisions may hold them. An older build therefore refuses drafts rather than dropping them at its next save (ADR 0042).
+- `formatVersion` greater than the build's is refused with a typed error, never misread. This build reads 2. It writes 1 until a package holds macro drafts, then 2 (meta.json first, so drafts never sit under format 1), and keeps it at 2 after they go, since revisions may hold them. An older build therefore refuses drafts rather than dropping them at its next save (ADR 0042).
 - Macros on keys and combos stay inline, in Oryx's shape. `macroDrafts` is written only when non-empty, so a layout without drafts hashes exactly as before.
 
 ## 7. Errors

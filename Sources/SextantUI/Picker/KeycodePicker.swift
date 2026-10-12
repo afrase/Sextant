@@ -92,10 +92,10 @@ extension LayoutWindowModel {
     /// and Key ▸ Change Keycode… call it, some as an unapplied `() -> Void`, so it keeps this exact signature.
     public func openKeycodePicker() { openKeycodePicker(prefilled: "") }
 
-    /// Opens the picker pre-filled, as typing on the board does. It ends Record Key.
+    /// Opens the picker pre-filled, as typing on the board does. It ends Record Key and Record Steps.
     public func openKeycodePicker(prefilled query: String) {
         guard hasSelectedKey else { return }
-        recorder = nil
+        (recorder, macros.stepRecorder) = (nil, nil)
         palette = Palette(scope: .assign, query: query)
     }
 
@@ -113,17 +113,18 @@ extension LayoutWindowModel {
         return true
     }
 
-    /// Opens the picker on a target that isn't the selected key's slot, on any page. It ends Record Key.
+    /// Opens the picker on a target that isn't the selected key's slot, on any page. It ends Record Key and Record Steps.
     func openKeycodePicker(_ target: AssignTarget) {
         guard session != nil else { return }
-        recorder = nil
+        (recorder, macros.stepRecorder) = (nil, nil)
         palette = Palette(scope: .assign, target: target)
     }
 
-    /// Opens the command palette (⌘K, the toolbar's Search) or Find Key (⌘F). It ends Record Key.
+    /// Opens the command palette (⌘K, the toolbar's Search) or Find Key (⌘F). It ends Record Key and Record Steps, which
+    /// would otherwise take the typing.
     public func openPalette(_ scope: Palette.Scope = .general, query: String = "") {
         guard session != nil else { return }
-        recorder = nil
+        (recorder, macros.stepRecorder) = (nil, nil)
         palette = Palette(scope: scope, query: query)
     }
 

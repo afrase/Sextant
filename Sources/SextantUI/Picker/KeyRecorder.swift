@@ -17,7 +17,7 @@ struct KeyRecorder: Equatable {
     /// The layer it is on, by id: Follow moves the board while a layer key is held, not the key being recorded.
     var layerID = ""
     /// A modifier pressed on its own; released before any other key, it is the key to assign (Right Shift).
-    private var loneModifier: UInt16?
+    private(set) var loneModifier: UInt16?
     /// The last key couldn't be mapped; the capsule says so and recording goes on.
     var cannotMap = false
 
@@ -128,18 +128,23 @@ extension LayoutWindowModel {
 
 /// Record Steps (spec §6.3): each key pressed on the Mac's keyboard becomes the macro's next step, mapped as Record Key
 /// maps it, until esc.
-struct StepRecorder: Equatable {
+struct StepRecorder {
     let macro: MacroLocator
     /// Record Key's mapping and lone-modifier state; its target key is unused.
     var keys = KeyRecorder(target: 0)
-    /// When the last step was recorded (event time, in seconds).
-    var lastStep: TimeInterval?
+    /// The last recorded step: its index and when its key went down (event time, in seconds).
+    var lastStep: (index: Int, time: TimeInterval)?
+    /// When the lone modifier went down: it becomes a step on its release, but its time is its press.
+    var modifierDown: TimeInterval?
     /// The last key couldn't be mapped; the page says so and recording goes on.
     var cannotMap = false
 
-    /// The time since the last step in ms, rounded to 10 and kept to the 5 s a wait can last; nil before the first.
-    func pause(at time: TimeInterval) -> Int? {
-        lastStep.map { min(max(Int(((time - $0) * 100).rounded()) * 10, 0), Macro.maxDelay) }
+    /// The wait for the step before a new one at `index`, pressed at `time`: the time since the last recorded key in ms,
+    /// rounded to 10 and kept to the 5 s a wait can last. Nil unless that step is the last recorded one (a step clicked
+    /// meanwhile keeps its own wait).
+    func pause(at time: TimeInterval, inserting index: Int) -> Int? {
+        guard let lastStep, lastStep.index == index - 1 else { return nil }
+        return min(max(Int(((time - lastStep.time) * 100).rounded()) * 10, 0), Macro.maxDelay)
     }
 }
 
@@ -148,6 +153,7 @@ extension LayoutWindowModel {
     @discardableResult
     func recordStep(keyCode: UInt16, flags: UInt, isKeyDown: Bool, at time: TimeInterval) -> Bool {
         guard var recorder = macros.stepRecorder else { return false }
+        let armed = recorder.keys.loneModifier
         let outcome = isKeyDown ? recorder.keys.keyDown(keyCode, flags: flags) : recorder.keys.flagsChanged(keyCode, flags: flags)
         switch outcome {
         case .cancel?:
@@ -162,11 +168,13 @@ extension LayoutWindowModel {
                 return true
             }
             let after = session.selection.macro == recorder.macro ? session.selection.step.map { $0 + 1 } : nil
-            let pause = macros.recordsPauses ? recorder.pause(at: time) : nil
+            let releasesLoneModifier = !isKeyDown && armed == keyCode
+            let (index, pressed) = (after ?? count, releasesLoneModifier ? recorder.modifierDown ?? time : time)
+            let pause = macros.recordsPauses ? recorder.pause(at: pressed, inserting: index) : nil
             let step = MacroStep(code: code, modifiers: modifiers)
-            session.recordStep(step, pause: pause, at: after ?? count, in: recorder.macro)
-            announce(MacroText.spoken(step, index: after ?? count))
-            recorder.lastStep = time
+            session.recordStep(step, pause: pause, at: index, in: recorder.macro)
+            announce(MacroText.spoken(step, index: index))
+            recorder.lastStep = (index, pressed)
             recorder.cannotMap = false
             // Oryx's editor limit, which the page keeps to as well.
             if count + 1 >= Macro.maxSteps {
@@ -174,7 +182,7 @@ extension LayoutWindowModel {
                 return true
             }
         case nil:
-            break
+            if recorder.keys.loneModifier == keyCode { recorder.modifierDown = time }
         }
         macros.stepRecorder = recorder
         return true

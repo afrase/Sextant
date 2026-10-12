@@ -108,31 +108,36 @@ struct MacroStepInspector: View {
 private struct WaitControl: View {
     var stored: Int
     var commit: (Int) -> Void
-    @State private var dragged: Double?
+    @State private var dragged: Int?
     @State private var isDragging = false
 
     var body: some View {
         HStack(spacing: 6) {
             Slider(
                 value: Binding(
-                    get: { dragged ?? Double(stored) },
+                    get: { Self.position(dragged ?? stored) },
                     // Keyboard and VoiceOver steps come without a drag: each commits.
-                    set: { if isDragging { dragged = $0 } else { commit(Int($0)) } }),
-                in: 0...Double(Macro.maxDelay), step: 10
+                    set: { if isDragging { dragged = Self.milliseconds($0) } else { commit(Self.milliseconds($0)) } })
             ) { editing in
                 isDragging = editing
                 if !editing, let value = dragged {
                     dragged = nil
-                    commit(Int(value))
+                    commit(value)
                 }
             }
             .controlSize(.small)
             .accessibilityLabel(Text("Wait after this step"))
-            TextField("Wait", value: Binding(get: { dragged.map(Int.init) ?? stored }, set: { commit($0) }), format: .number)
+            .accessibilityValue(Text("\(dragged ?? stored) ms"))
+            TextField("Wait", value: Binding(get: { dragged ?? stored }, set: { commit($0) }), format: .number)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 48)
                 .accessibilityLabel(Text("Wait in milliseconds"))
             Text("ms").foregroundStyle(.secondary)
         }
     }
+
+    /// The slider runs on a square-root scale, so the short waits most macros use get most of its track; it lands on
+    /// whole 10 ms.
+    private static func position(_ ms: Int) -> Double { (Double(ms) / Double(Macro.maxDelay)).squareRoot() }
+    private static func milliseconds(_ position: Double) -> Int { Int((position * position * Double(Macro.maxDelay) / 10).rounded()) * 10 }
 }

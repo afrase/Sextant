@@ -79,7 +79,7 @@ struct MacroTimeline: View {
                     }
                 }
                 .overlay(alignment: .bottomTrailing) {
-                    Text(verbatim: "\(index + 1)").font(.system(size: 8, weight: .semibold).monospacedDigit()).foregroundStyle(.tertiary)
+                    Text(verbatim: "\(index + 1)").font(.system(size: 8, weight: .semibold).monospacedDigit()).foregroundStyle(.secondary)
                         .padding(.trailing, 4)
                         .padding(.bottom, 2)
                 }
@@ -126,7 +126,7 @@ struct MacroTimeline: View {
             ForEach(Array(marks.enumerated()), id: \.offset) { _, mark in
                 VStack(alignment: .leading, spacing: 1) {
                     Rectangle().fill(.tertiary).frame(width: 1, height: 4)
-                    Text(verbatim: "\(mark.ms) ms").font(.system(size: 8.5).monospacedDigit()).foregroundStyle(.tertiary).fixedSize()
+                    Text(verbatim: "\(mark.ms) ms").font(.system(size: 8.5).monospacedDigit()).foregroundStyle(.secondary).fixedSize()
                 }
                 .offset(x: mark.x)
             }

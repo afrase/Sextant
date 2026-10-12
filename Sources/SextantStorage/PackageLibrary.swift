@@ -88,9 +88,14 @@ public actor PackageLibrary: LayoutLibrary {
     public func save(_ layout: KeyboardLayout, to id: UUID) throws(LibraryError) {
         let folder = try folder(for: id)
         var meta = try readMeta(folder)
+        let version = Self.formatVersion(of: layout, was: meta.formatVersion)
+        if version > meta.formatVersion {
+            // Raised before the drafts land: an older build must never find them under a version it reads.
+            meta.formatVersion = version
+            try write(meta, to: folder.appending(path: "meta.json"))
+        }
         try write(layout, to: folder.appending(path: "layout.json"))
         meta.title = layout.title
-        meta.formatVersion = Self.formatVersion(of: layout, was: meta.formatVersion)
         meta.modifiedAt = now()
         meta.contentHash = try Self.contentHash(layout)
         meta.origin = Meta.Origin(meta.origin.model.following(layout))

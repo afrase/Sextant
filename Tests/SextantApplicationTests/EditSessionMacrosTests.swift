@@ -60,7 +60,7 @@ struct EditSessionMacrosTests {
         let draft = try #require(session.selection.macro)
         step(undo) { session.insertStep(MacroStep(code: "KC_K"), at: 0, in: draft) }
         session.select(layer: 1)
-        step(undo) { session.assignMacro(draft, toKey: 19, layer: 1) }
+        step(undo) { session.assignMacro(draft, layer: 1, index: 19) }
         #expect(undo.undoActionName == "Assign Macro to Key")
         let placed = MacroLocator.key(KeyRef(layer: 1, index: 19, slot: .tap))
         #expect(session.selection.macro == placed && session.layout.macroDrafts.isEmpty)
@@ -85,6 +85,23 @@ struct EditSessionMacrosTests {
         #expect(session.layout.macros.count == 5)
         undo.undo()
         #expect(session.selection.macro == first && session.selection.step == 1)
+    }
+
+    /// The selection names a key macro by position: layer edits carry it along, so it never lands on another macro.
+    @Test func theSelectedMacroFollowsItsLayer() async throws {
+        let (session, undo) = try await open("voyager-JRGQm.json")
+        let teamsCam = MacroLocator.key(KeyRef(layer: 2, index: 32, slot: .tap))
+        let macro = session.layout.macro(at: teamsCam)
+        session.selectMacro(teamsCam, step: 1)
+        step(undo) { session.deleteLayer(1) }
+        #expect(session.selection.macro == .key(KeyRef(layer: 1, index: 32, slot: .tap)) && session.selectedMacro == macro)
+        step(undo) { session.moveLayer(from: 1, to: 3) }
+        #expect(session.selection.macro == .key(KeyRef(layer: 3, index: 32, slot: .tap)) && session.selectedMacro == macro)
+        step(undo) { session.deleteLayer(3) }
+        #expect(session.selection.macro == nil, "its layer went")
+        undo.undo()
+        undo.undo()
+        #expect(session.selection.macro == .key(KeyRef(layer: 1, index: 32, slot: .tap)), "undo brings it back")
     }
 
     @Test func deletingAStepSelectsTheOneTakingItsPlace() async throws {

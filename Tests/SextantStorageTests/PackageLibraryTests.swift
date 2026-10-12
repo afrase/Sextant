@@ -121,6 +121,14 @@ struct PackageLibraryTests {
         try await library.save(layout, to: entry.id)
         #expect(try version(folder) == 2)
 
+        // The version rises before the drafts are written: a failed write leaves no drafts under format 1.
+        let other = try await library.create(layout, origin: .local, firstRevision: nil)
+        let otherFolder = try #require(await library.location(of: other.id))
+        try FileManager.default.removeItem(at: otherFolder.appending(path: "layout.json"))
+        try FileManager.default.createDirectory(at: otherFolder.appending(path: "layout.json/blocked"), withIntermediateDirectories: true)
+        await #expect(throws: LibraryError.self) { try await library.save(drafted, to: other.id) }
+        #expect(try version(otherFolder) == 2)
+
         let plainCopy = try await library.duplicate(entry.id)
         #expect(try version(#require(await library.location(of: plainCopy.id))) == 1)
         try await library.save(drafted, to: entry.id)

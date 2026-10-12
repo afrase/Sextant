@@ -370,14 +370,14 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
 **Lens lane (36 pt)**
 - An `HStack` inside a `GlassEffectContainer(spacing: 8)`, centred. It holds at most:
   1. a **lens capsule**: Lighting tools, Heatmap summary, Combos "New Combo" plus instructions, or the History comparison;
-  2. a **status capsule**, by priority: board pick > error > recording > Follow/live > app rule. A board pick (choosing combo members, Assign to Key) comes first because only its prompt says what a click does. Record Key started during a pick hides it until recording ends, since esc ends recording first (§9.3, ADR 0037).
+  2. a **status capsule**, by priority: board pick > error > recording > Follow/live > app rule. A board pick (choosing combo members, Assign to Key) comes first because only its prompt says what a click does. Record Key started during a pick hides it until recording ends, since esc ends recording first (§9.3, ADR 0037). The pick capsule's [Cancel] is the window's cancel shortcut (esc, ⌘.), so esc ends a pick even when the board misses it (ADR 0042). Choosing another page drops the pick.
 - Capsules are 28 pt tall. They use `.glassEffect(.regular.interactive(), in: .capsule)` and appear with `.glassEffectTransition(.materialize)`.
 
 | Status capsule | Content | Action |
 |---|---|---|
 | Error | `xmark.octagon.fill` "Unknown keycode on Brd+Sys · key 45 · Tap · keymap.c:31" | [Show Key] (⌘') |
 | Recording | red dot "Listening for a key… esc cancels" | [Cancel] |
-| Board pick (v1) | `hand.point.up.left` "Click a key to play ‘Open Keymap’ on tap · esc cancels" | [Cancel] |
+| Board pick (v1) | `hand.point.up.left` "Click a key to play ‘Open Keymap’ on tap · esc cancels" | [Cancel] (esc, ⌘.) |
 | Live (Follow on) | green dot "LIVE · Brd+Sys held by Space · 2 keys down" | [Stop Following] |
 | App rule (v1) | "Xcode is frontmost → keyboard on Sym+Num" | [Rules…] |
 
@@ -714,7 +714,7 @@ The picker is the command palette component in **assign scope**.
 **Category rail** (160 pt, labelled, with counts):
 - Suggested (recents, plus slot-aware suggestions: layers and modifiers for Hold);
 - Letters, Digits, Modifiers, Punctuation, Navigation, Editing, Function Keys, Media, Mouse, Lighting, Layers, System, Firmware, International, Numpad, Navigator;
-- Macros (v1): the layout's macros. On a key's slot a choice goes on the key's tap, as Assign to Key puts it; another target, such as a combo's output, gets a copy.
+- Macros (v1): the layout's macros. On a key's tap a choice goes there as Assign to Key puts it; a key's other slots offer none, since a macro plays only from a tap. Another target, such as a combo's output, gets a copy.
 - Special (Transparent, Disabled).
 
 **Results**
@@ -849,24 +849,26 @@ The picker is the command palette component in **assign scope**.
 - **Left: a 200 pt macro library list.** Each row shows the name, "8 steps · 210 ms", and the assigned key, or "not on a key yet".
   - An unnamed macro shows its key's label, else what it types in quotes ("“keymap⏎”"), else "Empty Macro".
   - Macros on keys and combos come first, in layer and key order, then the ones on no key yet (drafts, ADR 0042). A macro on several keys is a row per copy.
-  - Row context menu: Assign to Key…, Remove from Key (it becomes a draft), Delete Macro. ⌫ deletes the selected macro.
+  - Row context menu: Assign to Key…, Remove from Key (it becomes a draft), Delete Macro. ⌫ deletes the selected macro. The list scrolls to the selected macro (New Macro, ⌘K, Assign to Key).
+  - A key's label names its macro on the board, so it follows the macro: renaming a macro on a key's tap shows the new name on the cap, and a macro leaving a key's tap takes the label with it.
 - **Right: the editor.**
   - Title (an editable name), plus "8/24 steps · ≈0.29 s · plays on tap of Brd+Sys key 17", [Assign to Key…], and a ⋯ menu with Remove from Key and Delete Macro.
   - **Timeline lane.**
     - Steps are drawn as keycaps.
     - Delays are proportional gaps: hatched, labelled "150 ms", and drawn over a time ruler in ms.
     - Modifier badges sit on the caps, e.g. "⇧⌘" on O.
-  - Above the table: [Add Step] (the picker, offering only keys a step can type), [Record Steps] and a "Keep pauses" checkbox.
+  - Above the table: [Add Step] (the picker, offering only keys a step can type; a shifted symbol such as "{" becomes its key with ⇧), [Record Steps] and a "Keep pauses" checkbox.
   - **Step table:** #, Key, Mods, Wait, QMK. Steps can be reordered by dragging. ⌫ deletes the selected step; a double click opens its key in the picker. A step `SEND_STRING` can't type shows a warning.
   - **Options:** "End with ⏎ Return" and "Hold ⌥ while typing (Unicode)".
   - **Preview:** "Types: ⇧⌘O ⧗150 k e y m a p ⧗60 ⏎".
   - A footer warning, with `lock.fill`: "Macros are stored on the keyboard as plain keystrokes. Never put a password in one."
 
-**Inspector (step).** Key tile (opens the picker as "Open Keymap › Step 3", offering only keys `SEND_STRING` can type), the modifier grid, "Then wait" (slider plus field, 0–5000 ms; a drag is one undo step), [Duplicate] and [Delete].
+**Inspector (step).** Key tile (opens the picker as "Open Keymap › Step 3", offering only keys `SEND_STRING` can type), the modifier grid, "Then wait" (slider plus field, 0–5000 ms; the slider runs on a square-root scale so short waits get most of its track; a drag is one undo step), [Duplicate] and [Delete].
 
 **Actions**
-- **Record Steps.** Captures continuously through the same local monitor as Record Key. Each key, or a lone modifier, becomes the next step after the selected one. Esc stops, and so do leaving the page, choosing another macro, the window resigning key, and reaching 24 steps. With "Keep pauses" (off by default) the time between two keys becomes the first one's wait, rounded to 10 ms and capped at 5 s.
-- **Assign to Key…** switches to the board with the status capsule "Click a key to play ‘Open Keymap’ on tap · esc cancels". The click puts the macro on that key's tap and clears its other slots. A draft moves there; a macro already on a key is copied. The page comes back when the pick ends, unless another page was chosen meanwhile. The capsule's [Cancel] also answers esc, so esc cancels even if the board missed it.
+- **Record Steps.** Captures continuously through the same local monitor as Record Key. Each key, or a lone modifier, becomes the next step after the selected one. Esc stops, and so do leaving the page, choosing another macro, opening the palette or picker, the window resigning key, and reaching 24 steps. With "Keep pauses" (off by default) the time between two key presses becomes the first one's wait, rounded to 10 ms and capped at 5 s; a lone modifier counts from its press. Only the step recorded last takes a pause, so a step clicked meanwhile keeps its own wait.
+- **Assign to Key…** switches to the board with the status capsule "Click a key to play ‘Open Keymap’ on tap · esc cancels". The click puts the macro on that key's tap and clears its other slots and its label. A draft moves there; a macro already on a key is copied. The page comes back when the pick ends; choosing another page meanwhile drops the pick. The capsule's [Cancel] also answers esc, so esc cancels even if the board missed it.
+- **Show Key** on an issue in a key's macro (a step `SEND_STRING` can't type) opens the macro here, at that step.
 
 ### 6.4 Combos lens (v1)
 
@@ -1352,7 +1354,7 @@ Each press of esc steps back one level:
 1. Recording → cancel.
 2. Picker or palette → close, wherever focus is in the window.
 3. Popover → close.
-4. An in-progress gesture (combo creation, paint stroke, Assign to Key) → cancel.
+4. An in-progress gesture (combo creation, paint stroke, Assign to Key) → cancel. A board pick also takes esc through its capsule's [Cancel], the window's cancel shortcut (ADR 0042).
 5. Key selection → deselect.
 
 Esc never switches lens or destination.

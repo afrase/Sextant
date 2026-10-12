@@ -89,7 +89,7 @@ struct KeyRecorderTests {
         model.recordStep(keyCode: 0x0E, flags: leftShift, isKeyDown: true, at: 10.1234)
         model.recordStep(keyCode: 0xFF, flags: 0, isKeyDown: true, at: 10.5)
         #expect(model.macros.stepRecorder?.cannotMap == true, "recording goes on after a key Sextant can't map")
-        model.recordStep(keyCode: 0x3C, flags: rightShift, isKeyDown: false, at: 11)
+        model.recordStep(keyCode: 0x3C, flags: rightShift, isKeyDown: false, at: 16)
         model.recordStep(keyCode: 0x3C, flags: 0, isKeyDown: false, at: 17)
         #expect(
             session.layout.macro(at: draft)?.steps == [
@@ -108,6 +108,43 @@ struct KeyRecorderTests {
         for i in 0..<21 { model.recordStep(keyCode: 0x00, flags: 0, isKeyDown: true, at: 20 + Double(i)) }
         let steps = try #require(session.layout.macro(at: draft)?.steps)
         #expect(steps.count == 24 && steps.suffix(21).allSatisfy { $0.delay == 0 } && model.macros.stepRecorder == nil)
+    }
+
+    /// A pause runs from key press to key press, a lone modifier's included, and only a step recorded right before
+    /// takes one: a step clicked meanwhile keeps its own wait.
+    @MainActor @Test func recordedPausesRunBetweenPresses() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.newMacro()
+        let draft = try #require(session.selection.macro)
+        session.insertStep(MacroStep(code: "KC_A", delay: 150), at: 0, in: draft)
+        model.macros.recordsPauses = true
+        model.startRecordingSteps(in: draft)
+        model.recordStep(keyCode: 0x07, flags: 0, isKeyDown: true, at: 10)  // X
+        model.recordStep(keyCode: 0x38, flags: leftShift, isKeyDown: false, at: 10.1)
+        model.recordStep(keyCode: 0x38, flags: 0, isKeyDown: false, at: 12)
+        model.recordStep(keyCode: 0x39, flags: 0, isKeyDown: false, at: 12.5)  // Caps Lock: a step as it goes down
+        session.selectMacro(draft, step: 0)
+        model.recordStep(keyCode: 0x10, flags: 0, isKeyDown: true, at: 15)  // Y, after A
+        #expect(
+            session.layout.macro(at: draft)?.steps.map { "\($0.code)/\($0.delay)" } == [
+                "KC_A/150", "KC_Y/0", "KC_X/100", "KC_LEFT_SHIFT/2400", "KC_CAPS/0",
+            ])
+    }
+
+    /// Opening the palette (the toolbar's Search) or the picker ends Record Steps, which would otherwise take the typing.
+    @MainActor @Test func thePaletteEndsRecordSteps() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        model.destination = .macros
+        session.newMacro()
+        let draft = try #require(session.selection.macro)
+        model.startRecordingSteps(in: draft)
+        model.openPalette()
+        #expect(model.macros.stepRecorder == nil && !model.recordStep(keyCode: 0x11, flags: 0, isKeyDown: true, at: 1))
+        model.startRecordingSteps(in: draft)
+        model.openStepPicker(step: nil, in: draft)
+        #expect(model.macros.stepRecorder == nil)
     }
 
     /// Follow can show another layer while a layer key is held for the key being recorded (F1 on a function layer).

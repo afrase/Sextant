@@ -119,7 +119,11 @@ public final class LayoutWindowModel {
     public var destination: Destination {
         get { page ?? .layer(session?.selection.layer ?? 0) }
         set {
-            guard case let .layer(index) = newValue else { return page = newValue }
+            guard case let .layer(index) = newValue else {
+                // A board pick left for another page would take a later click on the board: choosing a page drops it.
+                if newValue != page { boardPick = nil }
+                return page = newValue
+            }
             page = nil
             session?.select(layer: index)
         }
@@ -370,6 +374,7 @@ public final class LayoutWindowModel {
     }
 
     func showIssue(_ key: KeyRef) {
+        if showMacroIssue(key) { return }
         destination = .layer(key.layer)
         session?.select(key: key.index, slot: key.slot)
     }

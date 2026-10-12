@@ -18,10 +18,10 @@ extension EditSession {
         edit(String(localized: "New Macro"), select: { Self.select(&$0, .draft(id), step: nil) }) { $0.addMacroDraft(id: id) }
     }
 
-    /// Names a macro; an empty name clears it.
+    /// Names a macro (``KeyboardLayout/renameMacro(at:to:)``); an empty name clears it.
     public func renameMacro(_ locator: MacroLocator, to name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        edit(String(localized: "Rename Macro")) { $0.updateMacro(at: locator) { $0.name = trimmed.isEmpty ? nil : trimmed } }
+        edit(String(localized: "Rename Macro")) { $0.renameMacro(at: locator, to: trimmed.isEmpty ? nil : trimmed) }
     }
 
     public func deleteMacro(_ locator: MacroLocator) {
@@ -63,10 +63,14 @@ extension EditSession {
         }
     }
 
-    /// Sets the key a step presses, keeping its modifiers.
-    public func setStepCode(_ code: String, at index: Int, in locator: MacroLocator) {
+    /// Sets the key a step presses, keeping its modifiers and adding `modifiers` (⇧ for a shifted symbol).
+    public func setStepCode(_ code: String, adding modifiers: Modifiers = [], at index: Int, in locator: MacroLocator) {
         edit(String(localized: "Set Step Key")) {
-            $0.updateMacro(at: locator) { macro in if macro.steps.indices.contains(index) { macro.steps[index].code = code } }
+            $0.updateMacro(at: locator) { macro in
+                guard macro.steps.indices.contains(index) else { return }
+                macro.steps[index].code = code
+                macro.steps[index].modifiers.formUnion(modifiers)
+            }
         }
     }
 
@@ -89,11 +93,11 @@ extension EditSession {
         edit(String(localized: "Hold Option While Typing")) { $0.updateMacro(at: locator) { $0.holdsOption = on } }
     }
 
-    /// Puts the macro on a key's tap (``KeyboardLayout/assignMacro(at:toKey:index:)``) and selects it there.
-    public func assignMacro(_ locator: MacroLocator, toKey index: Int, layer: Int) {
+    /// Puts the macro on a key's tap (``KeyboardLayout/assignMacro(at:layer:index:)``) and selects it there.
+    public func assignMacro(_ locator: MacroLocator, layer: Int, index: Int) {
         var assigned: MacroLocator?
         edit(String(localized: "Assign Macro to Key"), select: { Self.select(&$0, assigned, step: nil) }) {
-            assigned = $0.assignMacro(at: locator, toKey: layer, index: index)
+            assigned = $0.assignMacro(at: locator, layer: layer, index: index)
         }
     }
 

@@ -85,8 +85,11 @@ struct MacrosPageTests {
         let model = try await open("voyager-JRGQm.json")
         let session = try #require(model.session)
         session.select(layer: 0)
+        // A macro plays only from a tap: the other slots offer none, rather than writing a tap the token doesn't name.
         session.select(key: 19, slot: .hold)
         model.openKeycodePicker()
+        #expect(model.pickerTarget == "› Hold on QWERTY" && model.pickerCount(.macros) == 0)
+        session.select(key: 19, slot: .tap)
         model.palette?.category = .macros
         #expect(model.pickerCount(.macros) == 67 && model.paletteItems.count == 67)
         let item = try #require(model.paletteItems.first { $0.title == "Teams Cam" })
@@ -99,6 +102,50 @@ struct MacrosPageTests {
         model.palette?.category = .macros
         model.palette?.query = "teams"
         #expect(model.paletteItems.map(\.note) == ["QWERTY · key 19", "AppMedia · key 32", "AppMedia · key 44"])
+    }
+
+    /// Choosing another page drops the pick, so it can't take a later click on the board (spec §6.3).
+    @Test func anotherPageDropsThePick() async throws {
+        let model = try await open("voyager-JRGQm.json")
+        let session = try #require(model.session)
+        model.destination = .macros
+        model.assignMacroToKey(teamsCam)
+        model.destination = .firmwareSettings
+        model.destination = .layer(2)
+        #expect(model.boardPick == nil)
+        let before = session.layout.key(layer: 2, index: 13)
+        model.click(key: 13)
+        #expect(session.layout.key(layer: 2, index: 13) == before && session.selection.keyIndex == 13, "a click only selects")
+    }
+
+    /// Show Key on an issue in a macro opens the macro at the step to fix: the board can't edit steps.
+    @Test func showKeyOnAMacroIssueOpensTheStep() async throws {
+        let model = try await open("voyager-JRGQm.json")
+        let session = try #require(model.session)
+        session.insertStep(MacroStep(code: "MO"), at: 2, in: teamsCam)
+        let issue = try #require(
+            LayoutIssues.check(session.layout).first { if case .macroStepNotTypable = $0.kind { true } else { false } })
+        model.showIssue(try #require(issue.key))
+        #expect(model.page == .macros && session.selection.macro == teamsCam && session.selection.step == 2)
+        model.showIssue(KeyRef(layer: 0, index: 19, slot: .tap))
+        #expect(model.page == nil && session.selection.layer == 0 && session.selection.keyIndex == 19, "other keys show on the board")
+    }
+
+    /// A shifted symbol has no X_ name: the step picker types it as its key with Shift.
+    @Test func theStepPickerTypesShiftedSymbolsWithShift() async throws {
+        let model = try await open("voyager-JRGQm.json")
+        let session = try #require(model.session)
+        session.selectMacro(teamsCam, step: 2)
+        model.openStepPicker(step: nil, in: teamsCam)
+        model.palette?.query = "{"
+        #expect(model.paletteItems.first?.keycode?.code == "KC_LCBR")
+        model.runHighlighted()
+        #expect(session.layout.macro(at: teamsCam)?.steps.last == MacroStep(code: "KC_LBRC", modifiers: .leftShift))
+        model.openStepPicker(step: 0, in: teamsCam)
+        model.palette?.query = "!"
+        model.runHighlighted()
+        #expect(session.layout.macro(at: teamsCam)?.steps.first?.code == "KC_1")
+        #expect(session.layout.macro(at: teamsCam)?.steps.first?.modifiers == [.leftControl, .leftCommand, .leftShift])
     }
 
     @Test func documentsFindMacrosAndOpenThem() async throws {

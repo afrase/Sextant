@@ -88,7 +88,7 @@ enum MacroText {
 
 extension LayoutWindowModel {
     /// Assign to Key… (spec §6.3): shows the board, where one click puts the macro on that key's tap. The page comes back
-    /// when the pick ends, unless another page or layout was chosen meanwhile.
+    /// when the pick ends; choosing another page or layout meanwhile drops the pick.
     public func assignMacroToKey(_ locator: MacroLocator) {
         guard let session, let macro = session.layout.macro(at: locator) else { return }
         let back: @MainActor () -> Void = { [weak self] in
@@ -100,7 +100,8 @@ extension LayoutWindowModel {
         boardPick = BoardPick(
             prompt: String(localized: "Click a key to play ‘\(title)’ on tap · esc cancels"),
             onPick: { index in
-                session.assignMacro(locator, toKey: index, layer: session.selection.layer)
+                // A layer deleted or moved meanwhile puts another macro, or none, where this one was.
+                if session.layout.macro(at: locator) == macro { session.assignMacro(locator, layer: session.selection.layer, index: index) }
                 back()
                 return true
             },
@@ -115,17 +116,17 @@ extension LayoutWindowModel {
         let target = AssignTarget(
             title: index.map { String(localized: "\(title) › Step \($0 + 1)") } ?? String(localized: "\(title) › New Step"),
             current: step.map { KeyAction(code: $0.code, modifiers: $0.modifiers) },
-            accepts: { $0.macro == nil && MacroStep.canType($0.code) }
+            accepts: { $0.macro == nil && MacroStep.typing($0.code) != nil }
         ) { action in
+            guard let typed = MacroStep.typing(action.code) else { return }
             if let index {
-                session.setStepCode(action.code, at: index, in: locator)
+                session.setStepCode(typed.code, adding: typed.modifiers, at: index, in: locator)
             } else {
                 // After the selected step, else at the end.
                 let after = session.selection.macro == locator ? session.selection.step.map { $0 + 1 } : nil
-                session.insertStep(MacroStep(code: action.code), at: after ?? macro.steps.count, in: locator)
+                session.insertStep(typed, at: after ?? macro.steps.count, in: locator)
             }
         }
-        macros.stepRecorder = nil
         openKeycodePicker(target)
     }
 
@@ -138,8 +139,8 @@ extension LayoutWindowModel {
 
     func stopRecordingSteps() { macros.stepRecorder = nil }
 
-    /// The picker's Macros category: the library. For the selected key a choice goes on its tap, as Assign to Key puts
-    /// it; another target (a combo's output) gets a copy.
+    /// The picker's Macros category: the library. On the selected key's tap a choice goes there as Assign to Key puts it;
+    /// another target (a combo's output) gets a copy.
     func macroPickerItems(_ query: String) -> [PaletteItem] {
         guard let session else { return [] }
         let layout = session.layout
@@ -160,7 +161,7 @@ extension LayoutWindowModel {
                 isCurrent: target?.current?.macro == entry.macro
             ) { [weak self] in
                 if isKeySlot, let key = target?.key {
-                    session.assignMacro(entry.locator, toKey: key.index, layer: key.layer)
+                    session.assignMacro(entry.locator, layer: key.layer, index: key.index)
                 } else {
                     target?.assign(action)
                 }
@@ -172,8 +173,10 @@ extension LayoutWindowModel {
     /// The rail's count for Macros, without building the rows.
     var macroPickerCount: Int { pickableMacros.count }
 
-    /// The library macros the open target takes (a macro step takes none).
+    /// The library macros the open target takes: a macro step takes none, and of the selected key's slots only the tap
+    /// takes one, since a macro plays only from a tap (ADR 0042).
     private var pickableMacros: [LibraryMacro] {
+        if palette?.target == nil, session?.selection.slot != .tap { return [] }
         let accepts = assignTarget?.accepts ?? { _ in true }
         return session?.layout.macros.filter { accepts(KeyAction(code: "KC_TRANSPARENT", macro: $0.macro)) } ?? []
     }
@@ -197,6 +200,15 @@ extension LayoutWindowModel {
             return (score, item)
         }
         return hits.enumerated().sorted { ($0.element.score, $1.offset) > ($1.element.score, $0.offset) }.prefix(5).map(\.element.item)
+    }
+
+    /// Show Key on an issue in a key's macro (a step that can't be typed): the macro on the Macros page, at its first such
+    /// step, since the board can't edit steps. False when the slot holds no macro.
+    func showMacroIssue(_ key: KeyRef) -> Bool {
+        guard let session, let macro = session.layout.macro(at: .key(key)) else { return false }
+        destination = .macros
+        session.selectMacro(.key(key), step: macro.steps.firstIndex { !MacroStep.canType($0.code) })
+        return true
     }
 
     /// Announces a change VoiceOver wouldn't otherwise hear.
