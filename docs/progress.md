@@ -45,6 +45,8 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 
 - **Layer clicks respond at once (the user found them sluggish, and asked for rename on right-click):** layer rows lost their double-click rename (ADR 0036); it had held each click's selection about 360 ms. With an 80 ms click, mouse-down to selection went from 447 to 88 ms, and to the board's first frame from about 505 to 145 ms, measured offscreen. The caps' layer crossfade now eases out.
 
+- **Closing the palette and picker (the user couldn't make ⌘K go away):** a click outside closes the panel and still lands (a click on a key retargets the picker instead), esc closes it wherever focus is in the window, ⌘K / ⇧⌘O toggle the palette, and the board gets focus back unless the click focused a text field or a list; checked with events synthesized into an offscreen window.
+
 ## In flight
 - Nothing.
 

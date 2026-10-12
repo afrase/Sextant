@@ -8,8 +8,8 @@ struct EditItems: View {
         Divider()
         MakeTransparentItem(window: window)
         Button("Find Key…") { window?.openPalette(.keys) }.keyboardShortcut("f").disabled(window?.session == nil)
-        // ⇧⌘O also opens it (the window's hidden alias button; a menu item takes one shortcut).
-        Button("Command Palette") { window?.openPalette() }.keyboardShortcut("k").disabled(window?.session == nil)
+        // ⇧⌘O does the same (the window's hidden alias button; a menu item takes one shortcut).
+        Button("Command Palette") { window?.togglePalette() }.keyboardShortcut("k").disabled(window?.session == nil)
     }
 }
 

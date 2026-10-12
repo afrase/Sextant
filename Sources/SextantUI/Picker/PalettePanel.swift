@@ -1,3 +1,4 @@
+import AppKit
 import SextantApplication
 import SextantDomain
 import SwiftUI
@@ -20,15 +21,37 @@ extension View {
     }
 }
 
-/// The selected key's rotated bounds, which `PickerCapOverlay` publishes so the picker can float clear of it.
+/// The board and its selected key, which `PickerCapOverlay` publishes so the picker can float clear of the key and a
+/// click on another key can retarget it.
 private struct PickerTarget: PreferenceKey {
-    static var defaultValue: Anchor<CGRect>? { nil }
-    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) { value = value ?? nextValue() }
+    struct Target {
+        var board: Anchor<CGRect>
+        var layout: BoardLayout
+        var key: Int
+    }
+
+    static var defaultValue: Target? { nil }
+    static func reduce(value: inout Target?, nextValue: () -> Target?) { value = value ?? nextValue() }
+}
+
+/// Where a click keeps the panel open, in the window's top-left coordinates: the panel and, for the picker, the
+/// board's keys.
+struct PanelHits: Equatable {
+    var panel = CGRect.null
+    var board: CGRect?
+    var layout: BoardLayout?
+
+    func keepsOpen(_ point: CGPoint, picking: Bool) -> Bool {
+        if panel.contains(point) { return true }
+        guard picking, let board, let layout else { return false }
+        return layout.keyIndex(at: CGPoint(x: point.x - board.minX, y: point.y - board.minY)) != nil
+    }
 }
 
 struct PaletteHost: ViewModifier {
     var model: LayoutWindowModel
     @Environment(\.motion) private var motion
+    @State private var hits = PanelHits()
 
     func body(content: Content) -> some View {
         content
@@ -36,12 +59,22 @@ struct PaletteHost: ViewModifier {
                 GeometryReader { proxy in
                     if let palette = model.palette, let session = model.session {
                         let items = model.paletteItems
+                        let key = target.flatMap { t in
+                            t.layout.frames[safe: t.key]?.boundingBox.offsetBy(dx: proxy[t.board].minX, dy: proxy[t.board].minY)
+                        }
                         let frame =
                             model.isPicking
-                            ? Self.pickerFrame(beside: target.map { proxy[$0] } ?? .zero, in: proxy.size)
+                            ? Self.pickerFrame(beside: key ?? .zero, in: proxy.size)
                             : Self.paletteFrame(items: items, in: proxy.size)
                         PalettePanel(model: model, palette: palette, session: session, items: items, width: frame.width)
                             .frame(width: frame.width, height: frame.height)
+                            .onGeometryChange(for: PanelHits.self) { panel in
+                                let global = panel.frame(in: .global)
+                                let board = target.map { panel[$0.board].offsetBy(dx: global.minX, dy: global.minY) }
+                                return PanelHits(panel: global, board: board, layout: target?.layout)
+                            } action: {
+                                hits = $0
+                            }
                             .position(x: frame.midX, y: frame.midY)
                             .id(palette.id)
                             .transition(motion.reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.98)))
@@ -52,13 +85,45 @@ struct PaletteHost: ViewModifier {
             }
             .environment(\.layoutWindow, model)
             .background {
-                Button("Command Palette") { model.openPalette() }
+                Button("Command Palette") { model.togglePalette() }
                     .keyboardShortcut("o", modifiers: [.command, .shift])
                     .opacity(0)
                     .frame(width: 0, height: 0)
                     .accessibilityHidden(true)
             }
             .modifier(RecordKeyMonitor(model: model))
+            .task(id: model.palette != nil) { await closeOnClickOutsideOrEscape() }
+    }
+
+    /// While a panel is open, a local monitor on its window closes it on esc wherever focus is, and on a click outside
+    /// it, which still goes through. A click on a key retargets the picker instead (spec §5.6, §5.7). Like Record Key's
+    /// monitor it needs no TCC, and the panel closes when the window resigns key.
+    private func closeOnClickOutsideOrEscape() async {
+        guard model.palette != nil, let window = NSApp.keyWindow else { return }
+        let number = window.windowNumber
+        let monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown]) { event in
+            guard event.windowNumber == number else { return event }
+            // `keyCode` raises on a mouse event.
+            let (isKey, location) = (event.type == .keyDown, event.locationInWindow)
+            let isEscape = isKey && event.keyCode == 0x35
+            let consumed = MainActor.assumeIsolated {
+                if isKey {
+                    // An input method's composition takes esc first.
+                    guard isEscape, (window.firstResponder as? NSTextView)?.hasMarkedText() != true else { return false }
+                    model.closePalette()
+                    return true
+                }
+                guard let point = window.contentView?.convert(location, from: nil) else { return false }
+                if !hits.keepsOpen(point, picking: model.isPicking) { model.closePalette() }
+                return false
+            }
+            return consumed ? nil : event
+        }
+        for await _ in NotificationCenter.default.notifications(named: NSWindow.didResignKeyNotification, object: window) {
+            model.closePalette()
+            break
+        }
+        if let monitor { NSEvent.removeMonitor(monitor) }
     }
 
     /// The picker floats over the half of the column opposite its key and keeps 8 pt clear of the key's rotated
@@ -121,6 +186,14 @@ struct PalettePanel: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(isPicking ? Text("Keycode picker") : Text("Command palette"))
         .onAppear { isFieldFocused = true }
+        // Once the panel has gone (its field keeps focus while it fades), focus goes back to the board, unless a click
+        // outside it focused a text field or a list.
+        .onDisappear {
+            Task {
+                let responder = NSApp.keyWindow?.firstResponder
+                if model.palette == nil && !(responder is NSText || responder is NSTableView) { model.boardFocusRequests += 1 }
+            }
+        }
         // Focus stays in the field, so VoiceOver hears the highlighted result as it changes (arrows or typing).
         .onChange(of: items[safe: palette.highlight]?.id) {
             guard let item = items[safe: palette.highlight] else { return }
@@ -180,7 +253,6 @@ struct PalettePanel: View {
         case .tab where isPicking && press.modifiers.contains(.option): model.cycleSlot()
         case .tab where isPicking: model.cycleCategory(back: press.modifiers.contains(.shift))
         case KeyEquivalent("\u{19}") where isPicking: model.cycleCategory(back: true)  // ⇧⇥ arrives as back-tab
-        case .escape: model.closePalette()
         // The field gets ⌫ as U+007F, not `KeyEquivalent.delete`.
         case KeyEquivalent("\u{7F}") where isPicking && palette.query.isEmpty && press.phase == .down: model.dropScopeToken()
         default: return .ignored
@@ -394,13 +466,12 @@ private struct CategoryRail: View {
     }
 }
 
-/// ⏎ and typing on the focused board open the picker on the selected key (spec §9.2, §5.5); esc closes an open panel
-/// before the board deselects (§9.3). Focus comes back to the board when a panel it opened closes.
+/// ⏎ and typing on the focused board open the picker on the selected key (spec §9.2, §5.5). A closed panel gives the
+/// board focus, so arrows and ⏎ go on working.
 struct BoardPickerKeys: ViewModifier {
     var session: EditSession
     var isFocused: FocusState<Bool>.Binding
     @Environment(\.layoutWindow) private var window
-    @State private var refocus = false
 
     func body(content: Content) -> some View {
         content
@@ -410,22 +481,12 @@ struct BoardPickerKeys: ViewModifier {
             .onKeyPress(characters: .alphanumerics.union(.punctuationCharacters).union(.symbols), phases: .down) { press in
                 press.modifiers.isDisjoint(with: [.command, .control]) ? open(press.characters) : .ignored
             }
-            .onKeyPress(.escape) {
-                guard window?.palette != nil else { return .ignored }
-                window?.closePalette()
-                return .handled
-            }
-            // A panel opened while the board had focus (⏎, typing, ⌘K, the menu) gives it back when it closes.
-            .onChange(of: window?.palette == nil) { _, closed in
-                if closed && refocus { isFocused.wrappedValue = true }
-                refocus = !closed && (refocus || isFocused.wrappedValue)
-            }
+            .onChange(of: window?.boardFocusRequests) { isFocused.wrappedValue = true }
     }
 
     /// Not in the Lighting lens, whose letters are its tools.
     private func open(_ query: String) -> KeyPress.Result {
         guard let window, window.lens == .keys, session.selection.keyIndex != nil else { return .ignored }
-        refocus = true
         window.openKeycodePicker(prefilled: query)
         return .handled
     }
@@ -469,11 +530,9 @@ struct PickerCapOverlay: View {
             .position(frame.center)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
-            let box = frame.boundingBox
+            // Fills the board, whose space the key frames are in.
             Color.clear
-                .frame(width: box.width, height: box.height)
-                .anchorPreference(key: PickerTarget.self, value: .bounds) { $0 }
-                .position(x: box.midX, y: box.midY)
+                .anchorPreference(key: PickerTarget.self, value: .bounds) { PickerTarget.Target(board: $0, layout: board, key: index) }
                 .allowsHitTesting(false)
         }
     }
