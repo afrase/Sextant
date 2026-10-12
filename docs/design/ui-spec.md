@@ -1175,6 +1175,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 
 **Inspector**
 - **Timeline:** a vertical list. Each row has a node, the id in mono, badges (ORYX, LOCAL, ON KEYBOARD), the message, the date and the number of changed keys.
+  - ON KEYBOARD marks the revision the keyboard runs: the import revision for Oryx's own build, or the newest matching flash revision for a Sextant build. Edits made since the flash are never on the keyboard (ADR 0039). The "On keyboard" comparison uses the same revision.
 - **Selected revision:** details (author, source, firmware size delta "+292 B"), a per-layer change bar, and a changes table (key, before cap → after cap, slots changed).
 - **Actions:**
   - [Restore This Revision]: creates a new revision; nothing is lost.

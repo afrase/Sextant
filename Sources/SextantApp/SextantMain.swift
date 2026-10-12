@@ -25,6 +25,7 @@ struct SextantMain: App {
         appDelegate.library = services.library
         appDelegate.live = services.live
         services.live.start()
+        services.onKeyboard.start()
         // `--import <oryx.json>`: add an Oryx layout file to the library at launch.
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--import"), args.indices.contains(i + 1) {
@@ -65,7 +66,7 @@ struct SextantMain: App {
         let generator = QMKGenerator()
         let md5: @Sendable (Data) -> String = { Insecure.MD5.hash(data: $0).map { String(format: "%02x", $0) }.joined() }
         return SextantServices(
-            library: library, live: live,
+            library: library, live: live, onKeyboard: OnKeyboard(library: library, store: store, live: live),
             makeImport: { ImportFromOryx(oryx: oryx, library: library) },
             makeBuildFlash: { session in
                 // ADR 0033: the native toolchain, every build sandboxed.

@@ -31,7 +31,7 @@ Arrows are `dependencies:` in `Package.swift`. Nothing depends on `SextantApp`. 
 | Target | Layer | May import | Contents |
 |---|---|---|---|
 | `SextantDomain` | domain | Foundation (+ CoreGraphics value types) | Layout model, Oryx JSON codec, keycode catalog, legends, Voyager board definition and geometry, settings catalog, validation (live issues), diffing, firmware image validation, colour maths |
-| `SextantApplication` | use cases | `SextantDomain`, Foundation, Observation, os | Ports (protocols), use cases (`EditSession`, `Library`, `ImportFromOryx`, `LiveSession`, `BuildFlashSession`), typed errors |
+| `SextantApplication` | use cases | `SextantDomain`, Foundation, Observation, os | Ports (protocols), use cases (`EditSession`, `Library`, `ImportFromOryx`, `LiveSession`, `OnKeyboard`, `BuildFlashSession`), typed errors |
 | `SextantStorage` | adapter | Application, Domain, Foundation, CryptoKit | `PackageLibrary`: the `.sextant` library in Application Support |
 | `SextantOryx` | adapter | Application, Domain, Foundation (URLSession), CryptoKit | `OryxClient`: read-only GraphQL `layout` query, firmware download with md5 check |
 | `SextantBuild` | adapter | Application, Domain, Foundation | `QMKGenerator` (Oryx-equivalent source + source map), `NativeToolchain` with its pinned `ToolchainInstaller` and `sandbox-exec` profile, compiler-diagnostic parser, size parser |
@@ -115,7 +115,8 @@ Small things that are not worth a port are injected as values: an `any Clock<Dur
 | `EditSession` | `@MainActor @Observable` | One open document: `layout`, `selection` (layer, key, slot), every undoable edit from PrototypeKit's `EditorStore` (set action / code / modifiers / label / colour, paint, transparent, disable, swap, override, layer add / duplicate / rename / colour / move / delete, settings, title). Registers undo on the window's `UndoManager` with named actions and snapshots layout + selection. Debounced autosave (1 s) through `LayoutLibrary`, plus an immediate recovery copy of every change until its autosave lands (ADR 0032). Live issues recomputed per edit. |
 | `ImportFromOryx` | `@MainActor @Observable` | Steps: read link → fetch layout → fetch Oryx's firmware with md5 (optional) → convert; an `ImportSummary` preview; saves as a new layout or as a revision of an existing one with the same Oryx id, checkpointing local edits first (ADR 0024). Strips " [fork]". |
 | `LiveSession` | `@MainActor @Observable` | Consumes `DeviceWatcher` and `KeyboardLink`. State: connection (none / connected / bootloader / held by another app / access off), serial and `FirmwareMatch` (ADR 0019), active layer, pressed key indices (matrix → index via `BoardDefinition`), Follow mode, secure-input pause. Coalesces to ≤ 60 Hz, reconnects with backoff, never stores or logs events (ADR 0023). |
-| `BuildFlashSession` | `@MainActor @Observable` | The §7 state machine: issues gate → generate → compile (progress, log mapped through the source map) → size → wait for bootloader → validate image → flash → wait for re-enumeration and serial check → record a revision. Cancel is refused during erase / write / verify. |
+| `OnKeyboard` | `@MainActor @Observable` | App-wide: which library entry, revision and layout the keyboard runs, from `LiveSession`'s serial alone (works with live access off). An Oryx serial names its import revision; a Sextant serial names the working copy when the fingerprint matches, else the newest matching flash revision; never unflashed edits (ADR 0039). Re-resolves on serial change, library refresh and the end of a flash. |
+| `BuildFlashSession` | `@MainActor @Observable` | The §7 state machine: issues gate → generate → compile (progress, log mapped through the source map) → size → wait for bootloader → validate image → flash → wait for re-enumeration and serial check → record a revision, then release flash mode (`OnKeyboard` relies on that order, ADR 0039). Cancel is refused during erase / write / verify. |
 
 ### 3.3 Hardware gate
 
@@ -134,7 +135,7 @@ Raw-HID writes (pairing, protocol query) and flashing need the user's explicit h
 
 ### 4.1 Composition root (`SextantApp`)
 
-`@main struct SextantMain` builds the concrete adapters (the raw-HID link and the flasher only when their defaults are set, ADRs 0012 and 0034), starts `LiveSession`, and hands `SextantUI` a `SextantServices` value: `Library`, `LiveSession`, and factories for `ImportFromOryx` and `BuildFlashSession`. The UI never sees an adapter. Command-line flag: `--import <oryx.json>` imports a layout file into the library at launch. Snapshots are a separate tool: `swift run SextantSnapshots <dir> [--only a,b]`. No singletons: everything flows from `SextantMain`.
+`@main struct SextantMain` builds the concrete adapters (the raw-HID link and the flasher only when their defaults are set, ADRs 0012 and 0034), starts `LiveSession` and `OnKeyboard`, and hands `SextantUI` a `SextantServices` value: `Library`, `LiveSession`, `OnKeyboard`, and factories for `ImportFromOryx` and `BuildFlashSession`. The UI never sees an adapter. Command-line flag: `--import <oryx.json>` imports a layout file into the library at launch. Snapshots are a separate tool: `swift run SextantSnapshots <dir> [--only a,b]`. No singletons: everything flows from `SextantMain`.
 
 ## 5. Concurrency
 
@@ -152,7 +153,7 @@ Library root: `~/Library/Application Support/Sextant/Library/`. One folder per l
 ```
 My MacOS Layout-1F3A9C.sextant/
   meta.json                 {"formatVersion":1,"id":"<UUID>","title":…,"origin":{"kind":"oryx","layoutId":"KlgM7","revisionId":"40xJ7M"},
-                             "createdAt":…,"modifiedAt":…,"contentHash":"sha256:…","onKeyboardRevision":null}
+                             "createdAt":…,"modifiedAt":…,"contentHash":"sha256:…"}
   layout.json               the working copy: KeyboardLayout in Oryx revision shape, pretty-printed, sorted keys
   revisions/
     0001-3b9f2c1e.json      {"id":…,"number":1,"parent":null,"createdAt":…,"source":"import|flash|save",

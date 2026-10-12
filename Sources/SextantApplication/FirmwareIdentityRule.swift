@@ -69,9 +69,40 @@ extension FirmwareIdentity {
         do {
             return try await library.layout(ofRevision: revision.id, in: id)
         } catch {
-            Logger(subsystem: "com.sextant.app", category: "application").error(
-                "Import revision unreadable: \(String(describing: error), privacy: .public)")
+            log.error("Import revision unreadable: \(String(describing: error), privacy: .public)")
             return nil
         }
     }
+
+    /// The revision of a library layout that a keyboard reporting `serial` runs, with its layout (ADR 0039): the newest
+    /// import revision whose Oryx serial it is, or the newest flash revision whose Sextant serial it is. Nil when none
+    /// matches; unreadable revisions are skipped. A serial that can't be this layout's reads nothing.
+    public static func revision(
+        runningSerial serial: String, of id: UUID, origin: LayoutOrigin, revisions: [RevisionSummary], library: any LayoutLibrary
+    ) async -> (summary: RevisionSummary, layout: KeyboardLayout)? {
+        let source: RevisionSource
+        if serial.hasPrefix(sextantPrefix(id)) {
+            source = .flash
+        } else if case let .oryx(layoutId, _) = origin, serial.hasPrefix(layoutId + "/") {
+            source = .import
+        } else {
+            return nil
+        }
+        for summary in revisions.reversed() where summary.source == source {
+            let layout: KeyboardLayout
+            do {
+                layout = try await library.layout(ofRevision: summary.id, in: id)
+            } catch {
+                log.error("Revision unreadable: \(String(describing: error), privacy: .public)")
+                continue
+            }
+            // Edited layouts keep their Oryx info, so only an import's Oryx serial names it; a Sextant serial depends on
+            // content alone, so no import baseline is needed.
+            let built = source == .import ? layout.oryx?.serial : Self(layout: layout, libraryID: id, importedLayout: nil).serial
+            if built == serial { return (summary, layout) }
+        }
+        return nil
+    }
+
+    private static let log = Logger(subsystem: "com.sextant.app", category: "application")
 }
