@@ -51,15 +51,25 @@ struct RealToolchainTests {
         if let out = ProcessInfo.processInfo.environment["SEXTANT_REAL_TOOLCHAIN_OUT"] { try artifact.image.write(to: URL(filePath: out)) }
     }
 
-    /// The user's layout switched to a trackball or to no Navigator (ADR 0035), and e5Rrr's trackball with its automouse
-    /// layer and Navigator keys, compile with the pinned firmware. Needs the set-up toolchain (the test above); it
-    /// downloads nothing.
-    @Test(arguments: ["trackball", "none", "e5Rrr"])
-    func buildsAnotherNavigator(variant: String) async throws {
+    /// Other layouts compile with the pinned firmware: the user's switched to a trackball or to no Navigator (ADR 0035);
+    /// e5Rrr's trackball with its automouse layer and Navigator keys; JRGQm, m9dpx and XlrR4 (tap dances, combos,
+    /// macros, a per-key tapping term, a locale); and every setting the generator writes, changed at once, with each
+    /// Navigator (ADR 0040). Needs the set-up toolchain (the test above); it downloads nothing.
+    @Test(arguments: ["trackball", "none", "e5Rrr", "JRGQm", "m9dpx", "XlrR4", "every-setting-trackpad", "every-setting-trackball"])
+    func buildsAnotherLayout(variant: String) async throws {
         try #require(installer.isInstalled)
-        let file = variant == "e5Rrr" ? "voyager-e5Rrr.json" : "my-layout-KlgM7-full.json"
-        var layout = try KeyboardLayout(oryxJSON: Data(contentsOf: QMKGeneratorGoldenTests.examples.appending(path: file)))
-        if variant != "e5Rrr" { layout.setNavigator(variant == "trackball" ? .trackball : nil) }
+        var layout: KeyboardLayout
+        switch variant {
+        case "trackball", "none":
+            layout = try KeyboardLayout(
+                oryxJSON: Data(contentsOf: QMKGeneratorGoldenTests.examples.appending(path: "my-layout-KlgM7-full.json")))
+            layout.setNavigator(variant == "trackball" ? .trackball : nil)
+        case "every-setting-trackpad": layout = try QMKGeneratorTests.everySettingChanged(.trackpad)
+        case "every-setting-trackball": layout = try QMKGeneratorTests.everySettingChanged(.trackball)
+        default:
+            layout = try KeyboardLayout(
+                oryxJSON: Data(contentsOf: QMKGeneratorGoldenTests.examples.appending(path: "voyager-\(variant).json")))
+        }
         let kind = layout.navigator?.kind
         let source = try QMKGenerator().generate(layout, identity: FirmwareIdentity(serial: try #require(layout.oryx?.serial)))
         var log: [String] = []
@@ -77,6 +87,6 @@ struct RealToolchainTests {
         }
         try FirmwareImage(data: artifact.image).validate(forBootloaderPID: 0x0791, board: .voyager)
         #expect(log.contains { $0.contains("navigator_trackball") } == (kind == .trackball))
-        #expect(!log.contains { $0.contains("navigator_trackpad.c") })
+        #expect(log.contains { $0.contains("navigator_trackpad.c") } == (kind == .trackpad))
     }
 }
