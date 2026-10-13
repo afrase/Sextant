@@ -50,6 +50,7 @@ The index of settled decisions. From decision 6 on, each has an ADR in [`adr/`](
 | 44 | 2026-10-12 | Exports and Print | [ADR 0044](adr/0044-exports-and-print.md). The user chose PNG, a vector PDF and Print instead of SVG. One save panel for every export; the QMK source zip uses the system's coordinated zip; PDFKit joins the UI layer for ⌘P. |
 | 45 | 2026-10-12 | Keyboard and Advanced panes; the raw-HID log stays in memory | [ADR 0045](adr/0045-keyboard-and-advanced-panes-raw-hid-trace-in-memory.md). Amends ADR 0023: a developer log of the last 500 raw-HID reports, off by default, never written to disk or os_log, and empty while secure input is on (checked as each report arrives). |
 | 55 | 2026-10-12 | Publishing the repo | [ADR 0055](adr/0055-publishing-the-repo.md). The user asked to publish at github.com/afrase/Sextant under MIT. ZSA-derived material, other people's layouts and the early prototypes live in a private reference folder and leave the history; tests read `SEXTANT_REFERENCE` and skip without it; CI on macos-26 skips pixel snapshots and Periphery. (0046–0054 stay reserved for v1 waves 2–4.) |
+| 56 | 2026-10-13 | Flashing is always on in the app | [ADR 0056](adr/0056-flashing-is-always-on.md). The user's request: a user who clicks Build & Flash shouldn't need a Terminal command. The flasher is always wired and its guards are unchanged; live access keeps its gate because it pairs without a click. Amends ADRs 0012 and 0034. |
 
 UI taste calls: all nine decided 2026-10-11 (ui-spec §14).
 

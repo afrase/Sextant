@@ -47,15 +47,14 @@ struct SextantMain: App {
             firmwareSource: (ToolchainPins.firmwareCommit, ToolchainPins.modulesCommit))
     }
 
-    /// Builds every adapter and use case. Raw-HID writes and flashing stay off until the user sets the
-    /// defaults by hand (ADR 0012, 0034): `SextantFlashingEnabled` for writing firmware, `SextantLiveAccessEnabled` for the
-    /// raw-HID link (its pairing request writes to the keyboard), `SextantHardwareEnabled` for both. Read-only USB
-    /// presence is always on.
+    /// Builds every adapter and use case. Flashing is always wired: the user's Build & Flash is the consent, and the
+    /// flasher's guards hold either way (ADR 0056). The raw-HID link stays off until `SextantLiveAccessEnabled` (or the older
+    /// `SextantHardwareEnabled`) is set, since its pairing request writes to the keyboard without a click (ADR 0034).
+    /// Read-only USB presence is always on.
     @MainActor
     static func makeServices(toolchain: NativeToolchain) -> SextantServices {
         let defaults = UserDefaults.standard, both = defaults.bool(forKey: "SextantHardwareEnabled")
         let liveAccessEnabled = both || defaults.bool(forKey: "SextantLiveAccessEnabled")
-        let flashingEnabled = both || defaults.bool(forKey: "SextantFlashingEnabled")
         let store = PackageLibrary(root: PackageLibrary.defaultRoot())
         let library = Library(store: store)
         let watcher = IOKitDeviceWatcher()
@@ -63,7 +62,7 @@ struct SextantMain: App {
         // (ADR 0045).
         let trace = RawHIDTrace(secureInputProbe: SecureInputProbe.isEnabled)
         let link: any KeyboardLink = liveAccessEnabled ? RawHIDLink(trace: trace.record) : RefusingKeyboardLink()
-        let flasher: any Flasher = flashingEnabled ? DFUFlasher() : RefusingFlasher()
+        let flasher: any Flasher = DFUFlasher()
         let live = LiveSession(
             watcher: watcher, link: link, followsOnConnect: KeyboardSettings.followsOnConnect, secureInputProbe: SecureInputProbe.isEnabled)
         let oryx = OryxClient()

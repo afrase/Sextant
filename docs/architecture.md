@@ -106,7 +106,7 @@ All ports are `Sendable` protocols with `async` methods and **typed throws**. Im
 | `Toolchain` | `status()`, `build(source, board) -> AsyncStream<BuildEvent>` (output, progress, then `.finished(BuildArtifact)` or `.failed(ToolchainError)`), `setUp() -> AsyncStream<SetupEvent>` (the consented one-time download) | `NativeToolchain` (SextantBuild) | `FakeToolchain` |
 | `DeviceWatcher` | `events(for: board) -> AsyncStream<DeviceEvent>` (`.attached(ConnectedDevice)`, `.detached(id)`) | `IOKitDeviceWatcher` | `FakeDeviceWatcher` |
 | `KeyboardLink` | `session(with: device, board:, commands: AsyncStream<KeyboardCommand>) -> AsyncStream<LiveEvent>` (serial, protocol version, layer, key down/up by matrix position, lighting and error replies, then `.ended`); writes `commands` only once paired and only within `KeyboardCommand.isAllowed(on:)` (ADR 0038) | `RawHIDLink` (its optional trace sink gets each report written and read, trimmed, as a `HIDTraceEntry`; ADR 0045), or `RefusingKeyboardLink` behind the gate (never reads its commands) | `FakeKeyboardLink` (records each session's commands) |
-| `Flasher` | `flash(image, md5:, to: BootloaderDevice, board:, progress:)` | `DFUFlasher` (SextantDevice), or `RefusingFlasher` behind the gate | `FakeFlasher` |
+| `Flasher` | `flash(image, md5:, to: BootloaderDevice, board:, progress:)` | `DFUFlasher` (SextantDevice), always wired (ADR 0056) | `FakeFlasher` |
 
 Small things that are not worth a port are injected as values: an `any Clock<Duration>` for debounce and timeouts, a `@Sendable () -> Bool` secure-input probe, a `@MainActor () -> Bool` for Settings › Keyboard's Follow by default, an `UndoManager`.
 
@@ -124,7 +124,7 @@ Small things that are not worth a port are injected as values: an `any Clock<Dur
 
 ### 3.3 Hardware gate
 
-Raw-HID writes (pairing, protocol query, the commands of ADR 0038) and flashing need the user's explicit hardware approval (AGENTS.md). Until it is given, the composition root wires `KeyboardLink` and `Flasher` to refusing implementations, and the real adapters are reachable only when their user defaults are set by hand: `SextantFlashingEnabled` (the flasher) and `SextantLiveAccessEnabled` (the raw-HID link), or `SextantHardwareEnabled` for both. Read-only enumeration (`IOKitDeviceWatcher`) is always on. See ADRs 0012 and 0034.
+Flashing is always wired: the user's Build & Flash is the consent, and the flasher's guards hold either way (ADR 0056). Raw-HID writes (pairing, protocol query, the commands of ADR 0038) start without a click, so until the user turns live access on the composition root wires `KeyboardLink` to a refusing implementation; the real link is reachable when `SextantLiveAccessEnabled` (or the older `SextantHardwareEnabled`) is set. Read-only enumeration (`IOKitDeviceWatcher`) is always on. See ADRs 0012, 0034 and 0056.
 
 ## 4. Adapters
 

@@ -44,22 +44,17 @@ open .build/Sextant.app
 
 `scripts/bundle` signs with `SEXTANT_SIGN_IDENTITY` (a Developer ID) when it is set, and takes the version from `SEXTANT_VERSION`. `scripts/check` is the quality gate: formatting, lint and layer rules, a warnings-as-errors build and the tests.
 
-## Hardware access is off by default
+## Flashing and the live view
 
-Out of the box, Sextant only sees whether a Voyager is plugged in (read-only USB enumeration). Writing to the keyboard has to be turned on by hand, then Sextant relaunched:
+Build & Flash works out of the box: it builds the firmware, asks you to put the keyboard in flash mode, checks the image and writes it (see [Safety](#safety)). It asks first if the keyboard runs a different layout.
+
+The live view (the active layer and the keys you press) is off by default, because its pairing request writes to the keyboard as soon as it's plugged in. To turn it on, run this and relaunch Sextant:
 
 ```sh
-# Flashing firmware
-defaults write com.sextant.app SextantFlashingEnabled -bool YES
-
-# The live link: active layer and key presses (its pairing request writes to the keyboard)
 defaults write com.sextant.app SextantLiveAccessEnabled -bool YES
-
-# Both at once
-defaults write com.sextant.app SextantHardwareEnabled -bool YES
 ```
 
-To turn a switch off again, `defaults delete com.sextant.app <key>`. With flashing off, Build & Flash builds the firmware and stops before putting the keyboard in its bootloader.
+`defaults delete com.sextant.app SextantLiveAccessEnabled` turns it off again.
 
 ## Safety
 

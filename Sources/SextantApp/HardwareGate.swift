@@ -1,5 +1,5 @@
-// The hardware gate (ADR 0012): until the user turns hardware access on, the app wires these in place of the
-// real raw-HID link and DFU flasher, so nothing it runs can write to the keyboard.
+// The live-access gate (ADRs 0012, 0034): until the user turns live access on, the app wires this in place of the real
+// raw-HID link, whose pairing request writes to the keyboard without a click.
 
 import SextantApplication
 import SextantDomain
@@ -13,16 +13,5 @@ struct RefusingKeyboardLink: KeyboardLink {
             continuation.yield(.ended(.hardwareAccessOff))
             continuation.finish()
         }
-    }
-}
-
-/// A flasher that refuses every image: flashing is off.
-struct RefusingFlasher: Flasher {
-    var isEnabled: Bool { false }
-    func flash(
-        _ image: FirmwareImage, md5: String, to device: BootloaderDevice, board: BoardDefinition,
-        progress: @escaping @Sendable (FlashProgress) -> Void
-    ) async throws(FlashError) {
-        throw .hardwareAccessOff
     }
 }

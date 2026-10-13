@@ -57,7 +57,7 @@ Sextant is a native macOS 26 SwiftUI app for configuring the user's ZSA Voyager.
 
 ## Hardware safety (non-negotiable)
 
-- Never send anything to the keyboard without the user's explicit OK in chat, given for that action. This covers raw HID writes, RGB takeover, entering the bootloader and DFU. Read-only enumeration is fine.
+- Never send anything to the keyboard without the user's explicit OK in chat, given for that action. This covers raw HID writes, RGB takeover, entering the bootloader and DFU. Read-only enumeration is fine. The rule binds agents building and testing Sextant; in the shipped app the user's own Build & Flash click is the consent for flashing (ADR 0056).
 - **Flasher guards:**
   - only write within `[0x08002000, 0x08042000)`, and never MASS_ERASE;
   - the DFU suffix VID, PID and CRC must match the connected bootloader (`3297:0791` STM32 or `3297:1791` GD32);
