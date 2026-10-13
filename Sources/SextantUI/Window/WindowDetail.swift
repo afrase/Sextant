@@ -6,21 +6,26 @@ struct WindowDetail: View {
     @Environment(\.controlActiveState) private var activeState
 
     var body: some View {
-        content
-            .modifier(LayerSwitchEffects(model: model))
-            // A page doesn't show the key Record Key would assign to.
-            .onChange(of: model.page) { model.recorder = nil }
-            // One alert, in the key window: every window shares the library.
-            .alert(
-                Text("Sextant couldn't change the library"),
-                isPresented: Binding(
-                    get: { activeState == .key && model.library.lastError != nil }, set: { if !$0 { model.library.lastError = nil } }),
-                presenting: model.library.lastError
-            ) { _ in
-                Button("OK") {}
-            } message: { error in
-                Text(error.localizedDescription)
-            }
+        // AppKit puts an opaque "hard" pocket with a hairline under the toolbar of a split column that has no scroll
+        // view (the canvas, Welcome, the empty states); an empty one filling the column makes it the soft pocket.
+        ZStack {
+            ScrollView {}.allowsHitTesting(false).accessibilityHidden(true)
+            content
+        }
+        .modifier(LayerSwitchEffects(model: model))
+        // A page doesn't show the key Record Key would assign to.
+        .onChange(of: model.page) { model.recorder = nil }
+        // One alert, in the key window: every window shares the library.
+        .alert(
+            Text("Sextant couldn't change the library"),
+            isPresented: Binding(
+                get: { activeState == .key && model.library.lastError != nil }, set: { if !$0 { model.library.lastError = nil } }),
+            presenting: model.library.lastError
+        ) { _ in
+            Button("OK") {}
+        } message: { error in
+            Text(error.localizedDescription)
+        }
     }
 
     @ViewBuilder private var content: some View {
