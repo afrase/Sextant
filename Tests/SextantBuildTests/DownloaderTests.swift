@@ -31,8 +31,8 @@ struct DownloaderTests {
 final class RangeServer: URLProtocol, @unchecked Sendable {
     static let blob = Data((0..<1_000_003).map { UInt8(truncatingIfNeeded: $0 &* 31 &+ $0 >> 8) })
 
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override static func canInit(with request: URLRequest) -> Bool { true }
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func stopLoading() {}
 
     override func startLoading() {
