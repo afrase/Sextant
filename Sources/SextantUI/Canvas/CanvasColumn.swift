@@ -30,8 +30,7 @@ struct CanvasColumn: View {
             ContextStrip(model: model, session: session).frame(height: 76)
             BoardFooter(model: model).frame(height: 32)
         }
-        // Under the toolbar too, where WindowDetail's soft pocket shows it through.
-        .background { Bench().ignoresSafeArea(edges: .top) }
+        .background(Bench())
     }
 }
 

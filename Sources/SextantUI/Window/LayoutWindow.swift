@@ -33,6 +33,7 @@ public struct LayoutWindow: View {
                         .inspectorColumnWidth(min: 280, ideal: 280, max: 360)
                 }
                 .toolbar(id: "layout") { WindowToolbar(model: model, windowWidth: windowWidth) }
+                .background(InspectorLayoutNudge(isShown: model.showsInspector))
         }
         .frame(minWidth: model.minimumWidth, minHeight: 640 - 52)
         .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { windowWidth = $0 })
