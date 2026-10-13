@@ -718,7 +718,7 @@ The picker is the command palette component in **assign scope**.
 - Special (Transparent, Disabled).
 
 **Results**
-- Browsing a category shows a keycap tile grid: 64 pt tiles, each with its legend and short code.
+- Browsing a category shows a keycap tile grid: 84 pt tiles with a 50 pt cap and the short code in 11 pt mono, so legends read at a glance.
 - Searching shows a ranked list. Each row has a cap, the name, the QMK code with aliases, a shifted hint ("⇧ {"), the category, and a ✓ on the current value.
 
 **Search ranking**

@@ -137,9 +137,9 @@ struct PaletteHost: ViewModifier {
         // Laid out as if the key were on the left, then mirrored for a right-hand key.
         let mirrored = key.midX > area.width / 2
         let near = mirrored ? area.width - key.minX + 8 : key.maxX + 8
-        let width = max(0, min(560, area.width / 2 + 40, area.width - 12 - near))
+        let width = max(0, min(640, area.width / 2 + 80, area.width - 12 - near))
         let x = min(max(area.width * 0.75 - width / 2, near), area.width - 12 - width)
-        let height = min(440, area.height - 16)
+        let height = min(520, area.height - 16)
         // Centred on the board, which sits about 45% down the column (§3.3).
         let y = min(max(area.height * 0.45 - height / 2, 8), area.height - 8 - height)
         return CGRect(x: mirrored ? area.width - x - width : x, y: y, width: width, height: height)
@@ -148,7 +148,7 @@ struct PaletteHost: ViewModifier {
     /// The palette sits at the top centre, 24 pt below the toolbar (§5.7), as tall as its results.
     static func paletteFrame(items: [PaletteItem], in area: CGSize) -> CGRect {
         let headers = zip(items, items.dropFirst()).filter { $0.group != $1.group }.count + (items.isEmpty ? 0 : 1)
-        let list = items.isEmpty ? 80 : min(400, CGFloat(items.count) * 40 + CGFloat(headers) * 26 + 12)
+        let list = items.isEmpty ? 80 : min(480, CGFloat(items.count) * 48 + CGFloat(headers) * 26 + 12)
         let size = CGSize(width: min(640, area.width - 32), height: 52 + list + 30)
         return CGRect(origin: CGPoint(x: (area.width - size.width) / 2, y: max(8, min(24, area.height - 8 - size.height))), size: size)
     }
@@ -169,7 +169,7 @@ struct PalettePanel: View {
     private var compact: Bool { width < 440 }
     private var railWidth: CGFloat { compact ? 48 : 160 }
     private var isGrid: Bool { isPicking && palette.query.trimmingCharacters(in: .whitespaces).isEmpty }
-    private var columns: Int { max(1, Int((width - railWidth - 17) / 72)) }
+    private var columns: Int { max(1, Int((width - railWidth - 17) / (KeycodeTile.size + 8))) }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -212,8 +212,8 @@ struct PalettePanel: View {
                 // The scope token: "[Z] › Hold on Main". ⌫ on an empty field removes it.
                 HStack(spacing: 6) {
                     if let key = target.key {
-                        KeyCap(model: KeyCapModel(layout: session.layout, layer: key.layer, index: key.index), u: 24)
-                            .frame(width: 24, height: 24)
+                        KeyCap(model: KeyCapModel(layout: session.layout, layer: key.layer, index: key.index), u: 32)
+                            .frame(width: 32, height: 32)
                     }
                     Text(target.title).font(.callout.weight(.medium)).lineLimit(1)
                 }
@@ -279,7 +279,7 @@ struct PalettePanel: View {
                 if items.isEmpty {
                     Text("No results").foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 28)
                 } else if isGrid {
-                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(64), spacing: 8), count: columns), spacing: 8) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(KeycodeTile.size), spacing: 8), count: columns), spacing: 8) {
                         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                             KeycodeTile(item: item, isHighlighted: index == palette.highlight)
                                 .onTapGesture { model.run(item) }
@@ -365,7 +365,7 @@ private struct PaletteRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            PaletteLeading(leading: item.leading, size: 28)
+            PaletteLeading(leading: item.leading, size: 36)
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.title).lineLimit(1)
                 if let note = item.note, !note.isEmpty {
@@ -383,27 +383,28 @@ private struct PaletteRow: View {
             }
         }
         .padding(.horizontal, 10)
-        .frame(height: 40)
+        .frame(height: 48)
         .background(Highlight(isOn: isHighlighted))
         .contentShape(Rectangle())
     }
 }
 
-/// A 64 pt tile in a browsed category: the cap and its short code (spec §5.6).
+/// A tile in a browsed category: the cap and its short code (spec §5.6).
 private struct KeycodeTile: View {
+    static let size: CGFloat = 84
     var item: PaletteItem
     var isHighlighted: Bool
 
     var body: some View {
         VStack(spacing: 3) {
-            PaletteLeading(leading: item.leading, size: 38)
+            PaletteLeading(leading: item.leading, size: 50)
             Text(item.keycode.map { Legends.legend(for: $0).qmk.replacingOccurrences(of: "KC_", with: "") } ?? "")
-                .font(.system(size: 9, design: .monospaced))
+                .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }
-        .frame(width: 64, height: 64)
+        .frame(width: Self.size, height: Self.size)
         .background(Highlight(isOn: isHighlighted))
         .overlay(alignment: .topTrailing) {
             if item.isCurrent {
