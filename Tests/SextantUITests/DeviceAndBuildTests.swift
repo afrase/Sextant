@@ -301,6 +301,7 @@ struct DeviceAndBuildTests {
         #expect(BuildFlashText.step(.compiling(file: "", done: 0, total: 1)) == 1)
         #expect(BuildFlashText.step(.waitingForFlashMode(stillWaiting: true)) == 2)
         #expect(BuildFlashText.step(.failed(.flash(.deviceBusy))) == 3)
+        #expect(BuildFlashText.step(.failed(.flash(.hardwareAccessOff))) == 2, "flashing off never reaches flash mode")
         #expect(BuildFlashText.step(.failed(.notReconnected)) == 4)
         #expect(BuildFlashText.title(.failed(.toolchain(.tooLarge(overBy: 3_214)))) == "Firmware is 3,214 bytes too large")
         #expect(BuildFlashText.title(.failed(.flash(.imageRejected(.missingSuffix)))) == "Sextant won’t flash this image")

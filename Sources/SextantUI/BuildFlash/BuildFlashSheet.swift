@@ -93,7 +93,7 @@ public struct BuildFlashSheet: View {
             }
         return [
             build.usedBytes.map { Int64($0).formatted(.byteCount(style: .file)) },
-            step == 2 ? String(localized: "Waiting") : step > 2 ? String(localized: "Found") : nil,
+            step > 2 ? String(localized: "Found") : step == 2 && !phase.isFailure ? String(localized: "Waiting") : nil,
             percent, nil, nil,
         ]
     }
@@ -210,7 +210,8 @@ enum BuildFlashText {
     /// The step indicator's position: Build · Flash mode · Write · Verify · Done (spec §7.2).
     static func step(_ phase: BuildFlashSession.Phase) -> Int {
         switch phase {
-        case .waitingForFlashMode, .failed(.multipleBootloaders), .failed(.flashingElsewhere): 2
+        // Flashing off stops before flash mode: the keyboard is never asked to enter it.
+        case .waitingForFlashMode, .failed(.multipleBootloaders), .failed(.flashingElsewhere), .failed(.flash(.hardwareAccessOff)): 2
         case .validating, .erasing, .writing, .failed(.flash): 3
         case .verifying, .failed(.notReconnected), .failed(.unexpectedSerial): 4
         case .done: 5

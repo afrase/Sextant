@@ -1093,7 +1093,7 @@
     "Flashing is off" : {
 
     },
-    "Flashing is turned off in this version of Sextant, so the firmware was built but not written. Nothing on the keyboard changed." : {
+    "Flashing is turned off on this Mac, so the firmware was built but the keyboard was never put in flash mode. Nothing on the keyboard changed." : {
 
     },
     "Flashing, %lld percent" : {

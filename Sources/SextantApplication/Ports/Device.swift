@@ -187,8 +187,8 @@ public enum FlashError: Error, Equatable, Sendable, LocalizedError {
         case .hardwareAccessOff:
             String(
                 localized: """
-                    Flashing is turned off in this version of Sextant, so the firmware was built but not written. \
-                    Nothing on the keyboard changed.
+                    Flashing is turned off on this Mac, so the firmware was built but the keyboard was never put in \
+                    flash mode. Nothing on the keyboard changed.
                     """)
         case let .imageRejected(reason): String(localized: "Sextant won't flash this image: \(reason.localizedDescription)")
         case .checksumMismatch: String(localized: "Sextant won't flash this image: its checksum doesn't match the build.")
