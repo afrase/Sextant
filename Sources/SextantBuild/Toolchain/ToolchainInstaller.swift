@@ -191,13 +191,70 @@ public actor ToolchainInstaller {
     }
 }
 
-/// Downloads with URLSession: only a 200 response is saved, and a response longer than the pinned size is cut off.
+/// Downloads with URLSession: only the expected response is saved, and one longer than the pinned size is cut off.
 struct URLSessionDownloader: Downloading {
+    /// Large files come as `parts` byte ranges at once, joined in order: Arm's server (Azure blob storage) sends each
+    /// connection about 140 KB/s, and eight ranges together came about 16 times faster (measured 2026-10-13).
+    var parts = 8
+    var rangedFrom: Int64 = 16 << 20
+    var configuration: URLSessionConfiguration = .ephemeral
+
     func download(_ artifact: Artifact, to file: URL, progress: @escaping @Sendable (Int64) -> Void) async throws {
+        if artifact.size >= rangedFrom, try await downloadInRanges(artifact, to: file, progress: progress) { return }
+        try await fetch(request(artifact), to: file, limit: artifact.size, status: 200, progress: progress)
+    }
+
+    /// False when the server ignores ranges (it answers 200), so the caller downloads the file whole.
+    private func downloadInRanges(_ artifact: Artifact, to file: URL, progress: @escaping @Sendable (Int64) -> Void) async throws -> Bool {
+        let step = (artifact.size + Int64(parts) - 1) / Int64(parts)
+        let starts = Array(stride(from: Int64(0), to: artifact.size, by: Int(step)))
+        let pieces = starts.indices.map { file.appendingPathExtension("part\($0)") }
+        defer { pieces.forEach { try? FileManager.default.removeItem(at: $0) } }
+        let received = OSAllocatedUnfairLock(initialState: [Int64](repeating: 0, count: starts.count))
+        do {
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                for (i, start) in starts.enumerated() {
+                    let end = min(start + step, artifact.size)
+                    var range = request(artifact)
+                    range.setValue("bytes=\(start)-\(end - 1)", forHTTPHeaderField: "Range")
+                    group.addTask {
+                        try await fetch(range, to: pieces[i], limit: end - start, status: 206) { bytes in
+                            progress(
+                                received.withLock { totals in
+                                    totals[i] = bytes
+                                    return totals.reduce(0, +)
+                                })
+                        }
+                    }
+                }
+                try await group.waitForAll()
+            }
+        } catch DownloadError.rangesIgnored {
+            return false
+        }
+        // The caller checks the joined file's size and SHA-256, so a short or wrong piece can't pass.
+        guard FileManager.default.createFile(atPath: file.path, contents: nil) else { throw URLError(.cannotCreateFile) }
+        let out = try FileHandle(forWritingTo: file)
+        defer { try? out.close() }
+        for piece in pieces {
+            let input = try FileHandle(forReadingFrom: piece)
+            defer { try? input.close() }
+            while let chunk = try input.read(upToCount: 1 << 20), !chunk.isEmpty { try out.write(contentsOf: chunk) }
+        }
+        return true
+    }
+
+    private func request(_ artifact: Artifact) -> URLRequest {
         var request = URLRequest(url: artifact.url)
         for (field, value) in artifact.headers { request.setValue(value, forHTTPHeaderField: field) }
-        let delegate = DownloadDelegate(file: file, limit: artifact.size, progress: progress)
-        let session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
+        return request
+    }
+
+    private func fetch(
+        _ request: URLRequest, to file: URL, limit: Int64, status: Int, progress: @escaping @Sendable (Int64) -> Void
+    ) async throws {
+        let delegate = DownloadDelegate(file: file, limit: limit, status: status, progress: progress)
+        let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
         let task = session.downloadTask(with: request)
         try await withTaskCancellationHandler {
@@ -211,16 +268,21 @@ struct URLSessionDownloader: Downloading {
     }
 }
 
+enum DownloadError: Error { case rangesIgnored }
+
 private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, Sendable {
     let file: URL
     let limit: Int64
+    /// 200 for a whole file, 206 for a range.
+    let status: Int
     let progress: @Sendable (Int64) -> Void
     let finish = Mutex<CheckedContinuation<Void, any Error>?>(nil)
     private let failure = Mutex<(any Error)?>(nil)
 
-    init(file: URL, limit: Int64, progress: @escaping @Sendable (Int64) -> Void) {
+    init(file: URL, limit: Int64, status: Int, progress: @escaping @Sendable (Int64) -> Void) {
         self.file = file
         self.limit = limit
+        self.status = status
         self.progress = progress
     }
 
@@ -228,6 +290,11 @@ private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, Send
         _ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
         totalBytesExpectedToWrite: Int64
     ) {
+        // A server that ignores Range sends the whole file with a 200: stop at once and download it whole instead.
+        if status == 206, (downloadTask.response as? HTTPURLResponse)?.statusCode != 206 {
+            failure.withLock { $0 = DownloadError.rangesIgnored }
+            return downloadTask.cancel()
+        }
         guard totalBytesWritten <= limit else {
             failure.withLock { $0 = URLError(.dataLengthExceedsMaximum) }
             return downloadTask.cancel()
@@ -238,7 +305,8 @@ private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate, Send
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         // The temporary file is gone once this returns, so it moves now.
         do {
-            guard (downloadTask.response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+            let code = (downloadTask.response as? HTTPURLResponse)?.statusCode
+            guard code == status else { throw status == 206 && code == 200 ? DownloadError.rangesIgnored : URLError(.badServerResponse) }
             try FileManager.default.moveItem(at: location, to: file)
         } catch {
             failure.withLock { $0 = error }
