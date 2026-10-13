@@ -124,7 +124,7 @@ Small things that are not worth a port are injected as values: an `any Clock<Dur
 
 ### 3.3 Hardware gate
 
-Flashing is always wired: the user's Build & Flash is the consent, and the flasher's guards hold either way (ADR 0056). Raw-HID writes (pairing, protocol query, the commands of ADR 0038) start without a click, so until the user turns live access on the composition root wires `KeyboardLink` to a refusing implementation; the real link is reachable when `SextantLiveAccessEnabled` (or the older `SextantHardwareEnabled`) is set. Read-only enumeration (`IOKitDeviceWatcher`) is always on. See ADRs 0012, 0034 and 0056.
+The real flasher and raw-HID link are always wired, and each writes to the keyboard only after the user starts it: Build & Flash (ADR 0056), and Live View, which `LiveSession.startLive()` turns on from the toolbar, the Keyboard menu or the Device popover; until then a plugged-in keyboard is `.liveOff` and nothing is written (ADR 0057). Read-only enumeration (`IOKitDeviceWatcher`) is always on.
 
 ## 4. Adapters
 

@@ -751,7 +751,10 @@
     "Connect your Voyager with a USB cable." : {
 
     },
-    "Connect your keyboard to follow its layer" : {
+    "Connect your keyboard to see it live" : {
+
+    },
+    "Connected" : {
 
     },
     "Connected Keyboard" : {
@@ -760,10 +763,10 @@
     "Connected over USB" : {
 
     },
-    "Connected · USB" : {
+    "Connected over USB. Turn on Live View to see its layer and the keys you press." : {
 
     },
-    "Connected · live access is off" : {
+    "Connected · USB" : {
 
     },
     "Convert" : {
@@ -1112,9 +1115,6 @@
 
     },
     "Follow the keyboard’s layer" : {
-
-    },
-    "Follow the keyboard’s layer (⌘L)" : {
 
     },
     "Found" : {
@@ -1554,16 +1554,16 @@
     "Live" : {
 
     },
+    "Live View" : {
+
+    },
+    "Live View: the keyboard’s layer and the keys you press" : {
+
+    },
     "Live keyboard" : {
 
     },
-    "Live keyboard access is off, so Sextant can’t read the keyboard’s layer" : {
-
-    },
     "Live keyboard access is off." : {
-
-    },
-    "Live keyboard access is off. Sextant sees the keyboard and its layout, but not its layer or keys." : {
 
     },
     "Loading" : {
@@ -1823,9 +1823,6 @@
 
     },
     "Open Sextant" : {
-
-    },
-    "Open a layout to follow the keyboard’s layer" : {
 
     },
     "Open after importing" : {
@@ -2235,9 +2232,6 @@
     "Sextant can’t map that key. Try another." : {
 
     },
-    "Sextant can’t read the keyboard’s layer" : {
-
-    },
     "Sextant checks the layout before every build. These keys need fixing first." : {
 
     },
@@ -2334,6 +2328,9 @@
     "Show overlay while a layer is held" : {
 
     },
+    "Show the keyboard’s layer and the keys you press, live" : {
+
+    },
     "Shows the Device popover" : {
 
     },
@@ -2404,6 +2401,9 @@
 
     },
     "Stop Following" : {
+
+    },
+    "Stop showing the keyboard’s layer and key presses" : {
 
     },
     "Suggested" : {

@@ -23,6 +23,7 @@ struct DeviceAndBuildTests {
         if library.entries.isEmpty { _ = try await library.importOryxJSON(try #require(userLayoutData)) }
         let live = live ?? LiveSession(watcher: watcher, link: link, secureInputProbe: { false })
         live.start()
+        live.startLive()
         let flashMode = flashMode
         let model = LayoutWindowModel(
             library: library, live: live,
@@ -107,19 +108,19 @@ struct DeviceAndBuildTests {
         #expect(model.buildFlash !== old, "each layout gets its own")
     }
 
-    /// Live access off (the default, ADR 0012) or Keymapp holding the keyboard: Follow is on but nothing arrives.
+    /// Keymapp holding the keyboard: Follow is on but nothing arrives. Then Live View off (the default, ADR 0057).
     @Test func nothingClaimsToBeLiveWithoutALayer() async throws {
         let model = try await window()
-        watcher.attach(.keyboard(KeyboardDevice(id: 1, productID: 0x1977, serial: "KlgM7/40xJ7M")))
+        let keyboard = KeyboardDevice(id: 1, productID: 0x1977, serial: "KlgM7/40xJ7M")
+        watcher.attach(.keyboard(keyboard))
         #expect(await eventually { link.sessions > 0 })
-        link.send(.ended(.hardwareAccessOff))
-        #expect(
-            await eventually {
-                model.live?.connection == .hardwareAccessOff(KeyboardDevice(id: 1, productID: 0x1977, serial: "KlgM7/40xJ7M"))
-            })
-        #expect(model.live?.isFollowing == true, "the live session turned Follow on at connect")
+        link.send(.ended(.heldByAnotherApp))
+        #expect(await eventually { model.live?.connection == .heldByAnotherApp(keyboard) })
+        #expect(model.live?.isFollowing == true, "the live session turned Follow on when Live View started")
         #expect(!model.isFollowing && !model.canFollow && model.laneStatus == nil)
         #expect(model.readout == "Layer 0 · base · 52 keys")
+        model.isLive = false
+        #expect(model.live?.connection == .liveOff(keyboard) && model.canGoLive && !model.canFollow)
     }
 
     /// A flash that writes can't be stopped, so the window keeps its layout until it ends.
@@ -285,7 +286,7 @@ struct DeviceAndBuildTests {
         #expect(status(.noKeyboard, nil) == .noKeyboard)
         #expect(status(.connected(keyboard), .current) == .onKeyboard(revisionDate: date))
         #expect(status(.connected(keyboard), .thisLayout) == .notOnKeyboard(edits: 3))
-        #expect(status(.hardwareAccessOff(keyboard), .otherLayout) == .otherLayout(serial: "KlgM7/40xJ7M"), "the USB serial still works")
+        #expect(status(.liveOff(keyboard), .otherLayout) == .otherLayout(serial: "KlgM7/40xJ7M"), "the USB serial still works")
         #expect(status(.heldByAnotherApp(keyboard), .current) == .heldByAnotherApp("Keymapp"))
         #expect(status(.bootloader(BootloaderDevice(id: 9, productID: 0x0791, kind: .stm32, version: 1)), nil) == .inFlashMode)
         #expect(ActivityState.Device(.connected(keyboard), serial: "x", match: nil) == .connected(serial: "x", matchesLayout: false))

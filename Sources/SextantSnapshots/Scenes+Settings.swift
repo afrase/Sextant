@@ -31,6 +31,7 @@ extension Scenes {
         ])
         let live = LiveSession(watcher: keyboard, link: keyboard, secureInputProbe: { false })
         live.start()
+        live.startLive()
         guard let model = await model(f, live: live) else { return scenes }
         Task { await model.followKeyboard() }
         let entries = session(keys: [k51, k13])

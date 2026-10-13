@@ -47,21 +47,18 @@ struct SextantMain: App {
             firmwareSource: (ToolchainPins.firmwareCommit, ToolchainPins.modulesCommit))
     }
 
-    /// Builds every adapter and use case. Flashing is always wired: the user's Build & Flash is the consent, and the
-    /// flasher's guards hold either way (ADR 0056). The raw-HID link stays off until `SextantLiveAccessEnabled` (or the older
-    /// `SextantHardwareEnabled`) is set, since its pairing request writes to the keyboard without a click (ADR 0034).
-    /// Read-only USB presence is always on.
+    /// Builds every adapter and use case. The real flasher and raw-HID link are always wired: Build & Flash and the live
+    /// view each write to the keyboard only after the user starts them (ADRs 0056, 0057). Read-only USB presence is
+    /// always on.
     @MainActor
     static func makeServices(toolchain: NativeToolchain) -> SextantServices {
-        let defaults = UserDefaults.standard, both = defaults.bool(forKey: "SextantHardwareEnabled")
-        let liveAccessEnabled = both || defaults.bool(forKey: "SextantLiveAccessEnabled")
         let store = PackageLibrary(root: PackageLibrary.defaultRoot())
         let library = Library(store: store)
         let watcher = IOKitDeviceWatcher()
         // The raw-HID log sees only what the link writes and reads, only while it is on, and nothing during secure input
         // (ADR 0045).
         let trace = RawHIDTrace(secureInputProbe: SecureInputProbe.isEnabled)
-        let link: any KeyboardLink = liveAccessEnabled ? RawHIDLink(trace: trace.record) : RefusingKeyboardLink()
+        let link = RawHIDLink(trace: trace.record)
         let flasher: any Flasher = DFUFlasher()
         let live = LiveSession(
             watcher: watcher, link: link, followsOnConnect: KeyboardSettings.followsOnConnect, secureInputProbe: SecureInputProbe.isEnabled)

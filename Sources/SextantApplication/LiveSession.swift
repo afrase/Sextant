@@ -19,17 +19,21 @@ public final class LiveSession {
         case bootloader(BootloaderDevice)
         /// Another app (Keymapp) holds the live interface; Sextant keeps retrying.
         case heldByAnotherApp(KeyboardDevice)
-        /// Live access is off (ADR 0012); presence and the USB serial still work.
-        case hardwareAccessOff(KeyboardDevice)
+        /// The keyboard is plugged in but the live view isn't on (ADR 0057): nothing is written to it, and presence and
+        /// the USB serial still work.
+        case liveOff(KeyboardDevice)
     }
 
     public private(set) var connection = Connection.noKeyboard
+    /// The user turned the live view on (``startLive()``). It pairs with the keyboard only then, never at launch or when
+    /// a keyboard is plugged in, and lasts until ``stopLive()`` or quit, across replugs.
+    public private(set) var isLive = false
     /// The keyboard's serial (``FirmwareIdentity``): its USB serial, or what the live link reports.
     public private(set) var firmwareSerial: String?
     public private(set) var protocolVersion: UInt8?
     /// The keyboard's highest active layer.
     public private(set) var activeLayer: Int?
-    /// Follow mode: the displayed layer tracks ``activeLayer``. On when a keyboard connects, unless the user turned
+    /// Follow mode: the displayed layer tracks ``activeLayer``. On when the live view starts, unless the user turned
     /// that off (`followsOnConnect`); off when a layer is chosen by hand (``stopFollowing()``); ``follow()`` resumes it.
     public private(set) var isFollowing = false
     /// macOS secure input is on (a password field has focus): presses are hidden.
@@ -68,7 +72,7 @@ public final class LiveSession {
     @ObservationIgnored private var deliveredLayer: Int?
 
     /// - Parameters:
-    ///   - followsOnConnect: whether Follow turns on when a keyboard connects (Settings › Keyboard), asked at each connect.
+    ///   - followsOnConnect: whether Follow turns on when the live view starts (Settings › Keyboard), asked each time.
     ///   - secureInputProbe: `IsSecureEventInputEnabled`, polled once a second while a keyboard is connected and asked
     ///     again for each event ``activity()`` would deliver.
     public init(
@@ -106,6 +110,21 @@ public final class LiveSession {
         connection = .noKeyboard
     }
 
+    /// Turns the live view on: pairs with the keyboard now, or when one is plugged in (ADR 0057).
+    public func startLive() {
+        guard !isLive else { return }
+        isLive = true
+        if let keyboard { goLive(keyboard) }
+    }
+
+    /// Turns the live view off: ends the link session and forgets its layer and presses; the keyboard stays connected.
+    public func stopLive() {
+        guard isLive else { return }
+        isLive = false
+        guard let keyboard else { return }
+        connect(keyboard)
+    }
+
     public func follow() { isFollowing = true }
 
     public func stopFollowing() { isFollowing = false }
@@ -139,7 +158,7 @@ public final class LiveSession {
         switch connection {
         case .noKeyboard: throw .notFound
         case .bootloader: throw .notLive
-        case .hardwareAccessOff: throw .hardwareAccessOff
+        case .liveOff: throw .notLive
         case .heldByAnotherApp: throw .heldByAnotherApp
         case .connected: break
         }
@@ -181,8 +200,14 @@ public final class LiveSession {
     private func connect(_ device: KeyboardDevice) {
         disconnect()
         keyboard = device
-        connection = .connected(device)
+        connection = .liveOff(device)
         firmwareSerial = device.serial
+        if isLive { goLive(device) }
+    }
+
+    /// Opens the link: the first write to the keyboard, so only once the user turned the live view on.
+    private func goLive(_ device: KeyboardDevice) {
+        connection = .connected(device)
         isFollowing = followsOnConnect()
         linkTask = Task { await runLink(device) }
         // Only presses need hiding, so the probe runs only while a keyboard can send them.
@@ -204,6 +229,7 @@ public final class LiveSession {
         secureInputTask = nil
         isSecureInputOn = false
         keyboard = nil
+        isFollowing = false
         deliveredLayer = nil
         firmwareSerial = nil
         protocolVersion = nil
@@ -214,7 +240,7 @@ public final class LiveSession {
     // MARK: Live link
 
     /// Runs link sessions for a keyboard until it goes away, reopening them with backoff (1 s doubling to 30 s;
-    /// a session that reached live mode resets it). Stops for good when hardware access is off.
+    /// a session that reached live mode resets it). Stops when the live view is turned off.
     private func runLink(_ device: KeyboardDevice) async {
         var delay = Duration.seconds(1)
         while !Task.isCancelled {
@@ -237,14 +263,7 @@ public final class LiveSession {
             await delivered
             guard !Task.isCancelled else { return }
             pressed = []
-            switch final.endReason {
-            case .hardwareAccessOff:
-                connection = .hardwareAccessOff(device)
-                return
-            case .heldByAnotherApp:
-                connection = .heldByAnotherApp(device)
-            default: break
-            }
+            if final.endReason == .heldByAnotherApp { connection = .heldByAnotherApp(device) }
             if final.isLive { delay = .seconds(1) }
             try? await clock.sleep(for: delay)
             delay = min(delay * 2, .seconds(30))
@@ -252,7 +271,7 @@ public final class LiveSession {
     }
 
     private func show(_ state: LinkState, from device: KeyboardDevice) {
-        guard keyboard == device else { return }  // an update still in flight when the keyboard went away
+        guard keyboard == device, isLive else { return }  // an update still in flight when the keyboard went away or live ended
         if state.isLive, connection != .connected(device) { connection = .connected(device) }
         if let serial = state.serial, serial != firmwareSerial { firmwareSerial = serial }
         if state.protocolVersion != protocolVersion { protocolVersion = state.protocolVersion }

@@ -61,7 +61,7 @@ extension LayoutWindowModel {
     /// The keyboard in normal mode, for Build & Flash's "replace the layout on this keyboard?" check.
     var connectedKeyboard: KeyboardDevice? {
         switch live?.connection {
-        case let .connected(keyboard), let .heldByAnotherApp(keyboard), let .hardwareAccessOff(keyboard): keyboard
+        case let .connected(keyboard), let .heldByAnotherApp(keyboard), let .liveOff(keyboard): keyboard
         default: nil
         }
     }
@@ -150,7 +150,7 @@ extension ActivityState.Device {
         switch connection {
         case .noKeyboard: self = .absent
         case .bootloader: self = .flashMode
-        case .connected, .heldByAnotherApp, .hardwareAccessOff:
+        case .connected, .heldByAnotherApp, .liveOff:
             self = .connected(serial: serial, matchesLayout: !layoutOpen || match == .current || match == .thisLayout)
         }
     }
@@ -199,7 +199,7 @@ extension ActivityState.Status {
         case .noKeyboard: self = .noKeyboard
         case .bootloader: self = .inFlashMode
         case .heldByAnotherApp: self = .heldByAnotherApp("Keymapp")
-        case .connected, .hardwareAccessOff:
+        case .connected, .liveOff:
             switch match {
             case _ where !layoutOpen: self = .keyboardConnected
             case .current: self = .onKeyboard(revisionDate: revisionDate ?? .now)

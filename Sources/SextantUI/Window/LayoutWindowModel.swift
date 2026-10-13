@@ -45,9 +45,15 @@ public final class LayoutWindowModel {
     public var lens: Lens = .keys
     public var columnVisibility: NavigationSplitViewVisibility = .all
     public var showsInspector = true
+    /// The live view is on (ADR 0057): Sextant pairs with the keyboard and shows its layer and presses. App-wide, and only
+    /// ever turned on by the user.
+    public var isLive: Bool {
+        get { live?.isLive ?? false }
+        set { if newValue { live?.startLive() } else { live?.stopLive() } }
+    }
     /// The displayed layer tracks the keyboard's (spec §8.2): the live session's Follow, shared by every window, or a
-    /// stand-in where there is no live session (tests, snapshots). Only while a layer arrives: a keyboard with live
-    /// access off, or held by Keymapp, has Follow on but nothing to follow.
+    /// stand-in where there is no live session (tests, snapshots). Only while a layer arrives: a keyboard held by
+    /// Keymapp has Follow on but nothing to follow.
     public var isFollowing: Bool {
         get { live.map { $0.followedLayer != nil } ?? followsWithoutLive }
         set {
@@ -310,6 +316,8 @@ public final class LayoutWindowModel {
         guard page == nil, let session, let index = session.selection.keyIndex else { return false }
         return session.layout.resolvedKey(layer: session.selection.layer, index: index).isInherited
     }
+    /// Live View needs a keyboard plugged in (not in flash mode).
+    var canGoLive: Bool { connectedKeyboard != nil }
     /// Follow needs a keyboard that reports its layer.
     var canFollow: Bool { session != nil && (live.map { $0.activeLayer != nil } ?? activity.isKeyboardConnected) }
     var canBuild: Bool { buildFlash != nil && session != nil && !activity.isBusy && flashingElsewhere == nil }

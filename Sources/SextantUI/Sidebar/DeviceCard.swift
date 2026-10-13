@@ -82,7 +82,7 @@ public struct DeviceCard: View {
         switch connection {
         case .noKeyboard: .secondary
         case .bootloader: Tokens.warning.color
-        case .connected, .heldByAnotherApp, .hardwareAccessOff: Tokens.success.color
+        case .connected, .heldByAnotherApp, .liveOff: Tokens.success.color
         }
     }
 
@@ -92,7 +92,7 @@ public struct DeviceCard: View {
         case .connected: String(localized: "Connected · USB")
         case .bootloader: String(localized: "Flash mode (bootloader)")
         case .heldByAnotherApp: String(localized: "In use by Keymapp")
-        case .hardwareAccessOff: String(localized: "Connected · live access is off")
+        case .liveOff: String(localized: "Connected")
         }
     }
 }

@@ -13,6 +13,8 @@ struct KeyboardMenu: View {
         Button("Next Issue") {}.keyboardShortcut("'").disabled(true)
         Button("Previous Issue") {}.keyboardShortcut("'", modifiers: [.command, .shift]).disabled(true)
         Divider()
+        Toggle("Live View", isOn: Binding(get: { window?.isLive == true }, set: { window?.isLive = $0 }))
+            .disabled(window?.isLive != true && window?.canGoLive != true)
         Toggle("Follow Keyboard", isOn: Binding(get: { window?.isFollowing == true }, set: { window?.isFollowing = $0 }))
             .keyboardShortcut("l").disabled(window?.canFollow != true)
         Menu("Move Keyboard to Layer") {}.disabled(true)

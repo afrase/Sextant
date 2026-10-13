@@ -33,13 +33,13 @@ struct WindowToolbar: CustomizableToolbarContent {
             UndoButton(session: model.session, redo: true)
         }
         ToolbarSpacer(.fixed, placement: .primaryAction)
-        ToolbarItem(id: "follow", placement: .primaryAction) {
-            Toggle(isOn: Binding(get: { model.isFollowing }, set: { model.isFollowing = $0 })) {
-                Label("Follow Keyboard", systemImage: "dot.radiowaves.left.and.right")
+        ToolbarItem(id: "live", placement: .primaryAction) {
+            Toggle(isOn: Binding(get: { model.isLive }, set: { model.isLive = $0 })) {
+                Label("Live View", systemImage: "dot.radiowaves.left.and.right")
             }
             .toggleStyle(.button)
-            .disabled(!model.canFollow)
-            .help(followHelp)
+            .disabled(!model.isLive && !model.canGoLive)
+            .help(liveHelp)
         }
         ToolbarItem(id: "search", placement: .primaryAction) {
             Button {
@@ -77,16 +77,16 @@ struct WindowToolbar: CustomizableToolbarContent {
 }
 
 extension WindowToolbar {
-    /// Why Follow is off, when it is: live access off or Keymapp holding the keyboard leaves no layer to follow.
-    private var followHelp: Text {
-        if model.canFollow { return Text("Follow the keyboard’s layer (⌘L)") }
-        if model.session == nil { return Text("Open a layout to follow the keyboard’s layer") }
-        if model.connectedKeyboard == nil { return Text("Connect your keyboard to follow its layer") }
-        switch model.live?.connection {
-        case .hardwareAccessOff?: return Text("Live keyboard access is off, so Sextant can’t read the keyboard’s layer")
-        case .heldByAnotherApp?: return Text("Another app, such as Keymapp, is using the keyboard’s live connection")
-        default: return Text("Sextant can’t read the keyboard’s layer")
+    /// What Live View does, or why it can't start.
+    private var liveHelp: Text {
+        if model.isLive {
+            if case .heldByAnotherApp? = model.live?.connection {
+                return Text("Another app, such as Keymapp, is using the keyboard’s live connection")
+            }
+            return Text("Stop showing the keyboard’s layer and key presses")
         }
+        if model.canGoLive { return Text("Show the keyboard’s layer and the keys you press, live") }
+        return Text("Connect your keyboard to see it live")
     }
 }
 

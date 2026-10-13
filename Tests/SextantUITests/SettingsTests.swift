@@ -18,6 +18,7 @@ struct SettingsTests {
         let keyboard = OneKeyboard(script: [.protocolVersion(5), .layer(0), .keyDown(row: key13.matrixRow, column: key13.matrixColumn)])
         let live = LiveSession(watcher: keyboard, link: keyboard, secureInputProbe: { false })
         live.start()
+        live.startLive()
         defer { live.stop() }
         let window = LayoutWindowModel(library: Library(store: MemoryLibrary()), live: live)
         let following = Task { await window.followKeyboard(settings: defaults) }

@@ -17,7 +17,7 @@ v1 is about 21 slices in 5 waves. Sizes: 3 S, 9 M and 9 L (two of them close to 
 - Wave 1: tap dance checks and per-key tapping term, the Macros page, Save Revision and History, exports and Print (this also builds the MVP's unfinished Export items), and the Keyboard and Advanced panes.
 - Wave 2: the Combos lens, multi-select with copy, paste and Copy Layer To, all the firmware settings, and the first keyboard write (Move Keyboard to Layer plus ⌃⌥0–9). History's Flash This Revision and Export Source Zip also land in wave 2.
 
-**Waves 3 and 4 are live features.** They build and test against FakeKeyboardLink, FakeDeviceWatcher and FakeHID. They do nothing in the app until live access is turned on.
+**Since ADR 0057 (2026-10-13), "live access on" below means the user turned Live View on in the app: there is no `SextantLiveAccessEnabled` default any more, and nothing pairs until the user starts Live View.** **Waves 3 and 4 are live features.** They build and test against FakeKeyboardLink, FakeDeviceWatcher and FakeHID. They do nothing in the app until live access is turned on.
 - Wave 3: the menu bar extra with the activation policy, the overlay HUD, the RGB preview, and Select Key by Pressing It.
 - Wave 4: the Heatmap and App Layers.
 

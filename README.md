@@ -48,13 +48,7 @@ open .build/Sextant.app
 
 Build & Flash works out of the box: it builds the firmware, asks you to put the keyboard in flash mode, checks the image and writes it (see [Safety](#safety)). It asks first if the keyboard runs a different layout.
 
-The live view (the active layer and the keys you press) is off by default, because its pairing request writes to the keyboard as soon as it's plugged in. To turn it on, run this and relaunch Sextant:
-
-```sh
-defaults write com.sextant.app SextantLiveAccessEnabled -bool YES
-```
-
-`defaults delete com.sextant.app SextantLiveAccessEnabled` turns it off again.
+The live view (the active layer and the keys you press) starts only when you turn it on: click the live button in the toolbar, or choose Keyboard ▸ Live View. Plugging the keyboard in never starts it, because pairing writes to the keyboard.
 
 ## Safety
 

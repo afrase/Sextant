@@ -27,7 +27,7 @@ extension Scenes {
             ([.keyboard(KeyboardDevice(id: 1, productID: 0x1977, serial: "Q9x2a/aa11"))], live),
             ([bootloader], []),
             ([keyboard], [.ended(.heldByAnotherApp)]),
-            ([keyboard], [.ended(.hardwareAccessOff)]),
+            ([keyboard], []),  // plugged in, Live View off
         ]
         for (devices, events) in states {
             cards.append(await deviceModel(f, root: root, devices: devices, live: events))
@@ -120,6 +120,8 @@ extension Scenes {
         let store = PackageLibrary(root: root)
         let live = LiveSession(watcher: SceneWatcher(devices), link: SceneLink(events: events), secureInputProbe: { false })
         live.start()
+        // A scripted link means the user turned Live View on; none leaves the keyboard just plugged in (ADR 0057).
+        if !events.isEmpty { live.startLive() }
         let model = LayoutWindowModel(
             library: Library(store: store), live: live,
             makeBuildFlash: { session in

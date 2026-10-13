@@ -70,7 +70,7 @@ Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. D
 - The `.app` was built and signature-checked, not launched by the agent; the UI was checked with offscreen snapshots. Not checkable offscreen, so try them in the app: a Lighting-lens drag across keys paints and never swaps; the context strip scrolls to the current layer at 1120×640; a label typed and not committed survives ⌘Q; dark-mode contrast of controls inside the inspector (the offscreen renderer draws them wrongly).
 
 ## Blocked / waiting on the user
-- **Live access (ADRs 0012, 0034):** raw-HID pairing for the live layer, Follow and key presses stays off until `SextantLiveAccessEnabled` is set. Flashing is always on since ADR 0056 (2026-10-13).
+- **Live View (ADR 0057):** starts only when the user turns it on (toolbar, Keyboard ▸ Live View, Device popover). It has never been tried on the user's Voyager: the first time it's turned on, pairing writes `FE`, `00`, `01`.
 
 ## Deviations from the spec
 - All-null keys render transparent, not Disabled (ADR 0015): Oryx's generated firmware makes them `KC_TRANSPARENT`.

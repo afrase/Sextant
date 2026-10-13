@@ -41,8 +41,14 @@ public struct DevicePopover: View {
                         row("Firmware") { Text(firmware(live)).font(.callout.monospacedDigit()) }
                     }
                 }
-                if case .connected = live.connection {
+                if model.canGoLive || model.isLive {
                     Divider()
+                    // Pairing writes to the keyboard, so it starts only from here, the toolbar or the Keyboard menu (ADR 0057).
+                    Toggle(
+                        "Live View: the keyboard’s layer and the keys you press",
+                        isOn: Binding(get: { model.isLive }, set: { model.isLive = $0 }))
+                }
+                if case .connected = live.connection {
                     liveSection(live)
                     Toggle(isOn: Binding(get: { model.isFollowing }, set: { model.isFollowing = $0 })) {
                         HStack {
@@ -140,8 +146,8 @@ public struct DevicePopover: View {
         case .connected: String(localized: "Connected over USB")
         case .bootloader: String(localized: "In flash mode, ready for Build & Flash. Unplug it and plug it back in to leave flash mode.")
         case .heldByAnotherApp: DeviceError.heldByAnotherApp.localizedDescription
-        case .hardwareAccessOff:
-            String(localized: "Live keyboard access is off. Sextant sees the keyboard and its layout, but not its layer or keys.")
+        case .liveOff:
+            String(localized: "Connected over USB. Turn on Live View to see its layer and the keys you press.")
         }
     }
 

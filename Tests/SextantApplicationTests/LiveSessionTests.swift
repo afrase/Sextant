@@ -17,6 +17,7 @@ struct LiveSessionTests {
         let secureInput = secureInput
         let live = LiveSession(watcher: watcher, link: link, clock: clock) { secureInput.isOn }
         live.start()
+        live.startLive()
         return live
     }
 
@@ -61,6 +62,7 @@ struct LiveSessionTests {
         let follows = Flag()
         let live = LiveSession(watcher: watcher, link: link, clock: clock, followsOnConnect: { follows.isOn }) { false }
         live.start()
+        live.startLive()
         watcher.attach(.keyboard(.voyager(serial: nil)))
         #expect(await eventually { link.sessionCount == 1 })
         link.send(.protocolVersion(5), .layer(2))
@@ -142,16 +144,23 @@ struct LiveSessionTests {
         #expect(link.sessionCount == 0 && live.connection == .noKeyboard)
     }
 
-    @Test func hardwareAccessOffStopsTheLinkButKeepsTheSerial() async {
-        let live = start()
+    /// Nothing is written to a keyboard until the user turns Live View on (ADR 0057), and turning it off ends the link.
+    @Test func theLinkOpensOnlyWhileLiveViewIsOn() async {
+        let live = LiveSession(watcher: watcher, link: link, clock: clock) { false }
+        live.start()
         let keyboard = KeyboardDevice.voyager(serial: "KlgM7/40xJ7M")
         watcher.attach(.keyboard(keyboard))
-        #expect(await eventually { link.sessionCount == 1 })
-        link.send(.ended(.hardwareAccessOff))
-        #expect(await eventually { live.connection == .hardwareAccessOff(keyboard) })
+        #expect(await eventually { live.connection == .liveOff(keyboard) })
         await clock.advance(by: .seconds(60))
-        #expect(link.sessionCount == 1, "no retries while access is off")
-        #expect(live.firmwareSerial == "KlgM7/40xJ7M")
+        #expect(link.sessionCount == 0, "plugging in writes nothing")
+        #expect(live.firmwareSerial == "KlgM7/40xJ7M", "the USB serial still works")
+        #expect(throws: DeviceError.notLive) { try live.send(.moveToLayer(1)) }
+        live.startLive()
+        #expect(await eventually { link.sessionCount == 1 && live.connection == .connected(keyboard) })
+        live.stopLive()
+        #expect(live.connection == .liveOff(keyboard) && !live.isLive && !live.isFollowing)
+        await clock.advance(by: .seconds(60))
+        #expect(link.sessionCount == 1, "no reconnects once it's off")
     }
 
     @Test func followsTheDeviceThroughFlashMode() async {
@@ -229,9 +238,9 @@ struct LiveSessionTests {
         link.send(.ended(.heldByAnotherApp))
         #expect(await reopens(after: .seconds(1)) { live.connection == .heldByAnotherApp(keyboard) && !live.canSend })
         #expect(throws: DeviceError.heldByAnotherApp) { try live.send(.moveToLayer(1)) }
-        link.send(.ended(.hardwareAccessOff))
-        #expect(await eventually { live.connection == .hardwareAccessOff(keyboard) })
-        #expect(throws: DeviceError.hardwareAccessOff) { try live.send(.moveToLayer(1)) }
+        live.stopLive()
+        #expect(live.connection == .liveOff(keyboard))
+        #expect(throws: DeviceError.notLive) { try live.send(.moveToLayer(1)) }
         #expect(link.commands == [[], []])
     }
 
@@ -321,6 +330,7 @@ struct LiveSessionTests {
     @Test func aPressFromAPasswordFieldNeverWaitsForTheMainActor() async {
         let live = LiveSession(watcher: watcher, link: link, clock: clock) { pthread_main_np() == 0 }
         live.start()
+        live.startLive()
         defer { live.stop() }
         let seen = Recorded<LiveActivity>()
         let stream = live.activity()
