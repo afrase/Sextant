@@ -250,7 +250,7 @@ struct PalettePanel: View {
     private var placeholder: String {
         switch palette.scope {
         case .assign where isPicking && compact: String(localized: "Search keycodes")
-        case .assign where isPicking: String(localized: "Search \(model.pickerKeycodeCount) keycodes, or type a character")
+        case .assign where isPicking: model.pickerPrompt
         case .keys: String(localized: "Find a key by name")
         default: String(localized: "Search commands, keys, layers and settings")
         }

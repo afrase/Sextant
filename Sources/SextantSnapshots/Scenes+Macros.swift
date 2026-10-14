@@ -43,7 +43,7 @@ extension Scenes {
         // The empty page is the user's layout; so is the dense one, with macros added in code. The rest need other
         // people's samples (under $SEXTANT_REFERENCE).
         var scenes = await pair("macros-empty", f.entry, make: { await model(f) }) { $0.destination = .macros }
-        for (name, size, picker) in [("macros-dense-min", min, false), ("macros-dense-picker", full, true)] {
+        for (name, size, picker) in [("macros-dense", full, false), ("macros-dense-min", min, false), ("macros-dense-picker", full, true)] {
             for appearance in SnapshotAppearance.allCases {
                 // A library per scene, so each window edits its own copy and the sidebar lists only that one.
                 let own = root.deletingLastPathComponent().appending(path: "\(name)-\(appearance.rawValue)")
@@ -83,8 +83,9 @@ extension Scenes {
     }
 
     /// Macros built in code on the user's layout (which has none), for the widest cells the page draws: a long name with
-    /// descenders, and steps holding two, three and four modifiers. Returns the first, on the Brd+Sys key 32's tap, with
-    /// its third step selected.
+    /// descenders, steps holding two, three and four modifiers, the longest legend a step can type ("Web Home"), and an
+    /// imported step a macro can't type beside its warning. Returns the first, on the Brd+Sys key 32's tap, with its third
+    /// step selected.
     private static func addDenseMacros(_ session: EditSession) -> MacroLocator? {
         func add(_ name: String, _ steps: [MacroStep], on index: Int) {
             session.newMacro()
@@ -100,6 +101,10 @@ extension Scenes {
                 MacroStep(code: "KC_2", modifiers: [.leftControl, .leftCommand], delay: 100),
                 MacroStep(code: "KC_O", modifiers: [.leftControl, .leftShift, .leftCommand], delay: 250),
                 MacroStep(code: "KC_F12", modifiers: [.leftControl, .leftOption, .leftShift, .leftCommand]),
+                MacroStep(code: "MAC_SPOTLIGHT"),
+                MacroStep(code: "KC_WWW_HOME"),
+                MacroStep(code: "KC_SPACE", modifiers: [.leftControl, .leftCommand]),
+                MacroStep(code: "EE_CLR"),
                 MacroStep(code: "KC_V", modifiers: [.leftCommand], delay: 30),
                 MacroStep(code: "KC_ENTER"),
             ], on: 32)
