@@ -8,9 +8,9 @@ import SextantDomain
 /// It writes only while Live View is paired and a window holds the preview, which only the user's toggle claims. The first
 /// frame of a session takes the lights (`05 01`), fills them with the frame's most common color (`09`) and sets the rest
 /// one by one (`06`); later frames send only the lights that changed. Every way the preview ends gives the keyboard its own
-/// lighting back (`05 00`, through ``LiveSession/releaseLights()``, which also does it before Live View ends a session),
-/// except a session that already ended: there is no board to write to, and a session paired again gets the whole frame
-/// again.
+/// lighting back (`05 00`, through ``LiveSession/releaseLights()``, which also does it before Live View ends a session).
+/// Between two sessions there is no board to write to: the next session to pair gets the release, or the whole frame again
+/// while the switch is on.
 @MainActor
 @Observable
 public final class LightingPreview {

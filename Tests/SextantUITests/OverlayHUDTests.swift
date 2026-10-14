@@ -1,3 +1,4 @@
+import AppKit
 import Clocks
 import Foundation
 import SextantApplication
@@ -75,6 +76,14 @@ struct OverlayHUDTests {
         #expect(await until { keyboard.sessionCount == 2 })
         keyboard.send(.layer(0), .layer(1))
         #expect(await until { model.presentation == .pill(layer: 1) }, "a lock, not a layer ⏎ holds")
+    }
+
+    /// A hidden panel keeps no view that would redraw at every key event. Never ordered in, so nothing shows.
+    @Test func aPanelOrderedOutDropsItsContent() {
+        let panel = OverlayPanel()
+        panel.contentView = NSView()
+        panel.orderOut(nil)
+        #expect(panel.contentView == nil)
     }
 }
 

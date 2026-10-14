@@ -219,8 +219,7 @@ struct SelectByPressTests {
         #expect(await eventually { model.session?.selection.keyIndex == 24 })
     }
 
-    /// Secure input on only between two polls of its flag drops the key-up from the feed; the session's held keys still
-    /// show the release, so the mode ends.
+    /// Secure input on only between two polls of its flag hides the key-up; the feed still sends one, so the mode ends.
     @Test func aKeyUpDroppedBySecureInputStillEndsTheMode() async throws {
         let (model, live) = try await window()
         await plugIn(live)
@@ -294,8 +293,9 @@ struct SelectByPressTests {
         secureInput.isOn = false
         link.send(down(24))
         #expect(await eventually { model.session?.selection.keyIndex == 24 })
-        try await Task.sleep(for: .milliseconds(100))
-        #expect(model.selectByPress != nil, "the Mac's copy is still swallowed")
+        // The stale flag empties the held keys for up to a second; key 24's tail is 250 ms.
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(model.selectByPress != nil, "the Mac's copy and its repeats are still swallowed")
         link.send(up(24))
         #expect(await eventually { model.selectByPress == nil })
     }

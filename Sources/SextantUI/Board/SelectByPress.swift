@@ -120,26 +120,6 @@ extension LayoutWindowModel {
         }
     }
 
-    /// The selected key's release as the session's held keys show it, which change even when the per-event secure
-    /// input check drops its key-up, and empty while secure input is on.
-    private func watchRelease(of index: Int, since selectedAt: ContinuousClock.Instant) async {
-        var held = false
-        for await keys in Observations({ [weak self] in self?.live?.pressedKeys ?? [] }) {
-            if keys.contains(index) {
-                held = true
-                continue
-            }
-            if held { break }
-            // This task can start after the key-up, or after secure input hid the key, and then never sees it held; the
-            // held keys update a frame late, so an absence counts once that frame has passed.
-            try? await Task.sleep(until: selectedAt + .milliseconds(100), clock: .continuous)
-            guard live?.pressedKeys.contains(index) == true else { break }
-            held = true
-        }
-        guard !Task.isCancelled, let tail = selectByPress?.releaseTail else { return }
-        endSelectByPressSoon(after: tail, onlyOnEscape: false)
-    }
-
     /// A key held at start whose key-up came before the start (the held keys update a frame late) stops counting once that
     /// frame has passed. Only then: later the held keys can run ahead of the presses still on their way, and the presses'
     /// own key-ups take the rest out.
@@ -161,16 +141,15 @@ extension LayoutWindowModel {
                 selectByPress = mode
                 return
             }
-            let selectedAt = ContinuousClock.now
-            (mode.selected, mode.selectedAt, mode.escapePending) = (index, selectedAt, false)
+            (mode.selected, mode.selectedAt, mode.escapePending) = (index, .now, false)
             mode.releaseTail = selectByPressReleaseTail(index: index, layer: layer)
-            mode.tasks.append(Task { [weak self] in await self?.watchRelease(of: index, since: selectedAt) })
             selectByPress = mode
             click(key: index)
             AccessibilityNotification.Announcement(selectByPressAnnouncement(index: index)).post()
         case let .keyUp(index) where mode.isArmed:
             mode.heldAtStart.remove(index)
             selectByPress = mode
+        // The feed sends it even when secure input hides the key's own (ADR 0050).
         case let .keyUp(index) where index == mode.selected:
             endSelectByPressSoon(after: mode.releaseTail, onlyOnEscape: false)
         default:

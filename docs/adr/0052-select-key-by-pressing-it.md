@@ -44,8 +44,10 @@ only during Record Key and Record Steps.
   moment longer.
 - **The key-up is never lost for good.** The feed checks secure input at every event, but the flag the session shows is
   polled once a second, so a key-up dropped by a short spell of secure input would leave the mode waiting, the window
-  swallowing every key with no capsule. So the mode also ends when the session's held keys, which follow the keyboard
-  whatever secure input does, have shown the key and then don't. And an esc from the Mac while waiting for the key-up
+  swallowing every key with no capsule. The feed keeps keys paired instead (ADR 0050): when secure input hides an event
+  or the session ends, it sends the key-up of every key it reported down, so the selected key's key-up always comes.
+  The session's held keys don't end the mode: a stale secure-input flag empties them while the key is still down. (A
+  first version watched them, and ended the mode a moment after the press, the key still held.) And an esc from the Mac while waiting for the key-up
   ends it, unless it comes within 50 ms of the press (the press's own copy; the monitor drops its repeats). The
   secure-input flag itself no longer ends the mode: just after secure input goes off it is still on, and ending then
   would let the press's Mac copy through.

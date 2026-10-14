@@ -44,10 +44,11 @@ public struct DevicePopover: View {
                 }
                 if model.canGoLive || model.isLive {
                     Divider()
-                    // Pairing writes to the keyboard, so it starts only from here, the toolbar or the Keyboard menu (ADR 0057).
-                    Toggle(
-                        "Live View: the keyboard’s layer and the keys you press",
-                        isOn: Binding(get: { model.isLive }, set: { model.isLive = $0 }))
+                    // Pairing writes to the keyboard, so it starts only from here, the toolbar, the Keyboard menu or the menu
+                    // bar (ADR 0057).
+                    Toggle(isOn: Binding(get: { model.isLive }, set: { model.isLive = $0 })) {
+                        Text("Live View: the keyboard’s layer and the keys you press").fixedSize(horizontal: false, vertical: true)
+                    }
                     if let onKeyboard = model.onKeyboard {
                         MoveKeyboardToLayerMenu(onKeyboard: onKeyboard, live: model.live).fixedSize()
                     }
@@ -86,6 +87,7 @@ public struct DevicePopover: View {
         if !seenLiveDataNote, case .connected = live.connection {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Sextant shows the keyboard’s layer and the keys you hold as they happen. Nothing is recorded.")
+                    .fixedSize(horizontal: false, vertical: true)
                 Button("OK") { seenLiveDataNote = true }.controlSize(.small)
             }
             .font(.callout)
