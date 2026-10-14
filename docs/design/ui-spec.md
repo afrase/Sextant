@@ -1231,7 +1231,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 | Pane | Contents | Phase |
 |---|---|---|
 | General | Open at login. Show in menu bar. When the keyboard connects: Open Sextant / Do nothing. Show grid behind the keyboard. Notify when a flash finishes (opt-in) | MVP (menu bar options v1) |
-| Keyboard | Show key presses on the board (on). Follow the keyboard by default (on). Overlay: on/off (on), delay (0–500 ms in 10 ms steps, 150), position (bottom or top center), size (S/M/L, M), tint with layer colour (off), toggled-layer behaviour (full overlay, reminder or nothing; reminder). Global shortcuts to move the keyboard to a layer (⌃⌥0–9, off by default) | v1 |
+| Keyboard | Show key presses on the board (on). Follow the keyboard by default (on). Overlay: on/off (on), delay (0–500 ms in 10 ms steps, 150), position (bottom or top center), size (S/M/L, M), tint with layer colour (off), toggled-layer behaviour (full overlay, reminder or nothing; reminder). Layer shortcuts: global shortcuts to move the keyboard to a layer (⌃⌥0–9, off by default; a recorder per layer while on) | v1 |
 | Build | Build tools: Apple container (recommended) or managed toolchain, with status, disk use, [Update] and [Remove]. Firmware source pinned to ZSA fork commit `93b2b9e` and modules `13890cd`. "Use Oryx's build when the layout is unchanged since import" | MVP |
 | Privacy | Heatmap recording (off by default), retention, [Clear Heatmap Data…]. Explanatory text about raw HID and secure input | MVP |
 | Advanced | Developer raw-HID log (positions only): the last 500 reports, in memory only, off at each launch, cleared when turned off, paused during secure input, shown in the Device popover (ADR 0045). Reset all warnings | v1 |
@@ -1327,7 +1327,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 | Show Build Log | ⇧⌘B |
 | Next Issue / Previous Issue | ⌘' / ⇧⌘' |
 | Follow Keyboard | ⌘L |
-| Move Keyboard to Layer ▸ | ⌃⌥0–9 (global, opt-in, v1) |
+| Move Keyboard to Layer ▸ (the keyboard layout's layers; disabled with the reason until Live View is on; also in the Device popover) | ⌃⌥0–9 (global, opt-in, v1) |
 | Preview Lighting on Keyboard | — (v1) |
 | Show Overlay While Holding a Layer | — (v1) |
 | Device Info… | — (opens the Device popover) |
@@ -1366,7 +1366,7 @@ Esc never switches lens or destination.
 
 ### 9.4 Global shortcuts (opt-in, v1)
 
-⌃⌥0–⌃⌥9 move the keyboard to a layer. They are registered with Carbon `RegisterEventHotKey`, which needs no TCC. They are off by default and can be remapped in Settings › Keyboard.
+⌃⌥0–⌃⌥9 move the keyboard to a layer. They are registered with Carbon `RegisterEventHotKey` through sindresorhus/KeyboardShortcuts, which needs no TCC. They are off by default and can be remapped in Settings › Keyboard with the library's recorder; a shortcut needs ⌃ or ⌘. They move the keyboard only while Live View is on; a press that can't beeps, and Settings › Keyboard says why. Shortcuts another app or macOS already uses are listed there. The Keyboard menu's Move Keyboard to Layer items show them only while they're on and can fire, so one press never runs both (ADR 0048).
 
 ### 9.5 Conflicts avoided
 

@@ -7,6 +7,8 @@ struct SextantCommands: Commands {
     @FocusedValue(LayoutWindowModel.self) private var window
     /// File ▸ New Layout works with no window open.
     let library: Library
+    /// Shown on Keyboard ▸ Move Keyboard to Layer's items while they're on.
+    let layerShortcuts: LayerShortcuts
     @AppStorage(BenchGrid.key) private var showsGrid = true
 
     var body: some Commands {
@@ -28,7 +30,7 @@ struct SextantCommands: Commands {
         }
         CommandMenu("Layer") { LayerMenu(window: window) }
         CommandMenu("Key") { KeyMenu(window: window) }
-        CommandMenu("Keyboard") { KeyboardMenu(window: window) }
+        CommandMenu("Keyboard") { KeyboardMenu(window: window, layerShortcuts: layerShortcuts) }
         CommandGroup(before: .windowList) {
             Button("Main Window") {}.keyboardShortcut("0").disabled(true)
         }

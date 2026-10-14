@@ -6,12 +6,18 @@ public struct SextantScenes: Scene {
     private let services: SextantServices
     private let buildToolsStatus: BuildToolsStatus?
     private let firmwareSource: FirmwareSource?
+    private let layerShortcutRecorder: LayerShortcutRecorder?
 
-    /// `buildToolsStatus` fills Settings › Build's status line, and `firmwareSource` its pinned commits.
-    public init(services: SextantServices, buildToolsStatus: BuildToolsStatus? = nil, firmwareSource: FirmwareSource? = nil) {
+    /// `buildToolsStatus` fills Settings › Build's status line, `firmwareSource` its pinned commits, and
+    /// `layerShortcutRecorder` Settings › Keyboard's layer shortcuts.
+    public init(
+        services: SextantServices, buildToolsStatus: BuildToolsStatus? = nil, firmwareSource: FirmwareSource? = nil,
+        layerShortcutRecorder: LayerShortcutRecorder? = nil
+    ) {
         self.services = services
         self.buildToolsStatus = buildToolsStatus
         self.firmwareSource = firmwareSource
+        self.layerShortcutRecorder = layerShortcutRecorder
     }
 
     public var body: some Scene {
@@ -26,8 +32,12 @@ public struct SextantScenes: Scene {
             return WindowPlacement(size: CGSize(width: min(size.width, screen.width), height: min(size.height, screen.height)))
         }
         .windowResizability(.contentMinSize)
-        .commands { SextantCommands(library: services.library) }
+        .commands { SextantCommands(library: services.library, layerShortcuts: services.layerShortcuts) }
 
-        Settings { SettingsView(buildToolsStatus: buildToolsStatus, firmwareSource: firmwareSource, trace: services.trace) }
+        Settings {
+            SettingsView(
+                buildToolsStatus: buildToolsStatus, firmwareSource: firmwareSource, trace: services.trace,
+                layerShortcuts: services.layerShortcuts, layerShortcutRecorder: layerShortcutRecorder)
+        }
     }
 }

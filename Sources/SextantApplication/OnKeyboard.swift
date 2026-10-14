@@ -46,6 +46,24 @@ public final class OnKeyboard {
         }
     }
 
+    /// Moves the keyboard to `layer` (`04 01 n`, ADR 0038), only over a paired Live View session (ADR 0057) and only to
+    /// a layer of the layout it runs: layer 0 alone when Sextant doesn't hold that layout, since a layer past the build's
+    /// layer state drops the keyboard to its default layer (ADR 0048). With `dryRun`, only says why it wouldn't send.
+    public func moveKeyboard(toLayer layer: Int, dryRun: Bool = false) throws(LayerMoveRefusal) {
+        switch live.connection {
+        case .noKeyboard: throw .noKeyboard
+        case .bootloader: throw .flashMode
+        case .liveOff: throw .liveOff
+        case .heldByAnotherApp: throw .heldByAnotherApp
+        case .connected: if !live.canSend { throw .connecting }
+        }
+        guard layer >= 0, layer < (running?.layout.layers.count ?? 1) else {
+            throw running == nil ? .unknownLayout : .noSuchLayer(layer)
+        }
+        guard !dryRun else { return }
+        do throws(DeviceError) { try live.send(.moveToLayer(layer)) } catch { throw LayerMoveRefusal(error, layer: layer) }
+    }
+
     /// An Oryx serial names an import revision. A Sextant serial names the working copy when it has the same
     /// fingerprint (the same content), otherwise the newest flash revision that has it.
     /// - Parameter flashed: the entry Sextant flashed last, which wins when two entries claim one Oryx serial (the same

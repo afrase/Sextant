@@ -61,6 +61,19 @@
     "%@ layer" : {
 
     },
+    "%@ layer, keys down %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ layer, keys down %2$@"
+          }
+        }
+      }
+    },
+    "%@ layer, no keys down" : {
+
+    },
     "%@ of %@" : {
       "localizations" : {
         "en" : {
@@ -751,6 +764,9 @@
     "Connect your Voyager with a USB cable." : {
 
     },
+    "Connect your keyboard to move its layer." : {
+
+    },
     "Connect your keyboard to see it live" : {
 
     },
@@ -918,6 +934,9 @@
 
     },
     "Each layout has one window. Choose one in the sidebar to bring its window forward, or make a new layout (⌘N)." : {
+
+    },
+    "Each shortcut (⌃⌥0 to ⌃⌥9 unless you record others) moves the keyboard to its layer while Live View is on, whichever app you’re in. While they’re on, other apps don’t get those keys." : {
 
     },
     "Edit Key" : {
@@ -1264,6 +1283,9 @@
     "In use by Keymapp. Quit Keymapp or disconnect it there; Sextant connects automatically." : {
 
     },
+    "Include ⌃ or ⌘. macOS doesn’t take global shortcuts with only ⌥ or ⇧, and without a modifier the key would move the layer as you type." : {
+
+    },
     "Index" : {
 
     },
@@ -1440,10 +1462,23 @@
     "Layer %lld" : {
 
     },
+    "Layer %lld already uses %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Layer %1$lld already uses %2$@."
+          }
+        }
+      }
+    },
     "Layer %lld can't be reached" : {
 
     },
     "Layer %lld doesn't exist" : {
+
+    },
+    "Layer %lld shortcut" : {
 
     },
     "Layer %lld · %@" : {
@@ -1476,6 +1511,29 @@
         }
       }
     },
+    "Layer %lld: %@ is a macOS shortcut. Record a different one, or turn it off in System Settings › Keyboard." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Layer %1$lld: %2$@ is a macOS shortcut. Record a different one, or turn it off in System Settings › Keyboard."
+          }
+        }
+      }
+    },
+    "Layer %lld: another app already uses %@. Record a different shortcut." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Layer %1$lld: another app already uses %2$@. Record a different shortcut."
+          }
+        }
+      }
+    },
+    "Layer 0" : {
+
+    },
     "Layer 0 · base · %lld keys" : {
 
     },
@@ -1489,6 +1547,9 @@
 
     },
     "Layer name" : {
+
+    },
+    "Layer shortcuts" : {
 
     },
     "Layer: %@" : {
@@ -1555,6 +1616,9 @@
 
     },
     "Live View" : {
+
+    },
+    "Live View is still connecting to the keyboard." : {
 
     },
     "Live View: the keyboard’s layer and the keys you press" : {
@@ -1667,6 +1731,9 @@
 
     },
     "Move Up" : {
+
+    },
+    "Move the keyboard’s layer from any app" : {
 
     },
     "Move to Trash" : {
@@ -2265,6 +2332,9 @@
     "Sextant couldn’t save: %@" : {
 
     },
+    "Sextant doesn’t have the keyboard’s layout, so it can move it only to layer 0." : {
+
+    },
     "Sextant reads the active layer and which key positions are down over the keyboard's raw HID interface. It sees positions, never the characters you type. Key events stay in memory on this Mac and are never written to disk, and the live display pauses while you type in a password field." : {
 
     },
@@ -2541,6 +2611,9 @@
     "The keyboard has no such layer or light." : {
 
     },
+    "The keyboard is in flash mode." : {
+
+    },
     "The keyboard isn’t connected live yet." : {
 
     },
@@ -2553,7 +2626,13 @@
     "The keyboard restarts with the new firmware. Sextant waits for it to report its new serial." : {
 
     },
+    "The keyboard’s layout has no layer %lld." : {
+
+    },
     "The keyboard’s lights go dark and it disconnects while in flash mode. That’s expected. Sextant starts writing as soon as it sees the bootloader." : {
+
+    },
+    "The last shortcut moved nothing. %@" : {
 
     },
     "The layer color is also its LED color on the keyboard." : {
@@ -2682,6 +2761,9 @@
 
     },
     "Turn off features you don’t use in Firmware Settings, such as RGB animations, then build again." : {
+
+    },
+    "Turn on Live View to move the keyboard’s layer." : {
 
     },
     "Types: %@" : {

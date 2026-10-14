@@ -47,6 +47,9 @@ public struct DevicePopover: View {
                     Toggle(
                         "Live View: the keyboard’s layer and the keys you press",
                         isOn: Binding(get: { model.isLive }, set: { model.isLive = $0 }))
+                    if let onKeyboard = model.onKeyboard {
+                        MoveKeyboardToLayerMenu(onKeyboard: onKeyboard, live: model.live).fixedSize()
+                    }
                 }
                 if case .connected = live.connection {
                     liveSection(live)

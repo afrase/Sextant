@@ -1,7 +1,9 @@
+import SextantApplication
 import SwiftUI
 
 struct KeyboardMenu: View {
     var window: LayoutWindowModel?
+    var layerShortcuts: LayerShortcuts?
 
     var body: some View {
         Button("Build") { window?.build(.build) }.keyboardShortcut("b").disabled(window?.canBuild != true)
@@ -17,7 +19,7 @@ struct KeyboardMenu: View {
             .disabled(window?.isLive != true && window?.canGoLive != true)
         Toggle("Follow Keyboard", isOn: Binding(get: { window?.isFollowing == true }, set: { window?.isFollowing = $0 }))
             .keyboardShortcut("l").disabled(window?.canFollow != true)
-        Menu("Move Keyboard to Layer") {}.disabled(true)
+        MoveKeyboardToLayerMenu(onKeyboard: window?.onKeyboard, live: window?.live, shortcuts: layerShortcuts)
         Button("Preview Lighting on Keyboard") {}.disabled(true)
         Button("Show Overlay While Holding a Layer") {}.disabled(true)
         Divider()

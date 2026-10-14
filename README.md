@@ -109,6 +109,7 @@ Sextant is released under the [MIT License](LICENSE).
   | [swift-subprocess](https://github.com/swiftlang/swift-subprocess) | Apache-2.0 | The app |
   | [swift-system](https://github.com/apple/swift-system) | Apache-2.0 | The app (via swift-subprocess) |
   | [swift-collections](https://github.com/apple/swift-collections) | Apache-2.0 | The app (via swift-async-algorithms) |
+  | [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) | MIT | The app (global layer shortcuts) |
   | [swift-argument-parser](https://github.com/apple/swift-argument-parser) | Apache-2.0 | The snapshot tool |
   | [swift-clocks](https://github.com/pointfreeco/swift-clocks) | MIT | Tests |
   | [swift-snapshot-testing](https://github.com/pointfreeco/swift-snapshot-testing) | MIT | Tests |
