@@ -14,7 +14,7 @@ A native macOS app for configuring the ZSA Voyager: edit layouts on your Mac, im
 
 ## What it does
 
-- **Edits layouts locally,** with undo: layers, tap/hold/double-tap actions, modifier chords, labels, per-key LED colors and tapping terms, macros, firmware settings and the Navigator trackpad or trackball.
+- **Edits layouts locally,** with undo: layers, tap/hold/double-tap actions, modifier chords, labels, per-key LED colors and tapping terms, macros, combos, firmware settings and the Navigator trackpad or trackball.
 - **Imports from Oryx** by pasting a layout link, or from the layout id the connected keyboard reports. It uses Oryx's public GraphQL read-only: no login and no changes to your Oryx account.
 - **Builds QMK firmware on your Mac** with a pinned toolchain that runs in a sandbox. The first build downloads about 200 MB of build tools, each checked by size and SHA-256.
 - **Flashes the keyboard over DFU,** behind strict guards (see [Safety](#safety)).

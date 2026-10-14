@@ -69,6 +69,7 @@ enum Scenes {
         scenes += await layers(f)
         scenes += await export(f)
         scenes += await macros(f)
+        scenes += await combos(f)
         scenes += await history(f)
         scenes += await firmwareSettings(f)
         // The app icon, 1024 pt on a transparent canvas, one scene per detail tier (app-icon serves 128 px and up);

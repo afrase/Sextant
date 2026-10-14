@@ -223,6 +223,7 @@ enum KeyText {
             case let .comboTooManyKeys(n): String(localized: "Combo has \(n) keys; 6 is the most")
             case .duplicateComboTrigger: String(localized: "Another combo uses the same keys")
             case let .comboKeyTransparent(i): String(localized: "Combo key \(member(i)) is transparent")
+            case let .comboKeyDisabled(i): String(localized: "Combo key \(member(i)) is disabled")
             case let .comboKeyTapDance(i): String(localized: "Combo key \(member(i)) is a tap dance")
             case let .rollingNeighbors(a, b): String(localized: "Keys \(member(a)) and \(member(b)) are rolling neighbors")
             // A flagged tap may run, but the dance also types it on three or more taps.

@@ -10,6 +10,8 @@ struct ContextStrip: View {
     var body: some View {
         if model.page == .history, let history = model.history {
             ChangesStrip(history: history)
+        } else if model.page == .combos {
+            ComboCards(model: model, session: session)
         } else {
             lensStrip
         }

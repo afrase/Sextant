@@ -242,6 +242,16 @@
         }
       }
     },
+    "%@: %@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@, %3$@"
+          }
+        }
+      }
+    },
     "%@: %@, default %@" : {
       "localizations" : {
         "en" : {
@@ -275,6 +285,9 @@
       }
     },
     "%lld changes" : {
+
+    },
+    "%lld combos" : {
 
     },
     "%lld custom labels are shown in Sextant only." : {
@@ -331,6 +344,9 @@
 
     },
     "%lld ms" : {
+
+    },
+    "%lld ms, every combo" : {
 
     },
     "%lld of %lld" : {
@@ -398,6 +414,16 @@
         }
       }
     },
+    "%lld · %@ (%lld)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld · %2$@ (%3$lld)"
+          }
+        }
+      }
+    },
     "%lld · %@ (this layer)" : {
       "localizations" : {
         "en" : {
@@ -440,6 +466,9 @@
 
     },
     "1 changed setting matches ‘%@’" : {
+
+    },
+    "1 combo" : {
 
     },
     "1 edit" : {
@@ -495,6 +524,9 @@
 
     },
     "= %lld in binary" : {
+
+    },
+    "A combo takes at most 6 keys" : {
 
     },
     "A key types a sequence of up to 24 steps" : {
@@ -554,7 +586,13 @@
     "Advanced" : {
 
     },
+    "All Layers" : {
+
+    },
     "All Layers (PDF)…" : {
+
+    },
+    "All layers" : {
 
     },
     "Another Revision" : {
@@ -703,6 +741,12 @@
     "Change %@" : {
 
     },
+    "Change Combo Keys" : {
+
+    },
+    "Change Combo Layer" : {
+
+    },
     "Change Hold" : {
 
     },
@@ -760,6 +804,9 @@
     "Checking the build tools…" : {
 
     },
+    "Choose Output…" : {
+
+    },
     "Choose the module attached to your keyboard. The change takes effect after you build and flash." : {
 
     },
@@ -805,7 +852,19 @@
     "Clear…" : {
 
     },
+    "Click 2–6 keys on the board, then choose what they send together." : {
+
+    },
+    "Click 2–6 keys, then Choose Output · esc cancels" : {
+
+    },
     "Click a key to play ‘%@’ on tap · esc cancels" : {
+
+    },
+    "Click keys on the board to add them or take them out." : {
+
+    },
+    "Click keys to add or remove them · esc cancels" : {
 
     },
     "Close" : {
@@ -817,7 +876,13 @@
     "Color for %@" : {
 
     },
+    "Combo" : {
+
+    },
     "Combo %lld" : {
+
+    },
+    "Combo %lld › Output" : {
 
     },
     "Combo has %lld keys; 6 is the most" : {
@@ -826,7 +891,16 @@
     "Combo key %@ is a tap dance" : {
 
     },
+    "Combo key %@ is disabled" : {
+
+    },
     "Combo key %@ is transparent" : {
+
+    },
+    "Combos" : {
+
+    },
+    "Combos · Edited" : {
 
     },
     "Command Palette" : {
@@ -935,6 +1009,9 @@
     "Delete" : {
 
     },
+    "Delete Combo" : {
+
+    },
     "Delete Layer" : {
 
     },
@@ -1034,6 +1111,9 @@
     "Edit Key" : {
 
     },
+    "Edit Keys…" : {
+
+    },
     "Edit Slot" : {
 
     },
@@ -1120,6 +1200,9 @@
     "Failed" : {
 
     },
+    "Fast typing may set this combo off by accident." : {
+
+    },
     "Fetch" : {
 
     },
@@ -1188,6 +1271,9 @@
 
     },
     "Firmware Settings · Edited" : {
+
+    },
+    "Firmware Settings ›" : {
 
     },
     "Firmware built" : {
@@ -1579,6 +1665,15 @@
     "Keys down" : {
 
     },
+    "Keys from" : {
+
+    },
+    "Keys from %@" : {
+
+    },
+    "Keys from: %@" : {
+
+    },
     "Keys in this layout" : {
 
     },
@@ -1928,6 +2023,9 @@
     "Navigator trackpad · settings in Firmware Settings › Navigator" : {
 
     },
+    "New Combo" : {
+
+    },
     "New Layer" : {
 
     },
@@ -1967,6 +2065,9 @@
     "No color" : {
 
     },
+    "No combos yet. Press two or more keys together to send another key." : {
+
+    },
     "No keyboard" : {
 
     },
@@ -1974,6 +2075,9 @@
 
     },
     "No keyboard." : {
+
+    },
+    "No keys yet" : {
 
     },
     "No layout open" : {
@@ -2064,6 +2168,9 @@
 
     },
     "Opens the keycode picker." : {
+
+    },
+    "Optional" : {
 
     },
     "Or use your Reset key" : {
@@ -2229,6 +2336,9 @@
     "Reminder" : {
 
     },
+    "Remove %@" : {
+
+    },
     "Remove Macro from Key" : {
 
     },
@@ -2248,6 +2358,9 @@
 
     },
     "Rename" : {
+
+    },
+    "Rename Combo" : {
 
     },
     "Rename Layer" : {
@@ -2408,6 +2521,9 @@
     "Select Key by Pressing It" : {
 
     },
+    "Select a combo or press N to make one" : {
+
+    },
     "Select a key to see it on every layer · ⏎ edits · ⌘K finds anything" : {
 
     },
@@ -2417,16 +2533,35 @@
     "Select a step" : {
 
     },
+    "Selects a combo with this key." : {
+
+    },
     "Send a key when tapped" : {
+
+    },
+    "Sends" : {
 
     },
     "Sends %@." : {
 
     },
+    "Sends: %@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Sends: %1$@, %2$@"
+          }
+        }
+      }
+    },
     "Set %@" : {
 
     },
     "Set Color" : {
+
+    },
+    "Set Combo Output" : {
 
     },
     "Set Key Color" : {
@@ -2534,6 +2669,9 @@
     "Sextant reads the active layer and which key positions are down over the keyboard's raw HID interface. It sees positions, never the characters you type. Key events stay in memory on this Mac and are never written to disk, and the live display pauses while you type in a password field." : {
 
     },
+    "Sextant reads the keys at these spots on %@. The combo fires whenever keys typing the same keycodes go down together, on any layer." : {
+
+    },
     "Sextant shows the keyboard’s layer and the keys you hold as they happen. Nothing is recorded." : {
 
     },
@@ -2601,6 +2739,9 @@
 
     },
     "Shows the Device popover" : {
+
+    },
+    "Shows the combos that read their keys from a layer. A combo fires on any layer where its keys type the same keycodes." : {
 
     },
     "Side" : {
@@ -2749,6 +2890,9 @@
 
     },
     "The build was stopped." : {
+
+    },
+    "The combo was removed" : {
 
     },
     "The compiler reported an error Sextant couldn’t place on a key." : {
@@ -3034,6 +3178,9 @@
     "When the keyboard connects" : {
 
     },
+    "Window" : {
+
+    },
     "Write" : {
 
     },
@@ -3151,6 +3298,16 @@
     },
     "home row" : {
 
+    },
+    "in combo %lld: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "in combo %1$lld: %2$@"
+          }
+        }
+      }
     },
     "in flash mode" : {
 

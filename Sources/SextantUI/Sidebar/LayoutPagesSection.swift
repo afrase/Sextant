@@ -9,6 +9,7 @@ struct LayoutPagesSection: View {
 
     var body: some View {
         Section("Layout") {
+            Label("Combos", systemImage: "point.3.connected.trianglepath.dotted").badge(session.layout.combos.count).tag(Destination.combos)
             Label("Macros", systemImage: "list.bullet.rectangle").badge(session.layout.macros.count).tag(Destination.macros)
             HistoryRow(revisions: session.revisions.count, isSelected: page == .history).tag(Destination.history)
             let changed = session.layout.changedSettings().count

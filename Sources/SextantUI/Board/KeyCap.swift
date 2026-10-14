@@ -29,6 +29,9 @@ struct CapDecoration: Equatable {
         var symbol: String
         var color: Token
         var accessibilityText: String
+        /// Drawn in a filled circle instead of the symbol (``NumberDisc``): a combo number of two digits, which SF Symbols
+        /// squeezes past reading at this size, or past 50, which it doesn't circle.
+        var text: String?
     }
 
     /// Words under the legend in mono, and how VoiceOver says them: a heat count ("22k", "22,044 presses").
@@ -394,14 +397,7 @@ struct KeyCap: View, Equatable {
             .offset(x: 4, y: -4)
     }
 
-    /// Drawn like the issue badge: white shows through a filled symbol's cut-out ("plus.circle.fill", "3.circle.fill").
-    private func markBadge(_ mark: CapDecoration.Mark) -> some View {
-        Image(systemName: mark.symbol)
-            .font(.system(size: 14, weight: .bold))
-            .foregroundStyle(mark.color.color)
-            .background { Circle().fill(.white).padding(1) }
-            .frame(width: 14, height: 14)
-    }
+    private func markBadge(_ mark: CapDecoration.Mark) -> some View { MarkBadge(mark: mark) }
 
     @ViewBuilder private var kindGlyph: some View {
         switch model.kind {

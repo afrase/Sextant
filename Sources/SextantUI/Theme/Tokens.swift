@@ -104,6 +104,17 @@ public enum Tokens {
     public static let success = Token(light: hex(0x34C759), dark: hex(0x30D158))
     /// Opaque stand-in for app glass under Reduce Transparency, Increase Contrast and in snapshots (§10.4).
     public static let surface = Token(light: hex(0xFBFBFD), dark: hex(0x26262B), lightAlpha: 0.96, darkAlpha: 0.96)
+
+    /// The combo palette (spec §10.1), Sextant's own: rings, numbers, traces and output pills. Each hue is darkened to
+    /// 3:1 on the light bench and lightened to 3:1 on the dark cap, so a ring reads on both (ADR 0046).
+    public static let combos: [Token] = [0xF08C00, 0xD6336C, 0x1C7ED6, 0x0CA678, 0x7048E8, 0x74B816, 0xE03131, 0x1098AD].map {
+        Token(
+            light: hex($0).darkened(toContrast: 3, against: benchBase.light),
+            dark: hex($0).lightened(toContrast: 3, against: capTop.dark))
+    }
+
+    /// Combo `index`'s colour (0-based), round the palette.
+    static func combo(_ index: Int) -> Token { combos[index % combos.count] }
 }
 
 /// Display variants of a user's layer colour (spec §4.5), computed once per colour.

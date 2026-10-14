@@ -116,6 +116,8 @@ public final class LayoutWindowModel {
     var boardPick: BoardPick?
     /// The Macros page's state (spec §6.3).
     let macros = MacrosModel()
+    /// The Combos page's state (spec §6.4).
+    let combos = CombosModel()
     /// Keycodes assigned from the picker and commands run from the palette, newest first (Suggested, Recent).
     var recentKeycodes: [KeyAction] = []
     var recentCommands: [String] = []
@@ -403,12 +405,14 @@ public final class LayoutWindowModel {
     }
 
     /// A click on a board key, VoiceOver's activate, or ⏎ during a pick: a pick takes the key and ends when it says it is
-    /// done; otherwise the key is selected.
+    /// done; otherwise the key is selected, and on Combos a combo it is in.
     func click(key index: Int) {
         if let pick = boardPick {
             if pick.onPick(index) { boardPick = nil }
         } else {
             session?.select(key: index)
+            // Even on the key already selected, which leaves the selection as it was (spec §6.4).
+            if page == .combos { selectCombo(containing: index) }
         }
     }
 
@@ -421,7 +425,14 @@ public final class LayoutWindowModel {
 
     /// Esc on the board steps back one level (spec §9.3): a pick ends first (step 4), then the key is deselected (step 5).
     func escapeBoard() {
-        if boardPick != nil { cancelBoardPick() } else { session?.select(key: nil) }
+        if boardPick != nil {
+            cancelBoardPick()
+        } else if page == .combos, selectedPageCombo != nil {
+            // Back to every combo before the key goes (spec §9.3).
+            session?.selectCombo(nil)
+        } else {
+            session?.select(key: nil)
+        }
     }
 
     /// Opens the layout's package in Finder (File ▸ Show in Finder).

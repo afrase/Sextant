@@ -91,6 +91,7 @@ public struct BoardView: View {
                     // A child's simultaneous gesture still beats this one, so the swap is off outside the Keys lens (ADR 0029).
                     .highPriorityGesture(paintStroke(board), isEnabled: brush != nil)
                     .position(center)
+                ComboOverlay(board: board, origin: origin, size: proxy.size)
             }
         }
         .simultaneousGesture(SpatialTapGesture().onEnded { _ in focusedByPointer = true })
@@ -104,8 +105,8 @@ public struct BoardView: View {
             press.modifiers.contains(.control) ? .ignored : cycleSlot(back: press.key == Self.backTab || press.modifiers.contains(.shift))
         }
         .onKeyPress(.delete) {
-            // Not under a pick's prompt, which says what the keys do now.
-            guard session.selection.keyIndex != nil, !hasBoardPick, display == nil else { return .ignored }
+            // Not under a pick's prompt, which says what the keys do now, nor on a page: Combos' ⌫ deletes its combo.
+            guard session.selection.keyIndex != nil, !hasBoardPick, display == nil, window?.page == nil else { return .ignored }
             session.makeTransparent()
             return .handled
         }
@@ -182,15 +183,13 @@ public struct BoardView: View {
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(KeyText.label(model.legend, index: frame.index))
                         .accessibilityValue(value)
-                        .accessibilityHint(
-                            window?.boardPick.map { Text($0.prompt) }
-                                ?? (display == nil ? Text("Press Return to change. Actions available.") : Text(verbatim: ""))
-                        )
+                        .accessibilityHint(keyHint)
                         .accessibilityAction { select(frame.index) }
                         .accessibilityAddTraits(frame.index == session.selection.keyIndex ? [.isButton, .isSelected] : .isButton)
                         .accessibilitySortPriority(order[safe: frame.index] ?? 0)
                         .accessibilityRotorEntry(id: frame.index, in: rotors)
-                        .accessibilityActions { if display == nil { keyActions(model) } }
+                        // A page's board reads keys; editing them is the layer's.
+                        .accessibilityActions { if display == nil, window?.page == nil { keyActions(model) } }
                 }
             }
             selectionRing(board, cap: cap)
@@ -211,6 +210,14 @@ public struct BoardView: View {
                 if let brush { session.paint(brush.color, keys: stroke) }
                 stroke = []
             }
+    }
+
+    /// What activating a key does, for VoiceOver.
+    private var keyHint: Text {
+        if let pick = window?.boardPick { return Text(pick.prompt) }
+        if display != nil { return Text(verbatim: "") }
+        if window?.page == .combos { return Text("Selects a combo with this key.") }
+        return window?.page == nil ? Text("Press Return to change. Actions available.") : Text(verbatim: "")
     }
 
     /// VoiceOver custom actions (spec §4.11).

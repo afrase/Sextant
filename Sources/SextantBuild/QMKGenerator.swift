@@ -101,10 +101,19 @@ struct KeymapPlan {
             let layer = combo.layer ?? 0
             var keys: [String] = []
             for index in combo.keyIndices {
-                guard tokens.indices.contains(layer), tokens[layer].indices.contains(index) else {
+                guard tokens.indices.contains(layer), tokens[layer].indices.contains(index),
+                    let key = layout.key(layer: layer, index: index)
+                else {
                     throw .unsupported(String(localized: "a combo with a key that isn't on the keyboard"), nil)
                 }
-                keys.append(tokens[layer][index])
+                // Refused on the key by the rule the live issues use, so a build fails only on what they flag (ADR 0046).
+                let ref = KeyRef(layer: layer, index: index)
+                switch key.comboRefusal {
+                case .transparent?: throw .unsupported(String(localized: "a combo key that is transparent"), ref)
+                case .disabled?: throw .unsupported(String(localized: "a combo key that is disabled"), ref)
+                case .tapDance?: throw .unsupported(String(localized: "a combo key that is a tap dance"), ref)
+                case nil: keys.append(tokens[layer][index])
+                }
             }
             try note(combo.output, at: nil)
             combos.append(ComboKeys(keys: keys, output: try expression(combo.output, at: nil)))

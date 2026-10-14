@@ -49,7 +49,13 @@ struct LayoutIssuesTests {
             Combo(id: "b", keyIndices: [2, 3], output: .code("KC_NOPE")),
             Combo(id: "c", keyIndices: [4], output: .code("KC_TAB")),
         ]
-        let issues = LayoutIssues.check(layout)
+        // Not the member checks (ComboTests): this layout's keys 2 and 3 are transparent neighbors.
+        let issues = LayoutIssues.check(layout).filter { issue in
+            switch issue.kind {
+            case .comboKeyTransparent, .rollingNeighbors: false
+            default: true
+            }
+        }
         #expect(issues.map(\.kind) == [.emptyCombo, .unknownKeycode("KC_NOPE"), .emptyCombo])
         #expect(issues.map(\.combo) == ["a", "b", "c"] && issues.allSatisfy { $0.key == nil })
         #expect(Set(issues.map(\.id)).count == 3)
@@ -111,7 +117,8 @@ struct LayoutIssuesTests {
         layout.updateKey(layer: 1, index: 0) { $0 = .transparent }
         #expect(LayoutIssues.check(layout).map(\.kind) == [.unreachableLayer(2)])
         layout.combos = [Combo(keyIndices: [1, 2], layer: 1, output: .toggle(2))]
-        #expect(LayoutIssues.check(layout).isEmpty)
+        // Its keys raise member issues (ComboTests); the layer it toggles is reached.
+        #expect(LayoutIssues.check(layout).allSatisfy { $0.combo != nil })
         layout.combos = []
         layout.automouseLayer = 2
         #expect(LayoutIssues.check(layout).map(\.kind) == [.unreachableLayer(2)], "no Navigator, no automouse")
