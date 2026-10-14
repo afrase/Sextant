@@ -22,8 +22,10 @@ struct BuildFlashBody: View {
             Text("Sextant checks the layout before every build. These keys need fixing first.")
             capped {
                 ForEach(issues) { issue in
+                    // A revision's key isn't the document's, so Show Key is only for the working copy.
                     issueRow(
-                        message: model.session.map { KeyText.issueText(issue, layout: $0.layout) } ?? "", location: nil, key: issue.key)
+                        message: KeyText.issueText(issue, layout: build.layout), location: nil,
+                        key: build.revision == nil ? issue.key : nil)
                 }
             }
         case let .confirmingReplace(serial, title):

@@ -60,7 +60,9 @@ public struct BuildFlashSheet: View {
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(BuildFlashText.title(phase)).font(.title3.weight(.semibold)).accessibilityAddTraits(.isHeader)
-                        Text(verbatim: "\(session.layout.title) → \(keyboard)").font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                        let name = build.revision.map { String(localized: "\(session.layout.title), revision \($0.number)") }
+                        Text(verbatim: "\(name ?? session.layout.title) → \(keyboard)").font(.callout).foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                     Spacer(minLength: 8)
                     Text("Step \(step) of 5").font(.caption).foregroundStyle(.secondary)

@@ -375,8 +375,9 @@ public final class LayoutWindowModel {
             : String(localized: "\(refs.count) keys switch to \(name): \(keys). They will do nothing.")
     }
 
-    /// ⌘B builds quietly, the capsule showing progress; ⌘R also brings up the sheet (spec §7.1).
-    func build(_ command: BuildCommand) {
+    /// ⌘B builds quietly, the capsule showing progress; ⌘R also brings up the sheet (spec §7.1). `revision` is History's
+    /// Flash This Revision….
+    func build(_ command: BuildCommand, revision: RevisionLayout? = nil) {
         guard let buildFlash else { return }
         switch command {
         case .build:
@@ -384,7 +385,7 @@ public final class LayoutWindowModel {
             // Live errors block it; the sheet lists them, or ⌘B would seem to do nothing (spec §7.5).
             if session.map({ LayoutIssues.check($0.layout).contains { $0.severity == .error } }) == true { showsBuildSheet = true }
         case .buildAndFlash:
-            buildFlash.buildAndFlash(connectedKeyboard: connectedKeyboard)
+            buildFlash.buildAndFlash(connectedKeyboard: connectedKeyboard, revision: revision)
             showsBuildSheet = true
         case .stop: buildFlash.stop()
         case .showLog:

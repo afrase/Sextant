@@ -40,6 +40,43 @@ public enum BuildFlashError: Error, Equatable, Sendable, LocalizedError {
     }
 }
 
+/// A revision with the layout it recorded: what History's Flash This Revision… builds instead of the working copy.
+public struct RevisionLayout: Equatable, Sendable {
+    public var revision: RevisionSummary
+    public var layout: KeyboardLayout
+
+    public init(revision: RevisionSummary, layout: KeyboardLayout) {
+        self.revision = revision
+        self.layout = layout
+    }
+}
+
+/// A revision's firmware as Sextant built it, and how it changed since the newest earlier revision with one (History's
+/// size delta, ADR 0043).
+public struct FirmwareSize: Equatable, Sendable {
+    public struct Change: Equatable, Sendable {
+        /// The earlier revision compared with.
+        public var revision: RevisionSummary
+        /// Positive when the firmware grew.
+        public var bytes: Int
+
+        public init(revision: RevisionSummary, bytes: Int) {
+            self.revision = revision
+            self.bytes = bytes
+        }
+    }
+
+    /// The image's payload, without its 16-byte DFU suffix.
+    public var bytes: Int
+    /// Nil when no earlier revision has an image.
+    public var change: Change?
+
+    public init(bytes: Int, change: Change? = nil) {
+        self.bytes = bytes
+        self.change = change
+    }
+}
+
 /// Build & Flash for one open layout (spec §7): the live-issue gate, generate, compile, size, wait for flash
 /// mode, validate, write, verify the keyboard's serial, and record a flash revision.
 ///
@@ -85,6 +122,10 @@ public final class BuildFlashSession {
     public var currentArtifact: BuildArtifact? { builtLayout == session.layout ? artifact : nil }
     /// The serial the last build reports (``FirmwareIdentity``).
     public private(set) var identity: FirmwareIdentity?
+    /// The revision this run builds and flashes (History's Flash This Revision…); nil for the working copy.
+    public var revision: RevisionSummary? { target?.revision }
+    /// What this run builds: the revision's layout, or the working copy.
+    public var layout: KeyboardLayout { target?.layout ?? session.layout }
 
     /// Payload bytes of the last build.
     public var usedBytes: Int? { artifact.map { $0.usedBytes ?? max(0, $0.image.count - 16) } }
@@ -125,6 +166,8 @@ public final class BuildFlashSession {
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private var runID = 0
     @ObservationIgnored private var request: Request?
+    /// The revision the run builds instead of the working copy, kept for Replace, setup and Try Again, which go on with it.
+    private var target: RevisionLayout?
     @ObservationIgnored private var builtLayout: KeyboardLayout?
     @ObservationIgnored private var imageMD5 = ""
     @ObservationIgnored private let logger = Logger(subsystem: "com.sextant.app", category: "application")
@@ -155,15 +198,19 @@ public final class BuildFlashSession {
     // MARK: Actions
 
     /// Build & Flash (⌘R). `connectedKeyboard` is the keyboard in normal mode, if any, for the replace check.
-    public func buildAndFlash(connectedKeyboard: KeyboardDevice?) { begin(.buildAndFlash, keyboard: connectedKeyboard) }
+    /// - Parameter revision: a revision to build and flash instead of the working copy (Flash This Revision…). Its flash is
+    ///   recorded as a new revision of that layout, like any flash of a build older than the latest edits.
+    public func buildAndFlash(connectedKeyboard: KeyboardDevice?, revision: RevisionLayout? = nil) {
+        begin(.buildAndFlash, keyboard: connectedKeyboard, target: revision)
+    }
 
     /// Build only (⌘B).
-    public func build() { begin(.build, keyboard: nil) }
+    public func build() { begin(.build, keyboard: nil, target: nil) }
 
     /// Flashes the last build (the capsule's [Flash…] after ⌘B).
     public func flash(connectedKeyboard: KeyboardDevice?) {
         guard artifact != nil else { return }
-        begin(.flash, keyboard: connectedKeyboard)
+        begin(.flash, keyboard: connectedKeyboard, target: target)
     }
 
     /// The layout of the open layout's latest import revision: what a build's identity, and so
@@ -172,16 +219,17 @@ public final class BuildFlashSession {
         await FirmwareIdentity.importedLayout(of: session.id, revisions: session.revisions, library: library)
     }
 
-    /// The QMK source a build of the open layout compiles now, serial included (File ▸ Export ▸ QMK Source).
-    public func source() async throws(GeneratorError) -> GeneratedSource {
-        let layout = session.layout
+    /// The QMK source a build compiles now, serial included: of the open layout (File ▸ Export ▸ QMK Source), or of a
+    /// revision's layout (History's Export Source Zip…).
+    public func source(of revisionLayout: KeyboardLayout? = nil) async throws(GeneratorError) -> GeneratedSource {
+        let layout = revisionLayout ?? session.layout
         let identity = FirmwareIdentity(layout: layout, libraryID: session.id, importedLayout: await importedLayout())
         return try generator.generate(layout, identity: identity)
     }
 
     public func confirmReplace() {
         guard case .confirmingReplace = phase, let request else { return }
-        begin(request, keyboard: nil, confirmed: true)
+        begin(request, keyboard: nil, target: target, confirmed: true)
     }
 
     /// Download and Build: runs the toolchain's one-time setup, with the user's consent, then the build it held up.
@@ -206,7 +254,7 @@ public final class BuildFlashSession {
             // Free first: Try Again on the failure must find no run in progress.
             task = nil
             if let failure { return fail(.setup(failure)) }
-            if installed, !Task.isCancelled { begin(request, keyboard: nil, confirmed: true) }
+            if installed, !Task.isCancelled { begin(request, keyboard: nil, target: target, confirmed: true) }
         }
     }
 
@@ -221,14 +269,15 @@ public final class BuildFlashSession {
     /// Try Again: after a flash-side failure, waits for flash mode again with the same build; otherwise rebuilds.
     public func retry() {
         guard case .failed = phase, let request else { return }
-        begin(artifact != nil && request != .build ? .flash : request, keyboard: nil, confirmed: true)
+        begin(artifact != nil && request != .build ? .flash : request, keyboard: nil, target: target, confirmed: true)
     }
 
     // MARK: Running
 
-    private func begin(_ request: Request, keyboard: KeyboardDevice?, confirmed: Bool = false) {
+    private func begin(_ request: Request, keyboard: KeyboardDevice?, target: RevisionLayout?, confirmed: Bool = false) {
         guard task == nil else { return }
         self.request = request
+        self.target = target
         runID += 1
         let id = runID
         task = Task {
@@ -243,7 +292,7 @@ public final class BuildFlashSession {
         if request == .flash, let builtLayout, let identity {
             (layout, expected) = (builtLayout, identity)
         } else {
-            layout = session.layout
+            layout = self.layout
             let errors = issues(layout).filter { $0.severity == .error }
             guard errors.isEmpty else { return show(.blocked(errors)) }
             expected = FirmwareIdentity(layout: layout, libraryID: session.id, importedLayout: await importedLayout())
@@ -298,7 +347,8 @@ public final class BuildFlashSession {
             case .linking: show(.linking)
             case let .finished(built): result = built
             case let .failed(error):
-                fail(.toolchain(Self.mapped(error, through: source.sourceMap)))
+                // A revision's keys aren't the document's, whose board shows the errors: they stay at their lines.
+                fail(.toolchain(Self.mapped(error, through: target == nil ? source.sourceMap : [:])))
                 return false
             }
         }
@@ -348,7 +398,7 @@ public final class BuildFlashSession {
                 switch input {
                 case let .device(.attached(.keyboard(keyboard))):
                     guard keyboard.serial == identity.serial else { return fail(.unexpectedSerial(keyboard.serial)) }
-                    return await record(builtLayout)
+                    return await record(builtLayout, image: artifact.image)
                 case .verifyTimeout: return fail(.notReconnected)
                 default: continue
                 }
@@ -425,16 +475,47 @@ public final class BuildFlashSession {
         return true
     }
 
-    /// Records the flash as a revision of what is on the keyboard.
-    private func record(_ built: KeyboardLayout) async {
-        let message = String(localized: "Flashed \(Date.now.formatted(date: .abbreviated, time: .shortened))")
+    /// Records the flash as a revision of what is on the keyboard, and keeps its image for History's size delta.
+    private func record(_ built: KeyboardLayout, image: Data) async {
+        let message =
+            target.map { String(localized: "Flashed revision \($0.revision.number)") }
+            ?? String(localized: "Flashed \(Date.now.formatted(date: .abbreviated, time: .shortened))")
+        let revision: RevisionSummary
         do {
             // What was flashed, even when the document has moved on since the build (it then stays edited).
-            let revision = try await session.recordRevision(RevisionDraft(source: .flash, message: message, layout: built))
-            phase = .done(revision: revision, saveError: nil)
+            revision = try await session.recordRevision(RevisionDraft(source: .flash, message: message, layout: built))
         } catch {
             logger.error("Recording the flash failed: \(String(describing: error), privacy: .public)")
             phase = .done(revision: nil, saveError: error)
+            return
+        }
+        do {
+            try await library.storeFirmware(image, md5: imageMD5, revisionID: revision.id, to: session.id)
+        } catch {
+            // Only the size delta reads it: the flash and its revision stand.
+            logger.error("Keeping the flashed image failed: \(String(describing: error), privacy: .public)")
+        }
+        phase = .done(revision: revision, saveError: nil)
+    }
+
+    /// The firmware Sextant built and flashed for `revision`, with the change since the newest earlier revision that has
+    /// one; nil when none was kept. An import's image is Oryx's build, kept under Oryx's revision id, so it never counts.
+    public func firmwareSize(of revision: RevisionSummary) async -> FirmwareSize? {
+        guard let bytes = await imageSize(of: revision) else { return nil }
+        for older in session.revisions.prefix(while: { $0.id != revision.id }).reversed() {
+            if let size = await imageSize(of: older) {
+                return FirmwareSize(bytes: bytes, change: FirmwareSize.Change(revision: older, bytes: bytes - size))
+            }
+        }
+        return FirmwareSize(bytes: bytes)
+    }
+
+    private func imageSize(of revision: RevisionSummary) async -> Int? {
+        do {
+            return try await library.firmware(revisionID: revision.id, of: session.id).map { max(0, $0.data.count - 16) }
+        } catch {
+            logger.error("Reading a revision's image failed: \(String(describing: error), privacy: .public)")
+            return nil
         }
     }
 

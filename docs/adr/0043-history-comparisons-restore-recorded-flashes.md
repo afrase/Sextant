@@ -57,3 +57,18 @@ Four things weren't settled:
 - Layers match by id, so a layer that was deleted and added again reads as removed plus added.
 - The sidebar gains a History row with the revision count, so every window snapshot changes in that row.
 - On History, the window subtitle reads "History", or "History · Edited".
+
+## Amendment: Flash This Revision, Export Source Zip and the size delta (v1 plan slice 2.5, 2026-10-14)
+
+The decision above left three History actions for slice 2.5. They extend it rather than change it, so they are recorded here.
+
+- **Flash This Revision…** goes through the window's own Build & Flash, never a second path to the flasher.
+  - `BuildFlashSession.buildAndFlash(connectedKeyboard:revision:)` takes a `RevisionLayout` (a revision with the layout it recorded). The run builds that layout instead of the working copy; the issue gate, the replace confirmation, setup, Try Again and every flasher guard are unchanged, and Replace, setup and Try Again go on with the same revision. ⌘B and ⌘R start from the working copy again. `LayoutWindowModel.build(_:revision:)` is the one entry point.
+  - The revision is built exactly as recorded, title included, under the identity rule's serial for that layout (an unchanged latest import still builds as Oryx's). `record()` already recorded what was flashed rather than the document, so the flash becomes a new `.flash` revision, "Flashed revision 2", and the working copy stays as it is (and "Edited" against it).
+  - The sheet names it: "My MacOS Layout, revision 2 → ZSA Voyager". The live-issue rows describe the revision's layout and offer no Show Key, and a revision's compile errors aren't mapped to keys: the board shows the working copy, whose keys may differ.
+- **Export Source Zip…** is File ▸ Export's QMK Source for the revision's layout: `BuildFlashSession.source(of:)` with the identity the build would flash, zipped by `LayoutExport.zip` into `pendingExport`, named "<title> Revision 2 QMK Source" (ADR 0044).
+- **Size delta.** Every flash now keeps its image: after `record()` appends the revision it calls `storeFirmware` under that revision's id, with the md5 taken at build time. Failing to keep it is logged and changes nothing else. `firmwareSize(of:)` reads the revision's image and the newest earlier revision that has one, skipping saves (never built) and imports (Oryx's image sits under Oryx's revision id and is a different build, so it never counts). The inspector shows "Firmware 66 kB · +292 B since revision 4", the size alone when no earlier image exists, and nothing when the revision has none. VoiceOver reads the change in words. Sizes are the payload, without the 16-byte DFU suffix, read again when a flash finishes (its image lands after its revision).
+- **Refused while a flash writes.** Restore and Flash This Revision are off, and refused if called, while this window's flash can't be stopped (validating through verifying) or another window's is writing (`LiveSession.isWritingFirmware`).
+- **Menus and palette.** Spec §11 wants every action in a menu, and wave 1 left Restore and Compare in the inspector. On the History page: File ▸ Restore This Revision, File ▸ Export ▸ This Revision’s QMK Source (.zip)…, View ▸ Compare Revision With ▸ (the header's comparisons), and Keyboard ▸ Flash This Revision…; the palette gets Restore This Revision, Flash This Revision…, Export Source Zip… and "Compare with: …". They act on the revision History shows, so they are off on every other page.
+
+Consequences: each flash adds its image (tens of kilobytes) to the package. Packages flashed before this change have no images, so their flash revisions show no size until they are flashed again.

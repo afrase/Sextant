@@ -3,7 +3,7 @@ import SextantDomain
 import SwiftUI
 
 /// The History inspector (spec §8.7): the timeline, then the selected revision's details, its changes by layer and key,
-/// and Restore.
+/// and its actions: Restore, Flash This Revision… and Export Source Zip….
 struct HistoryInspector: View {
     var model: LayoutWindowModel
 
@@ -22,7 +22,7 @@ struct HistoryInspector: View {
                 Timeline(history: history)
                 if let shown = history.shown {
                     Divider()
-                    RevisionDetails(history: history, shown: shown)
+                    RevisionDetails(model: model, history: history, shown: shown)
                 }
                 if let error = history.error {
                     Label(error.localizedDescription, systemImage: "exclamationmark.triangle.fill")
@@ -149,19 +149,26 @@ private struct RevisionBadge: View {
     }
 }
 
-/// The selected revision: where it came from, what changed against the comparison, and Restore.
+/// The selected revision: where it came from, its firmware's size, what changed against the comparison, and its actions.
 private struct RevisionDetails: View {
+    var model: LayoutWindowModel
     var history: HistoryModel
     var shown: HistoryModel.Shown
 
     var body: some View {
         let revision = shown.revision
         let date = revision.createdAt.formatted(date: .abbreviated, time: .shortened)
+        let flashed: Bool = if case .done = model.buildFlash?.phase { true } else { false }
         VStack(alignment: .leading, spacing: 4) {
             Text("Revision \(revision.number)").font(.title3.weight(.semibold))
             Text(verbatim: "\(HistoryModel.describe(revision.source)) · \(date)").font(.callout).foregroundStyle(.secondary)
+            if let firmware = history.firmware, firmware.revision == revision.id, let size = firmware.size {
+                Text(size.text).font(.callout.monospacedDigit()).foregroundStyle(.secondary).accessibilityLabel(size.spokenText)
+            }
             if let message = revision.message { Text(message).font(.callout) }
         }
+        // Read again once a flash is done: its image is kept only after its revision is added.
+        .task(id: "\(revision.id) \(flashed)") { await model.loadFirmwareSize() }
         if let changes = shown.changes {
             Divider()
             Text("Changes").font(.headline)
@@ -174,12 +181,46 @@ private struct RevisionDetails: View {
             }
         }
         Divider()
-        Button("Restore This Revision") { Task { await history.restore(revision) } }
-            .disabled(!history.canRestore(revision) || history.isRestoring)
+        Button("Restore This Revision") { Task { await model.restore(revision) } }.disabled(!model.canRestore(revision))
         Text("Makes this revision the layout again and saves that as a new revision. Nothing is lost, and you can undo it.")
             .font(.callout)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
+        Button("Flash This Revision…") { model.flash(revision) }.disabled(!model.canFlash(revision))
+        Text("Builds this revision as it was saved and flashes it. The layout you’re editing stays as it is.")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        Button("Export Source Zip…") { Task { await model.exportSource(of: revision) } }.disabled(!model.canExportSource(of: revision))
+        if model.isFlashWriting {
+            Label("Restore and Flash wait until the keyboard is flashed.", systemImage: "bolt.fill")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+extension FirmwareSize {
+    /// "Firmware 65.8 KB · +292 B since revision 2" (spec §8.7); the size alone when no earlier revision has an image.
+    var text: String {
+        let total = Int64(bytes).formatted(.byteCount(style: .file))
+        guard let change else { return String(localized: "Firmware \(total)") }
+        guard change.bytes != 0 else { return String(localized: "Firmware \(total) · same size as revision \(change.revision.number)") }
+        // A true minus sign: the delta reads as a number.
+        let delta = (change.bytes > 0 ? "+" : "\u{2212}") + "\(abs(change.bytes).formatted()) B"
+        return String(localized: "Firmware \(total) · \(delta) since revision \(change.revision.number)")
+    }
+
+    /// The same for VoiceOver, in words rather than signs.
+    var spokenText: String {
+        let total = Int64(bytes).formatted(.byteCount(style: .file))
+        guard let change, change.bytes != 0 else { return text }
+        let bytes = abs(change.bytes)
+        let revision = change.revision.number
+        return change.bytes > 0
+            ? String(localized: "Firmware \(total), \(bytes) bytes larger than revision \(revision)")
+            : String(localized: "Firmware \(total), \(bytes) bytes smaller than revision \(revision)")
     }
 }
 

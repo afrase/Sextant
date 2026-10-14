@@ -3,20 +3,23 @@ import SextantApplication
 import SextantDomain
 import Synchronization
 
-/// Records the identity it was asked to build; `keymap.c` line 31 maps to Brd+Sys key 45's tap.
+/// Records the layout and identity it was asked to build; `keymap.c` line 31 maps to Brd+Sys key 45's tap.
 final class FakeGenerator: FirmwareGenerator {
     static let mappedLine = 31
     static let mappedKey = KeyRef(layer: 2, index: 45, slot: .tap)
 
     private let error: GeneratorError?
     private let identities = Mutex<[FirmwareIdentity]>([])
+    private let layouts = Mutex<[KeyboardLayout]>([])
 
     init(error: GeneratorError? = nil) { self.error = error }
 
     var lastIdentity: FirmwareIdentity? { identities.withLock { $0.last } }
+    var lastLayout: KeyboardLayout? { layouts.withLock { $0.last } }
 
     func generate(_ layout: KeyboardLayout, identity: FirmwareIdentity) throws(GeneratorError) -> GeneratedSource {
         identities.withLock { $0.append(identity) }
+        layouts.withLock { $0.append(layout) }
         if let error { throw error }
         return GeneratedSource(files: ["keymap.c": "…"], sourceMap: [Self.mappedLine: Self.mappedKey])
     }

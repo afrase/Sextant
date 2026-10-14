@@ -491,6 +491,7 @@ extension LayoutWindowModel {
         }
         add(String(localized: "Import from Oryx…"), "⇧⌘I") { self.openImport() }
         add(String(localized: "Save Revision…"), "⌘S", if: canSaveRevision) { Task { await self.beginSaveRevision() } }
+        historyPaletteCommands { add($0, $1, key: $2, if: $3, $4) }
         add(String(localized: "Show in Finder")) { Task { await self.showInFinder() } }
         add(String(localized: "Change Keycode…"), "⏎", if: hasKey) { self.openKeycodePicker() }
         add(String(localized: "Record Key"), "⇧⌘R", if: hasKey) { self.startRecording() }

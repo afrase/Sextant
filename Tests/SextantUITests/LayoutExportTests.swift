@@ -69,6 +69,20 @@ struct LayoutExportTests {
         #expect(files["My MacOS Layout QMK Source/keymap.c"] == "// My MacOS Layout as KlgM7/40xJ7M\n", "unedited: Oryx's serial")
     }
 
+    /// History's Export Source Zip… is the revision's source, not the working copy's, through the same panel.
+    @Test func aRevisionsSourceIsItsOwnLayouts() async throws {
+        let model = try await window()
+        let session = try #require(model.session)
+        let revision = try #require(session.revisions.first)
+        session.setTitle("Work")
+        await model.showRevision(revision.id)
+        await model.exportSource(of: revision)
+        let file = try #require(model.pendingExport?.file)
+        #expect(file.contentType == .zip && file.filename == "Work Revision 1 QMK Source")
+        #expect(try unzipped(file.data) == ["Work Revision 1 QMK Source/keymap.c": "// My MacOS Layout as KlgM7/40xJ7M\n"])
+        #expect(!model.canExportSource(of: revision), "one panel at a time")
+    }
+
     /// A generator error shows in the alert before any panel opens.
     @Test func aGeneratorErrorShowsInsteadOfAPanel() async throws {
         let model = try await window(TitleGenerator { () throws(GeneratorError) in throw .unsupportedBoard("Planck") })

@@ -48,6 +48,49 @@ extension Scenes {
                 LayoutWindow(model: saving, layoutID: .constant(saving.session?.id))
             }
         }
+        scenes += await flashedHistory(f)
+        return scenes
+    }
+
+    /// Two flashes with their images (ADR 0043): the newest shows its firmware's size and the change since the other, and
+    /// Flash This Revision… waits for flash mode with the revision named in the sheet.
+    private static func flashedHistory(_ f: Fixtures) async -> [SnapshotScene] {
+        guard let model = await historyModel(f), let session = model.session,
+            let root = await model.library.location(of: session.id)?.deletingLastPathComponent()
+        else { return [] }
+        let store = PackageLibrary(root: root)
+        // As Build & Flash words them: "Flashed" and the date.
+        let message = "Flashed \(Date.now.formatted(date: .abbreviated, time: .shortened))"
+        for bytes in [65_494, 65_786] {
+            guard let revision = try? await session.recordRevision(RevisionDraft(source: .flash, message: message, layout: session.layout))
+            else { return [] }
+            try? await store.storeFirmware(Data(count: bytes + 16), md5: "", revisionID: revision.id, to: session.id)
+            session.setCode("KC_F14", layer: 2, index: 0)
+        }
+        guard let newest = session.revisions.last else { return [] }
+        await model.showRevision(newest.id)
+        var scenes = SnapshotScene.pair("window-history-flashed", size: full) {
+            LayoutWindow(model: model, layoutID: .constant(model.session?.id))
+        }
+        scenes.append(
+            SnapshotScene("window-history-flashed-min-light", size: CGSize(width: 1120, height: 640)) {
+                LayoutWindow(model: model, layoutID: .constant(model.session?.id))
+            })
+
+        // Flash This Revision… on revision 2, built and waiting for the keyboard in flash mode.
+        guard let flashing = await historyModel(f), let document = flashing.session, let revision = document.revisions.dropFirst().first,
+            let layout = try? await document.revisionLayout(revision.id)
+        else { return scenes }
+        let build = BuildFlashSession(
+            session: document, library: store, generator: RevisionSceneGenerator(), toolchain: RevisionSceneToolchain(),
+            watcher: NoBootloader(), flasher: NeverFlashes(), md5: { _ in "" })
+        flashing.buildFlash = build
+        build.buildAndFlash(connectedKeyboard: nil, revision: RevisionLayout(revision: revision, layout: layout))
+        for _ in 0..<250 where build.phase != .waitingForFlashMode(stillWaiting: false) { try? await Task.sleep(for: .milliseconds(20)) }
+        scenes.append(
+            SnapshotScene("buildflash-revision-light", size: full, overlays: [.sheet(width: 640) { BuildFlashSheet(model: flashing) }]) {
+                LayoutWindow(model: flashing, layoutID: .constant(flashing.session?.id))
+            })
         return scenes
     }
 
@@ -92,4 +135,34 @@ struct PluggedInKeyboard: DeviceWatcher, KeyboardLink {
             continuation.finish()
         }
     }
+}
+
+// MARK: - Flash This Revision fakes: a build that finishes at once, and flash mode that never comes, so nothing is written.
+
+private struct RevisionSceneGenerator: FirmwareGenerator {
+    func generate(_ layout: KeyboardLayout, identity: FirmwareIdentity) throws(GeneratorError) -> GeneratedSource {
+        GeneratedSource(files: [:], sourceMap: [:])
+    }
+}
+
+private struct RevisionSceneToolchain: Toolchain {
+    func status() async -> ToolchainStatus { .ready("scene") }
+    func setUp() -> AsyncStream<SetupEvent> { AsyncStream { $0.finish() } }
+    func build(_ source: GeneratedSource, board: BoardDefinition) -> AsyncStream<BuildEvent> {
+        AsyncStream {
+            $0.yield(.finished(BuildArtifact(image: Data(count: 65_802), usedBytes: 65_786, log: [])))
+            $0.finish()
+        }
+    }
+}
+
+private struct NoBootloader: DeviceWatcher {
+    func events(for board: BoardDefinition) -> AsyncStream<DeviceEvent> { AsyncStream { _ in } }
+}
+
+private struct NeverFlashes: Flasher {
+    func flash(
+        _ image: FirmwareImage, md5: String, to device: BootloaderDevice, board: BoardDefinition,
+        progress: @escaping @Sendable (FlashProgress) -> Void
+    ) async throws(FlashError) { throw .hardwareAccessOff }
 }

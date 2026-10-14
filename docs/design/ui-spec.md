@@ -1194,11 +1194,13 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 **Inspector**
 - **Timeline:** a vertical list. Each row has a node, the id in mono, badges (ORYX, LOCAL, ON KEYBOARD), the message, the date and the number of changes. Past four revisions it scrolls on its own, keeping the selected one in view, so the details below stay on screen. VoiceOver reads a row as "Revision 2, Edited 5 keys on Brd+Sys", with the date and count as its value.
   - ON KEYBOARD marks the revision the keyboard runs: the import revision for Oryx's own build, or the newest matching flash revision for a Sextant build. Edits made since the flash are never on the keyboard (ADR 0039). The "On keyboard" comparison uses the same revision.
-- **Selected revision:** details (source, date, message), a per-layer change bar, the other changes (layers, settings, combos, the Navigator), and a changes table (key, before cap → after cap, slots changed). A row shows its layer and selects the key. The author isn't modeled; the firmware size delta "+292 B" comes with Flash This Revision (v1 plan slice 2.5).
+- **Selected revision:** details (source, date, message), a per-layer change bar, the other changes (layers, settings, combos, the Navigator), and a changes table (key, before cap → after cap, slots changed). A row shows its layer and selects the key. The author isn't modeled. A revision Sextant flashed shows its firmware's size and the change since the newest earlier revision with a kept image: "Firmware 66 kB · +292 B since revision 4". Every flash keeps its image for this; a save never has one, and an import's image is Oryx's build, so it never counts. Without an image the line is hidden (ADR 0043).
 - **Actions:**
   - [Restore This Revision]: checkpoints unsaved edits, records the restore as a new revision ("Restored revision 3") and makes it the layout as one undo step, keeping the title; nothing is lost. It is off when the layout already equals the revision, and while a restore runs.
-  - [Flash This Revision…] (slice 2.5)
-  - [Export Source Zip…] (slice 2.5)
+  - [Flash This Revision…]: builds the revision as it was recorded and flashes it through the Build & Flash sheet ("My MacOS Layout, revision 2 → ZSA Voyager"), with every flasher check unchanged. The flash is recorded as a new revision, "Flashed revision 2"; the working copy stays as it is. A revision's build errors point at no key, since the board shows the working copy.
+  - [Export Source Zip…]: the QMK source a build of the revision compiles, zipped, through File ▸ Export's panel ("<title> Revision 2 QMK Source").
+  - Restore and Flash This Revision are off while a flash is writing, from this window or another.
+  - Every action is also in the menus (File ▸ Restore This Revision, File ▸ Export ▸ This Revision’s QMK Source (.zip)…, View ▸ Compare Revision With ▸, Keyboard ▸ Flash This Revision…) and the palette (Restore This Revision, Flash This Revision…, Export Source Zip…, "Compare with: …"), on the History page only.
 - **Empty state:** §12.4. The context strip reads "No revisions yet" and Compare with is off.
 
 **Future**
@@ -1263,9 +1265,10 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 | Restore from Backup… | — | Future |
 | Close Window | ⌘W | MVP |
 | Save Revision… | ⌘S | MVP |
+| Restore This Revision (History) | — | v1 |
 | Duplicate Layout | — | MVP |
 | Rename Layout… | — | MVP |
-| Export ▸ Layout JSON…, QMK Source (.zip)…, Firmware (.bin)…, Image (PNG)…, All Layers (PDF)… (one save panel; Firmware is the last build while the layout is unchanged; the PNG is the shown layer, the PDF a page per layer without cap shadows; no SVG, ADR 0044) | — | MVP (image v1) |
+| Export ▸ Layout JSON…, QMK Source (.zip)…, Firmware (.bin)…, This Revision’s QMK Source (.zip)… (History), Image (PNG)…, All Layers (PDF)… (one save panel; Firmware is the last build while the layout is unchanged; the PNG is the shown layer, the PDF a page per layer without cap shadows; no SVG, ADR 0044) | — | MVP (image v1) |
 | Show in Finder | — | MVP |
 | Print Layout… (every layer, a page each, through the system print sheet) | ⌘P | v1 |
 
@@ -1286,6 +1289,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 | Show/Hide Sidebar | ⌃⌘S (`SidebarCommands`) |
 | Show/Hide Inspector | system shortcut (`InspectorCommands`) |
 | Lens ▸ Keys / Lighting / Heatmap | ⌃⌘1 / ⌃⌘2 / ⌃⌘3 |
+| Compare Revision With ▸ Previous revision / Current / On keyboard / Another Revision ▸ (History) | — |
 | Legends ▸ Symbols / QMK Codes / Key Numbers | — / ⌥⌘C / ⌥⌘N |
 | Show Grid Behind Keyboard | — |
 | Enter Full Screen | ⌃⌘F (system) |
@@ -1325,6 +1329,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 | Build & Flash | ⌘R |
 | Stop | ⌘. |
 | Show Build Log | ⇧⌘B |
+| Flash This Revision… (History) | — |
 | Next Issue / Previous Issue | ⌘' / ⇧⌘' |
 | Follow Keyboard | ⌘L |
 | Move Keyboard to Layer ▸ | ⌃⌥0–9 (global, opt-in, v1) |

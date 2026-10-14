@@ -149,6 +149,43 @@ struct DeviceAndBuildTests {
         #expect(await model.open(second.id) == second.id, "once flashed, the window moves on")
     }
 
+    /// History's Flash This Revision… goes through the window's Build & Flash; while it writes, neither it nor Restore
+    /// runs again, in this window or another (ADR 0043).
+    @Test func historyWaitsForAFlashThatIsWriting() async throws {
+        let library = Library(store: MemoryLibrary())
+        let data = try #require(userLayoutData)
+        let first = try await library.importOryxJSON(data)
+        let second = try await library.importOryxJSON(data)
+        let flasher = HoldingFlasher()
+        let model = try await window(library: library, flasher: flasher)
+        await model.open(first.id)
+        let other = try await window(library: library, live: model.live)
+        await other.open(second.id)
+        for window in [model, other] {
+            window.session?.setCode("KC_F13", layer: 0, index: 1)
+            await window.showRevision(try #require(window.session?.revisions.first?.id))
+        }
+        let revision = try #require(model.shownRevision)
+        let elsewhere = try #require(other.shownRevision)
+        #expect(model.canFlash(revision) && model.canRestore(revision) && other.canRestore(elsewhere))
+
+        let build = try #require(model.buildFlash)
+        flashMode.attach(.bootloader(BootloaderDevice(id: 9, productID: 0x0791, kind: .stm32, version: 1)))
+        model.flash(revision)
+        #expect(build.revision == revision && model.showsBuildSheet)
+        #expect(await eventually { if case .writing = build.phase { true } else { false } })
+        #expect(model.isFlashWriting && other.isFlashWriting)
+        #expect(!model.canFlash(revision) && !model.canRestore(revision) && !other.canRestore(elsewhere))
+        let edited = model.session?.layout
+        await model.restore(revision)
+        #expect(model.session?.layout == edited, "refused while writing")
+
+        flasher.release()
+        flashMode.attach(.keyboard(KeyboardDevice(id: 2, productID: 0x1977, serial: build.identity?.serial)))
+        #expect(await eventually { if case .done = build.phase { true } else { false } })
+        #expect(!model.isFlashWriting && model.canRestore(revision) && other.canRestore(elsewhere))
+    }
+
     @Test func buildOnlyIsQuietAndTheCapsuleShowsItsSize() async throws {
         let model = try await window()
         let build = try #require(model.buildFlash)

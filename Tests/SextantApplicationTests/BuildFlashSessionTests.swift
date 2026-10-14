@@ -94,6 +94,90 @@ struct BuildFlashSessionTests {
         #expect(document.isEditedSinceRevision, "the later edit isn't in the flash")
     }
 
+    // MARK: Flash This Revision
+
+    /// Runs a started Build & Flash to the end: flash mode, the write, then the keyboard back with the build's serial.
+    func flashed(_ session: BuildFlashSession, generator: FakeGenerator) async -> RevisionSummary? {
+        guard await enterFlashMode(session), await eventually({ session.phase == .verifying }) else { return nil }
+        watcher.detach(9)
+        watcher.attach(.keyboard(.voyager(id: 2, serial: generator.lastIdentity?.serial)))
+        guard await eventually({ isDone(session) }), case let .done(revision?, nil) = session.phase else { return nil }
+        watcher.detach(2)
+        return revision
+    }
+
+    @Test func flashThisRevisionBuildsAndRecordsTheRevisionsLayout() async throws {
+        let generator = FakeGenerator(), flasher = FakeFlasher()
+        let (session, document) = try await make(generator: generator, flasher: flasher)
+        let imported = try #require(document.revisions.first)
+        let importedLayout = try await document.revisionLayout(imported.id)
+        document.setCode("KC_F13", layer: 0, index: 1)
+        let edited = document.layout
+
+        // Firmware with no serial asks before it is replaced; confirming goes on with the revision.
+        session.buildAndFlash(
+            connectedKeyboard: .voyager(serial: nil), revision: RevisionLayout(revision: imported, layout: importedLayout))
+        #expect(session.revision == imported && session.layout == importedLayout)
+        #expect(await eventually { session.phase == .confirmingReplace(serial: nil, title: nil) })
+        session.confirmReplace()
+        let revision = try #require(await flashed(session, generator: generator))
+        #expect(generator.lastLayout == importedLayout, "the revision, not the edited working copy")
+        #expect(generator.lastIdentity?.serial == "KlgM7/40xJ7M", "the latest import still builds as Oryx's")
+        #expect(flasher.calls.count == 1)
+        #expect(revision.source == .flash && revision.message == "Flashed revision 1")
+        #expect(try await store.layout(ofRevision: revision.id, in: document.id) == importedLayout)
+        #expect(document.revisions.last == revision, "History lists it without reopening")
+        #expect(document.layout == edited && document.isEditedSinceRevision, "the working copy stays as it was")
+        #expect(session.currentArtifact == nil, "File ▸ Export ▸ Firmware is the working copy's build, and this isn't")
+
+        // Its source zip comes from the revision's layout too.
+        _ = try await session.source(of: importedLayout)
+        #expect(generator.lastLayout == importedLayout)
+        _ = try await session.source()
+        #expect(generator.lastLayout == edited)
+    }
+
+    /// Each flash keeps its image under its revision; a revision's size compares with the newest earlier one that has
+    /// an image, skipping revisions without one and Oryx's image of an import.
+    @Test func aFlashKeepsItsImageForTheSizeDelta() async throws {
+        let generator = FakeGenerator()
+        let (session, document) = try await make(generator: generator)
+        let imported = try #require(document.revisions.first)
+        try await store.storeFirmware(Data(count: 90_000), md5: "oryx", revisionID: "40xJ7M", to: document.id)
+        session.buildAndFlash(connectedKeyboard: nil)
+        let first = try #require(await flashed(session, generator: generator))
+        let kept = try #require(try await store.firmware(revisionID: first.id, of: document.id))
+        #expect(kept.data == Images.valid() && kept.md5 == "d41d8cd9")
+        #expect(await session.firmwareSize(of: first) == FirmwareSize(bytes: 64), "no earlier image: the size alone")
+        #expect(await session.firmwareSize(of: imported) == nil, "an import's image is Oryx's, and isn't Sextant's to measure")
+
+        document.setCode("KC_F13", layer: 0, index: 1)
+        try await document.saveRevision(source: .save, message: nil)
+        var payload = Data(count: 356)
+        payload.replaceSubrange(0..<8, with: [0x00, 0x80, 0x00, 0x20, 0x01, 0x21, 0x00, 0x08])
+        let bigger = FirmwareImage.withSuffix(payload, vendorID: 0x3297, productID: 0x0791).data
+        let larger = BuildFlashSession(
+            session: document, library: store, generator: generator,
+            toolchain: FakeToolchain(script: FakeToolchain.success(image: bigger)), watcher: watcher, flasher: FakeFlasher(),
+            md5: { _ in "d41d8cd9" }, clock: clock, issues: { _ in [] })
+        larger.buildAndFlash(connectedKeyboard: nil)
+        let second = try #require(await flashed(larger, generator: generator))
+        #expect(await larger.firmwareSize(of: second) == FirmwareSize(bytes: 356, change: .init(revision: first, bytes: 292)))
+        let saved = try #require(document.revisions.dropLast().last)
+        #expect(saved.source == .save)
+        #expect(await larger.firmwareSize(of: saved) == nil, "a saved revision was never built")
+    }
+
+    @Test func aRevisionsCompileErrorsPointAtNoKeyOfTheDocument() async throws {
+        let inKeymap = Diagnostic(file: "keymap.c", line: FakeGenerator.mappedLine, column: 5, severity: .error, message: "x")
+        let (session, document) = try await make(toolchain: FakeToolchain(script: [.failed(.compileFailed([inKeymap]))]))
+        let imported = try #require(document.revisions.first)
+        let layout = try await document.revisionLayout(imported.id)
+        session.buildAndFlash(connectedKeyboard: nil, revision: RevisionLayout(revision: imported, layout: layout))
+        #expect(await eventually { !session.diagnostics.isEmpty })
+        #expect(session.diagnostics.map(\.key) == [nil], "the board shows the document, whose keys may differ")
+    }
+
     // MARK: Before building
 
     @Test func liveIssueErrorsBlockTheBuild() async throws {
