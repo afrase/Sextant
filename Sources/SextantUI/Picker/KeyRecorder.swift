@@ -219,14 +219,18 @@ struct RecordingCapsule: View {
 /// While Record Key or Record Steps runs, a local monitor on Sextant's key window feeds it key-downs and modifier changes
 /// (no Input Monitoring, no TCC). Recording ends when the window resigns key or the selected key changes. The global
 /// layer shortcuts stand aside meanwhile, or ⌃⌥ digits would move the keyboard instead of being recorded (ADR 0048).
+/// Select Key by Pressing It shares the monitor to swallow the Mac's copy of the keyboard's press, and ends the same way;
+/// the shortcuts stand aside for it too, or the press that selects a key could also move the keyboard's layer (ADR 0052).
 struct RecordKeyMonitor: ViewModifier {
     var model: LayoutWindowModel
     @Environment(LayerShortcuts.self) private var layerShortcuts: LayerShortcuts?
 
     func body(content: Content) -> some View {
         content
-            .task(id: model.recorder != nil || model.macros.stepRecorder != nil) {
-                guard model.recorder != nil || model.macros.stepRecorder != nil, let window = NSApp.keyWindow else { return }
+            .task(id: model.recorder != nil || model.macros.stepRecorder != nil || model.selectByPress != nil) {
+                guard model.recorder != nil || model.macros.stepRecorder != nil || model.selectByPress != nil,
+                    let window = NSApp.keyWindow
+                else { return }
                 let number = window.windowNumber
                 layerShortcuts?.suspend()
                 defer { layerShortcuts?.resume() }
@@ -238,12 +242,14 @@ struct RecordKeyMonitor: ViewModifier {
                     let consumed = MainActor.assumeIsolated {
                         model.record(keyCode: code, flags: flags, isKeyDown: isKeyDown)
                             || model.recordStep(keyCode: code, flags: flags, isKeyDown: isKeyDown, at: time)
+                            || model.selectByPressTakes(keyCode: code, isKeyDown: isKeyDown)
                     }
                     return consumed ? nil : event
                 }
                 for await _ in NotificationCenter.default.notifications(named: NSWindow.didResignKeyNotification, object: window) {
                     model.cancelRecording()
                     model.stopRecordingSteps()
+                    model.endSelectByPress()
                     break
                 }
                 if let monitor { NSEvent.removeMonitor(monitor) }

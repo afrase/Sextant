@@ -28,7 +28,10 @@ struct KeyMenu: View {
         Button("Override on This Layer") { session?.overrideInherited() }.disabled(window?.canOverrideKey != true)
         Menu("LED Color") { KeyColourMenu(window: window) }.disabled(!hasKey)
         Divider()
-        Button("Select Key by Pressing It") {}.keyboardShortcut("l", modifiers: [.command, .shift]).disabled(true)
+        // Disabled with the reason as its help tag: Live View off, the board hidden, a pick under way (ADR 0052).
+        let selectByPressRefusal = window.map { $0.selectByPressRefusal } ?? String(localized: "Open a layout first.")
+        Button("Select Key by Pressing It") { window?.startSelectByPress() }.keyboardShortcut("l", modifiers: [.command, .shift])
+            .disabled(selectByPressRefusal != nil).help(selectByPressRefusal ?? "")
         Button("Copy QMK Expression") { session?.copyQMKExpression() }
             .keyboardShortcut("c", modifiers: [.command, .option, .shift]).disabled(!hasKey)
     }

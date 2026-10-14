@@ -50,7 +50,7 @@ Build & Flash works out of the box: it builds the firmware, asks you to put the 
 
 The live view (the active layer and the keys you press) starts only when you turn it on: click the live button in the toolbar, or choose Keyboard ▸ Live View. Plugging the keyboard in never starts it, because pairing writes to the keyboard.
 
-While the live view is on, Keyboard ▸ Move Keyboard to Layer (also in the Device popover) moves the keyboard to the layer you choose. Settings › Keyboard can turn on global shortcuts that do the same from any app, ⌃⌥0–⌃⌥9 unless you record others. They're off by default, and while they're on other apps don't get those keys.
+While the live view is on, Key ▸ Select Key by Pressing It (⇧⌘L) selects the next key you press on the keyboard. Keyboard ▸ Move Keyboard to Layer (also in the Device popover) moves the keyboard to the layer you choose, and Settings › Keyboard can turn on global shortcuts that do the same from any app, ⌃⌥0–⌃⌥9 unless you record others. They're off by default, and while they're on other apps don't get those keys.
 
 ## Safety
 

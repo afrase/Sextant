@@ -370,7 +370,7 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
 **Lens lane (36 pt)**
 - An `HStack` inside a `GlassEffectContainer(spacing: 8)`, centred. It holds at most:
   1. a **lens capsule**: Lighting tools, Heatmap summary, Combos "New Combo" with the count (while choosing keys: the keys so far with [Choose Output…] or [Done]), or the History comparison;
-  2. a **status capsule**, by priority: board pick > error > recording > Follow/live > app rule. A board pick (choosing combo members, Assign to Key) comes first because only its prompt says what a click does. Record Key started during a pick hides it until recording ends, since esc ends recording first (§9.3, ADR 0037). The pick capsule's [Cancel] is the window's cancel shortcut (esc, ⌘.), so esc ends a pick even when the board misses it (ADR 0042). Choosing another page drops the pick.
+  2. a **status capsule**, by priority: board pick or Select Key by Pressing It > error > recording > Follow/live > app rule. A board pick (choosing combo members, Assign to Key) comes first because only its prompt says what a click does; Select Key by Pressing It's capsule likewise says what the next press does (§5.8.1). Record Key started during a pick hides it until recording ends, since esc ends recording first (§9.3, ADR 0037). The pick capsule's [Cancel] is the window's cancel shortcut (esc, ⌘.), so esc ends a pick even when the board misses it (ADR 0042). Choosing another page drops the pick.
 - Capsules are 28 pt tall. They use `.glassEffect(.regular.interactive(), in: .capsule)` and appear with `.glassEffectTransition(.materialize)`.
 
 | Status capsule | Content | Action |
@@ -378,6 +378,7 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
 | Error | `xmark.octagon.fill` "Unknown keycode on Brd+Sys · key 45 · Tap · keymap.c:31" | [Show Key] (⌘') |
 | Recording | red dot "Listening for a key… esc cancels" | [Cancel] |
 | Board pick (v1) | `hand.point.up.left` "Click a key to play ‘Open Keymap’ on tap · esc cancels" | [Cancel] (esc, ⌘.) |
+| Select by press (v1) | `keyboard` "Press a key on the keyboard to select it"; `eye.slash` "Paused: secure input is on · esc cancels" | [Cancel] |
 | Live (Follow on) | green dot "LIVE · Brd+Sys held by Space · 2 keys down" | [Stop Following] |
 | App rule (v1) | "Xcode is frontmost → keyboard on Sym+Num" | [Rules…] |
 
@@ -793,6 +794,13 @@ The picker is the command palette component in **assign scope**.
 **Esc always cancels.** It is never recorded. To assign Esc, use the picker. The tile says so: "To assign Esc, search for it instead."
 
 **Recording also ends** when the window resigns key, the user changes key, or the picker opens.
+
+### 5.8.1 Select Key by Pressing It (v1)
+
+- **Starting.** Key ▸ Select Key by Pressing It (⇧⌘L), while the board shows, no pick is under way and Live View is on and paired. Otherwise the item is disabled and its help tag says why ("Turn on Live View (Keyboard ▸ Live View) to select a key by pressing it."); it never turns Live View on itself. It ends Record Key, Record Steps and the palette, and they end it.
+- **While waiting,** the lens lane shows "Press a key on the keyboard to select it" with [Cancel]. It doesn't promise esc: with the keyboard as the Mac's only one, its Esc is a press to select. While secure input is on, when no press reaches Sextant, it shows "Paused: secure input is on · esc cancels" (then any esc cancels). VoiceOver hears the capsule's text when the mode starts, pauses and resumes, and "Stopped selecting a key by pressing it." when it ends before a press.
+- **The next key-down on the keyboard** selects that key on the shown layer, as a click does, and VoiceOver hears "Selected key 24, Return, hold for Sym+Num" (on History, the shown revision's legend). ⇧⌘L typed on the keyboard is not that press: a key-down within 50 ms of the start, or while a key held at the start (its ⇧ and ⌘) is still down, is skipped. The same local monitor as Record Key swallows the Mac's own copy of the selected press until its key-up and 50 ms after, or a tapping term and 50 ms after for a key the tapping term times, since a tap dance sends its tap that late. The global layer shortcuts stand aside meanwhile, as during Record Key, so the press can't also move the keyboard's layer.
+- **It ends** on esc from the Mac (after 50 ms: a keyboard press meanwhile was the keyboard's own Esc, and is selected), [Cancel], the window resigning key, the session dropping, the board hiding, or a pick starting. After a press it ends on that key's release, which the session's held keys also show when secure input drops the key-up, or on an esc that isn't the press's own copy (ADR 0052).
 
 ---
 
@@ -1379,7 +1387,7 @@ The board is one tab stop. These keys are handled with `.onKeyPress` and `.onMov
 ### 9.3 Esc ladder
 
 Each press of esc steps back one level:
-1. Recording → cancel.
+1. Recording, or Select Key by Pressing It → cancel (§5.8.1).
 2. Picker or palette → close, wherever focus is in the window.
 3. Popover → close.
 4. An in-progress gesture (combo creation, paint stroke, Assign to Key) → cancel. A board pick also takes esc through its capsule's [Cancel], the window's cancel shortcut (ADR 0042).
@@ -1718,7 +1726,7 @@ All of these were confirmed in the macOS 27 SDK during this session.
   - `.toolbar(id:)` with `ToolbarItem(id:placement:)`, `ToolbarSpacer(.fixed or .flexible)`, and `.sharedBackgroundVisibility(.hidden)` only where a custom capsule must not get a platter.
   - Commands: `SidebarCommands()`, `InspectorCommands()`, and `CommandMenu("Layer")`, `CommandMenu("Key")` and `CommandMenu("Keyboard")`. Do not replace `.undoRedo`.
 - **Glass.** `.glassEffect(_:in:)`, `Glass.regular`, `.interactive()`, `.tint(_:)`, `GlassEffectContainer(spacing:)`, `glassEffectID(_:in:)`, `glassEffectUnion`, `glassEffectTransition(.materialize)`, `.buttonStyle(.glass)` and `.glassProminent`, and `ConcentricRectangle`. In AppKit, use `NSGlassEffectView` for the HUD.
-- **Focus and keys.** `.focusable()`, `.focused($board)`, `.focusEffectDisabled()`, `.onKeyPress(keys:phases:)`, `.onKeyPress(characters:)` and `.onMoveCommand`. Use `NSEvent.addLocalMonitorForEvents` only during Record and Record Steps.
+- **Focus and keys.** `.focusable()`, `.focused($board)`, `.focusEffectDisabled()`, `.onKeyPress(keys:phases:)`, `.onKeyPress(characters:)` and `.onMoveCommand`. Use `NSEvent.addLocalMonitorForEvents` only during Record, Record Steps and Select Key by Pressing It (ADR 0052).
 - **Accessibility.** `.accessibilityElement(children:)`, `.accessibilityLabel`, `.accessibilityValue`, `.accessibilityHint`, `.accessibilityAddTraits(.isSelected)`, `.accessibilityAction(named:)`, `.accessibilityRotor`, `.accessibilitySortPriority`, and `AccessibilityNotification.Announcement` (Accessibility framework). Read the environment values `accessibilityReduceMotion`, `accessibilityReduceTransparency`, `accessibilityDifferentiateWithoutColor` and `colorSchemeContrast`.
 - **Scenes.**
   - `WindowGroup(id:for:)`, `Settings`, and `MenuBarExtra(isInserted:)` with `.menuBarExtraStyle(.window)`.

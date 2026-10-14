@@ -1,3 +1,5 @@
+import SextantApplication
+import SextantStorage
 import SextantUI
 import SwiftUI
 
@@ -40,6 +42,35 @@ extension Scenes {
         let recording = await model(f, key: 19)
         recording.startRecording()
         window("record", recording)
+
+        // Select Key by Pressing It over a stand-in keyboard paired on Sym+Num: the lens lane's capsule, then paused by
+        // secure input at the minimum window.
+        if let selecting = await pairedWindow(f, secureInput: false) {
+            selecting.startSelectByPress()
+            window("select-by-press", selecting)
+        }
+        if let paused = await pairedWindow(f, secureInput: true) {
+            paused.startSelectByPress()
+            window("select-by-press-paused-min", paused, size: CGSize(width: 1120, height: 640), light: true)
+        }
         return scenes
+    }
+
+    /// The user's layout in a window following a stand-in keyboard that runs it, paired on Sym+Num; nil if it doesn't
+    /// pair.
+    private static func pairedWindow(_ f: Fixtures, secureInput: Bool) async -> LayoutWindowModel? {
+        let keyboard = PairedKeyboard()
+        let live = LiveSession(watcher: keyboard, link: keyboard, secureInputProbe: { secureInput })
+        live.start()
+        live.startLive()
+        guard let root = await f.windowModel().library.location(of: f.entry.id)?.deletingLastPathComponent() else { return nil }
+        let window = LayoutWindowModel(library: Library(store: PackageLibrary(root: root)), live: live)
+        await window.open(f.entry.id)
+        window.buildFlash = await idleBuildFlash(window)
+        Task { await window.followKeyboard() }
+        for _ in 0..<250 where !live.canSend || window.session?.selection.layer != 1 || live.isSecureInputOn != secureInput {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        return live.canSend ? window : nil
     }
 }
