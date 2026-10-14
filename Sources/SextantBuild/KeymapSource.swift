@@ -125,7 +125,7 @@ struct KeymapSource {
         out.add("        default:\n            return \(global);\n    }\n}")
     }
 
-    /// The per-layer LED map: a key's glow colour, else its layer's colour, else off.
+    /// The per-layer LED map: ``KeyboardLayout/ledColor(layer:index:)`` for each key.
     private func lighting(_ out: inout SourceText) {
         let lit = layout.layers.indices.filter { li in
             layout.layers[li].color != nil || layout.layers[li].keys.contains { $0.glowColor != nil }
@@ -133,8 +133,9 @@ struct KeymapSource {
         if !lit.isEmpty {
             out.add("const uint8_t PROGMEM ledmap[][RGB_MATRIX_LED_COUNT][3] = {")
             for li in lit {
-                let cells = layout.layers[li].keys.map { key in
-                    (key.glowColor ?? layout.layers[li].color).map { QMKCodes.HSV($0).triple } ?? "{0,0,0}"
+                // The same rule the lighting preview shows (ADR 0051).
+                let cells = layout.layers[li].keys.indices.map { ki in
+                    layout.ledColor(layer: li, index: ki).map { QMKCodes.HSV($0).triple } ?? "{0,0,0}"
                 }
                 out.add("    [\(li)] = { \(cells.joined(separator: ", ")) },")
             }

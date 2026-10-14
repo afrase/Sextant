@@ -840,10 +840,12 @@ The picker is the command palette component in **assign scope**.
 - **Layer colour:** chip and hex, with [Use Brush] and [None].
 - **Painted on Brd+Sys:** grouped by colour. Each row has a swatch, the hex value, mini caps, a count and ⊗ (remove).
 - [Clear Key Colours…].
-- **On the keyboard (v1):**
-  - "Preview while painting" toggle, plus a Brightness slider.
-  - Footnote: "Shows these colours on the connected keyboard over raw HID. Nothing is written until you flash. Preview ends when you leave Lighting."
-  - Release RGB takeover on lens exit, window close, quit and sleep.
+- **On the keyboard (v1, ADR 0051):**
+  - "Preview on Keyboard" switch, off at every launch, plus a Brightness slider (10–100%, applied on the Mac; app-wide). Keyboard ▸ Preview Lighting on Keyboard is the same switch, and turning it on shows the Lighting lens on the board.
+  - It shows the shown layer's LED colors (a key's own color, else the layer's, else off) on the keyboard, and follows edits, layer changes and brightness.
+  - When it can't start, the switch is disabled with the reason under it: no keyboard, flash mode, Keymapp, "Turn on Live View to preview lighting on the keyboard." with a [Turn On Live View] button, or "Previewing in <layout>" when another window holds it. While Live View connects or the keyboard is unplugged, it says it is waiting.
+  - Footnote: "Shows this layer's colors on the keyboard as you paint. Nothing is saved to it until you flash, and the preview ends when you leave Lighting. It stays dark while the keyboard's lights are off, from its own key or Lights off when idle."
+  - Release RGB takeover (`05 00`) on switch off, leaving the Lighting lens or its board, opening another layout, window close, Live View off, sleep and quit (a bounded wait). A disconnect sends nothing; when the session pairs again, the frame is sent again.
 
 ### 6.3 Macros page (v1)
 
@@ -1351,7 +1353,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 | Next Issue / Previous Issue | ⌘' / ⇧⌘' |
 | Follow Keyboard | ⌘L |
 | Move Keyboard to Layer ▸ (the keyboard layout's layers; disabled with the reason until Live View is on; also in the Device popover) | ⌃⌥0–9 (global, opt-in, v1) |
-| Preview Lighting on Keyboard | — (v1) |
+| Preview Lighting on Keyboard (toggle; disabled with no window, or while it can't start, §6.2) | — (v1) |
 | Show Overlay While Holding a Layer | — (v1) |
 | Device Info… | — (opens the Device popover) |
 | Flash Oryx's Build of This Revision… | — |
