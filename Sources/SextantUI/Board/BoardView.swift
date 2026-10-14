@@ -211,6 +211,7 @@ public struct BoardView: View {
                 }
             }
             selectionRing(board, cap: cap)
+            ringedNumbers(board, models: models)
             PickerCapOverlay(board: board, cap: cap)
         }
         .animation(SextantMotion.layerChange, value: layer)
@@ -304,6 +305,21 @@ public struct BoardView: View {
             .accessibilityHidden(true)
     }
 
+    /// A selected cap's combo number again, over its ring: the badge sits across the cap's corner (``KeyCap``), where the
+    /// ring would cover a third of it. Only Combos numbers caps, so nothing else changes.
+    @ViewBuilder private func ringedNumbers(_ board: BoardLayout, models: [KeyCapModel]) -> some View {
+        let ringed = (others + [session.selection.keyIndex].compactMap(\.self)).filter(board.frames.indices.contains)
+        ForEach(ringed.filter { models[safe: $0]?.decoration.number != nil }, id: \.self) { index in
+            if let model = models[safe: index] {
+                let frame = board.frames[index]
+                RingedNumber(model: model, press: pressed?.state(index))
+                    .frame(width: frame.size.width, height: frame.size.height)
+                    .rotationEffect(.degrees(frame.rotation))
+                    .position(frame.center)
+            }
+        }
+    }
+
     private func capModels() -> [KeyCapModel] {
         let (layout, layer) = (layout, layer)
         var severity: [Int: LayoutIssue.Severity] = [:]
@@ -383,6 +399,27 @@ private struct BoardKey: View {
         KeyCap(model: model, u: u, height: height, isPressed: press?.isDown ?? false, isHovered: isHovered, glows: true)
             .equatable()
             .onHover { isHovered = $0 }
+    }
+}
+
+/// A cap's combo number drawn as the cap draws it (``KeyCap``): across its top-left corner, pressed and dimmed with it.
+/// It reads the live press itself, so a press redraws it and its cap, not the board (spec §13.3 item 6).
+private struct RingedNumber: View {
+    var model: KeyCapModel
+    var press: PressedKeys.KeyState?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let isPressed = press?.isDown ?? false
+        Color.clear
+            .overlay(alignment: .topLeading) {
+                if let number = model.decoration.number { MarkBadge(mark: number).offset(x: -4, y: -4) }
+            }
+            .scaleEffect(isPressed && !reduceMotion ? 0.96 : 1)
+            .animation(isPressed ? nil : SextantMotion.keyRelease, value: isPressed)
+            .opacity(min(model.isDimmed ? 0.35 : 1, model.decoration.opacity))
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 

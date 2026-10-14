@@ -391,7 +391,7 @@ struct QMKGeneratorTests {
     /// Catalog keys the generator would otherwise write as undeclared or dead keys.
     @Test func refusesCatalogKeysTheFirmwareWouldntDefineOrRun() throws {
         let clean = try userLayout()
-        for code in ["MAC_SPOTLIGHT", "MAC_MISSION_CONTROL", "ORYX_SL_TOGG", "SC_LSPO", "KC_LSPO", "AS_TOGG"] {
+        for code in ["MAC_SPOTLIGHT", "MAC_MISSION_CONTROL", "ORYX_SL_TOGG", "WEBUSB_PAIR", "SC_LSPO", "KC_LSPO", "AS_TOGG"] {
             var layout = clean
             layout.updateKey(layer: 0, index: 1) { $0 = Key(code) }
             #expect(throws: GeneratorError.self, "\(code)") { try QMKGenerator().generate(layout, identity: identity) }

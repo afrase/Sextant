@@ -1293,6 +1293,9 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 |---|---|---|
 | Undo *Action* / Redo *Action* | ⌘Z / ⇧⌘Z | System group, not replaced. Text fields keep their own undo |
 | Cut / Copy / Paste | ⌘X ⌘C ⌘V | With board focus these act on keys (v1). Otherwise standard |
+| Delete | ⌫ | The standard item. Deletes the selected combo on the Combos page and the selected macro on the Macros page (a focused step there); otherwise standard, as in a text field (v1) |
+| New Combo · Edit Combo Keys… | — | Combos page only, with a combo selected for Edit Combo Keys… (N also starts one with board focus) (v1) |
+| New Macro · Record Steps… · Assign to Key… | — | Macros page only, with a macro selected for the last two (v1). These page items and Delete are ⌘K commands too |
 | Make Transparent | ⌘⌫ | Also ⌫ with board focus |
 | Find Key… | ⌘F | Palette, keys scope. On the Firmware Settings page it reads Find Setting…, closes the palette and focuses its search |
 | Command Palette | ⌘K (alias ⇧⌘O) | |

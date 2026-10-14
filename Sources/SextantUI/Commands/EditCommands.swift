@@ -5,6 +5,11 @@ struct EditItems: View {
     var window: LayoutWindowModel?
 
     var body: some View {
+        // The pages' own section (§11: every action has a menu item); Edit ▸ Delete deletes their selected combo or macro.
+        Divider()
+        ComboMenuItems(window: window)
+        Divider()
+        MacroMenuItems(window: window)
         Divider()
         MakeTransparentItem(window: window)
         // On the Firmware Settings page, ⌘F searches the settings (spec §9.1).

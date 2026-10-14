@@ -51,6 +51,11 @@ extension Scenes {
         var scenes = await pair("combos-empty", empty) { _ in }
         scenes += await pair("combos", everyday) { _ in }
         scenes += await pair("combos-selected", everyday) { $0.selectCombo($0.session?.layout.combos.first?.id) }
+        // A selected key keeps its combo number legible over the selection ring.
+        scenes += await pair("combos-key-selected", everyday) {
+            $0.selectCombo($0.session?.layout.combos.first?.id)
+            $0.session?.select(key: 39)
+        }
         scenes += await pair("combos-symnum", everyday) { $0.showCombos(fromLayer: 1) }
         scenes += await pair("combos-dense", dense) { _ in }
         scenes += await pair("combos-dense-min", dense, size: min) { _ in }

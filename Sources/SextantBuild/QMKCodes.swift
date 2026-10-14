@@ -20,6 +20,31 @@ enum QMKCodes {
         var triple: String { "{\(h),\(s),\(v)}" }
     }
 
+    /// The keycode as `keymap.c` writes it: as stored, as Oryx writes it, unless the pinned QMK has dropped that legacy
+    /// spelling (``undeclaredLegacyNames``), when it is the catalog's own code, which QMK declares. A stored `KC_BSPACE`
+    /// becomes `KC_BSPC`; `KC_NUBS`, which QMK still declares, stays.
+    static func name(_ code: String) -> String {
+        undeclaredLegacyNames.contains(code) ? KeycodeCatalog.canonicalCode(code) : code
+    }
+
+    /// The catalog's other spellings of a code (``KeycodeEntry/aliases``) that the pinned QMK (`ToolchainPins.firmwareCommit`)
+    /// doesn't declare in the headers a keymap sees: `keycodes.h`, `quantum_keycodes.h`, `keymap_us.h`,
+    /// `quantum_keycodes_legacy.h` and the `zsa/*` modules' keycodes. Written as stored, each fails the build.
+    /// `MOON_LED_LEVEL` isn't here: `keymap.c` defines it. `QMKKeycodeNameTests` checks this list against the headers
+    /// when the toolchain is set up.
+    static let undeclaredLegacyNames: Set<String> = [
+        "KC_LCTRL", "KC_LSHIFT", "KC_RCTRL", "KC_RSHIFT", "KC_CAPSLOCK", "KC_CLCK", "CAPS_WORD",
+        "KC_LSPO", "KC_RSPC", "KC_LCPO", "KC_RCPC", "KC_LAPO", "KC_RAPC", "KC_SFTENT",
+        "KC_LBRACKET", "KC_RBRACKET", "KC_BSLASH", "KC_SCOLON", "KC_ZKHK", "KC_PERIOD", "KC_NONUS_BSLASH",
+        "KC_PGDOWN", "KC_BSPACE", "KC__VOLUP", "KC__VOLDOWN", "KC__MUTE",
+        "RESET", "EEP_RST", "EEPROM_RESET", "MAGIC_TOGGLE_NKRO", "DEBUG",
+        "KC_ASTG", "KC_ASON", "KC_ASOFF", "KC_ASUP", "KC_ASDN", "KC_ASRP", "CMB_TOG", "CMB_ON", "CMB_OFF",
+        "DYN_REC_START1", "DYN_REC_START2", "DYN_MACRO_PLAY1", "DYN_MACRO_PLAY2", "DYN_REC_STOP",
+        "KC_PSCREEN", "KC_SLCK", "KC_SCROLLLOCK", "KC_RO", "KC_KANA", "KC_JYEN", "KC_HENK", "KC_MHEN",
+        "KC_LANG1", "KC_LANG2", "KC_LANG3", "KC_LANG4", "KC_LANG5", "KC_LANG6", "KC_LANG7", "KC_LANG8", "KC_LANG9",
+        "KC_NUMLOCK", "KC_NLCK",
+    ]
+
     /// Wraps a keycode in modifier functions in Oryx's nesting order, e.g. `LGUI(LSFT(KC_LBRC))`.
     static func wrap(_ code: String, _ modifiers: Modifiers) -> String {
         nest(code, modifiers, order: keycodeNesting, prefix: "")
@@ -38,9 +63,10 @@ enum QMKCodes {
     static func modTapOrLayerTap(tap: KeyAction, hold: KeyAction) -> String? {
         // The domain's rule, which combo triggers share (ADR 0046).
         guard Key.isModTapOrLayerTap(tap: tap, hold: hold) else { return nil }
-        if hold.code.hasSuffix("_T") { return "\(hold.code)(\(tap.code))" }
-        if let m = KeycodeCatalog.modifier(forCode: hold.code), m.rawValue.nonzeroBitCount == 1 { return "MT(\(mask(m)), \(tap.code))" }
-        if hold.canonicalCode == "MO", let layer = hold.layer, (0...15).contains(layer) { return "LT(\(layer), \(tap.code))" }
+        let tapName = name(tap.code)
+        if hold.code.hasSuffix("_T") { return "\(hold.code)(\(tapName))" }
+        if let m = KeycodeCatalog.modifier(forCode: hold.code), m.rawValue.nonzeroBitCount == 1 { return "MT(\(mask(m)), \(tapName))" }
+        if hold.canonicalCode == "MO", let layer = hold.layer, (0...15).contains(layer) { return "LT(\(layer), \(tapName))" }
         return nil
     }
 
@@ -54,7 +80,7 @@ enum QMKCodes {
         case _ where action.macro != nil: nil
         case "MO": action.layer.map { ("layer_on(\($0));", "if (!is_layer_locked(\($0))) { layer_off(\($0)); }") }
         case "TO": action.layer.map { ("layer_move(\($0));", nil) }
-        case _ where isKeycode(action): send(wrap(action.code, action.modifiers))
+        case _ where isKeycode(action): send(wrap(name(action.code), action.modifiers))
         default: nil
         }
     }

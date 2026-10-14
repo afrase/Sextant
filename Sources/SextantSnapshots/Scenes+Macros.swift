@@ -102,6 +102,9 @@ extension Scenes {
                 MacroStep(code: "KC_O", modifiers: [.leftControl, .leftShift, .leftCommand], delay: 250),
                 MacroStep(code: "KC_F12", modifiers: [.leftControl, .leftOption, .leftShift, .leftCommand]),
                 MacroStep(code: "MAC_SPOTLIGHT"),
+                // The longest names of steps a macro can't type, by their warning.
+                MacroStep(code: "CW_TOGG"),
+                MacroStep(code: "LED_LEVEL"),
                 MacroStep(code: "KC_WWW_HOME"),
                 MacroStep(code: "KC_SPACE", modifiers: [.leftControl, .leftCommand]),
                 MacroStep(code: "EE_CLR"),

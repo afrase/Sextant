@@ -31,3 +31,7 @@ Separately, the generator wrote each step as `SS_TAP(X_<code>)` after only an id
 - "Hold ⌥ while typing" keeps each step's modifiers and waits; the generator emits Oryx's `SS_LALT(…)` wrap as before. The copy is Sextant's own.
 - Macro rows in the picker have no live board preview: a macro row isn't a keycode.
 - The five goldens and every existing snapshot reference are unchanged. New design-QA scenes: `macros-jrgqm`, `-jrgqm-min`, `-xlrr4`, `-empty`, `-step-picker`, `-recording-min`, `-assign` and `palette-macros`, each in light and dark.
+
+## Amendment, 2026-10-15: macro actions in the menus (spec §9.1, §11)
+- Spec §11 says every action is reachable from a menu. Edit ▸ Delete, the standard item showing ⌫ (ADR 0046's amendment), deletes the selected macro on the Macros page: the page answers it with `onDeleteCommand` wherever focus is on the page. The step table keeps its own, nearer the focus, so with a step focused it deletes that step, as ⌫ does there.
+- The Edit menu's page section has New Macro, Record Steps… and Assign to Key…, each enabled only on the Macros page with something to act on: Record Steps… needs a selected macro with room for a step that isn't already recording, as the page's button does. ⌘K gets matching rows, plus Delete Macro (⌫). They call the page's own methods (`newMacro`, `startRecordingSteps(in:)`, `assignMacroToKey(_:)`, `deleteMacro(_:)`).

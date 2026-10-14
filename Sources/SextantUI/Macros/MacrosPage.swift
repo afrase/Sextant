@@ -46,6 +46,8 @@ struct MacrosPage: View {
         // A selection that no longer names a macro (a key edited on the board) falls back to the first.
         .onAppear { if session.selectedMacro == nil { session.selectMacro(library.first?.locator) } }
         .onDisappear { model.stopRecordingSteps() }
+        // Edit ▸ Delete (spec §9.1) wherever focus is on the page; the step table deletes its selected step instead.
+        .onDeleteCommand(perform: model.pageMacro.map { locator in { session.deleteMacro(locator) } })
         .onChange(of: session.selection.macro) { _, macro in
             if model.macros.stepRecorder.map({ $0.macro != macro }) == true { model.stopRecordingSteps() }
         }
@@ -275,34 +277,37 @@ private struct MacroStepTable: View {
             TableColumn("#") { row in Text(verbatim: "\(row.id + 1)").monospacedDigit().foregroundStyle(.secondary) }.width(22)
             TableColumn("Key") { row in
                 let legend = Legends.legend(for: KeyAction(code: row.step.code))
+                Text(verbatim: legend.text).help(Text(verbatim: legend.name))
+            }
+            // 76 pt holds the legend of every step, typable or not ("Status LEDs"), at 1120×640 and leaves QMK two
+            // modifiers; with no max, wider windows give Key room too (an imported step's "Clear EEPROM").
+            .width(min: 56, ideal: 76)
+            // Wide enough for ⌃⌥⇧⌘ (48.5 pt), which macros often hold.
+            TableColumn("Mods") { row in Text(verbatim: row.step.modifiers.glyphs) }.width(52)
+            // Wide enough for "5000 ms" (54 pt), the longest wait.
+            TableColumn("Wait") { row in
+                Text(row.step.delay == 0 ? "—" : "\(row.step.delay) ms").monospacedDigit().foregroundStyle(.secondary)
+            }
+            .width(56)
+            TableColumn("QMK") { row in
+                let qmk = Legends.legend(for: KeyAction(code: row.step.code, modifiers: row.step.modifiers)).qmk
+                // The warning sits by the code it is about, which has no `X_` name, so the key's name keeps its column;
+                // such codes are short and seldom chorded. Two modifiers on a short key fit at the minimum window; longer
+                // chords keep both ends, the key and its first modifier.
                 HStack(spacing: 3) {
                     if !MacroStep.canType(row.step.code) {
                         Image(systemName: "exclamationmark.triangle.fill").imageScale(.small).foregroundStyle(Tokens.danger.color)
                             .help(Text("A macro can’t type this key"))
+                            .accessibilityLabel(Text("A macro can’t type this key"))
                     }
-                    Text(verbatim: legend.text).help(Text(verbatim: legend.name))
+                    Text(verbatim: qmk)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help(Text(verbatim: qmk))
                 }
-            }
-            // 70 pt holds every legend a step can type ("Web Home") and leaves QMK two modifiers at 1120×640; with no
-            // max, wider windows give Key room too (an imported step's "Clear EEPROM" beside its warning).
-            .width(min: 56, ideal: 70)
-            // Wide enough for ⌃⌥⇧⌘, which macros often hold.
-            TableColumn("Mods") { row in Text(verbatim: row.step.modifiers.glyphs) }.width(54)
-            TableColumn("Wait") { row in
-                Text(row.step.delay == 0 ? "—" : "\(row.step.delay) ms").monospacedDigit().foregroundStyle(.secondary)
-            }
-            .width(60)
-            TableColumn("QMK") { row in
-                let qmk = Legends.legend(for: KeyAction(code: row.step.code, modifiers: row.step.modifiers)).qmk
-                // Two modifiers on a short key fit at the minimum window; longer chords keep both ends, the key and its
-                // first modifier.
-                Text(verbatim: qmk)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .help(Text(verbatim: qmk))
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .width(min: 90)
         } rows: {

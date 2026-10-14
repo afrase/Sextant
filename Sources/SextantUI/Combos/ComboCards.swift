@@ -26,6 +26,8 @@ struct CombosCanvas: View {
                 session.deleteCombo(id)
                 return .handled
             }
+            // Edit ▸ Delete (spec §9.1), off with no combo to delete.
+            .onDeleteCommand(perform: model.comboForKeys.map { id in { session.deleteCombo(id) } })
             // Another page or layout drops the keys being chosen with their pick.
             .onDisappear { model.cancelComboDraft() }
     }

@@ -190,16 +190,13 @@ struct KeymapPlan {
         case "ALL_T": return QMKCodes.wrap("KC_HYPR", action.modifiers)
         case "MEH_T": return QMKCodes.wrap("KC_MEH", action.modifiers)
         case "OSM": return "OSM(\(QMKCodes.mask(action.modifiers)))"
-        // The setting-gated families go by their QMK names: the pinned QMK defines no legacy alias for them, so a
-        // stored KC_LSPO or KC_ASTG would not compile.
-        case let code where code.hasPrefix("SC_") || code.hasPrefix("AS_"): return QMKCodes.wrap(code, action.modifiers)
         case "RGB":
             guard let color = action.color else { throw .unsupported(String(localized: "a color key without a color"), ref) }
             let hsv = QMKCodes.HSV(color)
             let name = "HSV_\(hsv.h)_\(hsv.s)_\(hsv.v)"
             if !colors.contains(where: { $0.name == name }) { colors.append(ColorKey(name: name, hsv: hsv, key: ref)) }
             return name
-        default: return QMKCodes.wrap(action.code, action.modifiers)
+        default: return QMKCodes.wrap(QMKCodes.name(action.code), action.modifiers)
         }
     }
 
@@ -215,8 +212,8 @@ struct KeymapPlan {
         if KeycodeCatalog.layerFunctions.contains(action.canonicalCode), !layout.layers.indices.contains(action.layer ?? -1) {
             throw .unsupported(String(localized: "a layer key for a layer that doesn't exist"), ref)
         }
-        // Oryx-only codes this generator doesn't define yet.
-        if action.code.hasPrefix("MAC_") || action.code.hasPrefix("ORYX_SL_") {
+        // Oryx-only codes this generator doesn't define yet, and WebUSB pairing, which the Voyager's QMK doesn't declare.
+        if action.code.hasPrefix("MAC_") || action.code.hasPrefix("ORYX_SL_") || action.code == "WEBUSB_PAIR" {
             throw .unsupported(String(localized: "the “\(action.code)” key"), ref)
         }
         // Without the setting, rules.mk compiles Space Cadet's handler out.
