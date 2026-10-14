@@ -302,7 +302,7 @@ private struct KeyChangesTable: View {
                 }
                 Button {
                     history.show(layer: change.layer, of: shown.layout)
-                    history.session.select(key: change.index)
+                    history.session.select(keys: [change.index])
                 } label: {
                     row(change)
                 }

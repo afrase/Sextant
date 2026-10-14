@@ -18,9 +18,10 @@ public enum CopiedKeysError: Error, Equatable, Sendable {
 
 /// Keys copied from a layout (⌘C or ⌘X on the board, ADR 0047): each key as stored, by its board index, with the board
 /// they came from. The pasteboard is outside Sextant's control, so ``init(data:)`` checks everything before a key can
-/// reach a layout: the size, the board's key count, each index, and each keycode and layer; labels, descriptions, macro
-/// names and waits, and tapping terms are clamped to what Sextant itself allows. A macro keeps all its steps: Oryx
-/// layouts hold macros longer than the 24 steps Sextant's editor makes (JRGQm has one of 25).
+/// reach a layout: the size, the board's key count, each index, and each keycode and layer; labels, descriptions, waits
+/// and tapping terms are clamped to what Sextant itself allows. A macro keeps its name and all its steps, whose length
+/// Sextant doesn't limit either: Oryx layouts hold macros longer than the 24 steps Sextant's editor makes (JRGQm has one
+/// of 25), and the size cap bounds both.
 public struct CopiedKeys: Hashable, Sendable {
     public struct Entry: Hashable, Sendable {
         public var index: Int
@@ -42,7 +43,6 @@ public struct CopiedKeys: Hashable, Sendable {
     static let maxCodeLength = 64
     static let labelLength = 10
     static let descriptionLength = 30
-    static let macroNameLength = 64
 
     /// The board's name (`voyager`).
     public var board: String
@@ -141,7 +141,6 @@ public struct CopiedKeys: Hashable, Sendable {
             if var macro = action.macro {
                 guard macro.steps.allSatisfy({ isIdentifier($0.code) }) else { return nil }
                 for i in macro.steps.indices { macro.steps[i].delay = min(max(macro.steps[i].delay, 0), Macro.maxDelay) }
-                macro.name = clamped(macro.name, to: macroNameLength)
                 action.macro = macro
             }
             key[slot] = action

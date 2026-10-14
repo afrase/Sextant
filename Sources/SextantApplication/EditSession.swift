@@ -67,6 +67,9 @@ public final class EditSession {
     /// working copy already differed from its last revision at open: edited until the next revision.
     var revisionBaseline: KeyboardLayout?
 
+    /// Whether the window shows several selected keys right now (the Keys lens on the plain board, no pick; ADR 0047).
+    /// While it says no, edits, copy and the count see only the anchor, and the other keys wait for it to say yes.
+    @ObservationIgnored public var showsSeveralKeys: @MainActor () -> Bool = { true }
     /// The window's undo manager. Edits made while it is nil are not undoable.
     @ObservationIgnored public weak var undoManager: UndoManager?
     @ObservationIgnored let library: any LayoutLibrary
@@ -130,24 +133,6 @@ public final class EditSession {
     public func select(key index: Int?, slot: KeySlot? = nil) {
         selection.keyIndex = index.flatMap { (0..<layout.keyCount).contains($0) ? $0 : nil }
         if let slot { selection.slot = slot }
-    }
-
-    /// Selects several keys (spec §5.4), `anchor` as the anchor, else the first; keys off the board are left out.
-    public func select(keys indices: [Int], anchor: Int? = nil) {
-        let keys = indices.filter((0..<layout.keyCount).contains)
-        selection.select(keys: keys, anchor: anchor.flatMap { keys.contains($0) ? $0 : nil } ?? keys.first)
-    }
-
-    /// ⌘-click: adds the key to the selection, or takes it out. The anchor taken out passes to the lowest other key.
-    public func toggle(key index: Int) {
-        guard (0..<layout.keyCount).contains(index) else { return }
-        var keys = selection.keyIndices
-        if let at = keys.firstIndex(of: index) {
-            keys.remove(at: at)
-            selection.select(keys: keys, anchor: selection.keyIndex == index ? keys.first : selection.keyIndex)
-        } else {
-            selection.select(keys: keys + [index], anchor: selection.keyIndex ?? index)
-        }
     }
 
     /// Arrow-key navigation across the board (crosses halves, reaches thumbs). Selects key 0 if nothing is selected. A
@@ -496,7 +481,7 @@ public final class EditSession {
     /// files that edit one key keep calling ``target(_:_:)``.
     func targets(_ layer: Int? = nil, _ index: Int? = nil) -> [(layer: Int, index: Int)] {
         let l = layer ?? selection.layer
-        return (index.map { [$0] } ?? selection.keyIndices).filter { layout.key(layer: l, index: $0) != nil }.map { (l, $0) }
+        return (index.map { [$0] } ?? selectedKeys).filter { layout.key(layer: l, index: $0) != nil }.map { (l, $0) }
     }
 
     /// "Set Tap", or "Set Tap on 3 Keys" for several.

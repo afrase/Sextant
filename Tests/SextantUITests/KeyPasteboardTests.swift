@@ -130,7 +130,10 @@ struct KeyPasteboardTests {
 
         session.select(keys: [13, 14])
         model.lens = .lighting
-        #expect(session.selection.keyIndices == [13], "another lens keeps the anchor")
+        #expect(session.selectedKeys == [13] && model.selectedKeyCount == 1, "another lens shows only the anchor")
+        model.lens = .keys
+        #expect(model.selectedKeyCount == 2, "and the Keys lens shows the others again")
+        model.lens = .lighting
         model.click(key: 20, .toggle)
         #expect(session.selection.keyIndices == [20], "and clicks select one key")
         model.lens = .keys
@@ -149,6 +152,91 @@ struct KeyPasteboardTests {
         session.select(keys: [13, 14])
         model.destination = .history
         #expect(model.selectedKeyCount == 0, "a page doesn't show them")
+    }
+
+    /// Undo, redo and a paste in the Lighting lens or during a pick restore several keys the board doesn't ring; ⌫, the
+    /// Key menu and the count must see only the anchor there.
+    @Test func severalKeysBroughtBackOutsideTheKeysLensActAsTheAnchor() async throws {
+        let board = Board()
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        let undo = UndoManager()
+        undo.groupsByEvent = false
+        session.undoManager = undo
+        session.select(keys: [13, 14, 15], anchor: 13)
+        undo.beginUndoGrouping()
+        session.setLabel("X")
+        undo.endUndoGrouping()
+        model.lens = .lighting
+        undo.undo()
+        #expect(session.selectedKeys == [13] && model.selectedKeyCount == 1)
+        undo.redo()
+        #expect(session.selectedKeys == [13])
+        // Later edits needn't be undoable here; without groups the manager would refuse them.
+        session.undoManager = nil
+        session.makeTransparent()
+        #expect(session.layout.key(layer: 0, index: 14)?.customLabel == "X", "only the anchor became transparent")
+
+        // A paste of several keys in Lighting selects them, but shows and edits only the first.
+        model.lens = .keys
+        session.select(keys: [3, 4, 5])
+        await put(model.copyKeys(), on: board.pasteboard)
+        model.lens = .lighting
+        session.select(layer: 1)
+        session.select(key: 40)
+        #expect(model.pasteKeys(from: board.pasteboard))
+        #expect(session.selectedKeys == [3] && model.selectedKeyCount == 1)
+
+        // A pick shows one key too.
+        model.lens = .keys
+        #expect(model.selectedKeyCount == 3)
+        model.boardPick = BoardPick(prompt: "", onPick: { _ in false })
+        #expect(model.selectedKeyCount == 1 && session.selectedKeys == [3])
+        model.cancelBoardPick()
+    }
+
+    @Test func showIssueSelectsTheKeyAlone() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.select(keys: [13, 14, 15], anchor: 13)
+        model.showIssue(KeyRef(layer: 1, index: 13, slot: .hold))
+        #expect(session.selection.layer == 1 && session.selection.keyIndices == [13] && session.selection.slot == .hold)
+    }
+
+    @Test func overrideIsOnWhenAnySelectedKeyIsInherited() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.select(layer: 1)
+        let layer = session.layout.layers[1].keys
+        let own = try #require(layer.indices.first { !session.layout.resolvedKey(layer: 1, index: $0).isInherited })
+        let inherited = try #require(layer.indices.first { session.layout.resolvedKey(layer: 1, index: $0).isInherited })
+        session.select(keys: [own])
+        #expect(!model.canOverrideKey)
+        session.select(keys: [own, inherited], anchor: own)
+        #expect(model.canOverrideKey)
+    }
+
+    /// With several keys the picker names the count, not the anchor: no cap in the token, no preview on one key, and the
+    /// footer says when the keys differ.
+    @Test func thePickerSpeaksForEverySelectedKey() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.select(keys: [13, 14, 15])
+        model.openKeycodePicker(prefilled: "esc")
+        #expect(model.assignTarget?.keyCount == 3 && model.assignTarget?.isMixed == true)
+        #expect(model.pickerCurrent == "Now mixed")
+        #expect(model.pickerPreview == nil)
+        #expect(!model.paletteItems.contains { $0.isCurrent })
+        model.palette = nil
+
+        session.setCode("KC_Q")
+        model.openKeycodePicker(prefilled: "q")
+        #expect(model.assignTarget?.isMixed == false && model.pickerCurrent == "Now KC_Q")
+        model.palette = nil
+
+        model.openPalette(.general, query: "esc")
+        let notes = model.paletteItems.compactMap(\.note).filter { $0.hasPrefix("Assign to") }
+        #expect(!notes.isEmpty && notes.allSatisfy { $0 == "Assign to 3 keys › Tap on Main…" })
     }
 
     @Test func thePickerAssignsToEverySelectedKeyKeepingEachChord() async throws {

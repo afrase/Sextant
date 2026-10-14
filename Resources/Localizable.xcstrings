@@ -508,6 +508,9 @@
         }
       }
     },
+    "Assign to %@…" : {
+
+    },
     "Assign to Key…" : {
 
     },
@@ -1891,6 +1894,9 @@
 
     },
     "Now empty" : {
+
+    },
+    "Now mixed" : {
 
     },
     "OK" : {

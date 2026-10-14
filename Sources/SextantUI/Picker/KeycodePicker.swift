@@ -7,10 +7,16 @@ import SextantDomain
 struct AssignTarget {
     /// The scope token's text: "› Hold on Main" after the key's cap, or "Combo 3 › Output".
     var title: String
-    /// The key whose cap the token shows and the board previews; nil when the target isn't a key.
+    /// The key whose cap the token shows and the board previews; nil when the target isn't a key. For several keys,
+    /// the anchor: the picker floats clear of it.
     var key: KeyRef?
     /// The value being replaced: the footer's "Now …" and the ✓.
     var current: KeyAction?
+    /// How many keys it writes. With several the token shows the count, not a cap, and the board previews nothing, since
+    /// a preview on one key would say only that key changes.
+    var keyCount = 1
+    /// The keys hold different values in the slot: the footer says "Now mixed" and nothing is ✓.
+    var isMixed = false
     /// The keycodes it takes (a macro step takes only codes it can type); nil takes every one.
     var accepts: ((KeyAction) -> Bool)?
     /// Writes the keycode, as one undo step.
@@ -143,16 +149,17 @@ extension LayoutWindowModel {
     /// What the picker assigns to: its own target, or the selected key's slot while a key is shown.
     var assignTarget: AssignTarget? { palette?.target ?? keySlotTarget }
 
-    /// The selected key's slot, or that slot of every selected key: "3 keys › Tap on Main" (ADR 0047). The token shows
-    /// the anchor and the board previews it.
+    /// The selected key's slot, or that slot of every selected key: "3 keys › Tap on Main" (ADR 0047).
     private var keySlotTarget: AssignTarget? {
         guard hasSelectedKey, let session, let index = session.selection.keyIndex else { return nil }
-        let (layer, slot, count) = (session.selection.layer, session.selection.slot, session.selection.keyIndices.count)
+        let (layer, slot, keys) = (session.selection.layer, session.selection.slot, session.selectedKeys)
         let name = session.currentLayer?.title ?? ""
+        let values = Set(keys.map { session.layout.key(layer: layer, index: $0)?[slot] })
         return AssignTarget(
-            title: count > 1
-                ? String(localized: "\(count) keys › \(slot.title) on \(name)") : String(localized: "› \(slot.title) on \(name)"),
-            key: KeyRef(layer: layer, index: index, slot: slot), current: session.selectedAction
+            title: keys.count > 1
+                ? String(localized: "\(keys.count) keys › \(slot.title) on \(name)") : String(localized: "› \(slot.title) on \(name)"),
+            key: KeyRef(layer: layer, index: index, slot: slot), current: values.count == 1 ? session.selectedAction : nil,
+            keyCount: keys.count, isMixed: values.count > 1
         ) { action in session.setAction { Self.assigned(action, over: $0) } }
     }
 
@@ -217,8 +224,7 @@ extension LayoutWindowModel {
             palette = nil
             return
         }
-        let order = BoardView.readingOrder(session.geometry)
-        let sorted = order.indices.sorted { order[$0] > order[$1] }
+        let sorted = session.geometry.readingOrder
         if let at = sorted.firstIndex(of: index) { session.select(key: sorted[(at + 1) % sorted.count]) }
         palette?.query = ""
     }
@@ -235,7 +241,7 @@ extension LayoutWindowModel {
     /// The target's cap as the highlighted keycode would make it, for the picker preview state (spec §4.7, §5.6). The
     /// board shows only its own layer's keys.
     var pickerPreview: KeyCapModel? {
-        guard isPicking, let session, let key = assignTarget?.key, key.layer == session.selection.layer,
+        guard isPicking, let session, let key = assignTarget?.key, assignTarget?.keyCount == 1, key.layer == session.selection.layer,
             let action = paletteItems[safe: palette?.highlight ?? 0]?.keycode
         else { return nil }
         var layout = session.layout
@@ -251,6 +257,7 @@ extension LayoutWindowModel {
 
     /// The footer's current value: "Now KC_TRANSPARENT".
     var pickerCurrent: String {
+        if assignTarget?.isMixed == true { return String(localized: "Now mixed") }
         guard let action = assignTarget?.current else { return String(localized: "Now empty") }
         return String(localized: "Now \(Legends.legend(for: action).qmk)")
     }
@@ -360,7 +367,10 @@ extension LayoutWindowModel {
             let key = session.legend(at: index).legend.primary.map(CapLegendView.capText) ?? String(localized: "Key \(index)")
             items += keycodeItems(query, category: nil).prefix(5).enumerated().map { n, item in
                 var item = item
-                item.note = String(localized: "Assign to \(key) \(pickerTarget)…")
+                // "Assign to A › Tap on Main…", or "Assign to 3 keys › Tap on Main…" with no cap to name.
+                item.note =
+                    (assignTarget?.keyCount ?? 1) > 1
+                    ? String(localized: "Assign to \(pickerTarget)…") : String(localized: "Assign to \(key) \(pickerTarget)…")
                 item.perform = { [weak self] in
                     self?.palette?.scope = .assign
                     self?.palette?.highlight = n
@@ -404,7 +414,7 @@ extension LayoutWindowModel {
                 self?.palette = nil
                 // The destination, not the layer: on a page the key's layer may already be the shown one.
                 self?.destination = .layer(hit.layer)
-                session.select(key: hit.index)
+                session.select(keys: [hit.index])
             }
         }
     }

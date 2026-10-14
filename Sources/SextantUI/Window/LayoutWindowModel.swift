@@ -39,11 +39,12 @@ enum LaneStatus: Equatable {
 public final class LayoutWindowModel {
     public let library: Library
     /// The open layout, once loaded.
-    public internal(set) var session: EditSession?
+    public internal(set) var session: EditSession? {
+        didSet { session?.showsSeveralKeys = { [weak self] in self?.selectsSeveralKeys ?? true } }
+    }
     public private(set) var loadError: LibraryError?
     public var legendMode: LegendMode = .symbols
-    /// Several selected keys are a Keys lens selection (ADR 0047): another lens keeps only the anchor.
-    public var lens: Lens = .keys { didSet { if lens != .keys, let key = session?.selection.keyIndex { session?.select(keys: [key]) } } }
+    public var lens: Lens = .keys
     public var columnVisibility: NavigationSplitViewVisibility = .all
     public var showsInspector = true
     /// The live view is on (ADR 0057): Sextant pairs with the keyboard and shows its layer and presses. App-wide, and only
@@ -314,8 +315,8 @@ public final class LayoutWindowModel {
     var canShowNextLayer: Bool { session.map { $0.selection.layer < $0.layout.layers.count - 1 } ?? false }
     var canDeleteLayer: Bool { (session?.layout.layers.count ?? 0) > 1 }
     var canOverrideKey: Bool {
-        guard page == nil, let session, let index = session.selection.keyIndex else { return false }
-        return session.layout.resolvedKey(layer: session.selection.layer, index: index).isInherited
+        guard page == nil, let session else { return false }
+        return session.selectedKeys.contains { session.layout.resolvedKey(layer: session.selection.layer, index: $0).isInherited }
     }
     /// Live View needs a keyboard plugged in (not in flash mode).
     var canGoLive: Bool { connectedKeyboard != nil }
@@ -397,7 +398,7 @@ public final class LayoutWindowModel {
     func showIssue(_ key: KeyRef) {
         if showMacroIssue(key) { return }
         destination = .layer(key.layer)
-        session?.select(key: key.index, slot: key.slot)
+        session?.select(keys: [key.index], slot: key.slot)
     }
 
     /// A click on a board key, VoiceOver's activate, or ⏎ during a pick: a pick takes the key and ends when it says it is
@@ -419,11 +420,11 @@ public final class LayoutWindowModel {
     }
 
     /// Esc on the board steps back one level (spec §9.3): a pick ends first (step 4), then several keys become their
-    /// anchor, then the key is deselected (step 5).
+    /// anchor (step 5), then the key is deselected (step 6).
     func escapeBoard() {
         if boardPick != nil {
             cancelBoardPick()
-        } else if let session, session.selection.keyIndices.count > 1 {
+        } else if let session, session.selectedKeys.count > 1 {
             session.select(keys: session.selection.keyIndex.map { [$0] } ?? [])
         } else {
             session?.select(key: nil)

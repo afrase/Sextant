@@ -28,6 +28,15 @@ struct CopiedKeysTests {
         try roundTrips(Fixtures.layout(file))
     }
 
+    /// The Macros page puts no limit on a name, so a copy keeps a long one.
+    @Test func roundTripsALongMacroName() throws {
+        var layout = try Fixtures.layout()
+        let macro = Macro(name: String(repeating: "N", count: 80), steps: [MacroStep(code: "KC_A")])
+        layout.updateKey(layer: 0, index: 5) { $0 = Key(tap: KeyAction(code: "KC_TRANSPARENT", macro: macro)) }
+        let copied = try #require(CopiedKeys(layout: layout, layer: 0, indices: [5]))
+        #expect(try CopiedKeys(data: #require(copied.encoded())) == copied)
+    }
+
     @Test func copiesTheGivenKeysInIndexOrder() throws {
         let layout = try Fixtures.layout()
         let copied = try #require(CopiedKeys(layout: layout, layer: 0, indices: [24, 3, 3, 99]))
@@ -101,6 +110,6 @@ struct CopiedKeysTests {
         #expect(pasted.tap?.description?.count == 30)
         let macro = try #require(pasted.tap?.macro)
         #expect(macro.steps.count == 30 && macro.steps.allSatisfy { $0.delay == Macro.maxDelay }, "every step, each wait at most 5 s")
-        #expect(macro.name?.count == 64)
+        #expect(macro.name?.count == 80, "names keep their length: the Macros page allows any, and the size cap bounds them")
     }
 }

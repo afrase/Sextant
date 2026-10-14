@@ -10,7 +10,7 @@ struct MultiKeyInspector: View {
 
     var body: some View {
         let layer = session.selection.layer
-        let indices = session.selection.keyIndices
+        let indices = session.selectedKeys
         let keys = indices.compactMap { session.layout.key(layer: layer, index: $0) }
         let slot = session.selection.slot
         let actions = Set(keys.map { $0[slot].filledAction })
@@ -97,7 +97,7 @@ struct MultiKeyInspector: View {
         }
     }
 
-    /// The keys' own LED color: one swatch when they share it.
+    /// The keys' own LED color: one swatch when they share it; with none of their own, the layer's, as for one key.
     private func colorRow(_ keys: [Key]) -> some View {
         let colors = Set(keys.map(\.glowColor))
         let shared = colors.count == 1 ? colors.first.flatMap(\.self) : nil
@@ -112,7 +112,10 @@ struct MultiKeyInspector: View {
                         shared.swatchImage
                     }
                 } else {
-                    Text(colors.count == 1 ? String(localized: "None") : String(localized: "Mixed"))
+                    Text(
+                        colors.count > 1
+                            ? String(localized: "Mixed")
+                            : session.currentLayer?.color == nil ? String(localized: "None") : String(localized: "Layer color"))
                 }
             }
             .fixedSize()

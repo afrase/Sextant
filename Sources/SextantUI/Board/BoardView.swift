@@ -43,10 +43,11 @@ public struct BoardView: View {
     private var brush: Brush? { hasBoardPick || display != nil ? nil : lensBrush }
     private var layout: KeyboardLayout { display?.layout ?? session.layout }
     private var canCopy: Bool { display == nil && window?.hasSelectedKey == true }
-    /// The keys selected with the anchor, ringed in the Keys lens on the plain board.
+    /// The keys selected with the anchor, ringed in the Keys lens on the plain board (the session's selected keys are
+    /// the anchor alone elsewhere).
     private var others: [Int] {
-        guard display == nil, window?.selectsSeveralKeys ?? true else { return [] }
-        return session.selection.keyIndices.filter { $0 != session.selection.keyIndex }
+        guard display == nil else { return [] }
+        return session.selectedKeys.filter { $0 != session.selection.keyIndex }
     }
     private var layer: Int { display?.layer ?? session.selection.layer }
 
@@ -237,7 +238,7 @@ public struct BoardView: View {
         let index = model.index
         if let window, window.selectsSeveralKeys {
             // ⌘-click for VoiceOver (spec §5.4).
-            if session.selection.keyIndices.contains(index) {
+            if session.selectedKeys.contains(index) {
                 Button("Remove from Selection") { window.click(key: index, .toggle) }
             } else {
                 Button("Add to Selection") { window.click(key: index, .toggle) }
@@ -305,16 +306,12 @@ public struct BoardView: View {
         }
     }
 
-    /// VoiceOver reads the left half row by row, its thumbs, then the right half and its thumbs (spec §4.11).
+    /// Each key's VoiceOver sort priority, highest first, from the geometry's reading order (spec §4.11).
     nonisolated static func readingOrder(_ geometry: BoardGeometry) -> [Double] {
-        let keys = geometry.keys
-        let sorted = keys.sorted {
-            ($0.hand == .right ? 1 : 0, $0.cluster == .thumb ? 1 : 0, $0.row, $0.center.x)
-                < ($1.hand == .right ? 1 : 0, $1.cluster == .thumb ? 1 : 0, $1.row, $1.center.x)
-        }
-        var priority = Array(repeating: 0.0, count: keys.count)
-        for (rank, key) in sorted.enumerated() where priority.indices.contains(key.index) {
-            priority[key.index] = Double(keys.count - rank)
+        let order = geometry.readingOrder
+        var priority = Array(repeating: 0.0, count: geometry.keys.count)
+        for (rank, index) in order.enumerated() where priority.indices.contains(index) {
+            priority[index] = Double(order.count - rank)
         }
         return priority
     }

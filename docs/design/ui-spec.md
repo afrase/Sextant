@@ -684,16 +684,16 @@ The bench is the content surface behind the board. It is never glass.
 
 ### 5.4 Multi-selection (v1)
 
-- **Selecting.** ⌘-click toggles a key in the selection. ⇧-click selects a range in reading order (VoiceOver's: the left half row by row, its thumbs, then the right half), from the anchor: the key selected first, which the slot editor shows. Only on the plain board in the Keys lens; another lens keeps the anchor. Arrows and a drag collapse the selection to one key, and esc first keeps only the anchor (§9.3). VoiceOver's "Add to Selection" action stands in for ⌘-click (ADR 0047).
+- **Selecting.** ⌘-click toggles a key in the selection. ⇧-click selects a range in reading order (VoiceOver's: the left half row by row, its thumbs, then the right half), from the anchor: the key selected first, which the slot editor shows. Only on the plain board in the Keys lens; another lens or a pick acts on the anchor alone, and the others show again in the Keys lens. Arrows and a drag collapse the selection to one key, and esc first keeps only the anchor (§9.3). VoiceOver's "Add to Selection" action stands in for ⌘-click (ADR 0047).
 - **Board.** A ring on every selected key; the context strip says "3 keys selected · ⌘-click adds or removes a key · esc keeps one".
 - **Inspector.** It shows "3 keys", the layer and the key numbers, and a slot strip with each slot's shared value or "Mixed". Common actions: Make Transparent, Disable, Set LED Colour, Copy To Layer ▸, Clear Label.
-- **Slot editing** across keys applies one value to all of them, as one undo step ("Set Tap on 3 Keys"). When the keys differ in the slot it says "Mixed: 3 different" with Change… and Clear. The picker's target is "3 keys › Tap on Main"; each key keeps its own chord, and a macro from the Macros category goes on every key's tap.
-- **Key menus** act on every selected key; Record Key and Copy QMK Expression act on the anchor.
+- **Slot editing** across keys applies one value to all of them, as one undo step ("Set Tap on 3 Keys"). When the keys differ in the slot it says "Mixed: 3 different" with Change… and Clear. The picker's target is "3 keys › Tap on Main", with no cap and no preview on one key, and its footer says "Now mixed" when the keys differ; each key keeps its own chord, and a macro from the Macros category goes on every key's tap.
+- **Key menus** act on every selected key (Override on This Layer on the inherited ones); Record Key and Copy QMK Expression act on the anchor. Show Issue and Find Key select the key alone.
 
 ### 5.5 Direct manipulation
 
 - **Drag one key onto another to swap them** on the current layer, as one undo step: "Swap Keys". ⌥-drag copies instead. This is MVP, since it is cheap and is Oryx parity.
-- **Copy and paste (v1).** ⌘C copies the selected keys' full definitions, and ⌘V pastes one key onto every selected key ("Paste Key"), or several keys back to their own places on the shown layer ("Paste 3 Keys"). ⌘X copies and makes them transparent. These act on keys only while the board has focus. The pasteboard gets a `com.sextant.keys` flavor and the keys' QMK expressions as text; what is pasted is checked first (ADR 0047).
+- **Copy and paste (v1).** ⌘C copies the selected keys' full definitions, and ⌘V, with a key selected, pastes one key onto every selected key ("Paste Key"), or several keys back to their own places on the shown layer, which it then selects ("Paste 3 Keys"). ⌘X copies and makes them transparent. These act on keys only while the board has focus. The pasteboard gets a `com.sextant.keys` flavor and the keys' QMK expressions as text; what is pasted is checked first (ADR 0047).
 - **Type to search.** Typing a printable character while the board has focus opens the picker in assign scope, pre-filled with that character. This doesn't apply in the Lighting lens (B/E/I/G) or the Combos lens (N).
 
 ### 5.6 Keycode picker (assign scope)

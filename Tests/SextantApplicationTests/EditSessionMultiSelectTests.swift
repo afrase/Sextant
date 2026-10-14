@@ -162,6 +162,66 @@ struct EditSessionMultiSelectTests {
         #expect(session.layout.layers[0].keys == main)
     }
 
+    @Test func pasteNeedsASelectedKeyAndShowsWhereSeveralKeysWent() async throws {
+        let (session, undo) = try await open()
+        session.select(keys: [13, 14, 15])
+        let copied = try #require(session.copiedKeys)
+        // Back on the layer they came from they change nothing, but the keys they went to are still selected.
+        session.select(key: 40)
+        let before = session.layout
+        #expect(session.pasteKeys(copied))
+        #expect(session.layout == before && session.selection.keyIndices == [13, 14, 15])
+        #expect(undo.canUndo == false, "no undo step for a paste that changes nothing")
+
+        // With no key selected there is nowhere to paste.
+        session.select(key: nil)
+        session.select(layer: 2)
+        let layer2 = session.layout
+        #expect(!session.pasteKeys(copied))
+        #expect(!session.pasteKeys(try #require(CopiedKeys(layout: before, layer: 0, indices: [13]))))
+        #expect(session.layout == layer2)
+    }
+
+    /// Where the window shows one key (another lens, a pick), a multi-selection that undo or a paste brings back acts as
+    /// its anchor: edits, copy and the count never reach keys without a ring.
+    @Test func aWindowShowingOneKeyLimitsEveryEditToTheAnchor() async throws {
+        let (session, undo) = try await open()
+        let main = session.layout.layers[0].keys
+        session.select(keys: [13, 14, 15], anchor: 13)
+        step(undo) { session.setLabel("X") }
+        let window = ShownKeys()
+        session.showsSeveralKeys = { window.several }
+        #expect(session.selectedKeys == [13])
+        undo.undo()
+        #expect(session.selection.keyIndices == [13, 14, 15] && session.selectedKeys == [13])
+        step(undo) { session.makeTransparent() }
+        #expect(undo.undoActionName == "Make Transparent")
+        #expect(session.layout.key(layer: 0, index: 13) == .transparent)
+        #expect(session.layout.key(layer: 0, index: 14) == main[14] && session.layout.key(layer: 0, index: 15) == main[15])
+        #expect(session.copiedKeys?.entries.map(\.index) == [13])
+        window.several = true
+        #expect(session.selectedKeys == [13, 14, 15], "the others come back where several keys show")
+    }
+
+    /// What the window says about showing several keys.
+    @MainActor final class ShownKeys {
+        var several = false
+    }
+
+    @Test func goingToAKeySelectsItAlone() async throws {
+        let (session, _) = try await open()
+        session.select(keys: [13, 14, 15], anchor: 13)
+        session.select(layer: 1)
+        session.select(keys: [13], slot: .hold)
+        #expect(session.selection.keyIndices == [13] && session.selection.slot == .hold)
+        session.select(keys: [13, 14, 15], anchor: 13)
+        session.selectRange(to: 15)
+        #expect(session.selection.keyIndices == [13, 14, 15] && session.selection.keyIndex == 13)
+        session.select(key: nil)
+        session.selectRange(to: 15)
+        #expect(session.selection.keyIndices == [15], "no anchor: that key alone")
+    }
+
     @Test func pastedLayerKeysForLayersThisLayoutLacksDoNothing() async throws {
         let (session, undo) = try await open()
         let copied = CopiedKeys(
