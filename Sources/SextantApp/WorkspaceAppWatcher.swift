@@ -20,9 +20,24 @@ struct WorkspaceAppWatcher: FrontmostAppWatcher {
         }
     }
 
+    func runningApps() -> AsyncStream<[MacApp]> {
+        AsyncStream { continuation in
+            let center = NSWorkspace.shared.notificationCenter
+            let names = [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification]
+            let tasks =
+                [Task { @MainActor in _ = continuation.yield(Self.regularApps()) }]
+                + names.map { name in
+                    Task { @MainActor in
+                        for await _ in center.notifications(named: name) { continuation.yield(Self.regularApps()) }
+                    }
+                }
+            continuation.onTermination = { _ in tasks.forEach { $0.cancel() } }
+        }
+    }
+
     @MainActor
-    func runningApps() -> [MacApp] {
-        let apps = NSWorkspace.shared.runningApplications.filter { $0.activationPolicy == .regular }.compactMap(Self.app)
+    private static func regularApps() -> [MacApp] {
+        let apps = NSWorkspace.shared.runningApplications.filter { $0.activationPolicy == .regular }.compactMap(app)
         return Dictionary(apps.map { ($0.bundleID, $0) }) { first, _ in first }.values
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }

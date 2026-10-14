@@ -10,6 +10,7 @@ import os
 /// only to a layer of the flashed layout, and only while that layout's switch is on with a rule enabled: the user's
 /// consent to a write without a click each time. It acts on app switches alone, never at launch, when Live View starts or
 /// when a rule changes. Nothing is queued while it can't send. The switches it made are kept in memory, app names only.
+/// Sextant coming forward isn't a switch: looking at its rules, or opening its menu bar panel, leaves the keyboard alone.
 @MainActor
 @Observable
 public final class AppLayerSwitcher {
@@ -40,8 +41,8 @@ public final class AppLayerSwitcher {
     public private(set) var frontmost: MacApp?
     /// The switches made since launch, newest first; never stored.
     public private(set) var history: [Switch] = []
-    /// The last App Layers save that failed; nil once one lands.
-    public var saveError: LibraryError?
+    /// Each layout's last App Layers save that failed, until one for it lands.
+    private var saveErrors: [UUID: LibraryError] = [:]
     private var rulesByLayout: [UUID: AppLayerRules] = [:]
     /// Layouts whose `app-layers.json` couldn't be read: editing their rules would overwrite it.
     private var unreadable: [UUID: LibraryError] = [:]
@@ -52,6 +53,7 @@ public final class AppLayerSwitcher {
     @ObservationIgnored private let store: any LayoutLibrary
     @ObservationIgnored private let clock: any Clock<Duration>
     @ObservationIgnored private let now: @Sendable () -> Date
+    @ObservationIgnored private let ownBundleID: String?
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
     @ObservationIgnored private var pending: Task<Void, Never>?
     @ObservationIgnored private var saving: Task<Void, Never>?
@@ -59,9 +61,10 @@ public final class AppLayerSwitcher {
     @ObservationIgnored private var nextSwitchID = 0
     private static let log = Logger(subsystem: "com.sextant.app", category: "application")
 
+    /// - Parameter ownBundleID: Sextant's own bundle id; its activations are ignored.
     public init(
         watcher: any FrontmostAppWatcher, onKeyboard: OnKeyboard, live: LiveSession, store: any LayoutLibrary,
-        clock: any Clock<Duration> = ContinuousClock(), now: @escaping @Sendable () -> Date = { Date() }
+        ownBundleID: String? = nil, clock: any Clock<Duration> = ContinuousClock(), now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.watcher = watcher
         self.onKeyboard = onKeyboard
@@ -69,6 +72,7 @@ public final class AppLayerSwitcher {
         self.store = store
         self.clock = clock
         self.now = now
+        self.ownBundleID = ownBundleID
     }
 
     /// Follows the frontmost app, and loads the rules of the layout the keyboard runs, for the app's lifetime.
@@ -80,6 +84,7 @@ public final class AppLayerSwitcher {
                 var isFirst = true
                 for await app in watcher.activations() {
                     guard let self else { return }
+                    guard app.bundleID != ownBundleID else { continue }
                     // The app in front at launch only sets where switching starts from: nothing is sent at launch.
                     if isFirst {
                         isFirst = false
@@ -123,17 +128,33 @@ public final class AppLayerSwitcher {
 
     /// Replaces the layout's rules and saves them, in order. A change sends nothing by itself: the next app switch acts on
     /// it. Only once ``load(_:)`` has read them, so a change made from the empty set shown before can't replace the file.
+    /// A save that fails keeps the change for this run and shows in ``saveError(for:)``: until one lands, the file still
+    /// holds the rules from before, which the next launch reads.
     public func setRules(_ rules: AppLayerRules, for id: UUID) {
         guard unreadable[id] == nil, let current = rulesByLayout[id], rules != current else { return }
         rulesByLayout[id] = rules
+        save(id)
+    }
+
+    /// Why the layout's last rule change isn't saved; nil once a save lands.
+    public func saveError(for id: UUID) -> LibraryError? { saveErrors[id] }
+
+    /// Saves the layout's rules as they are now again, after a failed save.
+    public func retrySave(for id: UUID) {
+        guard saveErrors[id] != nil else { return }
+        save(id)
+    }
+
+    private func save(_ id: UUID) {
+        guard let rules = rulesByLayout[id] else { return }
         let (store, previous) = (store, saving)
         saving = Task { [weak self] in
             await previous?.value
             do throws(LibraryError) {
                 try await store.saveAppLayerRules(rules, for: id)
-                self?.saveError = nil
+                self?.saveErrors[id] = nil
             } catch {
-                self?.saveError = error
+                self?.saveErrors[id] = error
                 Self.log.error("App Layers not saved: \(String(describing: error), privacy: .public)")
             }
         }
@@ -144,15 +165,16 @@ public final class AppLayerSwitcher {
     /// Whether the layout's rules can move the keyboard now, and why not.
     public func state(for id: UUID) -> AppLayersState {
         guard rules(for: id).isActive else { return .off }
-        switch live.connection {
-        case .noKeyboard: return .paused(.noKeyboard)
-        case .bootloader: return .paused(.flashMode)
-        case .liveOff: return .paused(.liveOff)
-        case .heldByAnotherApp: return .paused(.heldByAnotherApp)
-        case .connected: if !live.canSend { return .paused(.connecting) }
+        // The same refusals as every other layer move (ADR 0048), so the two can't drift apart.
+        do throws(LayerMoveRefusal) {
+            try onKeyboard.moveKeyboard(toLayer: 0, dryRun: true)
+        } catch {
+            return .paused(.refused(error))
         }
-        guard let running = onKeyboard.running else { return .paused(.unknownLayout) }
-        guard running.entry.id == id else { return .paused(.otherLayout(running.entry.title)) }
+        guard let running = onKeyboard.running else { return .paused(.refused(.unknownLayout)) }
+        guard running.entry.id == id else {
+            return .paused(.otherLayout(running.entry.title, hasRules: rules(for: running.entry.id).isActive))
+        }
         return .on
     }
 
@@ -166,9 +188,19 @@ public final class AppLayerSwitcher {
 
     // MARK: Apps
 
-    public func runningApps() async -> [MacApp] { await watcher.runningApps() }
+    /// The running apps for Add App…, as they launch and quit, without Sextant: its own rule would never apply.
+    public func runningApps() -> AsyncStream<[MacApp]> {
+        let (own, updates) = (ownBundleID, watcher.runningApps())
+        return AsyncStream { continuation in
+            let task = Task {
+                for await apps in updates { continuation.yield(apps.filter { $0.bundleID != own }) }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
 
-    public func app(at url: URL) async -> MacApp? { await watcher.app(at: url) }
+    public func app(at url: URL) async -> MacApp? { await watcher.app(at: url).flatMap { $0.bundleID == ownBundleID ? nil : $0 } }
 
     // MARK: Switching
 
@@ -179,16 +211,28 @@ public final class AppLayerSwitcher {
         pending = Task { [weak self] in
             do { try await clock.sleep(for: Self.settle) } catch { return }
             guard let self else { return }
+            await keysUp()
+            guard !Task.isCancelled else { return }
             let previous = frontmost
             frontmost = app
             move(for: app, leaving: previous)
         }
     }
 
+    /// Waits until no key is held. A move under a held layer key turns its layer off (layer_move), so the key's release
+    /// would drop the keyboard to the base layer, whatever the rule says; a move under a held modifier would change what
+    /// the chord types.
+    private func keysUp() async {
+        let live = live
+        guard !live.pressedKeys.isEmpty else { return }
+        for await isUp in Observations({ live.pressedKeys.isEmpty }) where isUp { return }
+    }
+
+    /// Sends even when the keyboard reports the layer already: that report is the highest active layer, so it can be a
+    /// held layer key's or one the firmware failed to update (research note O2), and a move is harmless when it is there.
     private func move(for app: MacApp, leaving previous: MacApp?) {
         guard let running = onKeyboard.running, state(for: running.entry.id) == .on,
-            let layer = rules(for: running.entry.id).target(activated: app.bundleID, previous: previous?.bundleID, in: running.layout),
-            live.activeLayer != layer
+            let layer = rules(for: running.entry.id).target(activated: app.bundleID, previous: previous?.bundleID, in: running.layout)
         else { return }
         do {
             try onKeyboard.moveKeyboard(toLayer: layer)
@@ -217,27 +261,26 @@ public enum AppLayersState: Hashable, Sendable {
 
 /// Why App Layers sends nothing now.
 public enum AppLayersPause: Hashable, Sendable {
-    case noKeyboard
-    case flashMode
-    /// Live View is off (ADR 0057).
-    case liveOff
-    case heldByAnotherApp
-    /// Live View hasn't paired with the keyboard yet.
-    case connecting
-    /// The keyboard runs a layout Sextant doesn't have.
-    case unknownLayout
-    /// The keyboard runs another library layout, titled so: its own rules apply.
-    case otherLayout(String)
+    /// No layer move can be sent now (ADR 0048).
+    case refused(LayerMoveRefusal)
+    /// The keyboard runs another library layout, titled so; `hasRules` when that layout's own App Layers are on.
+    case otherLayout(String, hasRules: Bool)
 
     public var text: String {
         switch self {
-        case .noKeyboard: String(localized: "Paused: connect your keyboard.")
-        case .flashMode: String(localized: "Paused: the keyboard is in flash mode.")
-        case .liveOff: String(localized: "Paused: Live View is off. App Layers moves the keyboard only while Live View is on.")
-        case .heldByAnotherApp: String(localized: "Paused: another app (Keymapp) is using the keyboard.")
-        case .connecting: String(localized: "Paused: Live View is still connecting to the keyboard.")
-        case .unknownLayout: String(localized: "Paused: the keyboard runs a layout that isn’t in your library.")
-        case let .otherLayout(title): String(localized: "Paused: the keyboard runs “\(title)”, whose own rules apply.")
+        case let .refused(refusal):
+            switch refusal {
+            case .noKeyboard: String(localized: "Paused: connect your keyboard.")
+            case .flashMode: String(localized: "Paused: the keyboard is in flash mode.")
+            case .liveOff: String(localized: "Paused: Live View is off. App Layers moves the keyboard only while Live View is on.")
+            case .heldByAnotherApp: String(localized: "Paused: another app (Keymapp) is using the keyboard.")
+            case .connecting: String(localized: "Paused: Live View is still connecting to the keyboard.")
+            case .unknownLayout: String(localized: "Paused: the keyboard runs a layout that isn’t in your library.")
+            case .noSuchLayer: String(localized: "Paused: \(refusal.localizedDescription)")
+            }
+        case let .otherLayout(title, true): String(localized: "Paused: the keyboard runs “\(title)”, whose own rules apply.")
+        case let .otherLayout(title, false):
+            String(localized: "Paused: the keyboard runs “\(title)”, which has no App Layers turned on.")
         }
     }
 }

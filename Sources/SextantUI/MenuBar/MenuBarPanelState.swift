@@ -40,10 +40,13 @@ public struct MenuBarPanelState: Equatable {
         /// "Xcode → Sym+Num", "On", "Paused" or "Off".
         var detail: String
         var isOn: Bool
+        /// False while the last change to these rules hasn't saved: the next launch would read the ones from before.
+        var isSaved: Bool
 
-        public init(detail: String, isOn: Bool) {
+        public init(detail: String, isOn: Bool, isSaved: Bool = true) {
             self.detail = detail
             self.isOn = isOn
+            self.isSaved = isSaved
         }
     }
 
@@ -186,6 +189,6 @@ extension MenuBarPanelState {
             case .paused: String(localized: "Paused")
             case .on: switcher.applied(for: id).map { "\($0.app) → \($0.layerName)" } ?? String(localized: "On")
             }
-        return AppLayers(detail: detail, isOn: rules.isOn)
+        return AppLayers(detail: detail, isOn: rules.isOn, isSaved: switcher.saveError(for: id) == nil)
     }
 }

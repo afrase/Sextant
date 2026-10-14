@@ -17,8 +17,9 @@ public struct MacApp: Identifiable, Hashable, Sendable {
 public protocol FrontmostAppWatcher: Sendable {
     /// The frontmost app now, then each app that comes forward. Ends when the consuming task is cancelled.
     func activations() -> AsyncStream<MacApp>
-    /// The apps running now that have a Dock icon, by name, for Add App….
-    func runningApps() async -> [MacApp]
+    /// The apps running now that have a Dock icon, by name, for Add App…, then again each time one launches or quits.
+    /// Ends when the consuming task is cancelled.
+    func runningApps() -> AsyncStream<[MacApp]>
     /// The app at `url` (Add App › Choose…); nil when it isn't an app with a bundle id.
     func app(at url: URL) async -> MacApp?
 }

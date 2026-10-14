@@ -15,6 +15,9 @@ struct AppLayersPage: View {
         let rules = appLayers.rules(session.id)
         VStack(spacing: 0) {
             AppLayersHeader(model: model, session: session, rules: rules)
+            if let switcher = appLayers.switcher, switcher.saveError(for: session.id) != nil {
+                SaveFailedBar { switcher.retrySave(for: session.id) }
+            }
             Divider()
             if let error = appLayers.switcher?.loadError(for: session.id) {
                 ContentUnavailableView(
@@ -48,12 +51,27 @@ struct AppLayersPage: View {
         .navigationTitle(session.layout.title)
         .navigationSubtitle(String(localized: "App Layers"))
         .task(id: session.id) { await appLayers.switcher?.load(session.id) }
+        .confirmationDialog(
+            removingTitle(rules), isPresented: Binding(get: { appLayers.removing != nil }, set: { if !$0 { appLayers.removing = nil } }),
+            presenting: appLayers.removing
+        ) { bundleID in
+            Button("Remove Rule", role: .destructive) { appLayers.remove(bundleID, from: session.id) }
+        } message: { _ in
+            Text("You can’t undo this.")
+        }
         .fileImporter(
             isPresented: Binding(get: { appLayers.choosesApp }, set: { appLayers.choosesApp = $0 }), allowedContentTypes: [.application]
         ) { result in
             guard case let .success(url) = result else { return }
             Task { await appLayers.addApp(at: url, to: session.id, layout: session.layout) }
         }
+    }
+}
+
+extension AppLayersPage {
+    private func removingTitle(_ rules: AppLayerRules) -> String {
+        let name = model.appLayers.removing.flatMap { rules.rule(for: $0)?.name } ?? ""
+        return String(localized: "Remove the rule for \(name)?")
     }
 }
 
@@ -90,6 +108,26 @@ private struct AppLayersHeader: View {
     }
 }
 
+/// A rule change that didn't save: it holds until Sextant quits, and the next launch reads the rules from before. A switch
+/// turned off that comes back on at the next launch would resume writes the user stopped, so this stays until it lands.
+private struct SaveFailedBar: View {
+    var retry: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tokens.danger.color).accessibilityHidden(true)
+            Text("Sextant couldn’t save these rules. They apply until Sextant quits; the next launch uses the ones from before.")
+                .lineLimit(2)
+            Spacer(minLength: 8)
+            Button("Try Again", action: retry)
+        }
+        .font(.callout)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 10)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 /// Add App…: the apps running now, then Choose… for any other.
 struct AddAppMenu: View {
     var model: LayoutWindowModel
@@ -112,7 +150,7 @@ struct AddAppMenu: View {
         }
         .fixedSize()
         .disabled(appLayers.switcher == nil)
-        .task { await appLayers.refreshRunningApps() }
+        .task { await appLayers.followRunningApps() }
     }
 }
 
@@ -155,7 +193,7 @@ private struct NowCard: View {
             HStack(spacing: 10) {
                 Label(pause.text, systemImage: "pause.circle")
                 // Starting Live View pairs with the keyboard: only ever on the user's click (ADR 0057).
-                if pause == .liveOff, model.canGoLive {
+                if pause == .refused(.liveOff), model.canGoLive {
                     Button("Turn On Live View") { model.isLive = true }.controlSize(.small)
                 }
             }
@@ -183,15 +221,16 @@ private struct AppRulesTable: View {
         Table(rules.rules, selection: Binding(get: { appLayers.selection }, set: { appLayers.selection = $0 })) {
             TableColumn("App") { rule in
                 HStack(spacing: 6) {
-                    AppIcon(bundleID: rule.bundleID, size: 16)
+                    AppIcon(appLayers: appLayers, bundleID: rule.bundleID, size: 16)
                     Text(verbatim: rule.name).lineLimit(1)
                 }
             }
-            .width(min: 100, ideal: 120)
+            .width(min: 80, ideal: 90)
+            // Cut at the head: a bundle id's end ("dt.Xcode") tells apps apart, its "com." doesn't.
             TableColumn("Bundle ID") { rule in
-                Text(verbatim: rule.bundleID).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle).help(rule.bundleID)
+                Text(verbatim: rule.bundleID).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head).help(rule.bundleID)
             }
-            .width(min: 60, ideal: 80)
+            .width(min: 100, ideal: 115)
             TableColumn("Layer") { rule in AppRuleLayerPicker(model: model, session: session, rule: rule) }
                 .width(min: 110, ideal: 120)
             TableColumn("When Leaving") { rule in
@@ -210,10 +249,10 @@ private struct AppRulesTable: View {
         }
         .contextMenu(forSelectionType: String.self) { selected in
             if let bundleID = selected.first {
-                Button("Remove Rule") { appLayers.remove(bundleID, from: session.id) }
+                Button("Remove Rule") { appLayers.removing = bundleID }
             }
         }
-        .onDeleteCommand { if let bundleID = appLayers.selection { appLayers.remove(bundleID, from: session.id) } }
+        .onDeleteCommand { appLayers.removing = appLayers.selection }
         .frame(minHeight: 120)
         .accessibilityLabel(Text("App rules"))
     }
@@ -227,21 +266,29 @@ struct AppRuleLayerPicker: View {
 
     var body: some View {
         let layers = session.layout.layers
-        Picker(
-            "Layer",
-            selection: Binding(
-                get: { rule.layerID },
-                set: { id in model.appLayers.edit(session.id) { $0.update(rule.with(layerID: id)) } })
-        ) {
-            ForEach(Array(layers.enumerated()), id: \.element.id) { index, layer in
-                Text(verbatim: "\(index) · \(layer.title)").tag(layer.id)
+        let isDeleted = !layers.contains { $0.id == rule.layerID }
+        HStack(spacing: 4) {
+            if isDeleted {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tokens.warning.color)
+                    .help(String(localized: "This rule’s layer was deleted."))
+                    .accessibilityHidden(true)
             }
-            if !layers.contains(where: { $0.id == rule.layerID }) {
-                Text("Deleted layer").tag(rule.layerID)
+            Picker(
+                "Layer",
+                selection: Binding(
+                    get: { rule.layerID },
+                    set: { id in model.appLayers.edit(session.id) { $0.update(rule.with(layerID: id)) } })
+            ) {
+                ForEach(Array(layers.enumerated()), id: \.element.id) { index, layer in
+                    Text(verbatim: "\(index) · \(layer.title)").tag(layer.id)
+                }
+                if isDeleted {
+                    Text("Deleted layer").tag(rule.layerID)
+                }
             }
+            .labelsHidden()
+            .accessibilityLabel(Text("\(rule.name) layer"))
         }
-        .labelsHidden()
-        .accessibilityLabel(Text("\(rule.name) layer"))
     }
 }
 
@@ -266,15 +313,14 @@ struct AppRuleLeavingPicker: View {
     }
 }
 
-/// An app's icon, from where the system finds the app; the generic app icon when it isn't installed.
+/// An app's icon (``AppLayersModel/icon(for:)``).
 struct AppIcon: View {
+    var appLayers: AppLayersModel
     var bundleID: String
     var size: CGFloat
 
     var body: some View {
-        let workspace = NSWorkspace.shared
-        let icon = workspace.urlForApplication(withBundleIdentifier: bundleID).map { workspace.icon(forFile: $0.path) }
-        Image(nsImage: icon ?? workspace.icon(for: .application))
+        Image(nsImage: appLayers.icon(for: bundleID))
             .resizable()
             .frame(width: size, height: size)
             .accessibilityHidden(true)

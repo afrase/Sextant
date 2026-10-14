@@ -86,7 +86,9 @@ struct SextantMain: App {
         return SextantServices(
             library: library, live: live, trace: trace, onKeyboard: onKeyboard, layerShortcuts: layerShortcuts,
             lightingPreview: LightingPreview(live: live), overlay: OverlayHUD(live: live, onKeyboard: onKeyboard),
-            appLayers: AppLayerSwitcher(watcher: WorkspaceAppWatcher(), onKeyboard: onKeyboard, live: live, store: store),
+            appLayers: AppLayerSwitcher(
+                watcher: WorkspaceAppWatcher(), onKeyboard: onKeyboard, live: live, store: store,
+                ownBundleID: Bundle.main.bundleIdentifier),
             makeImport: { ImportFromOryx(oryx: oryx, library: library) },
             makeBuildFlash: { session in
                 // ADR 0033: the native toolchain, every build sandboxed.

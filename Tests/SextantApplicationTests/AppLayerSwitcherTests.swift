@@ -25,7 +25,7 @@ struct AppLayerSwitcherTests {
         library = Library(store: store)
         onKeyboard = OnKeyboard(library: library, store: store, live: live)
         switcher = AppLayerSwitcher(
-            watcher: apps, onKeyboard: onKeyboard, live: live, store: store, clock: clock,
+            watcher: apps, onKeyboard: onKeyboard, live: live, store: store, ownBundleID: MacApp.sextant.bundleID, clock: clock,
             now: { Date(timeIntervalSince1970: 1_789_000_000) })
     }
 
@@ -66,6 +66,15 @@ struct AppLayerSwitcherTests {
         return await eventually {
             await clock.advance(by: .milliseconds(17))
             return live.canSend && live.activeLayer == layer
+        }
+    }
+
+    /// Presses (or releases) one key on the keyboard.
+    func hold(_ down: Bool) async -> Bool {
+        link.send(down ? .keyDown(row: 2, column: 2) : .keyUp(row: 2, column: 2))
+        return await eventually {
+            await clock.advance(by: .milliseconds(17))
+            return live.pressedKeys.isEmpty != down
         }
     }
 
@@ -112,12 +121,58 @@ struct AppLayerSwitcherTests {
         #expect(await sent() == [.moveToLayer(1), .moveToLayer(0), .moveToLayer(2)], "Figma stays")
     }
 
-    @Test func nothingIsSentWhenTheKeyboardIsAlreadyThere() async throws {
+    /// The layer the keyboard reports is its highest active one, which may be a held layer key's or a stale report.
+    @Test func aMoveIsSentWhenTheKeyboardReportsTheLayerAlready() async throws {
         try await knownKeyboard()
         #expect(await goLive(layer: 1))
         #expect(await bring(.xcode))
-        #expect(await sent().isEmpty)
-        #expect(switcher.history.isEmpty)
+        #expect(await eventually { link.commands == [[.moveToLayer(1)]] })
+        #expect(switcher.history.map(\.app) == ["Xcode"])
+    }
+
+    /// A move under a held layer key would turn that layer off, and the key's release would drop to Main: App Layers waits
+    /// for the keys to come up, then moves.
+    @Test func aHeldKeyDelaysTheMoveUntilItIsUp() async throws {
+        try await knownKeyboard()
+        #expect(await goLive())
+        #expect(await hold(true))
+        #expect(await report(layer: 1), "the layer key holds Sym+Num")
+        apps.bring(.xcode)
+        await clock.advance(by: .seconds(1))
+        #expect(await sent().isEmpty, "nothing while the key is down")
+        #expect(await hold(false))
+        #expect(await report(layer: 0), "its release drops to Main")
+        #expect(await eventually { link.commands == [[.moveToLayer(1)]] }, "then Xcode's rule moves the keyboard")
+        #expect(switcher.frontmost == .xcode)
+    }
+
+    /// A switch to another app while a key is held replaces the one waiting.
+    @Test func aSwitchWhileAKeyIsHeldReplacesTheWaitingOne() async throws {
+        try await knownKeyboard()
+        #expect(await goLive())
+        #expect(await hold(true))
+        apps.bring(.xcode)
+        await clock.advance(by: .seconds(1))
+        apps.bring(.figma)
+        await clock.advance(by: .seconds(1))
+        #expect(await hold(false))
+        #expect(await eventually { link.commands == [[.moveToLayer(2)]] })
+        #expect(await sent() == [.moveToLayer(2)])
+    }
+
+    /// Sextant coming forward isn't a switch: reading its rules, or its menu bar panel, leaves the keyboard alone.
+    @Test func sextantItselfIsIgnored() async throws {
+        let (entry, _) = try await knownKeyboard()
+        #expect(await goLive())
+        #expect(await bring(.xcode))
+        #expect(await report(layer: 1))
+        apps.bring(.sextant)
+        await clock.advance(by: .seconds(1))
+        #expect(await sent() == [.moveToLayer(1)], "Xcode's Return to Main doesn't fire")
+        #expect(switcher.frontmost == .xcode)
+        #expect(switcher.applied(for: entry.id) == AppLayerSwitcher.Applied(app: "Xcode", layerName: "Sym+Num"))
+        #expect(await bring(.safari))
+        #expect(await eventually { link.commands == [[.moveToLayer(1), .moveToLayer(0)]] }, "leaving Xcode for Safari does")
     }
 
     @Test func onlyTheLatestActivationActs() async throws {
@@ -165,7 +220,7 @@ struct AppLayerSwitcherTests {
 
     @Test func liveViewOffSendsNothingAndIsntReplayed() async throws {
         let (entry, _) = try await knownKeyboard()
-        #expect(switcher.state(for: entry.id) == .paused(.liveOff))
+        #expect(switcher.state(for: entry.id) == .paused(.refused(.liveOff)))
         #expect(await bring(.xcode))
         #expect(link.sessionCount == 0, "nothing paired")
         #expect(await goLive())
@@ -178,10 +233,10 @@ struct AppLayerSwitcherTests {
         let (entry, _) = try await knownKeyboard()
         live.startLive()
         #expect(await eventually { link.sessionCount == 1 })
-        #expect(switcher.state(for: entry.id) == .paused(.connecting))
+        #expect(switcher.state(for: entry.id) == .paused(.refused(.connecting)))
         #expect(await bring(.xcode))
         link.send(.ended(.heldByAnotherApp))
-        #expect(await eventually { switcher.state(for: entry.id) == .paused(.heldByAnotherApp) })
+        #expect(await eventually { switcher.state(for: entry.id) == .paused(.refused(.heldByAnotherApp)) })
         #expect(await bring(.figma))
         #expect(await sent().isEmpty)
     }
@@ -191,7 +246,7 @@ struct AppLayerSwitcherTests {
         #expect(await goLive())
         watcher.detach(1)
         watcher.attach(.bootloader(.stm32()))
-        #expect(await eventually { switcher.state(for: entry.id) == .paused(.flashMode) })
+        #expect(await eventually { switcher.state(for: entry.id) == .paused(.refused(.flashMode)) })
         #expect(await bring(.xcode))
         #expect(await sent().isEmpty)
     }
@@ -213,12 +268,18 @@ struct AppLayerSwitcherTests {
         #expect(await eventually { onKeyboard.running?.entry.id == otherEntry.id })
         #expect(await goLive())
         #expect(await eventually { switcher.rules(for: otherEntry.id).isActive })
-        #expect(switcher.state(for: entry.id) == .paused(.otherLayout("Other")))
+        #expect(switcher.state(for: entry.id) == .paused(.otherLayout("Other", hasRules: true)))
         #expect(switcher.state(for: otherEntry.id) == .on)
         #expect(await bring(.xcode))
         #expect(await sent().isEmpty, "Xcode's rule belongs to the layout the keyboard doesn't run")
         #expect(await bring(.safari))
         #expect(await eventually { link.commands.last == [.moveToLayer(2)] })
+        // With the keyboard layout's own rules off, none apply: the paused text mustn't say they do.
+        var off = switcher.rules(for: otherEntry.id)
+        off.isOn = false
+        switcher.setRules(off, for: otherEntry.id)
+        #expect(switcher.state(for: entry.id) == .paused(.otherLayout("Other", hasRules: false)))
+        #expect(!AppLayersPause.otherLayout("Other", hasRules: false).text.contains("own rules apply"))
     }
 
     @Test func anUnknownLayoutSendsNothing() async throws {
@@ -231,7 +292,7 @@ struct AppLayerSwitcherTests {
         await switcher.load(entry.id)
         watcher.attach(.keyboard(.voyager(serial: "Q9x2/aa11")))
         #expect(await goLive())
-        #expect(switcher.state(for: entry.id) == .paused(.unknownLayout))
+        #expect(switcher.state(for: entry.id) == .paused(.refused(.unknownLayout)))
         #expect(await bring(.xcode))
         #expect(await sent().isEmpty, "not even layer 0, which such a keyboard has")
     }
@@ -269,11 +330,37 @@ struct AppLayerSwitcherTests {
         #expect(await eventually { (try? await store.appLayerRules(of: entry.id)) == on })
         await store.failAppLayersSaves(with: .io("disk full"))
         switcher.setRules(AppLayerRules(), for: entry.id)
-        #expect(await eventually { switcher.saveError == .io("disk full") })
+        #expect(await eventually { switcher.saveError(for: entry.id) == .io("disk full") })
         #expect(switcher.rules(for: entry.id) == AppLayerRules(), "the change holds while Sextant runs")
         await store.failAppLayersSaves(with: nil)
         switcher.setRules(on, for: entry.id)
-        #expect(await eventually { switcher.saveError == nil })
+        #expect(await eventually { switcher.saveError(for: entry.id) == nil })
+    }
+
+    /// A switch turned off that didn't save would come back on at the next launch: the failure stays shown until Try
+    /// Again writes the off, and another layout's save doesn't clear it.
+    @Test func aFailedSwitchOffStaysShownUntilItSaves() async throws {
+        let (entry, layout) = try await knownKeyboard()
+        let other = try await store.create(layout, origin: .local, firstRevision: nil)
+        await switcher.load(other.id)
+        await store.failAppLayersSaves(with: .io("disk full"))
+        var off = switcher.rules(for: entry.id)
+        off.isOn = false
+        switcher.setRules(off, for: entry.id)
+        #expect(await eventually { switcher.saveError(for: entry.id) == .io("disk full") })
+        #expect(switcher.state(for: entry.id) == .off, "off for the rest of this run")
+        await store.failAppLayersSaves(with: nil)
+        switcher.setRules(Self.rules(layout, on: false), for: other.id)
+        #expect(await eventually { (try? await store.appLayerRules(of: other.id)) == Self.rules(layout, on: false) })
+        #expect(switcher.saveError(for: entry.id) == .io("disk full"), "another layout's save doesn't clear it")
+        #expect(try await store.appLayerRules(of: entry.id).isOn, "the file still says on")
+
+        switcher.retrySave(for: entry.id)
+        #expect(await eventually { switcher.saveError(for: entry.id) == nil })
+        #expect(try await store.appLayerRules(of: entry.id) == off)
+        let relaunched = AppLayerSwitcher(watcher: apps, onKeyboard: onKeyboard, live: live, store: store, clock: clock)
+        await relaunched.load(entry.id)
+        #expect(!relaunched.rules(for: entry.id).isOn)
     }
 
     @Test func unreadableRulesArentOverwritten() async throws {
@@ -298,10 +385,14 @@ struct AppLayerSwitcherTests {
         #expect(switcher.rules(for: entry.id) == Self.rules(layout))
     }
 
-    @Test func runningAppsComeFromThePort() async {
-        apps.running = [.safari, .xcode]
-        #expect(await switcher.runningApps() == [.safari, .xcode])
+    @Test func runningAppsComeFromThePortWithoutSextant() async {
+        apps.running = [.safari, .sextant, .xcode]
+        var updates = switcher.runningApps().makeAsyncIterator()
+        #expect(await updates.next() == [.safari, .xcode])
+        apps.running = [.xcode]
+        #expect(await updates.next() == [.xcode], "again as apps launch and quit")
         #expect(await switcher.app(at: URL(fileURLWithPath: "/Applications/Xcode.app")) == .xcode)
+        #expect(await switcher.app(at: URL(fileURLWithPath: "/Applications/Sextant.app")) == nil)
     }
 }
 
@@ -310,6 +401,7 @@ extension MacApp {
     static let xcode = MacApp(bundleID: "com.apple.dt.Xcode", name: "Xcode")
     static let safari = MacApp(bundleID: "com.apple.Safari", name: "Safari")
     static let figma = MacApp(bundleID: "com.figma.Desktop", name: "Figma")
+    static let sextant = MacApp(bundleID: "com.sextant.app", name: "Sextant")
 }
 
 extension AppLayerRule {
@@ -326,14 +418,21 @@ final class FakeFrontmostAppWatcher: FrontmostAppWatcher {
         var frontmost: MacApp
         var running: [MacApp] = []
         var subscribers: [UUID: AsyncStream<MacApp>.Continuation] = [:]
+        var runningSubscribers: [UUID: AsyncStream<[MacApp]>.Continuation] = [:]
     }
     private let state: Mutex<State>
 
     init(frontmost: MacApp) { state = Mutex(State(frontmost: frontmost)) }
 
+    /// The running apps; setting them tells every ``runningApps()`` subscriber.
     var running: [MacApp] {
         get { state.withLock { $0.running } }
-        set { state.withLock { $0.running = newValue } }
+        set {
+            state.withLock { s in
+                s.running = newValue
+                s.runningSubscribers.values.forEach { $0.yield(newValue) }
+            }
+        }
     }
 
     func activations() -> AsyncStream<MacApp> {
@@ -354,9 +453,24 @@ final class FakeFrontmostAppWatcher: FrontmostAppWatcher {
         }
     }
 
-    func runningApps() -> [MacApp] { running }
+    func runningApps() -> AsyncStream<[MacApp]> {
+        let (stream, continuation) = AsyncStream.makeStream(of: [MacApp].self)
+        let id = UUID()
+        state.withLock { s in
+            continuation.yield(s.running)
+            s.runningSubscribers[id] = continuation
+        }
+        continuation.onTermination = { [weak self] _ in self?.state.withLock { _ = $0.runningSubscribers.removeValue(forKey: id) } }
+        return stream
+    }
 
-    func app(at url: URL) -> MacApp? { url.lastPathComponent == "Xcode.app" ? .xcode : nil }
+    func app(at url: URL) -> MacApp? {
+        switch url.lastPathComponent {
+        case "Xcode.app": .xcode
+        case "Sextant.app": .sextant
+        default: nil
+        }
+    }
 }
 
 /// A library whose App Layers file is from a newer Sextant.

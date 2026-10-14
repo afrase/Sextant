@@ -136,8 +136,14 @@ public actor PackageLibrary: LayoutLibrary {
         // A first revision, as a new layout gets, so the copy opens unedited.
         let first = RevisionDraft(source: .save, message: String(localized: "Duplicated from \(original)"), layout: layout)
         let copy = try create(layout, origin: .local, firstRevision: first)
-        // The copy keeps the App Layers; one that can't be read (damaged, or from a newer Sextant) doesn't stop the copy.
-        if let rules = try? appLayerRules(of: id), rules != AppLayerRules() { try saveAppLayerRules(rules, for: copy.id) }
+        // The copy keeps the App Layers. They are optional beside the layout: once the copy exists, rules that can't be
+        // read (damaged, or from a newer Sextant) or written leave it without them rather than fail a copy that is there.
+        do throws(LibraryError) {
+            let rules = try appLayerRules(of: id)
+            if rules != AppLayerRules() { try saveAppLayerRules(rules, for: copy.id) }
+        } catch {
+            log.error("Duplicate without App Layers: \(String(describing: error), privacy: .public)")
+        }
         return copy
     }
 

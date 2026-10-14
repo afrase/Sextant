@@ -1,7 +1,8 @@
-import Foundation
+import AppKit
 import Observation
 import SextantApplication
 import SextantDomain
+import UniformTypeIdentifiers
 
 /// The App Layers page's state for one window (spec §8.6). The rules themselves are the app-wide switcher's, saved beside
 /// the layout (ADR 0054); nil where there is none (tests, most snapshots), and the page then shows no rules.
@@ -11,10 +12,15 @@ public final class AppLayersModel {
     let switcher: AppLayerSwitcher?
     /// The selected rule, by its app's bundle id.
     public var selection: String?
-    /// The apps running when Add App… was last opened.
+    /// The apps running now, for Add App….
     var runningApps: [MacApp] = []
     /// Add App › Choose… shows its open panel.
     var choosesApp = false
+    /// The rule Remove Rule asks about, by its app's bundle id: removing one can't be undone (rule edits aren't on the
+    /// window's undo stack, ADR 0054).
+    var removing: String?
+    /// Each app's icon, looked up once: the lookup asks Launch Services and reads the disk.
+    @ObservationIgnored private var icons: [String: NSImage] = [:]
 
     init(switcher: AppLayerSwitcher?) {
         self.switcher = switcher
@@ -43,9 +49,22 @@ public final class AppLayersModel {
         if selection == bundleID { selection = nil }
     }
 
-    /// Reads the running apps for Add App….
-    func refreshRunningApps() async {
-        runningApps = await switcher?.runningApps() ?? []
+    /// The app's icon from where the system finds it; the generic app icon when it isn't installed.
+    func icon(for bundleID: String) -> NSImage {
+        if let icon = icons[bundleID] { return icon }
+        let workspace = NSWorkspace.shared
+        let icon =
+            workspace.urlForApplication(withBundleIdentifier: bundleID).map { workspace.icon(forFile: $0.path) }
+            // `.application` draws a blank document; the bundle type draws the generic app icon.
+            ?? workspace.icon(for: .applicationBundle)
+        icons[bundleID] = icon
+        return icon
+    }
+
+    /// Keeps ``runningApps`` current, as apps launch and quit, until the task is cancelled.
+    func followRunningApps() async {
+        guard let switcher else { return }
+        for await apps in switcher.runningApps() { runningApps = apps }
     }
 
     /// Choose…'s app, added as a rule.

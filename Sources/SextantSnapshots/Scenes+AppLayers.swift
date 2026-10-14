@@ -106,6 +106,54 @@ extension Scenes {
         let listSize = NSHostingView(rootView: MenuBarPanelContent(state: list)).fittingSize
         scenes.append(
             SnapshotScene("menubar-panel-app-layers-list-light", size: listSize, chrome: .content) { MenuBarPanelContent(state: list) })
+        return scenes + (await troubles(root: fixtures.appending(path: "app-layers-troubles"), data: data, live: live))
+    }
+
+    /// The page when a rule change didn't save, then when a rule's layer was deleted from the working copy though the
+    /// keyboard still has it. A library of their own: they break its `app-layers.json` and change its working copy.
+    private static func troubles(root: URL, data: Data, live: LiveSession) async -> [SnapshotScene] {
+        let store = PackageLibrary(root: root)
+        let library = Library(store: store)
+        guard let entry = try? await library.importOryxJSON(data), let file = await store.location(of: entry.id) else { return [] }
+        let onKeyboard = OnKeyboard(library: library, store: store, live: live)
+        onKeyboard.start()
+        for _ in 0..<100 where onKeyboard.running?.entry.id != entry.id { try? await Task.sleep(for: .milliseconds(20)) }
+        guard let layout = onKeyboard.running?.layout else { return [] }
+        func window(_ switcher: AppLayerSwitcher) async -> LayoutWindowModel {
+            await switcher.load(entry.id)
+            let model = LayoutWindowModel(library: Library(store: store), live: live, onKeyboard: onKeyboard, appLayers: switcher)
+            await model.open(entry.id)
+            model.buildFlash = await idleBuildFlash(model)
+            model.destination = .appLayers
+            Task { await model.followKeyboard() }
+            try? await Task.sleep(for: .milliseconds(100))
+            return model
+        }
+        let saved = AppLayerSwitcher(watcher: SceneApps(), onKeyboard: onKeyboard, live: live, store: store)
+        await saved.load(entry.id)
+        saved.setRules(rules(layout), for: entry.id)
+        for _ in 0..<100 where (try? await store.appLayerRules(of: entry.id)) != rules(layout) {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+
+        // A folder where the file goes: the switch turned off can't be saved.
+        let unsaved = AppLayerSwitcher(watcher: SceneApps(), onKeyboard: onKeyboard, live: live, store: store)
+        await unsaved.load(entry.id)
+        let rulesFile = file.appending(path: "app-layers.json")
+        try? FileManager.default.removeItem(at: rulesFile)
+        try? FileManager.default.createDirectory(at: rulesFile, withIntermediateDirectories: false)
+        var off = unsaved.rules(for: entry.id)
+        off.isOn = false
+        unsaved.setRules(off, for: entry.id)
+        for _ in 0..<100 where unsaved.saveError(for: entry.id) == nil { try? await Task.sleep(for: .milliseconds(20)) }
+        let model = await window(unsaved)
+        var scenes = SnapshotScene.pair("app-layers-unsaved", size: full) { LayoutWindow(model: model, layoutID: .constant(entry.id)) }
+
+        // Brd+Sys deleted here but not flashed: Figma's rule still moves the keyboard there.
+        let deleted = await window(saved)
+        deleted.session?.deleteLayer(2)
+        deleted.appLayers.selection = SceneApps.figma.bundleID
+        scenes += SnapshotScene.pair("app-layers-deleted", size: full) { LayoutWindow(model: deleted, layoutID: .constant(entry.id)) }
         return scenes
     }
 
@@ -140,7 +188,7 @@ private final class SceneApps: FrontmostAppWatcher {
 
     func bring(_ app: MacApp) { _ = feed.withLock { $0?.yield(app) } }
 
-    func runningApps() -> [MacApp] { [Self.finder, Self.safari, Self.xcode] }
+    func runningApps() -> AsyncStream<[MacApp]> { AsyncStream { $0.yield([Self.finder, Self.safari, Self.xcode]) } }
 
     func app(at url: URL) -> MacApp? { nil }
 }

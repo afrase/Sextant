@@ -182,6 +182,11 @@ public struct MenuBarPanelContent: View {
             }
             .accessibilityHidden(true)
             Spacer(minLength: 8)
+            if !appLayers.isSaved {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tokens.danger.color)
+                    .help(String(localized: "Not saved: the next launch uses the rules from before."))
+                    .accessibilityLabel(Text("Not saved: the next launch uses the rules from before."))
+            }
             Toggle("App Layers", isOn: Binding(get: { appLayers.isOn }, set: { actions.setAppLayersOn($0) }))
                 .toggleStyle(.switch).controlSize(.small).labelsHidden()
                 .accessibilityValue(Text(verbatim: appLayers.detail))

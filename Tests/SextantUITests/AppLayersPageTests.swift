@@ -67,8 +67,9 @@ struct AppLayersPageTests {
         await model.appLayers.addApp(at: URL(fileURLWithPath: "/Applications/Xcode.app"), to: id, layout: layout)
         await model.appLayers.addApp(at: URL(fileURLWithPath: "/tmp/not-an-app"), to: id, layout: layout)
         #expect(model.appLayers.rules(id).rules.map(\.name) == ["Xcode"])
-        await model.appLayers.refreshRunningApps()
-        #expect(model.appLayers.runningApps == [StandInApps.xcode])
+        let following = Task { await model.appLayers.followRunningApps() }
+        defer { following.cancel() }
+        #expect(await eventually { model.appLayers.runningApps == [StandInApps.xcode] })
     }
 
     /// The lane's capsule and the menu bar row follow the frontmost app's rule while the keyboard is on its layer.
@@ -95,7 +96,7 @@ struct AppLayersPageTests {
         #expect(await eventually { switcher.frontmost == StandInApps.xcode })
         #expect(model.appLayers.laneText(id) == "Xcode is frontmost → keyboard on Sym+Num")
         #expect(MenuBarPanelState.appLayers(switcher, layout: id) == .init(detail: "Xcode → Sym+Num", isOn: true))
-        #expect(keyboard.commands.isEmpty, "already on Sym+Num, so nothing was sent")
+        #expect(await eventually { keyboard.commands == [.moveToLayer(1)] }, "sent although the keyboard reports Sym+Num")
     }
 
     /// Spec §13.3: the panel stays under 520 pt with the App Layers row and every layer a move can reach.
@@ -124,7 +125,7 @@ final class StandInApps: FrontmostAppWatcher, Sendable {
 
     func bring(_ app: MacApp) { _ = feed.withLock { $0?.yield(app) } }
 
-    func runningApps() -> [MacApp] { [Self.xcode] }
+    func runningApps() -> AsyncStream<[MacApp]> { AsyncStream { $0.yield([Self.xcode]) } }
 
     func app(at url: URL) -> MacApp? { url.lastPathComponent == "Xcode.app" ? Self.xcode : nil }
 }

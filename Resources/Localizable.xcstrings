@@ -159,6 +159,9 @@
         }
       }
     },
+    "%@ was deleted from this layout, but the keyboard keeps it until the next Build & Flash, so this rule still moves the keyboard there. Choose another layer for it." : {
+
+    },
     "%@ when leaving" : {
 
     },
@@ -1734,7 +1737,7 @@
     "It reconnected and reported %@ ✓." : {
 
     },
-    "Its layer was deleted. Choose another layer for it to do anything." : {
+    "Its layer was deleted, so this rule does nothing. Choose another layer for it." : {
 
     },
     "Keep Sextant in the menu bar when its windows are closed" : {
@@ -2364,6 +2367,9 @@
     "Not saved in History" : {
 
     },
+    "Not saved: the next launch uses the rules from before." : {
+
+    },
     "Not started" : {
 
     },
@@ -2530,6 +2536,9 @@
     "Paused" : {
 
     },
+    "Paused: %@" : {
+
+    },
     "Paused: Live View is off. App Layers moves the keyboard only while Live View is on." : {
 
     },
@@ -2552,6 +2561,9 @@
 
     },
     "Paused: the keyboard runs a layout that isn’t in your library." : {
+
+    },
+    "Paused: the keyboard runs “%@”, which has no App Layers turned on." : {
 
     },
     "Paused: the keyboard runs “%@”, whose own rules apply." : {
@@ -2691,6 +2703,9 @@
 
     },
     "Remove from Selection" : {
+
+    },
+    "Remove the rule for %@?" : {
 
     },
     "Removed" : {
@@ -3050,6 +3065,9 @@
 
     },
     "Sextant couldn’t record this flash in History. %@" : {
+
+    },
+    "Sextant couldn’t save these rules. They apply until Sextant quits; the next launch uses the ones from before." : {
 
     },
     "Sextant couldn’t save your latest edits" : {
@@ -3495,6 +3513,9 @@
     "This revision couldn’t be read" : {
 
     },
+    "This rule’s layer was deleted." : {
+
+    },
     "Timeline" : {
 
     },
@@ -3700,6 +3721,9 @@
     "You can undo this." : {
 
     },
+    "You can’t undo this." : {
+
+    },
     "Your %@ is running ‘%@’, revision %lld." : {
       "localizations" : {
         "en" : {
@@ -3820,9 +3844,6 @@
 
     },
     "inherits %@" : {
-
-    },
-    "its layer" : {
 
     },
     "key %lld" : {
