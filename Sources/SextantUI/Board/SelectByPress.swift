@@ -65,7 +65,10 @@ extension LayoutWindowModel {
         // Subscribed now, so a press made right after the menu click isn't missed.
         let presses = live.activity()
         selectByPress = SelectByPress(
-            tasks: [Task { [weak self] in await self?.listen(to: presses) }, Task { [weak self] in await self?.watchForEnd() }],
+            tasks: [
+                Task { [weak self] in await self?.listen(to: presses) }, Task { [weak self] in await self?.watchForEnd() },
+                Task { [weak self] in await self?.pruneHeldAtStart() },
+            ],
             heldAtStart: live.pressedKeys, releaseTail: selectByPressTail)
         AccessibilityNotification.Announcement(selectByPressPrompt).post()
     }
@@ -137,6 +140,16 @@ extension LayoutWindowModel {
         endSelectByPressSoon(after: tail, onlyOnEscape: false)
     }
 
+    /// A key held at start whose key-up came before the start (the held keys update a frame late) stops counting once that
+    /// frame has passed. Only then: later the held keys can run ahead of the presses still on their way, and the presses'
+    /// own key-ups take the rest out.
+    private func pruneHeldAtStart() async {
+        try? await Task.sleep(for: selectByPressTail)
+        guard !Task.isCancelled, var mode = selectByPress, let live else { return }
+        mode.heldAtStart.formIntersection(live.pressedKeys)
+        selectByPress = mode
+    }
+
     private func take(_ event: LiveActivity) {
         guard var mode = selectByPress else { return }
         switch event {
@@ -144,8 +157,6 @@ extension LayoutWindowModel {
             // No press arrives during secure input: the feed asks at every event, unlike the once-a-second flag the
             // capsule reads.
             guard selectByPressRefusal == nil, let session, index < session.layout.keyCount else { return }
-            // A key held at start whose key-up came before it (the held keys update a frame late) no longer counts.
-            mode.heldAtStart.formIntersection(live?.pressedKeys ?? [])
             guard mode.heldAtStart.isEmpty, ContinuousClock.now - mode.start >= selectByPressTail else {
                 selectByPress = mode
                 return
