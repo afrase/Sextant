@@ -983,6 +983,9 @@
     "Connect your keyboard to see it live" : {
 
     },
+    "Connect your keyboard to select a key by pressing it." : {
+
+    },
     "Connected" : {
 
     },
@@ -1297,6 +1300,9 @@
 
     },
     "Find a key by name" : {
+
+    },
+    "Finish choosing keys on the board first." : {
 
     },
     "Firmware" : {
@@ -2277,6 +2283,9 @@
     "Open Sextant" : {
 
     },
+    "Open a layout first." : {
+
+    },
     "Open after importing" : {
 
     },
@@ -2358,6 +2367,9 @@
     "Paused: secure input is on" : {
 
     },
+    "Paused: secure input is on · esc cancels" : {
+
+    },
     "Position" : {
 
     },
@@ -2365,6 +2377,12 @@
 
     },
     "Press Return to change. Actions available." : {
+
+    },
+    "Press a key on the keyboard to select it." : {
+
+    },
+    "Press a key on the keyboard… esc cancels" : {
 
     },
     "Press the key" : {
@@ -2664,6 +2682,16 @@
     "Select a step" : {
 
     },
+    "Selected key %lld, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Selected key %1$lld, %2$@"
+          }
+        }
+      }
+    },
     "Selects a combo with this key." : {
 
     },
@@ -2880,6 +2908,9 @@
 
     },
     "Show overlay while a layer is held" : {
+
+    },
+    "Show the board to select a key by pressing it." : {
 
     },
     "Show the keyboard’s layer and the keys you press, live" : {
@@ -3254,6 +3285,9 @@
 
     },
     "Turn off features you don’t use in Firmware Settings, such as RGB animations, then build again." : {
+
+    },
+    "Turn on Live View (Keyboard ▸ Live View) to select a key by pressing it." : {
 
     },
     "Turn on Live View to move the keyboard’s layer." : {

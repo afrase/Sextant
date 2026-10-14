@@ -113,6 +113,8 @@ public final class LayoutWindowModel {
     var paletteDismissingClick: Int?
     /// Record Key while it listens for the next key on the Mac's keyboard (spec §5.8); nil when off.
     var recorder: KeyRecorder?
+    /// Select Key by Pressing It while it waits for a press on the keyboard, or for that press's key-up; nil when off.
+    var selectByPress: SelectByPress?
     /// A gesture that takes the board's key clicks instead of selection (choosing combo members, Assign to Key); nil
     /// when off.
     var boardPick: BoardPick?
@@ -441,10 +443,12 @@ public final class LayoutWindowModel {
         pick?.onCancel()
     }
 
-    /// Esc on the board steps back one level (spec §9.3): a pick ends first (step 4), then several keys become their
-    /// anchor (step 5), then the key is deselected (step 6).
+    /// Esc on the board steps back one level (spec §9.3): Select Key by Pressing It ends first (step 1), then a pick
+    /// (step 4), then several keys become their anchor (step 5), then the key is deselected (step 6).
     func escapeBoard() {
-        if boardPick != nil {
+        if selectByPress != nil {
+            endSelectByPress()
+        } else if boardPick != nil {
             cancelBoardPick()
         } else if page == .combos, selectedPageCombo != nil {
             // Back to every combo before the key goes (spec §9.3).

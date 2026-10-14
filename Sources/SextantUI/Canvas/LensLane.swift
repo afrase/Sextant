@@ -16,10 +16,13 @@ struct LensLane: View {
                 } else if model.lens == .lighting, let session = model.session {
                     LightingCapsule(model: model, session: session).glassEffectTransition(.materialize)
                 }
-                // Status by priority: a pick (the only place that says what a click does) > an issue > recording > the rest.
-                // Record Key hides a pick while it holds the keyboard, since esc ends it first (spec §9.3).
+                // Status by priority: a pick (the only place that says what a click does) or Select Key by Pressing It (the
+                // only place that says what a press does) > an issue > recording > the rest. Record Key hides a pick while it
+                // holds the keyboard, since esc ends it first (spec §9.3).
                 if let pick = model.boardPick, model.recorder == nil {
                     PickCapsule(model: model, prompt: pick.prompt).glassEffectTransition(.materialize)
+                } else if model.selectsByPress {
+                    SelectByPressCapsule(model: model).glassEffectTransition(.materialize)
                 } else if model.recorder != nil, model.laneStatus?.isIssue != true {
                     RecordingCapsule(model: model).glassEffectTransition(.materialize)
                 } else if let status = model.laneStatus {
@@ -31,6 +34,7 @@ struct LensLane: View {
         .animation(motion.standard, value: model.laneStatus)
         .animation(motion.standard, value: model.recorder != nil)
         .animation(motion.standard, value: model.boardPick != nil)
+        .animation(motion.standard, value: model.selectsByPress)
     }
 
     @ViewBuilder private func capsule(_ status: LaneStatus) -> some View {

@@ -100,7 +100,7 @@ private final class StandInHotKeys: HotKeys, StandIn {
 }
 
 /// The user's keyboard, present from the start; once Live View starts, its session reports Sym+Num and stays open.
-private struct PairedKeyboard: DeviceWatcher, KeyboardLink {
+struct PairedKeyboard: DeviceWatcher, KeyboardLink {
     func events(for board: BoardDefinition) -> AsyncStream<DeviceEvent> {
         AsyncStream { $0.yield(.attached(.keyboard(KeyboardDevice(id: 1, productID: 0x1977, serial: "KlgM7/40xJ7M")))) }
     }
