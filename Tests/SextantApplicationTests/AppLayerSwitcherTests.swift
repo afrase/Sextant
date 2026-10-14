@@ -175,6 +175,18 @@ struct AppLayerSwitcherTests {
         #expect(await eventually { link.commands == [[.moveToLayer(1), .moveToLayer(0)]] }, "leaving Xcode for Safari does")
     }
 
+    /// Sextant in front at launch (opened from the Dock, Xcode or a relaunch) still counts as the launch app, so the first
+    /// switch away from it acts.
+    @Test func sextantInFrontAtLaunchLetsTheFirstSwitchAct() async throws {
+        apps.bring(.sextant)
+        try await knownKeyboard()
+        #expect(switcher.frontmost == nil)
+        #expect(await goLive())
+        #expect(await bring(.xcode))
+        #expect(await eventually { link.commands == [[.moveToLayer(1)]] })
+        #expect(switcher.history.map(\.app) == ["Xcode"])
+    }
+
     @Test func onlyTheLatestActivationActs() async throws {
         try await knownKeyboard()
         #expect(await goLive())

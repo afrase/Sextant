@@ -84,12 +84,13 @@ public final class AppLayerSwitcher {
                 var isFirst = true
                 for await app in watcher.activations() {
                     guard let self else { return }
-                    guard app.bundleID != ownBundleID else { continue }
-                    // The app in front at launch only sets where switching starts from: nothing is sent at launch.
+                    let isOwn = app.bundleID == ownBundleID
+                    // The app in front at launch only sets where switching starts from: nothing is sent at launch. Sextant
+                    // there still uses up the launch app, so the first switch away from it acts.
                     if isFirst {
                         isFirst = false
-                        frontmost = app
-                    } else {
+                        if !isOwn { frontmost = app }
+                    } else if !isOwn {
                         activated(app)
                     }
                 }
