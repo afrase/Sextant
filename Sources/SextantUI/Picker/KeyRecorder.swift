@@ -1,5 +1,6 @@
 import Accessibility
 import AppKit
+import SextantApplication
 import SextantDomain
 import SwiftUI
 
@@ -216,15 +217,19 @@ struct RecordingCapsule: View {
 }
 
 /// While Record Key or Record Steps runs, a local monitor on Sextant's key window feeds it key-downs and modifier changes
-/// (no Input Monitoring, no TCC). Recording ends when the window resigns key or the selected key changes.
+/// (no Input Monitoring, no TCC). Recording ends when the window resigns key or the selected key changes. The global
+/// layer shortcuts stand aside meanwhile, or ⌃⌥ digits would move the keyboard instead of being recorded (ADR 0048).
 struct RecordKeyMonitor: ViewModifier {
     var model: LayoutWindowModel
+    @Environment(LayerShortcuts.self) private var layerShortcuts: LayerShortcuts?
 
     func body(content: Content) -> some View {
         content
             .task(id: model.recorder != nil || model.macros.stepRecorder != nil) {
                 guard model.recorder != nil || model.macros.stepRecorder != nil, let window = NSApp.keyWindow else { return }
                 let number = window.windowNumber
+                layerShortcuts?.suspend()
+                defer { layerShortcuts?.resume() }
                 let monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
                     guard event.windowNumber == number else { return event }
                     let isKeyDown = event.type == .keyDown

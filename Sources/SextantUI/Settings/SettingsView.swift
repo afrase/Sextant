@@ -13,11 +13,15 @@ struct SettingsView: View {
     var buildToolsStatus: BuildToolsStatus?
     var firmwareSource: FirmwareSource?
     var trace: RawHIDTrace
+    var layerShortcuts: LayerShortcuts
+    var layerShortcutRecorder: LayerShortcutRecorder?
 
     var body: some View {
         TabView {
             Tab("General", systemImage: "gearshape") { GeneralSettings() }
-            Tab("Keyboard", systemImage: "keyboard") { KeyboardSettings() }
+            Tab("Keyboard", systemImage: "keyboard") {
+                KeyboardSettings(layerShortcuts: layerShortcuts, recorder: layerShortcutRecorder)
+            }
             Tab("Build", systemImage: "hammer") { BuildSettings(status: buildToolsStatus, source: firmwareSource) }
             Tab("Privacy", systemImage: "hand.raised") { PrivacySettings() }
             Tab("Advanced", systemImage: "gearshape.2") { AdvancedSettings(trace: trace) }
@@ -108,7 +112,7 @@ public struct BuildSettings: View {
 }
 
 /// A status line: the icon tinted, the text wrapping in secondary.
-private struct StatusLabelStyle: LabelStyle {
+struct StatusLabelStyle: LabelStyle {
     var tint: Color
 
     func makeBody(configuration: Configuration) -> some View {

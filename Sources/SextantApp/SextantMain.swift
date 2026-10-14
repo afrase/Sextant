@@ -18,14 +18,16 @@ struct SextantMain: App {
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
     /// One toolchain, so every window shares its setup (only one runs at a time).
     private let toolchain = NativeToolchain(installer: ToolchainInstaller())
+    private let hotKeys = KeyboardShortcutsHotKeys()
 
     init() {
-        let services = Self.makeServices(toolchain: toolchain)
+        let services = Self.makeServices(toolchain: toolchain, hotKeys: hotKeys)
         _services = State(initialValue: services)
         appDelegate.library = services.library
         appDelegate.live = services.live
         services.live.start()
         services.onKeyboard.start()
+        services.layerShortcuts.start()
         // `--import <oryx.json>`: add an Oryx layout file to the library at launch.
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--import"), args.indices.contains(i + 1) {
@@ -44,14 +46,15 @@ struct SextantMain: App {
     var body: some Scene {
         SextantScenes(
             services: services, buildToolsStatus: { [toolchain] in await toolchain.status() },
-            firmwareSource: (ToolchainPins.firmwareCommit, ToolchainPins.modulesCommit))
+            firmwareSource: (ToolchainPins.firmwareCommit, ToolchainPins.modulesCommit),
+            layerShortcutRecorder: hotKeys.recorder(for: services.layerShortcuts))
     }
 
     /// Builds every adapter and use case. The real flasher and raw-HID link are always wired: Build & Flash and the live
     /// view each write to the keyboard only after the user starts them (ADRs 0056, 0057). Read-only USB presence is
     /// always on.
     @MainActor
-    static func makeServices(toolchain: NativeToolchain) -> SextantServices {
+    static func makeServices(toolchain: NativeToolchain, hotKeys: some HotKeys) -> SextantServices {
         let store = PackageLibrary(root: PackageLibrary.defaultRoot())
         let library = Library(store: store)
         let watcher = IOKitDeviceWatcher()
@@ -65,8 +68,14 @@ struct SextantMain: App {
         let oryx = OryxClient()
         let generator = QMKGenerator()
         let md5: @Sendable (Data) -> String = { Insecure.MD5.hash(data: $0).map { String(format: "%02x", $0) }.joined() }
+        let onKeyboard = OnKeyboard(library: library, store: store, live: live)
+        // Off by default; a press that moves nothing beeps, since Sextant may be in the background (ADR 0048).
+        let layerShortcuts = LayerShortcuts(
+            hotKeys: hotKeys, onKeyboard: onKeyboard, isOn: KeyboardSettings.layerShortcutsOn(),
+            persist: KeyboardSettings.saveLayerShortcutsOn
+        ) { _ in NSSound.beep() }
         return SextantServices(
-            library: library, live: live, trace: trace, onKeyboard: OnKeyboard(library: library, store: store, live: live),
+            library: library, live: live, trace: trace, onKeyboard: onKeyboard, layerShortcuts: layerShortcuts,
             makeImport: { ImportFromOryx(oryx: oryx, library: library) },
             makeBuildFlash: { session in
                 // ADR 0033: the native toolchain, every build sandboxed.

@@ -21,6 +21,7 @@ let package = Package(
         .package(url: "https://github.com/pointfreeco/swift-clocks", exact: "1.1.1"),
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", exact: "1.19.6"),
         .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", exact: "0.65.1"),
+        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", exact: "3.1.0"),
     ],
     targets: [
         // Domain: pure Swift + Foundation.
@@ -51,6 +52,8 @@ let package = Package(
             name: "SextantApp",
             dependencies: [
                 "SextantDomain", "SextantApplication", "SextantStorage", "SextantOryx", "SextantBuild", "SextantDevice", "SextantUI",
+                // The global layer shortcuts' adapter and recorder (ADR 0048).
+                .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
             ]
         ),
 

@@ -10,19 +10,22 @@ public struct SextantServices {
     public let trace: RawHIDTrace
     /// Which library layout the keyboard runs, app-wide.
     public let onKeyboard: OnKeyboard
+    /// The global layer shortcuts, app-wide (ADR 0048).
+    public let layerShortcuts: LayerShortcuts
     /// A fresh Import from Oryx flow (one per sheet).
     public let makeImport: @MainActor () -> ImportFromOryx
     /// The Build & Flash state machine for one open layout.
     public let makeBuildFlash: @MainActor (EditSession) -> BuildFlashSession
 
     public init(
-        library: Library, live: LiveSession, trace: RawHIDTrace, onKeyboard: OnKeyboard,
+        library: Library, live: LiveSession, trace: RawHIDTrace, onKeyboard: OnKeyboard, layerShortcuts: LayerShortcuts,
         makeImport: @escaping @MainActor () -> ImportFromOryx, makeBuildFlash: @escaping @MainActor (EditSession) -> BuildFlashSession
     ) {
         self.library = library
         self.live = live
         self.trace = trace
         self.onKeyboard = onKeyboard
+        self.layerShortcuts = layerShortcuts
         self.makeImport = makeImport
         self.makeBuildFlash = makeBuildFlash
     }

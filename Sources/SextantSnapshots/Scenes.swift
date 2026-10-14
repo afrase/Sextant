@@ -64,6 +64,7 @@ enum Scenes {
         scenes += await `import`(f)
         scenes += await device(f)
         scenes += await settings(f)
+        scenes += await layerShortcuts(f)
         scenes += SnapshotScene.pair("activity", size: CGSize(width: 480, height: 14 * 40 + 16), chrome: .content) { activityStates }
         scenes += await layers(f)
         scenes += await export(f)
