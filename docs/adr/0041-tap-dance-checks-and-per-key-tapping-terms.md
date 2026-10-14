@@ -1,6 +1,6 @@
 # 41. Tap dance checks and per-key tapping terms
 
-Status: accepted, 2026-10-12. v1 plan slice 1.1. Builds the per-key tapping term that ADR 0027 left out.
+Status: accepted, 2026-10-12. v1 plan slice 1.1. Builds the per-key tapping term that ADR 0027 left out. Amended 2026-10-14 by v1 slice 2.3 (the last section).
 
 ## Context
 The generator builds tap dances (the e5Rrr and JRGQm goldens), but a dance slot whose action its C can't run failed only at build time: a macro, a color key, a firmware key, TG, TT, OSL, LM, DF or OSM, or a tap that isn't a key. Spec §7.5 wants these caught as live issues first. `Key.tappingTerm` round-trips through Oryx's JSON and the generator writes it, but nothing in Sextant edits it, and the generator drops it without a word while the `perKeyTappingTerm` setting is off. Oryx's "Prefer tap in tap-and-hold dances" (`dancesTapAction`) sits on the Tapping section, but Oryx's output is the same with it on or off: JRGQm stores it off and e5Rrr leaves it on, both have dances, and both goldens share one dance template (research 02 §12 item 5; ADR 0040 lists it among the settings that write nothing).
@@ -23,3 +23,6 @@ The generator builds tap dances (the e5Rrr and JRGQm goldens), but a dance slot 
 - A dual-function key (a tap and a hold, no dance) whose action can't run is still refused only at build time. That is outside this slice's issue kinds.
 - Dance timing and terms can only be felt after a flash, and each flash needs the user's OK.
 - Design-QA scenes: new `inspector-dance-flagged` and `inspector-term-custom` scenes (light and dark); the `firmware-settings` scenes lose the dances row. The reference snapshots and the five goldens are unchanged.
+
+## Amendment, 2026-10-14: `dancesTapAction` with every setting on the page (v1 slice 2.3)
+The MVP's core-section filter is gone, and "Prefer tap in tap-and-hold dances" stays hidden: its hide list moved from the UI to the domain (`SettingsCatalog.offers(_:)`, with the other settings Sextant keeps but doesn't offer; ADR 0040's amendment). An imported value is still kept and still writes nothing, and it no longer counts in the page's changed total, the sidebar badge or the Changed list; Reset All leaves it. The inspector lists it under "Kept, Not Used" when it differs from its default, as JRGQm's does. This replaces the consequence above that it still counts.

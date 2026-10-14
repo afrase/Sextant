@@ -88,13 +88,18 @@ struct ImportSliceTests {
         #expect(model.title(of: session.id) == "Work" && model.library.entries.first?.title == "My MacOS Layout")
     }
 
-    /// MVP core sections only, filtered to the board, the Navigator kind and the settings they depend on.
-    @Test func firmwareSettingsShowTheCoreSections() async throws {
+    /// Every section with a setting Sextant offers (v1 slice 2.3), filtered to the board, the Navigator kind and the
+    /// settings they depend on.
+    @Test func firmwareSettingsShowEverySection() async throws {
         let layout = try KeyboardLayout(oryxJSON: try #require(userLayoutData))
         let sections = FirmwareSettings.sections(for: layout)
-        #expect(sections.map(\.id) == ["debounce", "rgb", "tapping", "oneshot", "navigator"], "Navigator, to attach one")
+        #expect(
+            sections.map(\.id) == [
+                "autoshift", "combo", "debounce", "international", "misc", "mouse", "rgb", "tapping", "tapping-dual", "oneshot",
+                "holding", "navigator",
+            ], "no Audio or Stenography; Navigator, to attach one")
         #expect(sections.last?.settings.isEmpty == true, "no Navigator, no Navigator settings")
-        #expect(sections[1].settings.map(\.id) == ["rgbTimeout"])
+        #expect(sections.first { $0.id == "misc" }?.settings.contains { $0.id == "liveTraining" || $0.id == "enableNavigator" } == false)
         var trackpad = layout
         trackpad.navigator = NavigatorConfig(kind: .trackpad, side: .right)
         let navigator = try #require(FirmwareSettings.sections(for: trackpad).last)

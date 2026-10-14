@@ -7,7 +7,12 @@ struct EditItems: View {
     var body: some View {
         Divider()
         MakeTransparentItem(window: window)
-        Button("Find Key…") { window?.openPalette(.keys) }.keyboardShortcut("f").disabled(window?.session == nil)
+        // On the Firmware Settings page, ⌘F searches the settings (spec §9.1).
+        if window?.page == .firmwareSettings {
+            Button("Find Setting…") { window?.firmwareSettings.searchFocusRequests += 1 }.keyboardShortcut("f")
+        } else {
+            Button("Find Key…") { window?.openPalette(.keys) }.keyboardShortcut("f").disabled(window?.session == nil)
+        }
         // ⇧⌘O does the same (the window's hidden alias button; a menu item takes one shortcut).
         Button("Command Palette") { window?.togglePalette() }.keyboardShortcut("k").disabled(window?.session == nil)
     }

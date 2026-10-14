@@ -156,7 +156,9 @@ extension LayoutWindowModel {
     var paletteItems: [PaletteItem] {
         guard let palette else { return [] }
         let query = palette.query.trimmingCharacters(in: .whitespacesAndNewlines)
-        return isPicking ? keycodeItems(query, category: palette.category) : generalItems(query, keysOnly: palette.scope == .keys)
+        return isPicking
+            ? keycodeItems(query, category: palette.category) + localeHints(query, category: palette.category)
+            : generalItems(query, keysOnly: palette.scope == .keys)
     }
 
     // MARK: Keys in the panel
@@ -288,11 +290,36 @@ extension LayoutWindowModel {
         }
     }
 
+    /// "English (UK) keycodes are off": a search that matches a locale's codes while its International toggle is off
+    /// says where they are, and goes there.
+    private func localeHints(_ query: String, category: KeycodeCategory?) -> [PaletteItem] {
+        guard !query.isEmpty, category != .macros, let layout = session?.layout else { return [] }
+        let hidden = KeycodeCatalog.search(query, category: category).map(\.code).filter { !layout.offersKeycode($0) }
+        return SettingsCatalog.localeCodePrefixes.sorted { $0.key < $1.key }.compactMap { id, prefix in
+            let count = hidden.count { $0.hasPrefix(prefix) }
+            guard count > 0, let setting = SettingsCatalog.voyager.setting(id: id) else { return nil }
+            return PaletteItem(
+                id: "locale-\(id)", group: .settings, title: String(localized: "\(setting.title) keycodes are off"),
+                note: count == 1
+                    ? String(localized: "1 more match. Turn them on in Firmware Settings.")
+                    : String(localized: "\(count) more matches. Turn them on in Firmware Settings."),
+                leading: .symbol("globe")
+            ) { [weak self] in
+                guard let self else { return }
+                palette = nil
+                destination = .firmwareSettings
+                firmwareSettings.clearFilters()
+                settingsScrollTarget = "international"
+            }
+        }
+    }
+
     /// What the picker offers for an entry: layer functions once per layer.
     /// shortcut: OSM, LM and RGB need a modifier or a colour the picker can't ask for; they stay out until the slot
     /// editors offer them.
     private func pickable(_ entry: KeycodeEntry) -> [KeyAction] {
-        if entry.needsModifiers || entry.needsColor { return [] }
+        // A locale's codes only while Firmware Settings › International has it on (ADR 0040).
+        if entry.needsModifiers || entry.needsColor || session?.layout.offersKeycode(entry.code) == false { return [] }
         guard entry.needsLayer, let layers = session?.layout.layers.indices else { return [KeyAction(code: entry.code)].filter(accepts) }
         return layers.map { KeyAction(code: entry.code, layer: $0) }.filter(accepts)
     }
@@ -313,7 +340,9 @@ extension LayoutWindowModel {
             : ["KC_ESCAPE", "KC_TAB", "KC_ENTER", "KC_SPACE", "KC_BSPC", "KC_DELETE", "KC_TRANSPARENT", "KC_NO"]
         let layers = isHold ? session.layout.layers.indices.filter { $0 != session.selection.layer }.map(KeyAction.momentary) : []
         // Recents outlive deleted layers and layout switches.
-        let recents = recentKeycodes.filter { $0.layer.map(session.layout.layers.indices.contains) ?? true }
+        let recents = recentKeycodes.filter {
+            ($0.layer.map(session.layout.layers.indices.contains) ?? true) && session.layout.offersKeycode($0.code)
+        }
         var seen = Set<KeyAction>()
         return (recents + codes.map { KeyAction(code: $0) } + layers).filter { accepts($0) && seen.insert($0).inserted }
     }
@@ -432,9 +461,17 @@ extension LayoutWindowModel {
         func item(_ id: String, _ title: String, _ detail: String, section: String?) -> PaletteItem {
             PaletteItem(id: "setting-\(id)", group: .settings, title: title, detail: detail, leading: .symbol("slider.horizontal.3")) {
                 [weak self] in
-                self?.palette = nil
-                self?.destination = .firmwareSettings
-                self?.settingsScrollTarget = section
+                guard let self else { return }
+                palette = nil
+                destination = .firmwareSettings
+                // The page clears a filter that hides the section; one that keeps the section but hides this row too.
+                let filter = firmwareSettings
+                if let layout = session?.layout,
+                    !FirmwareSettings.shows(id, in: layout, query: filter.trimmedQuery, modifiedOnly: filter.modifiedOnly)
+                {
+                    filter.clearFilters()
+                }
+                settingsScrollTarget = section
             }
         }
         let attached = layout.navigator.map { "\(FirmwareSettings.title($0.kind)) · \(FirmwareSettings.title($0.side))" }

@@ -43,7 +43,7 @@ extension Scenes {
         // The Navigator section with the trackpad swapped for a trackball on the left, and with none; the board with the
         // trackball's disc on the left (ADR 0035). Offscreen renders don't scroll, so the window is tall enough for the
         // whole form, Navigator last.
-        for (name, kind, height) in [("navigator", NavigatorConfig.Kind.trackball, 2550.0), ("navigator-none", nil, 1450.0)] {
+        for (name, kind, height) in [("navigator", NavigatorConfig.Kind.trackball, 6400.0), ("navigator-none", nil, 5300.0)] {
             if let model = await ownLibraryModel(importing: "my-layout-KlgM7-full.json"), let session = model.session {
                 session.moveNavigator(to: .left)
                 session.setNavigator(kind)

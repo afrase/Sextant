@@ -1,5 +1,5 @@
 // Generated from design/PrototypeKit/Sources/PrototypeKit/Resources/settings-catalog.json (ADR 0008).
-// Setting ids, types, defaults and ranges follow Oryx; titles and descriptions are Sextant's own.
+// Setting ids, types, defaults and ranges follow Oryx; titles, descriptions and synonyms are Sextant's own.
 // swift-format-ignore-file
 
 enum SettingsCatalogData {
@@ -7,7 +7,7 @@ enum SettingsCatalogData {
 {
  "format": 1,
  "board": "voyager",
- "about": "Setting ids, types, defaults and ranges follow Oryx's settings catalog (fetched 2026-10-11) so imported configs map 1:1. Titles and descriptions are Sextant's own. Debounce shows the Voyager default. Oryx stores config sparsely: a missing key means the default. Trackball sensitivity is Sextant's (ADR 0035): Oryx keeps it outside its catalog, so its default and range are the trackball module's.",
+ "about": "Setting ids, types, defaults and ranges follow Oryx's settings catalog (fetched 2026-10-11) so imported configs map 1:1. Titles, descriptions and search synonyms are Sextant's own. Debounce shows the Voyager default. Oryx stores config sparsely: a missing key means the default. Trackball sensitivity is Sextant's (ADR 0035): Oryx keeps it outside its catalog, so its default and range are the trackball module's.",
  "settingCount": 101,
  "sections": [
   {
@@ -20,6 +20,7 @@ enum SettingsCatalogData {
      "id": "autoshift",
      "title": "Auto Shift",
      "summary": "Turns Auto Shift on. Holding a key past the delay sends its shifted version. Keys that already have a hold action are not affected.",
+     "synonyms": ["shift on hold", "long press", "capitals"],
      "type": "toggle",
      "default": false
     },
@@ -27,6 +28,7 @@ enum SettingsCatalogData {
      "id": "autoshiftTimeout",
      "title": "Auto Shift delay",
      "summary": "How long a key must be held before it is shifted. Lower is quicker but causes more accidental capitals; most people settle between 135 and 175 ms.",
+     "synonyms": ["shift delay", "hold time"],
      "type": "slider",
      "default": 175,
      "min": 50,
@@ -37,6 +39,7 @@ enum SettingsCatalogData {
      "id": "autoshiftModifiers",
      "title": "Auto Shift with modifiers",
      "summary": "Also apply Auto Shift while another modifier is held. When off, a long ⌃A stays ⌃A.",
+     "synonyms": ["control", "command", "option"],
      "type": "toggle",
      "default": false
     },
@@ -44,6 +47,7 @@ enum SettingsCatalogData {
      "id": "autoshiftEnableSpecial",
      "title": "Shift punctuation keys",
      "summary": "Apply Auto Shift to punctuation such as - = [ ] ; ' , . and /.",
+     "synonyms": ["symbols", "punctuation"],
      "type": "toggle",
      "default": true
     },
@@ -51,6 +55,7 @@ enum SettingsCatalogData {
      "id": "autoshiftEnableNumeric",
      "title": "Shift number keys",
      "summary": "Apply Auto Shift to 0–9, so a long press on 1 types !.",
+     "synonyms": ["digits", "numbers"],
      "type": "toggle",
      "default": true
     },
@@ -58,6 +63,7 @@ enum SettingsCatalogData {
      "id": "autoshiftEnableAlpha",
      "title": "Shift letter keys",
      "summary": "Apply Auto Shift to A–Z. Turn it off to keep Auto Shift for numbers and symbols only.",
+     "synonyms": ["letters", "alphabet"],
      "type": "toggle",
      "default": true
     },
@@ -65,6 +71,7 @@ enum SettingsCatalogData {
      "id": "autoshiftEnableTab",
      "title": "Shift Tab",
      "summary": "Apply Auto Shift to Tab, so a long press sends ⇧⇥.",
+     "synonyms": ["tab key"],
      "type": "toggle",
      "default": true
     }
@@ -79,7 +86,8 @@ enum SettingsCatalogData {
     {
      "id": "audioDisable",
      "title": "Silence buzzer",
-     "summary": "Mute every sound, including the start-up tune. Boards with a buzzer only.",
+     "summary": "Mute every sound, including the startup tune. Boards with a buzzer only.",
+     "synonyms": ["sound", "mute"],
      "type": "toggle",
      "default": false
     },
@@ -87,6 +95,7 @@ enum SettingsCatalogData {
      "id": "audioClick",
      "title": "Key click sound",
      "summary": "Play a short click on every key press. Boards with a buzzer only.",
+     "synonyms": ["sound", "click"],
      "type": "toggle",
      "default": false
     }
@@ -102,6 +111,7 @@ enum SettingsCatalogData {
      "id": "comboTerm",
      "title": "Combo window",
      "summary": "How close together the keys of a combo must go down. Raise it if combos are hard to hit; lower it if they fire by accident.",
+     "synonyms": ["chord", "simultaneous", "combo timeout"],
      "type": "slider",
      "default": 50,
      "min": 10,
@@ -120,6 +130,7 @@ enum SettingsCatalogData {
      "id": "debounce",
      "title": "Debounce time",
      "summary": "How long the firmware waits for a switch to settle before counting a press. Raise it only if single presses register twice.",
+     "synonyms": ["chatter", "double press", "double typing", "bounce"],
      "type": "slider",
      "default": 5,
      "min": 0,
@@ -186,7 +197,8 @@ enum SettingsCatalogData {
     {
      "id": "uk",
      "title": "English (UK)",
-     "summary": "Adds keycodes for the English (UK) input source. Pick the same input source in macOS for them to type correctly.",
+     "summary": "Adds the English (UK) keycodes, such as £ and ¬, to the keycode picker. They type correctly when macOS uses the British input source.",
+     "synonyms": ["british", "pound", "locale"],
      "type": "toggle",
      "default": false
     },
@@ -382,7 +394,8 @@ enum SettingsCatalogData {
     {
      "id": "usint",
      "title": "US International",
-     "summary": "Adds keycodes for the US International input source. Pick the same input source in macOS for them to type correctly.",
+     "summary": "Adds the US International keycodes, such as é and ñ, to the keycode picker. They type correctly when macOS uses the US International input source.",
+     "synonyms": ["accents", "dead keys", "locale"],
      "type": "toggle",
      "default": false
     }
@@ -398,13 +411,15 @@ enum SettingsCatalogData {
      "id": "capsLockStatus",
      "title": "Caps Lock indicator",
      "summary": "Light a status LED while Caps Lock is on.",
+     "synonyms": ["caps lock", "indicator", "light"],
      "type": "toggle",
      "default": false
     },
     {
      "id": "disableUsbStartupCheck",
-     "title": "Skip USB start-up check",
+     "title": "Skip USB startup check",
      "summary": "Start without waiting for the computer to finish configuring USB. Can help KVM switches that fail to detect the board.",
+     "synonyms": ["boot", "power bank", "kvm switch"],
      "type": "toggle",
      "default": false
     },
@@ -412,15 +427,18 @@ enum SettingsCatalogData {
      "id": "wakeupDelay",
      "title": "Wake-up delay",
      "summary": "Pause, in milliseconds, after the keyboard wakes the computer. Increase it if the board is unresponsive after the Mac wakes.",
+     "synonyms": ["sleep", "wake", "resume"],
      "type": "slider",
      "default": 0,
      "min": 0,
-     "max": 500
+     "max": 500,
+     "unit": "milliseconds"
     },
     {
      "id": "layerLockIdleTimeout",
      "title": "Layer Lock timeout",
      "summary": "Release a locked layer after this many idle seconds. 0 keeps it locked until you unlock it.",
+     "synonyms": ["layer lock", "idle"],
      "type": "slider",
      "default": 0,
      "min": 0,
@@ -431,6 +449,7 @@ enum SettingsCatalogData {
      "id": "liveTraining",
      "title": "Live connection",
      "summary": "Lets companion apps read the active layer and key presses over USB. Turning it off saves a little firmware space.",
+     "synonyms": ["companion apps", "live view", "raw hid"],
      "type": "toggle",
      "default": true
     },
@@ -438,6 +457,7 @@ enum SettingsCatalogData {
      "id": "disableNKRO",
      "title": "Remove N-key rollover",
      "summary": "Compile N-key rollover out and fall back to 6-key rollover. Try this if a computer or firmware setup screen doesn't recognize the board.",
+     "synonyms": ["rollover", "nkro", "6kro", "bios", "kvm switch"],
      "type": "toggle",
      "default": false
     },
@@ -445,6 +465,7 @@ enum SettingsCatalogData {
      "id": "lowPollingRate",
      "title": "Lower USB polling rate",
      "summary": "Poll the computer less often. Typing feels the same; it can fix rare cases where no keystrokes arrive.",
+     "synonyms": ["polling", "125 hz", "kvm switch"],
      "type": "toggle",
      "default": false
     },
@@ -452,13 +473,15 @@ enum SettingsCatalogData {
      "id": "enableDynamicMacros",
      "title": "Dynamic macros",
      "summary": "Allow recording macros on the keyboard itself. Recorded macros are lost when the board restarts.",
+     "synonyms": ["record", "macro recording"],
      "type": "toggle",
      "default": false
     },
     {
      "id": "enableSpaceCadet",
      "title": "Space Cadet keys",
-     "summary": "Add Space Cadet keycodes: tap a Shift, Control or Option key for a parenthesis, hold it for the modifier.",
+     "summary": "Lets Space Cadet keys work: tap a Shift, Control or Option key for a parenthesis, hold it for the modifier. A layout with Space Cadet keys needs it on to build.",
+     "synonyms": ["parenthesis", "paren", "brackets"],
      "type": "toggle",
      "default": false
     },
@@ -485,24 +508,29 @@ enum SettingsCatalogData {
      "id": "mouseInterval",
      "title": "Pointer update interval",
      "summary": "Time between pointer movement steps. Lower values move faster.",
+     "synonyms": ["cursor", "pointer", "mouse keys", "refresh"],
      "type": "slider",
      "default": 20,
      "min": 1,
-     "max": 40
+     "max": 40,
+     "unit": "milliseconds"
     },
     {
      "id": "mouseDelay",
      "title": "Pointer start delay",
      "summary": "Wait after a movement key goes down before the pointer starts. Too low makes small moves hard; too high feels sluggish.",
+     "synonyms": ["cursor", "pointer", "mouse keys"],
      "type": "slider",
      "default": 10,
      "min": 0,
-     "max": 40
+     "max": 40,
+     "unit": "milliseconds"
     },
     {
      "id": "mouseMaxSpeed",
      "title": "Pointer top speed",
      "summary": "The fastest the pointer moves while a movement key is held.",
+     "synonyms": ["cursor speed", "pointer speed", "mouse keys"],
      "type": "slider",
      "default": 10,
      "min": 1,
@@ -512,6 +540,7 @@ enum SettingsCatalogData {
      "id": "mouseTimeToMax",
      "title": "Pointer acceleration",
      "summary": "How long the pointer takes to reach top speed.",
+     "synonyms": ["acceleration", "ramp", "mouse keys"],
      "type": "slider",
      "default": 30,
      "min": 1,
@@ -521,15 +550,18 @@ enum SettingsCatalogData {
      "id": "mouseWheelInterval",
      "title": "Scroll interval",
      "summary": "Time between scroll steps. Lower values scroll faster.",
+     "synonyms": ["scroll", "wheel"],
      "type": "slider",
      "default": 80,
      "min": 20,
-     "max": 200
+     "max": 200,
+     "unit": "milliseconds"
     },
     {
      "id": "mouseWheelMaxSpeed",
      "title": "Scroll top speed",
      "summary": "The fastest scrolling gets while a scroll key is held.",
+     "synonyms": ["scroll speed", "wheel"],
      "type": "slider",
      "default": 8,
      "min": 1,
@@ -539,6 +571,7 @@ enum SettingsCatalogData {
      "id": "mouseWheelTimeToMaxSpeed",
      "title": "Scroll acceleration",
      "summary": "How long scrolling takes to reach top speed.",
+     "synonyms": ["scroll acceleration", "wheel"],
      "type": "slider",
      "default": 40,
      "min": 1,
@@ -548,6 +581,7 @@ enum SettingsCatalogData {
      "id": "mouseWheelDelay",
      "title": "Scroll start delay",
      "summary": "Wait after a scroll key goes down before scrolling starts.",
+     "synonyms": ["scroll", "wheel"],
      "type": "slider",
      "default": 400,
      "min": 0,
@@ -566,6 +600,7 @@ enum SettingsCatalogData {
      "id": "rgbHueStep",
      "title": "Hue step",
      "summary": "How far each hue key moves around the color wheel.",
+     "synonyms": ["color", "led", "lights"],
      "type": "slider",
      "default": 8,
      "min": 1,
@@ -575,6 +610,7 @@ enum SettingsCatalogData {
      "id": "rgbUsbSuspend",
      "title": "Lights off while asleep",
      "summary": "Turn the LEDs off while the computer sleeps.",
+     "synonyms": ["sleep", "led", "lights"],
      "type": "toggle",
      "default": true
     },
@@ -582,6 +618,7 @@ enum SettingsCatalogData {
      "id": "rgbTimeout",
      "title": "Lights off when idle",
      "summary": "Turn the LEDs off after this many idle minutes. 0 keeps them on.",
+     "synonyms": ["sleep", "idle", "led", "lights"],
      "type": "slider",
      "default": 0,
      "min": 0,
@@ -593,6 +630,7 @@ enum SettingsCatalogData {
      "id": "rgbBriStep",
      "title": "Brightness step",
      "summary": "How much each brightness key changes the LED level.",
+     "synonyms": ["brightness", "led", "lights"],
      "type": "slider",
      "default": 16,
      "min": 1,
@@ -602,6 +640,7 @@ enum SettingsCatalogData {
      "id": "disabledAnimations",
      "title": "Animations",
      "summary": "Choose which lighting animations are compiled in. Removing ones you never use frees firmware space.",
+     "synonyms": ["effects", "lighting", "rgb", "firmware size"],
      "type": "animation-select",
      "default": [],
      "requiresPerKeyLighting": true,
@@ -812,6 +851,7 @@ enum SettingsCatalogData {
      "id": "stenography",
      "title": "Steno keycodes",
      "summary": "Add stenography keycodes for use with steno software.",
+     "synonyms": ["steno", "plover"],
      "type": "toggle",
      "default": false
     },
@@ -819,6 +859,7 @@ enum SettingsCatalogData {
      "id": "geminipr",
      "title": "GeminiPR protocol",
      "summary": "Send steno chords with GeminiPR instead of the default TX Bolt.",
+     "synonyms": ["steno", "plover"],
      "type": "toggle",
      "default": false
     }
@@ -834,6 +875,7 @@ enum SettingsCatalogData {
      "id": "tappingTerm",
      "title": "Tapping term",
      "summary": "How long a dual-function key can be held and still count as a tap. Applies to layer-tap and mod-tap keys.",
+     "synonyms": ["hold delay", "tap hold", "home row mods", "timeout"],
      "type": "slider",
      "default": 200,
      "min": 0,
@@ -844,6 +886,7 @@ enum SettingsCatalogData {
      "id": "tapCodeDelay",
      "title": "Media key delay",
      "summary": "Add a short pause between pressing and releasing media keys. Helps computers that miss them, mostly on Windows.",
+     "synonyms": ["media keys", "volume", "tap delay"],
      "type": "toggle",
      "default": false
     },
@@ -858,6 +901,7 @@ enum SettingsCatalogData {
      "id": "perKeyTappingTerm",
      "title": "Per-key tapping term",
      "summary": "Allow a different tapping term on individual keys, for fingers that are faster or slower than the rest.",
+     "synonyms": ["per key", "individual keys"],
      "type": "toggle",
      "default": false
     },
@@ -865,6 +909,7 @@ enum SettingsCatalogData {
      "id": "flowTap",
      "title": "Flow Tap",
      "summary": "Right after another key, treat dual-function keys as taps for this long. Prevents accidental holds while typing quickly, which matters most for home-row modifiers.",
+     "synonyms": ["typing streak", "fast typing", "home row mods"],
      "type": "slider",
      "default": 100,
      "min": 1,
@@ -883,6 +928,7 @@ enum SettingsCatalogData {
      "id": "retroTapping",
      "title": "Retro tapping",
      "summary": "If a dual-function key is held past the tapping term and released with nothing else pressed, send its tap anyway.",
+     "synonyms": ["release", "tap after hold"],
      "type": "toggle",
      "default": false
     },
@@ -890,6 +936,7 @@ enum SettingsCatalogData {
      "id": "permissiveHold",
      "title": "Permissive hold",
      "summary": "Choose the hold action when another key is pressed and released while the dual-function key is still down, even inside the tapping term.",
+     "synonyms": ["nested", "roll", "home row mods"],
      "type": "toggle",
      "default": false
     },
@@ -897,6 +944,7 @@ enum SettingsCatalogData {
      "id": "holdOnOtherKeyPress",
      "title": "Hold on other key press",
      "summary": "Choose the hold action as soon as any other key goes down. More eager than permissive hold; suits fast typists and long tapping terms.",
+     "synonyms": ["eager hold", "interrupt"],
      "type": "toggle",
      "default": false
     },
@@ -904,6 +952,7 @@ enum SettingsCatalogData {
      "id": "tappingForceHold",
      "title": "Hold after quick tap",
      "summary": "Holding a dual-function key straight after tapping it gives the hold action instead of repeating the tap.",
+     "synonyms": ["quick tap", "auto repeat", "double tap hold"],
      "type": "toggle",
      "default": false
     },
@@ -911,6 +960,7 @@ enum SettingsCatalogData {
      "id": "legacyDualFunctionDances",
      "title": "Legacy dual-function keys",
      "summary": "Build two-function keys as tap dances, like older layouts. They feel less responsive; use this only to keep old behavior.",
+     "synonyms": ["tap dance", "old layouts", "compatibility"],
      "type": "toggle",
      "default": false
     }
@@ -926,6 +976,7 @@ enum SettingsCatalogData {
      "id": "oneShotTapToggle",
      "title": "Taps to lock a one-shot",
      "summary": "Number of taps that lock a one-shot modifier or layer on until it is tapped again.",
+     "synonyms": ["sticky keys", "lock", "one shot"],
      "type": "slider",
      "default": null,
      "min": 2,
@@ -936,6 +987,7 @@ enum SettingsCatalogData {
      "id": "oneShotTimeout",
      "title": "One-shot timeout",
      "summary": "Clear a pending one-shot modifier or layer after this long.",
+     "synonyms": ["sticky keys", "one shot", "expire"],
      "type": "slider",
      "default": null,
      "min": 100,
@@ -955,6 +1007,7 @@ enum SettingsCatalogData {
      "id": "ambidexLT",
      "title": "Unblock layer keys on their own layer",
      "summary": "The key you hold to reach a layer is normally blocked on that layer. Turn this on to give it an action there; you need a second key to reach the layer and tap it.",
+     "synonyms": ["layer tap", "same layer"],
      "type": "toggle",
      "default": false
     },
@@ -962,6 +1015,7 @@ enum SettingsCatalogData {
      "id": "chordalHold",
      "title": "Chordal hold",
      "summary": "When a dual-function key and a key on the same hand go down within the tapping term, treat the first as a tap. Cuts accidental modifiers with home-row mods.",
+     "synonyms": ["opposite hands", "same hand", "home row mods"],
      "type": "toggle",
      "default": false
     },
@@ -969,6 +1023,7 @@ enum SettingsCatalogData {
      "id": "chordalHoldExcludeThumbs",
      "title": "Exclude thumbs from chordal hold",
      "summary": "Let thumb keys choose tap or hold freely, whichever hand the next key is on.",
+     "synonyms": ["thumb cluster"],
      "type": "toggle",
      "default": false,
      "boards": [
@@ -991,6 +1046,7 @@ enum SettingsCatalogData {
      "id": "sensitivity",
      "title": "Trackball sensitivity",
      "summary": "How far the pointer moves as the ball turns. Higher is faster.",
+     "synonyms": ["cpi", "dpi", "speed"],
      "type": "slider",
      "default": 40,
      "min": 5,
@@ -1003,6 +1059,7 @@ enum SettingsCatalogData {
      "id": "automouseThreshold",
      "title": "Auto-mouse sensitivity",
      "summary": "How much movement switches to the auto-mouse layer. Lower values react to smaller movements.",
+     "synonyms": ["mouse layer", "movement"],
      "type": "slider",
      "default": 10,
      "min": 0,
@@ -1016,6 +1073,7 @@ enum SettingsCatalogData {
      "id": "automouseTime",
      "title": "Auto-mouse release delay",
      "summary": "How long after movement stops the auto-mouse layer turns off.",
+     "synonyms": ["mouse layer", "timeout"],
      "type": "slider",
      "default": 650,
      "min": 1,
@@ -1030,6 +1088,7 @@ enum SettingsCatalogData {
      "id": "invertScrollX",
      "title": "Invert horizontal scrolling",
      "summary": "Reverse horizontal scrolling and drag scrolling.",
+     "synonyms": ["natural scrolling", "reverse"],
      "type": "toggle",
      "default": false,
      "navigatorKinds": [
@@ -1040,6 +1099,7 @@ enum SettingsCatalogData {
      "id": "invertScrollY",
      "title": "Invert vertical scrolling",
      "summary": "Reverse vertical scrolling and drag scrolling.",
+     "synonyms": ["natural scrolling", "reverse"],
      "type": "toggle",
      "default": false,
      "navigatorKinds": [
@@ -1050,6 +1110,7 @@ enum SettingsCatalogData {
      "id": "oneShotAutoMouse",
      "title": "Leave auto-mouse on key press",
      "summary": "Keep the auto-mouse layer until a key is pressed, then start the release delay. Pair it with a short delay.",
+     "synonyms": ["mouse layer", "sticky"],
      "type": "toggle",
      "default": false,
      "navigatorKinds": [
@@ -1061,6 +1122,7 @@ enum SettingsCatalogData {
      "id": "oneShotAutoMouseTimeout",
      "title": "Auto-mouse idle timeout",
      "summary": "With the option above on, also leave the auto-mouse layer after this many idle seconds.",
+     "synonyms": ["mouse layer", "idle"],
      "type": "slider",
      "default": 10,
      "min": 1,
@@ -1068,7 +1130,6 @@ enum SettingsCatalogData {
      "unit": "seconds",
      "toggleable": true,
      "navigatorKinds": [
-      "trackball",
       "trackpad"
      ],
      "dependsOn": {
@@ -1080,6 +1141,7 @@ enum SettingsCatalogData {
      "id": "scrollOnly",
      "title": "Scroll only",
      "summary": "Use the trackball only for scrolling; the pointer stays put.",
+     "synonyms": ["scroll wheel", "scrolling"],
      "type": "toggle",
      "default": false,
      "navigatorKinds": [
@@ -1090,6 +1152,7 @@ enum SettingsCatalogData {
      "id": "rotation",
      "title": "Rotation",
      "summary": "Rotate the sensor's axes to match how the Navigator is mounted.",
+     "synonyms": ["orientation", "angle", "rotate"],
      "type": "slider",
      "default": 0,
      "min": -180,
@@ -1104,6 +1167,7 @@ enum SettingsCatalogData {
      "id": "aimSpeed",
      "title": "Aim speed",
      "summary": "Pointer speed in aim mode, for precise moves.",
+     "synonyms": ["precision", "sniper", "slow"],
      "type": "slider",
      "default": 1,
      "min": 0,
@@ -1121,6 +1185,7 @@ enum SettingsCatalogData {
      "id": "turboSpeed",
      "title": "Turbo speed",
      "summary": "Pointer speed in turbo mode, for crossing the screen quickly.",
+     "synonyms": ["fast", "boost"],
      "type": "slider",
      "default": 1,
      "min": 0,
@@ -1138,6 +1203,7 @@ enum SettingsCatalogData {
      "id": "aimLayers",
      "title": "Aim layers",
      "summary": "Layers that put the trackball in aim mode.",
+     "synonyms": ["precision", "sniper"],
      "type": "layer-select",
      "default": [],
      "navigatorKinds": [
@@ -1148,6 +1214,7 @@ enum SettingsCatalogData {
      "id": "turboLayers",
      "title": "Turbo layers",
      "summary": "Layers that put the trackball in turbo mode.",
+     "synonyms": ["fast", "boost"],
      "type": "layer-select",
      "default": [],
      "navigatorKinds": [
@@ -1158,6 +1225,7 @@ enum SettingsCatalogData {
      "id": "dragScrollLayers",
      "title": "Drag-scroll layers",
      "summary": "Layers on which moving the trackball scrolls instead of pointing.",
+     "synonyms": ["scroll", "drag"],
      "type": "layer-select",
      "default": [],
      "navigatorKinds": [
