@@ -3,6 +3,8 @@ import SwiftUI
 
 struct KeyboardMenu: View {
     var window: LayoutWindowModel?
+    var onKeyboard: OnKeyboard?
+    var live: LiveSession?
     var layerShortcuts: LayerShortcuts?
 
     var body: some View {
@@ -19,7 +21,7 @@ struct KeyboardMenu: View {
             .disabled(window?.isLive != true && window?.canGoLive != true)
         Toggle("Follow Keyboard", isOn: Binding(get: { window?.isFollowing == true }, set: { window?.isFollowing = $0 }))
             .keyboardShortcut("l").disabled(window?.canFollow != true)
-        MoveKeyboardToLayerMenu(onKeyboard: window?.onKeyboard, live: window?.live, shortcuts: layerShortcuts)
+        MoveKeyboardToLayerMenu(onKeyboard: onKeyboard, live: live, shortcuts: layerShortcuts)
         Button("Preview Lighting on Keyboard") {}.disabled(true)
         Button("Show Overlay While Holding a Layer") {}.disabled(true)
         Divider()

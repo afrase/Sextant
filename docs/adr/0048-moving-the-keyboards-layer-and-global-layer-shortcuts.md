@@ -23,15 +23,26 @@ Carbon adapter with only a modifier-set picker.
   layout, no such layer. A dry run only answers, so the menus can disable their items without sending.
 - **Menus.** Keyboard ▸ Move Keyboard to Layer and the Device popover's copy list the keyboard layout's layers by name,
   check the one it's on, and move it to the one chosen. While it can't move, the items are disabled under a heading that
-  gives the reason. Without a window the Keyboard menu's copy is disabled, like Device Info.
+  gives the reason; when Sextant doesn't have the keyboard's layout, a heading says why only layer 0 is offered. The
+  Keyboard menu's copy reads the app-wide `OnKeyboard` and `LiveSession`, so it works with no layout window open or
+  with Settings key.
 - **Shortcuts.** `LayerShortcuts` (application, app-wide, on `SextantServices`) drives a `HotKeys` port: register ten
   layer shortcuts, unregister them, read each one, report conflicts. Off by default; turning it on registers all ten,
   turning it off unregisters them, and the choice is saved through a closure from the composition root
   (`KeyboardSettings.layerShortcutsOn`). A press goes through the same move. One that can't move sends nothing; it beeps,
-  since Sextant may be in the background, and Settings › Keyboard shows why.
+  since Sextant may be in the background, and Settings › Keyboard shows why under its switch. `refusal` is derived from
+  the refused layer by a dry run, so it gives the reason as things stand now and clears once that press would send
+  (Live View turned on since, say); it never asks for a fix the user has already made. The menu bar extra (slice 3.1)
+  is where a reason can show without opening Settings; until then the beep and Settings are all.
+- **Standing aside for Sextant's recorders.** Carbon consumes a registered hot key's press before AppKit sees it, so
+  with the shortcuts on, Record Key and Record Steps could never record ⌃⌥ digits, and the press would move the keyboard
+  instead. `RecordKeyMonitor` calls `LayerShortcuts.suspend()` while it listens and `resume()` when it ends (calls
+  nest); the port's `setPaused(_:)` maps to the library's `KeyboardShortcuts.isEnabled`, which unregisters the hot keys
+  with Carbon until it's turned back on. Conflicts are reread on resume, not while paused.
 - **Conflicts.** A shortcut the system won't register (another app holds it exclusively) or that a macOS shortcut uses
-  is listed under the shortcuts with what to do. The recorder refuses a shortcut without ⌃ or ⌘ (macOS 15 and later refuse ones
-  whose only modifiers are ⌥ or ⌥⇧, and ⇧ alone or no modifier would fire while typing) and one another layer has. The
+  is listed under the shortcuts with what to do. The recorder refuses a shortcut without ⌃ or ⌘ and one another layer has: with only ⌥ or
+  ⇧, or none, a global shortcut takes a key the user types with in every app (⌥2 types ™). macOS itself would take ⌥
+  alone: the refusal the library documents hit only sandboxed apps on macOS 15.0 and 15.1, and Sextant is neither. The
   library's own checks still apply: it blocks a shortcut the app's menus use and warns about a macOS one.
 - **One press, one move.** The menu items show a layer's shortcut only while the shortcuts are on and that one can fire.
   A registered hot key takes the key press before the app's menus see it (Carbon in normal use; while a menu is open the

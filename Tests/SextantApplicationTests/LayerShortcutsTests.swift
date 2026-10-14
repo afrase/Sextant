@@ -149,6 +149,57 @@ struct LayerShortcutsTests {
         #expect(shortcuts.refusal == .liveOff && told == [.liveOff])
         #expect(shortcuts.refusal?.localizedDescription == "Turn on Live View to move the keyboard’s layer.")
         #expect(link.sessionCount == 0, "nothing paired, nothing written")
+
+        // The user does what it says: Settings stops asking, and the keyboard was never moved behind their back.
+        live.startLive()
+        #expect(await eventually { link.sessionCount == 1 })
+        #expect(shortcuts.refusal == .connecting, "the reason as things stand now")
+        link.send(.layer(0))
+        #expect(
+            await eventually {
+                await clock.advance(by: .milliseconds(17)); return live.canSend
+            })
+        #expect(shortcuts.refusal == nil)
+        #expect(link.commands == [[]], "nothing sent for the earlier press")
+    }
+
+    @Test func aRefusalStaysWhileItsCauseDoes() async throws {
+        let shortcuts = shortcuts(on: true)
+        try await knownKeyboard()
+        #expect(await eventually { onKeyboard.running?.layout.layers.count == 3 })
+        #expect(await goLive())
+        hotKeys.press(7)
+        #expect(shortcuts.refusal == .noSuchLayer(7))
+        shortcuts.isOn = false
+        shortcuts.isOn = true
+        #expect(shortcuts.refusal == nil, "turning them off forgets it")
+    }
+
+    // MARK: Standing aside for Sextant's key recorders
+
+    /// Record Key and Record Steps suspend the shortcuts, so a ⌃⌥ digit reaches the recorder instead of moving the
+    /// keyboard; nested suspensions (one window's recorder ending as another's starts) resume only after the last.
+    @Test func recordersPauseTheShortcutsUntilTheLastEnds() async throws {
+        hotKeys.conflicting = [4: .inUse]
+        let shortcuts = shortcuts(on: true)
+        try await knownKeyboard()
+        #expect(await eventually { onKeyboard.running != nil })
+        #expect(await goLive())
+
+        shortcuts.suspend()
+        shortcuts.suspend()
+        #expect(hotKeys.isPaused)
+        hotKeys.press(1)
+        shortcuts.resume()
+        #expect(hotKeys.isPaused, "one recorder still listens")
+        #expect(shortcuts.conflicts == [4: .inUse], "not reread while paused")
+        hotKeys.conflicting = [6: .inUse]
+        shortcuts.resume()
+        #expect(!hotKeys.isPaused && shortcuts.conflicts == [6: .inUse], "another app took ⌃⌥6 meanwhile")
+        shortcuts.resume()
+        #expect(!hotKeys.isPaused, "an extra resume does nothing")
+        hotKeys.press(1)
+        #expect(await eventually { link.commands == [[.moveToLayer(1)]] }, "only the press after the recorders ended")
     }
 
     @Test func anUnknownLayoutMovesOnlyToLayerZero() async throws {
@@ -218,13 +269,17 @@ final class FakeHotKeys: HotKeys {
         onPress = nil
     }
 
+    /// Paused, a press reaches the frontmost app (a key recorder), not the shortcut.
+    private(set) var isPaused = false
+    func setPaused(_ paused: Bool) { isPaused = paused }
+
     func shortcut(forLayer layer: Int) -> HotKeyShortcut? { stored[layer] }
 
     func conflicts() -> [Int: HotKeyConflict] { registered == nil ? [:] : conflicting }
 
     /// The user presses layer `layer`'s shortcut; nothing happens unless it's registered.
     func press(_ layer: Int) {
-        guard registered?.contains(layer) == true else { return }
+        guard registered?.contains(layer) == true, !isPaused else { return }
         onPress?(layer)
     }
 }

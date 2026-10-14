@@ -18,7 +18,7 @@ A native macOS app for configuring the ZSA Voyager: edit layouts on your Mac, im
 - **Imports from Oryx** by pasting a layout link, or from the layout id the connected keyboard reports. It uses Oryx's public GraphQL read-only: no login and no changes to your Oryx account.
 - **Builds QMK firmware on your Mac** with a pinned toolchain that runs in a sandbox. The first build downloads about 200 MB of build tools, each checked by size and SHA-256.
 - **Flashes the keyboard over DFU,** behind strict guards (see [Safety](#safety)).
-- **Shows the keyboard live:** the active layer and the keys you press, on the board. Off by default.
+- **Shows the keyboard live:** the active layer and the keys you press, on the board. Off by default. While it's on, you can move the keyboard to a layer from the Keyboard menu, or from any app with optional global shortcuts (⌃⌥0–⌃⌥9).
 - **Keeps history and exports:** saved revisions you can compare and restore, and export as layout JSON, QMK source, firmware, PNG or PDF.
 
 ## Status
@@ -50,6 +50,8 @@ Build & Flash works out of the box: it builds the firmware, asks you to put the 
 
 The live view (the active layer and the keys you press) starts only when you turn it on: click the live button in the toolbar, or choose Keyboard ▸ Live View. Plugging the keyboard in never starts it, because pairing writes to the keyboard.
 
+While the live view is on, Keyboard ▸ Move Keyboard to Layer (also in the Device popover) moves the keyboard to the layer you choose. Settings › Keyboard can turn on global shortcuts that do the same from any app, ⌃⌥0–⌃⌥9 unless you record others. They're off by default, and while they're on other apps don't get those keys.
+
 ## Safety
 
 - **The flasher writes only the application region,** `[0x08002000, 0x08042000)`, and can't express a mass erase, so the bootloader is never touched.
@@ -57,6 +59,7 @@ The live view (the active layer and the keys you press) starts only when you tur
 - **It asks first** before replacing a keyboard that runs a different layout.
 - **Generated firmware keeps the Navigator modules,** so the trackpad keeps working.
 - **Builds run in a sandbox** with no network, no access to your files, and writes only to the build folder.
+- **A layer move is sent only when you ask:** one choice or shortcut press moves the keyboard once, only while the live view is on, and only to a layer its layout has (just layer 0 when Sextant doesn't have that layout), since a layer past the build's layers drops the keyboard to its base layer.
 - **The live view is private:** it sees key positions, never characters, keeps events in memory only, and pauses while secure input (a password field) is on.
 - **Recovery:** if a flash goes wrong, the Voyager's reset button puts it in its bootloader, and you can flash again.
 

@@ -22,14 +22,27 @@ public final class LayerShortcuts {
     public private(set) var shortcuts: [Int: HotKeyShortcut] = [:]
     /// Shortcuts that can't fire while on, by layer.
     public private(set) var conflicts: [Int: HotKeyConflict] = [:]
-    /// Why the last press sent nothing; nil once a press sends.
-    public private(set) var refusal: LayerMoveRefusal?
+    /// Why the last press sent nothing, as things stand now: nil once a press sends, and once that press would send
+    /// (Live View turned on since, say), so Settings never asks for a fix the user has already made.
+    public var refusal: LayerMoveRefusal? {
+        guard let refusedLayer else { return nil }
+        do {
+            try onKeyboard.moveKeyboard(toLayer: refusedLayer, dryRun: true)
+            return nil
+        } catch {
+            return error
+        }
+    }
+    /// The layer of the last press that sent nothing; nil once a press sends.
+    private var refusedLayer: Int?
 
     @ObservationIgnored private let hotKeys: any HotKeys
     @ObservationIgnored private let onKeyboard: OnKeyboard
     @ObservationIgnored private let persist: @MainActor (Bool) -> Void
     @ObservationIgnored private let onRefused: @MainActor (LayerMoveRefusal) -> Void
     @ObservationIgnored private var started = false
+    /// How many key recorders are listening; the shortcuts stand aside while any is.
+    @ObservationIgnored private var suspensions = 0
 
     /// - Parameters:
     ///   - isOn: the saved choice (Settings › Keyboard); `persist` saves a change.
@@ -58,6 +71,23 @@ public final class LayerShortcuts {
         read()
     }
 
+    /// Sextant's Record Key or Record Steps is listening in a window: the shortcuts let their keys through until
+    /// `resume()`, so ⌃⌥1 there records Ctrl+Alt+1 rather than moving the keyboard. Calls nest.
+    public func suspend() {
+        suspensions += 1
+        if suspensions == 1 { hotKeys.setPaused(true) }
+    }
+
+    /// Ends one `suspend()`; the shortcuts take their keys again after the last.
+    public func resume() {
+        guard suspensions > 0 else { return }
+        suspensions -= 1
+        guard suspensions == 0 else { return }
+        hotKeys.setPaused(false)
+        // A shortcut another app took meanwhile can't fire now.
+        if isOn, started { read() }
+    }
+
     /// The shortcut a menu item shows for `layer`: only while on, and only one that can fire. A press then reaches only
     /// the hot key, which takes it before the app's menus see it; with the shortcuts off, ⌃⌥ digits do nothing in
     /// Sextant either.
@@ -70,16 +100,16 @@ public final class LayerShortcuts {
         guard Self.allows(shortcut.modifiers) else {
             return String(
                 localized: """
-                    Include ⌃ or ⌘. macOS doesn’t take global shortcuts with only ⌥ or ⇧, and without a modifier the key \
-                    would move the layer as you type.
+                    Include ⌃ or ⌘. With only ⌥ or ⇧, or none, the shortcut would take a key you type with: ⌥2 types ™ \
+                    in every app.
                     """)
         }
         let other = Self.layers.first { $0 != layer && hotKeys.shortcut(forLayer: $0) == shortcut }
         return other.map { String(localized: "Layer \($0) already uses \(shortcut.text).") }
     }
 
-    /// A global shortcut needs ⌃ or ⌘: macOS 15 and later refuse ones whose only modifiers are ⌥ or ⌥⇧, and one with
-    /// only ⇧, or none, would fire while typing.
+    /// A global shortcut needs ⌃ or ⌘: one whose only modifiers are ⌥ or ⇧, or none, takes a key the user types with
+    /// (⌥ with a digit types a character), in every app.
     nonisolated public static func allows(_ modifiers: HotKeyModifiers) -> Bool {
         !modifiers.isDisjoint(with: [.control, .command])
     }
@@ -88,9 +118,9 @@ public final class LayerShortcuts {
     func press(_ layer: Int) {
         do {
             try onKeyboard.moveKeyboard(toLayer: layer)
-            refusal = nil
+            refusedLayer = nil
         } catch {
-            refusal = error
+            refusedLayer = layer
             onRefused(error)
         }
     }
@@ -102,14 +132,15 @@ public final class LayerShortcuts {
             read()
         } else {
             hotKeys.unregister()
-            (shortcuts, conflicts, refusal) = ([:], [:], nil)
+            (shortcuts, conflicts, refusedLayer) = ([:], [:], nil)
         }
     }
 
     private func read() {
         let found = Self.layers.compactMap { layer in hotKeys.shortcut(forLayer: layer).map { (layer, $0) } }
         shortcuts = Dictionary(uniqueKeysWithValues: found)
-        conflicts = hotKeys.conflicts()
+        // Paused shortcuts aren't registered, so they'd all read as conflicts; `resume()` rereads them.
+        if suspensions == 0 { conflicts = hotKeys.conflicts() }
     }
 }
 

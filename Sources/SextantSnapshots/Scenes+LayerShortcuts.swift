@@ -27,7 +27,7 @@ extension Scenes {
         on.shortcutsChanged()
         hotKeys.press(2)
         scenes += SnapshotScene.pair(
-            "settings-keyboard-shortcuts", size: CGSize(width: 520, height: 960), chrome: .window(title: "Keyboard")
+            "settings-keyboard-shortcuts", size: CGSize(width: 520, height: 1000), chrome: .window(title: "Keyboard")
         ) {
             KeyboardSettings(layerShortcuts: on)
         }
@@ -91,6 +91,7 @@ private final class StandInHotKeys: HotKeys, StandIn {
 
     func register(layers: Range<Int>, onPress: @escaping @MainActor (Int) -> Void) { self.onPress = onPress }
     func unregister() { onPress = nil }
+    func setPaused(_ paused: Bool) {}
     func shortcut(forLayer layer: Int) -> HotKeyShortcut? {
         HotKeyShortcut(keyCode: 0, modifiers: [.control, .option], text: "⌃⌥\(layer)", keyEquivalent: "\(layer)")
     }

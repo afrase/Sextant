@@ -28,3 +28,37 @@ struct LayerMapTests {
         assertSnapshot(of: image, as: .image(precision: 0.99, perceptualPrecision: 0.98), named: scheme == .dark ? "dark" : "light")
     }
 }
+
+/// Keyboard ▸ Move Keyboard to Layer's heading (ADR 0048), over a stand-in keyboard: nothing here writes to one.
+@MainActor
+struct MoveKeyboardToLayerMenuTests {
+    @Test func theHeadingSaysWhyItemsAreDisabledOrWhyOnlyLayerZeroShows() async throws {
+        let keyboard = UnknownKeyboard()
+        let live = LiveSession(watcher: keyboard, link: keyboard, secureInputProbe: { false })
+        let store = MemoryLibrary()
+        let onKeyboard = OnKeyboard(library: Library(store: store), store: store, live: live)
+        live.start()
+        onKeyboard.start()
+        for _ in 0..<200 where live.connection == .noKeyboard { try await Task.sleep(for: .milliseconds(10)) }
+        let off = MoveKeyboardToLayerMenu.heading(onKeyboard)
+        #expect(off?.text == "Turn on Live View to move the keyboard’s layer." && off?.enabled == false)
+
+        live.startLive()
+        for _ in 0..<300 where !live.canSend { try await Task.sleep(for: .milliseconds(10)) }
+        let unknown = MoveKeyboardToLayerMenu.heading(onKeyboard)
+        #expect(unknown?.text == "Sextant doesn’t have the keyboard’s layout, so it can move it only to layer 0.")
+        #expect(unknown?.enabled == true, "layer 0 can still be chosen")
+    }
+}
+
+/// A keyboard running a layout the library doesn't hold; once Live View starts, its session reports layer 0 and stays
+/// open.
+private struct UnknownKeyboard: DeviceWatcher, KeyboardLink {
+    func events(for board: BoardDefinition) -> AsyncStream<DeviceEvent> {
+        AsyncStream { $0.yield(.attached(.keyboard(KeyboardDevice(id: 1, productID: 0x1977, serial: "Q9x2/aa11")))) }
+    }
+
+    func session(with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>) -> AsyncStream<LiveEvent> {
+        AsyncStream { $0.yield(.layer(0)) }
+    }
+}

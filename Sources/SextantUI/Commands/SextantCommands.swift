@@ -7,7 +7,10 @@ struct SextantCommands: Commands {
     @FocusedValue(LayoutWindowModel.self) private var window
     /// File ▸ New Layout works with no window open.
     let library: Library
-    /// Shown on Keyboard ▸ Move Keyboard to Layer's items while they're on.
+    /// Keyboard ▸ Move Keyboard to Layer works with no window open, or Settings key; its items show the shortcuts while
+    /// they're on.
+    let onKeyboard: OnKeyboard
+    let live: LiveSession
     let layerShortcuts: LayerShortcuts
     @AppStorage(BenchGrid.key) private var showsGrid = true
 
@@ -30,7 +33,7 @@ struct SextantCommands: Commands {
         }
         CommandMenu("Layer") { LayerMenu(window: window) }
         CommandMenu("Key") { KeyMenu(window: window) }
-        CommandMenu("Keyboard") { KeyboardMenu(window: window, layerShortcuts: layerShortcuts) }
+        CommandMenu("Keyboard") { KeyboardMenu(window: window, onKeyboard: onKeyboard, live: live, layerShortcuts: layerShortcuts) }
         CommandGroup(before: .windowList) {
             Button("Main Window") {}.keyboardShortcut("0").disabled(true)
         }

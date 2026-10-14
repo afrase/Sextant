@@ -22,8 +22,9 @@ public struct SextantScenes: Scene {
 
     public var body: some Scene {
         WindowGroup(id: "layout", for: UUID.self) { $layoutID in
-            // The Device popover shows the raw-HID log.
+            // The Device popover shows the raw-HID log; Record Key pauses the layer shortcuts.
             LayoutWindow(services: services, layoutID: $layoutID).environment(services.trace)
+                .environment(services.layerShortcuts)
         }
         // 1440×900, or 1600×1000 on displays at least 1728 pt wide, clamped to the screen (spec §3.2).
         .defaultWindowPlacement { _, context in
@@ -32,7 +33,11 @@ public struct SextantScenes: Scene {
             return WindowPlacement(size: CGSize(width: min(size.width, screen.width), height: min(size.height, screen.height)))
         }
         .windowResizability(.contentMinSize)
-        .commands { SextantCommands(library: services.library, layerShortcuts: services.layerShortcuts) }
+        .commands {
+            SextantCommands(
+                library: services.library, onKeyboard: services.onKeyboard, live: services.live,
+                layerShortcuts: services.layerShortcuts)
+        }
 
         Settings {
             SettingsView(

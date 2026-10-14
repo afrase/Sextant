@@ -4,7 +4,8 @@ import SwiftUI
 
 /// Keyboard ▸ Move Keyboard to Layer, and the same menu in the Device popover (spec §9.1, ADR 0048). It lists the layers
 /// of the layout on the keyboard, checks the one it's on, and moves it to the one chosen. While it can't (Live View off,
-/// still connecting), the items are disabled under a heading that says why.
+/// still connecting), the items are disabled under a heading that says why; a heading also says why a layout Sextant
+/// doesn't have offers only layer 0.
 struct MoveKeyboardToLayerMenu: View {
     var onKeyboard: OnKeyboard?
     var live: LiveSession?
@@ -14,10 +15,9 @@ struct MoveKeyboardToLayerMenu: View {
     var body: some View {
         Menu("Move Keyboard to Layer") {
             if let onKeyboard {
-                let refusal = Self.refusal(onKeyboard, layer: 0)
                 let items = layers(onKeyboard)
-                if let refusal {
-                    Section(refusal.localizedDescription) { layerItems(items, onKeyboard: onKeyboard).disabled(true) }
+                if let heading = Self.heading(onKeyboard) {
+                    Section(heading.text) { layerItems(items, onKeyboard: onKeyboard).disabled(!heading.enabled) }
                 } else {
                     layerItems(items, onKeyboard: onKeyboard)
                 }
@@ -46,6 +46,13 @@ struct MoveKeyboardToLayerMenu: View {
             return layout.layers.prefix(32).enumerated().map { ($0.offset, $0.element.title) }
         }
         return Self.refusal(onKeyboard, layer: 0) == .noKeyboard ? [] : [(0, String(localized: "Layer 0"))]
+    }
+
+    /// The heading over the items: why they're disabled, or why a layout Sextant doesn't have offers only layer 0; nil
+    /// over a known layout's layers.
+    static func heading(_ onKeyboard: OnKeyboard) -> (text: String, enabled: Bool)? {
+        if let refusal = refusal(onKeyboard, layer: 0) { return (refusal.localizedDescription, false) }
+        return onKeyboard.running == nil ? (LayerMoveRefusal.unknownLayout.localizedDescription, true) : nil
     }
 
     /// Why moving to `layer` would send nothing; nil when it would send. Asks without sending.

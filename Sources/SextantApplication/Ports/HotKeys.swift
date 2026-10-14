@@ -10,6 +10,9 @@ public protocol HotKeys: AnyObject {
     func register(layers: Range<Int>, onPress: @escaping @MainActor (Int) -> Void)
     /// Unregisters every layer shortcut, so their keys reach other apps again.
     func unregister()
+    /// While paused, the registered shortcuts let their keys through to the frontmost app (Sextant's own key recorders)
+    /// and stay registered for when it ends.
+    func setPaused(_ paused: Bool)
     /// The layer's shortcut, registered or not; nil when the user removed it.
     func shortcut(forLayer layer: Int) -> HotKeyShortcut?
     /// The registered layers whose shortcut can't fire.

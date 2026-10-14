@@ -140,6 +140,11 @@ private struct LayerShortcutsSection: View {
         Section {
             Toggle("Move the keyboard’s layer from any app", isOn: $shortcuts.isOn)
             if shortcuts.isOn {
+                // First, under the switch: a press that moved nothing only beeps, so this is where the user looks.
+                if let refusal = shortcuts.refusal {
+                    Label(String(localized: "The last shortcut moved nothing. \(refusal.localizedDescription)"), systemImage: "info.circle")
+                        .labelStyle(StatusLabelStyle(tint: .secondary))
+                }
                 HStack(alignment: .top, spacing: 28) {
                     column(0..<5)
                     column(5..<10)
@@ -154,10 +159,6 @@ private struct LayerShortcutsSection: View {
                         .labelStyle(StatusLabelStyle(tint: Tokens.warning.color))
                     }
                 }
-                if let refusal = shortcuts.refusal {
-                    Label(String(localized: "The last shortcut moved nothing. \(refusal.localizedDescription)"), systemImage: "info.circle")
-                        .labelStyle(StatusLabelStyle(tint: .secondary))
-                }
             }
         } header: {
             Text("Layer shortcuts")
@@ -165,7 +166,8 @@ private struct LayerShortcutsSection: View {
             Text(
                 """
                 Each shortcut (⌃⌥0 to ⌃⌥9 unless you record others) moves the keyboard to its layer while Live View \
-                is on, whichever app you’re in. While they’re on, other apps don’t get those keys.
+                is on, whichever app you’re in; one that can’t beeps, and says why above. While they’re on, other apps \
+                don’t get those keys.
                 """
             )
             .foregroundStyle(.secondary)

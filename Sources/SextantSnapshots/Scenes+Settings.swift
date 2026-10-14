@@ -12,7 +12,7 @@ extension Scenes {
     static func settings(_ f: Fixtures) async -> [SnapshotScene] {
         var scenes: [SnapshotScene] = []
         let layerShortcuts = await layerShortcuts(on: false).0
-        scenes += SnapshotScene.pair("settings-keyboard", size: CGSize(width: 520, height: 620), chrome: .window(title: "Keyboard")) {
+        scenes += SnapshotScene.pair("settings-keyboard", size: CGSize(width: 520, height: 680), chrome: .window(title: "Keyboard")) {
             KeyboardSettings(layerShortcuts: layerShortcuts)
         }
         let trace = RawHIDTrace { false }

@@ -936,7 +936,7 @@
     "Each layout has one window. Choose one in the sidebar to bring its window forward, or make a new layout (⌘N)." : {
 
     },
-    "Each shortcut (⌃⌥0 to ⌃⌥9 unless you record others) moves the keyboard to its layer while Live View is on, whichever app you’re in. While they’re on, other apps don’t get those keys." : {
+    "Each shortcut (⌃⌥0 to ⌃⌥9 unless you record others) moves the keyboard to its layer while Live View is on, whichever app you’re in; one that can’t beeps, and says why above. While they’re on, other apps don’t get those keys." : {
 
     },
     "Edit Key" : {
@@ -1283,7 +1283,7 @@
     "In use by Keymapp. Quit Keymapp or disconnect it there; Sextant connects automatically." : {
 
     },
-    "Include ⌃ or ⌘. macOS doesn’t take global shortcuts with only ⌥ or ⇧, and without a modifier the key would move the layer as you type." : {
+    "Include ⌃ or ⌘. With only ⌥ or ⇧, or none, the shortcut would take a key you type with: ⌥2 types ™ in every app." : {
 
     },
     "Index" : {

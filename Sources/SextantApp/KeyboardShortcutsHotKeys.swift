@@ -34,6 +34,12 @@ final class KeyboardShortcutsHotKeys: HotKeys {
         registered = nil
     }
 
+    func setPaused(_ paused: Bool) {
+        // Carbon consumes a registered hot key's press before AppKit sees it; the library's switch unregisters them all
+        // with Carbon until it's turned back on.
+        KeyboardShortcuts.isEnabled = !paused
+    }
+
     func shortcut(forLayer layer: Int) -> HotKeyShortcut? {
         guard names.indices.contains(layer), let shortcut = names[layer].shortcut else { return nil }
         return HotKeyShortcut(shortcut)
