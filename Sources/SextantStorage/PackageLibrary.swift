@@ -12,6 +12,7 @@ import os
 ///   layout.json          the working copy (Oryx-shaped layout JSON)
 ///   revisions/NNNN-<hash8>.json   append-only checkpoints
 ///   firmware/<revision>.bin       an Oryx- or Sextant-built image, plus <revision>.bin.md5
+///   app-layers.json      App Layers: rules kept beside the layout, outside its content hash (ADR 0054)
 /// <root>/.recovery/<id>.json   the latest edits until their autosave lands
 /// ```
 public actor PackageLibrary: LayoutLibrary {
@@ -134,7 +135,23 @@ public actor PackageLibrary: LayoutLibrary {
         layout.title = String(localized: "\(original) Copy")
         // A first revision, as a new layout gets, so the copy opens unedited.
         let first = RevisionDraft(source: .save, message: String(localized: "Duplicated from \(original)"), layout: layout)
-        return try create(layout, origin: .local, firstRevision: first)
+        let copy = try create(layout, origin: .local, firstRevision: first)
+        // The copy keeps the App Layers; one that can't be read (damaged, or from a newer Sextant) doesn't stop the copy.
+        if let rules = try? appLayerRules(of: id), rules != AppLayerRules() { try saveAppLayerRules(rules, for: copy.id) }
+        return copy
+    }
+
+    public func appLayerRules(of id: UUID) throws(LibraryError) -> AppLayerRules {
+        let file = try folder(for: id).appending(path: Self.appLayersFile)
+        guard FileManager.default.fileExists(atPath: file.path) else { return AppLayerRules() }
+        let stored = try decode(StoredAppLayers.self, from: file)
+        guard stored.formatVersion <= Self.appLayersFormatVersion else { throw .newerFormat(stored.formatVersion) }
+        return AppLayerRules(isOn: stored.isOn, rules: stored.rules)
+    }
+
+    public func saveAppLayerRules(_ rules: AppLayerRules, for id: UUID) throws(LibraryError) {
+        let stored = StoredAppLayers(formatVersion: Self.appLayersFormatVersion, isOn: rules.isOn, rules: rules.rules)
+        try write(stored, to: folder(for: id).appending(path: Self.appLayersFile))
     }
 
     public func trash(_ id: UUID) throws(LibraryError) {
@@ -227,6 +244,16 @@ public actor PackageLibrary: LayoutLibrary {
 
         var entry: LibraryEntry { LibraryEntry(id: id, title: title, origin: origin.model, modifiedAt: modifiedAt) }
     }
+
+    /// `app-layers.json`. Its own format version, so a newer Sextant's rules are refused rather than overwritten.
+    struct StoredAppLayers: Codable {
+        var formatVersion: Int
+        var isOn: Bool
+        var rules: [AppLayerRule]
+    }
+
+    static let appLayersFile = "app-layers.json"
+    static let appLayersFormatVersion = 1
 
     struct StoredRevision: Codable {
         var id: String

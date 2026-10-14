@@ -28,6 +28,9 @@ struct LensLane: View {
                 } else if let status = model.laneStatus {
                     capsule(status)
                         .glassEffectTransition(.materialize)
+                } else if let id = model.session?.id, let text = model.appLayers.laneText(id) {
+                    // Last in priority (spec §3.7).
+                    AppRuleCapsule(model: model, text: text).glassEffectTransition(.materialize)
                 }
             }
         }
@@ -81,6 +84,24 @@ private struct PickCapsule: View {
                 // esc reaches the window even when the board's exit command doesn't: right after Assign to Key leaves its page
                 // for the board, a probe saw about 1 esc in 25 missed (ADR 0042).
                 .keyboardShortcut(.cancelAction)
+        }
+        .font(.callout.weight(.medium))
+        .padding(.horizontal, 12)
+        .frame(height: 28)
+        .surface(Capsule(), interactive: true)
+    }
+}
+
+/// The frontmost app's rule as it holds (spec §3.7, §8.6), with [Rules…] for the App Layers page.
+private struct AppRuleCapsule: View {
+    var model: LayoutWindowModel
+    var text: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "macwindow.on.rectangle").foregroundStyle(.secondary).accessibilityHidden(true)
+            Text(verbatim: text).lineLimit(1)
+            Button("Rules…") { model.destination = .appLayers }.buttonStyle(.borderless)
         }
         .font(.callout.weight(.medium))
         .padding(.horizontal, 12)

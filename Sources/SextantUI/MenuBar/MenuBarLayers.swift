@@ -54,10 +54,10 @@ struct MenuBarLayers: View {
         }
     }
 
-    /// Every row up to ``MenuBarPanelContent/visibleRows``. A longer list is cut through a row, half a row short, so it
-    /// reads as one that scrolls; half a row more would take the panel past 520 pt.
+    /// Every row up to ``MenuBarPanelContent/visibleRows``, one fewer under the App Layers row. A longer list is cut
+    /// through a row, half a row short, so it reads as one that scrolls; half a row more would take the panel past 520 pt.
     private var listHeight: CGFloat {
-        let count = state.layers.count, visible = MenuBarPanelContent.visibleRows
+        let count = state.layers.count, visible = MenuBarPanelContent.visibleRows - (state.appLayers == nil ? 0 : 1)
         return (count > visible ? CGFloat(visible) - 0.5 : CGFloat(count)) * MenuBarPanelContent.rowHeight
     }
 

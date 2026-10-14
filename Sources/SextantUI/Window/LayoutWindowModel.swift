@@ -128,6 +128,8 @@ public final class LayoutWindowModel {
     let macros = MacrosModel()
     /// The Combos page's state (spec §6.4).
     let combos = CombosModel()
+    /// The App Layers page's state (spec §8.6).
+    public let appLayers: AppLayersModel
     /// Keycodes assigned from the picker and commands run from the palette, newest first (Suggested, Recent).
     var recentKeycodes: [KeyAction] = []
     var recentCommands: [String] = []
@@ -185,9 +187,10 @@ public final class LayoutWindowModel {
     public init(
         library: Library, live: LiveSession? = nil, makeImport: (@MainActor () -> ImportFromOryx)? = nil,
         makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)? = nil, onKeyboard: OnKeyboard? = nil,
-        lightingPreview: LightingPreview? = nil
+        lightingPreview: LightingPreview? = nil, appLayers: AppLayerSwitcher? = nil
     ) {
         self.library = library
+        self.appLayers = AppLayersModel(switcher: appLayers)
         self.live = live
         self.makeImport = makeImport
         self.makeBuildFlash = makeBuildFlash
@@ -199,7 +202,7 @@ public final class LayoutWindowModel {
     public convenience init(services: SextantServices) {
         self.init(
             library: services.library, live: services.live, makeImport: services.makeImport, makeBuildFlash: services.makeBuildFlash,
-            onKeyboard: services.onKeyboard, lightingPreview: services.lightingPreview)
+            onKeyboard: services.onKeyboard, lightingPreview: services.lightingPreview, appLayers: services.appLayers)
     }
 
     /// Opens `id`, or the most recently modified layout no other window has open when `id` is nil, no longer in the

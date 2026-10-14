@@ -18,7 +18,7 @@ A native macOS app for configuring the ZSA Voyager: edit layouts on your Mac, im
 - **Imports from Oryx** by pasting a layout link, or from the layout id the connected keyboard reports. It uses Oryx's public GraphQL read-only: no login and no changes to your Oryx account.
 - **Builds QMK firmware on your Mac** with a pinned toolchain that runs in a sandbox. The first build downloads about 200 MB of build tools, each checked by size and SHA-256.
 - **Flashes the keyboard over DFU,** behind strict guards (see [Safety](#safety)).
-- **Shows the keyboard live:** the active layer and the keys you press, on the board and in the menu bar. Off by default. While it's on, an overlay shows the layer you hold over any app, you can move the keyboard to a layer from the menu bar, the Keyboard menu, or from any app with optional global shortcuts (⌃⌥0–⌃⌥9), and preview a layer's LED colors on the keyboard as you paint them.
+- **Shows the keyboard live:** the active layer and the keys you press, on the board and in the menu bar. Off by default. While it's on, an overlay shows the layer you hold over any app, you can move the keyboard to a layer from the menu bar, the Keyboard menu, or from any app with optional global shortcuts (⌃⌥0–⌃⌥9), let App Layers move it to a layer when you switch apps, and preview a layer's LED colors on the keyboard as you paint them.
 - **Keeps history and exports:** saved revisions you can compare and restore, and export as layout JSON, QMK source, firmware, PNG or PDF.
 
 ## Status
@@ -57,6 +57,8 @@ While the live view is on, Key ▸ Select Key by Pressing It (⇧⌘L) selects t
 While the live view is on, the Lighting inspector's Preview on Keyboard switch (or Keyboard ▸ Preview Lighting on Keyboard) shows the layer you're painting on the keyboard's LEDs, at a brightness you choose. Nothing is saved to the keyboard: the preview ends when you leave Lighting, open another layout, close the window, turn the live view off, put the Mac to sleep or quit, and the keyboard's own lighting comes back. If Sextant crashes during a preview, the colors stay until you unplug the keyboard.
 
 While the live view is on, holding a layer key brings up an overlay with that layer's map, whichever app you're in; letting go hides it. A layer you lock (a toggle, say) shows a small reminder instead until the keyboard is back on its base layer. The overlay never takes focus or clicks, hides while you type in a password field, and can be turned off or adjusted in Settings › Keyboard, the Keyboard menu or the Device popover.
+
+App Layers (the App Layers page in a layout's sidebar) moves the keyboard to a layer when an app comes forward: Xcode on your symbols layer, say, and back to the base layer when you leave it. It's off until you turn on "Switch layers when you change apps" with at least one rule, and it works only while the live view is on and the keyboard runs that layout as you flashed it; it sends nothing at launch. The rules are saved beside the layout, so they never mark it edited. Sextant remembers the last 20 switches, by app name, until it quits.
 
 ## Safety
 

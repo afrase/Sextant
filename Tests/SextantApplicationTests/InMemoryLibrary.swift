@@ -11,6 +11,7 @@ actor InMemoryLibrary: LayoutLibrary {
         /// The layout each revision recorded, by revision id.
         var revisionLayouts: [String: KeyboardLayout] = [:]
         var firmware: [String: (data: Data, md5: String)] = [:]
+        var appLayers = AppLayerRules()
     }
 
     private(set) var items: [UUID: Item] = [:]
@@ -78,7 +79,10 @@ actor InMemoryLibrary: LayoutLibrary {
 
     func duplicate(_ id: UUID) async throws(LibraryError) -> LibraryEntry {
         let stored = try await load(id)
-        return try await create(stored.layout, origin: .local, firstRevision: nil)
+        let copy = try await create(stored.layout, origin: .local, firstRevision: nil)
+        let rules = items[id]?.appLayers ?? AppLayerRules()
+        items[copy.id]?.appLayers = rules
+        return copy
     }
 
     func trash(_ id: UUID) throws(LibraryError) {
@@ -102,6 +106,23 @@ actor InMemoryLibrary: LayoutLibrary {
     func saveRecovery(_ layout: KeyboardLayout, for id: UUID) { recoveries[id] = layout }
     func recovery(of id: UUID) -> KeyboardLayout? { recoveries[id] }
     func discardRecovery(of id: UUID) { recoveries[id] = nil }
+
+    /// When set, every App Layers save fails with this error.
+    var appLayersSaveFailure: LibraryError?
+    func failAppLayersSaves(with error: LibraryError?) { appLayersSaveFailure = error }
+    private(set) var appLayersSaves = 0
+
+    func appLayerRules(of id: UUID) throws(LibraryError) -> AppLayerRules {
+        guard let item = items[id] else { throw .notFound(id) }
+        return item.appLayers
+    }
+
+    func saveAppLayerRules(_ rules: AppLayerRules, for id: UUID) throws(LibraryError) {
+        if let appLayersSaveFailure { throw appLayersSaveFailure }
+        guard items[id] != nil else { throw .notFound(id) }
+        items[id]?.appLayers = rules
+        appLayersSaves += 1
+    }
 
     func layout(_ id: UUID) -> KeyboardLayout? { items[id]?.layout }
 

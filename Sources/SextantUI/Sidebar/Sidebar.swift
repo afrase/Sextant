@@ -25,7 +25,7 @@ struct Sidebar: View {
             LayoutsSection(model: model, layoutID: $layoutID)
             if let session = model.session {
                 LayersSection(model: model, session: session)
-                LayoutPagesSection(session: session, page: model.page)
+                LayoutPagesSection(session: session, page: model.page, appLayers: model.appLayers)
             }
         }
         .listStyle(.sidebar)

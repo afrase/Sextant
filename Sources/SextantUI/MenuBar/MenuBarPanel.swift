@@ -8,6 +8,8 @@ struct MenuBarActions {
     var moveToLayer: @MainActor (Int) -> Void = { _ in }
     /// The same path as the toolbar's live button (ADR 0057): only ever on the user's click.
     var turnOnLiveView: @MainActor () -> Void = {}
+    /// The switch of the keyboard layout's App Layers (ADR 0054).
+    var setAppLayersOn: @MainActor (Bool) -> Void = { _ in }
     var buildAndFlash: @MainActor () -> Void = {}
     var openSextant: @MainActor () -> Void = {}
     var openSettings: @MainActor () -> Void = {}
@@ -20,11 +22,17 @@ extension MenuBarActions {
     @MainActor
     init(
         live: LiveSession, onKeyboard: OnKeyboard, windows: WindowRouter, openWindow: @escaping WindowRouter.OpenWindow,
-        openSettings: @escaping @MainActor () -> Void
+        appLayers: AppLayerSwitcher? = nil, openSettings: @escaping @MainActor () -> Void
     ) {
         self.init(
             moveToLayer: { try? onKeyboard.moveKeyboard(toLayer: $0) },
             turnOnLiveView: { live.startLive() },
+            setAppLayersOn: { on in
+                guard let appLayers, let id = onKeyboard.running?.entry.id else { return }
+                var rules = appLayers.rules(for: id)
+                rules.isOn = on
+                appLayers.setRules(rules, for: id)
+            },
             buildAndFlash: { windows.buildAndFlash(openWindow) },
             openSextant: { windows.showMainWindow(openWindow) },
             openSettings: { windows.showSettings(openSettings) },
@@ -39,16 +47,18 @@ struct MenuBarPanel: View {
     var shortcuts: LayerShortcuts?
     var library: Library
     var windows: WindowRouter
+    var appLayers: AppLayerSwitcher?
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         let state = MenuBarPanelState(
-            live: live, onKeyboard: onKeyboard, shortcuts: shortcuts, library: library, buildTarget: windows.target)
+            live: live, onKeyboard: onKeyboard, shortcuts: shortcuts, library: library, buildTarget: windows.target,
+            appLayers: appLayers)
         MenuBarPanelContent(
             state: state,
             actions: MenuBarActions(
-                live: live, onKeyboard: onKeyboard, windows: windows, openWindow: { openWindow.layout($0) },
+                live: live, onKeyboard: onKeyboard, windows: windows, openWindow: { openWindow.layout($0) }, appLayers: appLayers,
                 openSettings: { openSettings() }))
     }
 }
@@ -57,7 +67,7 @@ extension MenuBarPanel {
     init(services: SextantServices, windows: WindowRouter) {
         self.init(
             live: services.live, onKeyboard: services.onKeyboard, shortcuts: services.layerShortcuts, library: services.library,
-            windows: windows)
+            windows: windows, appLayers: services.appLayers)
     }
 }
 
@@ -86,13 +96,17 @@ public struct MenuBarPanelContent: View {
             header
             Divider()
             keyboard
-            // The switch at the trailing edge, as in a menu; a bare Toggle puts it right after its label.
-            HStack {
-                // The switch carries the same words for VoiceOver.
-                Text("Show overlay while holding a layer").accessibilityHidden(true)
-                Spacer()
-                Toggle("Show overlay while holding a layer", isOn: $showsOverlay).toggleStyle(.switch).controlSize(.small)
-                    .labelsHidden()
+            // The two switches sit closer together than the sections, as in a menu.
+            VStack(spacing: 6) {
+                if let appLayers = state.appLayers { appLayersRow(appLayers) }
+                // The switch at the trailing edge, as in a menu; a bare Toggle puts it right after its label.
+                HStack {
+                    // The switch carries the same words for VoiceOver.
+                    Text("Show overlay while holding a layer").accessibilityHidden(true)
+                    Spacer()
+                    Toggle("Show overlay while holding a layer", isOn: $showsOverlay).toggleStyle(.switch).controlSize(.small)
+                        .labelsHidden()
+                }
             }
             Divider()
             VStack(spacing: 0) {
@@ -156,6 +170,21 @@ public struct MenuBarPanelContent: View {
                 }
             }
         case .connecting, .live: MenuBarLayers(state: state, moveToLayer: actions.moveToLayer)
+        }
+    }
+
+    /// App Layers' row (spec §8.3): what the keyboard layout's rules do now, and their switch.
+    private func appLayersRow(_ appLayers: MenuBarPanelState.AppLayers) -> some View {
+        HStack(spacing: 6) {
+            Group {
+                Text("App Layers")
+                Text(verbatim: appLayers.detail).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+            }
+            .accessibilityHidden(true)
+            Spacer(minLength: 8)
+            Toggle("App Layers", isOn: Binding(get: { appLayers.isOn }, set: { actions.setAppLayersOn($0) }))
+                .toggleStyle(.switch).controlSize(.small).labelsHidden()
+                .accessibilityValue(Text(verbatim: appLayers.detail))
         }
     }
 

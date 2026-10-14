@@ -138,4 +138,8 @@ public protocol LayoutLibrary: Sendable {
     func recovery(of id: UUID) async -> KeyboardLayout?
     /// Drops the recovery copy once the library has every change.
     func discardRecovery(of id: UUID) async
+    /// The layout's App Layers, kept beside it and never in its content (ADR 0054); empty when none are saved.
+    func appLayerRules(of id: UUID) async throws(LibraryError) -> AppLayerRules
+    /// Saves the layout's App Layers. Its content hash, modification date and revisions stay as they were.
+    func saveAppLayerRules(_ rules: AppLayerRules, for id: UUID) async throws(LibraryError)
 }
