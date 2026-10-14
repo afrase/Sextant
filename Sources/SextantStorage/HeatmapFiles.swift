@@ -31,15 +31,15 @@ public actor HeatmapFiles: HeatmapStore {
             .sorted { $0.start < $1.start }
     }
 
-    public func add(_ hours: [HeatmapHour], to layoutID: UUID) throws(HeatmapStoreError) {
+    /// An hour lies in one day file, replaced atomically, so the add is whole or not at all.
+    public func add(_ hour: HeatmapHour, to layoutID: UUID) throws(HeatmapStoreError) {
+        guard !hour.isEmpty else { return }
         let folder = root.appending(path: layoutID.uuidString, directoryHint: .isDirectory)
         try io { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
-        for (day, added) in Dictionary(grouping: hours.filter { !$0.isEmpty }, by: { Self.dayStart($0.start) }) {
-            let url = folder.appending(path: Self.name(day))
-            var byHour = Dictionary(read(url).map { ($0.start, $0) }, uniquingKeysWith: { first, _ in first })
-            for hour in added { byHour[hour.start, default: HeatmapHour(start: hour.start)].add(hour) }
-            try write(Array(byHour.values), to: url)
-        }
+        let url = folder.appending(path: Self.name(Self.dayStart(hour.start)))
+        var byHour = Dictionary(read(url).map { ($0.start, $0) }, uniquingKeysWith: { first, _ in first })
+        byHour[hour.start, default: HeatmapHour(start: hour.start)].add(hour)
+        try write(Array(byHour.values), to: url)
     }
 
     public func prune(before date: Date) throws(HeatmapStoreError) {

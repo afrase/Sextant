@@ -18,7 +18,7 @@ struct HeatmapInspector: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
-        if heatmap.isOn { status }
+        status
         if stats.total == 0 {
             empty
         } else {
@@ -34,7 +34,8 @@ struct HeatmapInspector: View {
         Text("Counted on this Mac only. Nothing is uploaded.").font(.callout).foregroundStyle(.secondary)
     }
 
-    /// Recording's state: counting, or why not, with Live View's switch when that is why.
+    /// Recording's state: counting, or why not, with the way to start when it is off or Live View is, and a failed
+    /// save or read.
     @ViewBuilder private var status: some View {
         let status = model.heatmap.status
         let isRecording = status == .recording(session.id)
@@ -44,8 +45,19 @@ struct HeatmapInspector: View {
             Text(status.text(recordsThisLayout: isRecording)).font(.callout).foregroundStyle(isRecording ? .primary : .secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        if status == .waiting(.liveViewOff) {
+        switch status {
+        case .off: Button("Turn On…") { model.heatmap.confirmsTurningOn = true }.controlSize(.small)
+        case .waiting(.liveViewOff):
             Button("Turn On Live View") { model.isLive = true }.controlSize(.small).disabled(!model.canGoLive)
+        case .waiting, .recording: EmptyView()
+        }
+        if let error = model.heatmap.error {
+            Label {
+                Text(error).fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tokens.danger.color)
+            }
+            .font(.callout)
         }
     }
 
@@ -53,10 +65,9 @@ struct HeatmapInspector: View {
         if model.heatmap.isOn {
             Text("No presses recorded in this range yet.").foregroundStyle(.secondary)
         } else {
-            Text("Heatmap recording is off. Sextant can count key presses on this Mac to show which keys you use most.")
+            Text("Sextant can count key presses on this Mac to show which keys you use most.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Button("Turn On…") { model.heatmap.confirmsTurningOn = true }
         }
     }
 }

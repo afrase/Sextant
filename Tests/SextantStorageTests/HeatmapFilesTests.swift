@@ -97,3 +97,10 @@ struct HeatmapFilesTests {
         #expect(try await files.hours(of: layout, from: nil) == [hour(24, [1: 1])])
     }
 }
+
+extension HeatmapFiles {
+    /// Adds several hours, one at a time as the recorder does.
+    fileprivate func add(_ hours: [HeatmapHour], to layoutID: UUID) throws(HeatmapStoreError) {
+        for hour in hours { try add(hour, to: layoutID) }
+    }
+}

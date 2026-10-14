@@ -33,6 +33,34 @@ extension Scenes {
         // Counts kept from before recording was turned off.
         window("heatmap-off-with-data", await lens(layer: 2, status: .off), light: true)
         window("heatmap-min", await lens(), size: CGSize(width: 1120, height: 640))
+        // Recording's usual company: the live capsule while following, at the smallest window, recording and paused.
+        for (name, status) in [
+            ("heatmap-min-following", HeatmapRecorder.Status.recording(f.entry.id)), ("heatmap-min-following-off", .off),
+        ] {
+            let following = await lens(layer: 2, status: status)
+            following.activity = ActivityState(
+                device: connected, status: .onKeyboard(revisionDate: Date(timeIntervalSince1970: 1_789_000_000)))
+            following.isFollowing = true
+            window(name, following, size: CGSize(width: 1120, height: 640), light: true)
+        }
+        // Paused for a reason other than Live View, with counts and without.
+        window("heatmap-paused", await lens(status: .waiting(.otherLayout)), light: true)
+        window("heatmap-paused-no-data", await lens(hours: false, status: .waiting(.otherLayout)), light: true)
+
+        // A store that can't be read or written: the inspector and Settings › Privacy say so.
+        let failing = idleHeatmapRecorder(store: FailingHeatmapStore())
+        _ = await failing.snapshot(of: f.entry.id, from: nil)
+        if let root = await f.windowModel().library.location(of: f.entry.id)?.deletingLastPathComponent() {
+            let model = LayoutWindowModel(library: Library(store: PackageLibrary(root: root)), heatmap: failing)
+            await model.open(f.entry.id)
+            model.buildFlash = await idleBuildFlash(model)
+            model.lens = .heatmap
+            window("heatmap-error", model, light: true)
+        }
+        scenes.append(
+            SnapshotScene("settings-privacy-error-light", size: CGSize(width: 520, height: 440), chrome: .window(title: "Privacy")) {
+                PrivacySettings(heatmap: failing)
+            })
 
         // The menu bar panel's typing line, while recording and while paused.
         guard let layout = await model(f).session?.layout else { return scenes }
@@ -41,6 +69,10 @@ extension Scenes {
         for (name, stats) in [
             ("typing", TypingStats(today: 12_408, wordsPerMinute: 64)),
             ("typing-paused", TypingStats(today: 12_408, wordsPerMinute: 0, pause: "Paused while you type in a password field")),
+            (
+                "typing-paused-long",
+                TypingStats(today: 12_408, wordsPerMinute: 0, pause: "Paused: the keyboard runs a layout that isn’t in your library")
+            ),
         ] {
             let size = NSHostingView(rootView: MenuBarPanelContent(state: state, typingStats: stats)).fittingSize
             scenes += SnapshotScene.pair("menubar-panel-\(name)", size: size, chrome: .content) {
@@ -50,16 +82,25 @@ extension Scenes {
         return scenes
     }
 
-    /// A recorder that is off, over no keyboard and an empty folder, for Settings › Privacy. Nothing starts it.
-    static func idleHeatmapRecorder() -> HeatmapRecorder {
+    /// A recorder that is off, over no keyboard and an empty folder (or `store`), for Settings › Privacy. Nothing starts
+    /// it.
+    static func idleHeatmapRecorder(store heatmapStore: (any HeatmapStore)? = nil) -> HeatmapRecorder {
         let folder = FileManager.default.temporaryDirectory.appending(path: "sextant-snapshots-\(UUID().uuidString)")
         let store = PackageLibrary(root: folder.appending(path: "Library"))
         let library = Library(store: store)
         let keyboard = PluggedInKeyboard(serial: "KlgM7/40xJ7M")
         let live = LiveSession(watcher: keyboard, link: keyboard, secureInputProbe: { false })
         return HeatmapRecorder(
-            live: live, onKeyboard: OnKeyboard(library: library, store: store, live: live), library: library, layouts: store,
-            store: HeatmapFiles(root: folder.appending(path: "Heatmap")), isOn: false, retentionDays: 30)
+            live: live, onKeyboard: OnKeyboard(library: library, store: store, live: live), library: library,
+            store: heatmapStore ?? HeatmapFiles(root: folder.appending(path: "Heatmap")), isOn: false, retentionDays: 30)
+    }
+
+    /// A heatmap store on a disk that fails every read and write.
+    private struct FailingHeatmapStore: HeatmapStore {
+        func hours(of layoutID: UUID, from start: Date?) throws(HeatmapStoreError) -> [HeatmapHour] { throw .io("unreadable") }
+        func add(_ hour: HeatmapHour, to layoutID: UUID) throws(HeatmapStoreError) { throw .io("disk full") }
+        func prune(before date: Date) throws(HeatmapStoreError) { throw .io("disk full") }
+        func clear(_ layoutID: UUID?) throws(HeatmapStoreError) { throw .io("disk full") }
     }
 
     /// About 140,000 presses over the last seven days, one hour a day.

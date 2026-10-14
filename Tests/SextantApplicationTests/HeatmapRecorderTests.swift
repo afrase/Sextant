@@ -35,7 +35,7 @@ struct HeatmapRecorderTests {
     func recorder(on: Bool, retentionDays: Int = 30, saved: @escaping @MainActor (Bool, Int) -> Void = { _, _ in }) -> HeatmapRecorder {
         let now = now
         let recorder = HeatmapRecorder(
-            live: live, onKeyboard: onKeyboard, library: library, layouts: store, store: heat, clock: clock, now: { now() },
+            live: live, onKeyboard: onKeyboard, library: library, store: heat, clock: clock, now: { now() },
             calendar: calendar, isOn: on, retentionDays: retentionDays, persist: saved)
         recorder.start()
         return recorder
@@ -251,7 +251,7 @@ struct HeatmapRecorderTests {
         let recorder = recorder(on: true)
         #expect(await goLive())
         type(13, 14, 15, 16, 17, 18, 19, 20, 21, 22)
-        #expect(await eventually { recorder.counted == 10 && recorder.today == 50 })
+        #expect(await eventually { recorder.counted == 10 && recorder.pressesToday(at: now()) == 50 })
         #expect(recorder.wordsPerMinute(at: now()) == 2)
         #expect(recorder.wordsPerMinute(at: now().addingTimeInterval(61)) == 0, "only the last minute, kept in memory")
     }
@@ -266,11 +266,12 @@ struct HeatmapRecorderTests {
         #expect(await eventually { recorder.counted == 1 })
         await recorder.flush()
         type(14)
-        #expect(await eventually { recorder.counted == 2 && recorder.today == 2 })
+        #expect(await eventually { recorder.counted == 2 && recorder.pressesToday(at: now()) == 2 })
         let version = recorder.version
         await recorder.clear(id)
         #expect(await heat.cleared == [id])
-        #expect(recorder.unwritten(of: id, from: nil, after: 0).isEmpty && recorder.today == 0 && recorder.version > version)
+        #expect(
+            recorder.unwritten(of: id, from: nil, after: 0).isEmpty && recorder.pressesToday(at: now()) == 0 && recorder.version > version)
         await recorder.flush()
         #expect(await heat.stored(id).isEmpty)
         await recorder.clear(nil)
@@ -316,11 +317,27 @@ actor FakeHeatmapStore: HeatmapStore {
     private(set) var prunes: [Date] = []
     private(set) var cleared: [UUID?] = []
     private var failing = false
+    /// Hours whose add fails, while others succeed.
+    private var failingHours: Set<Date> = []
     private let adds = Mutex(0)
+    /// An add waits here, once set, until ``release()``.
+    private var gate: CheckedContinuation<Void, Never>?
+    private var gated = false
+    private(set) var waiting = false
 
     nonisolated var addCount: Int { adds.withLock { $0 } }
 
     func failWrites(_ fail: Bool) { failing = fail }
+
+    func failWrites(of hour: Date?) { failingHours = hour.map { [$0] } ?? [] }
+
+    func holdWrites() { gated = true }
+
+    func release() {
+        gated = false
+        gate?.resume()
+        gate = nil
+    }
 
     func seed(_ id: UUID, _ hour: HeatmapHour) { hours[id, default: [:]][hour.start] = hour }
 
@@ -335,10 +352,15 @@ actor FakeHeatmapStore: HeatmapStore {
         (hours[layoutID] ?? [:]).values.filter { hour in start.map { hour.start >= $0 } ?? true }.sorted { $0.start < $1.start }
     }
 
-    func add(_ added: [HeatmapHour], to layoutID: UUID) throws(HeatmapStoreError) {
-        guard !failing else { throw .io("disk full") }
+    func add(_ hour: HeatmapHour, to layoutID: UUID) async throws(HeatmapStoreError) {
+        if gated {
+            waiting = true
+            await withCheckedContinuation { gate = $0 }
+            waiting = false
+        }
+        guard !failing, !failingHours.contains(hour.start) else { throw .io("disk full") }
         adds.withLock { $0 += 1 }
-        for hour in added { hours[layoutID, default: [:]][hour.start, default: HeatmapHour(start: hour.start)].add(hour) }
+        hours[layoutID, default: [:]][hour.start, default: HeatmapHour(start: hour.start)].add(hour)
     }
 
     func prune(before date: Date) throws(HeatmapStoreError) {

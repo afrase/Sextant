@@ -1136,6 +1136,9 @@
     "Counted on this Mac only. Nothing is uploaded." : {
 
     },
+    "Counts older than %@ are deleted now, for every layout. This can’t be undone." : {
+
+    },
     "Current" : {
 
     },
@@ -1189,6 +1192,9 @@
 
     },
     "Delete Macro" : {
+
+    },
+    "Delete Older Counts" : {
 
     },
     "Delete Step" : {
@@ -1593,9 +1599,6 @@
     "Heatmap recording is off" : {
 
     },
-    "Heatmap recording is off. Sextant can count key presses on this Mac to show which keys you use most." : {
-
-    },
     "Heatmap · %@" : {
 
     },
@@ -1770,6 +1773,9 @@
     "Keep presses for" : {
 
     },
+    "Keep presses for %@?" : {
+
+    },
     "Keep the keyboard connected until this finishes." : {
 
     },
@@ -1802,6 +1808,9 @@
 
     },
     "Key events stay in memory on this Mac and are never written to disk. Live display pauses while you type in a password field." : {
+
+    },
+    "Key events stay in memory on this Mac; the heatmap saves only hourly counts per key position. Live display and the heatmap pause while you type in a password field." : {
 
     },
     "Key kinds" : {
@@ -2445,7 +2454,7 @@
     "Off" : {
 
     },
-    "Off unless you turn it on. Only hourly counts per key position are saved, on this Mac and outside your layouts, so exports never include them." : {
+    "Off unless you turn it on. Presses are counted only while Live View is on. Only hourly counts per key position are saved, on this Mac and apart from your layouts, so they never go with a layout you export or share." : {
 
     },
     "On keyboard" : {
@@ -2564,6 +2573,9 @@
 
     },
     "Paste onto %lld Keys" : {
+
+    },
+    "Paused" : {
 
     },
     "Paused while you type in a password field" : {
@@ -3052,6 +3064,9 @@
     "Sextant builds the firmware on this Mac, then writes it once you put the keyboard in flash mode." : {
 
     },
+    "Sextant can count key presses on this Mac to show which keys you use most." : {
+
+    },
     "Sextant can't build firmware for %@ yet." : {
 
     },
@@ -3119,6 +3134,9 @@
 
     },
     "Sextant shows the keyboard’s layer and the keys you hold as they happen. Nothing is recorded." : {
+
+    },
+    "Sextant shows the keyboard’s layer and the keys you hold as they happen. The heatmap keeps only hourly counts per key." : {
 
     },
     "Sextant won't flash this image: %@" : {

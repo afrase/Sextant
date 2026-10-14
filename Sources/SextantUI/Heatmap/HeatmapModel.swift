@@ -21,7 +21,7 @@ public final class HeatmapModel {
     }
 
     /// The app-wide recorder; nil in tests and snapshots without one.
-    @ObservationIgnored var recorder: HeatmapRecorder?
+    @ObservationIgnored let recorder: HeatmapRecorder?
     var range: HeatmapRange = .week
     private(set) var loaded: Loaded?
     /// Recording's status where there is no recorder (snapshots).
@@ -30,13 +30,15 @@ public final class HeatmapModel {
     var confirmsTurningOn = false
     /// Clear Heatmap Data… is asking first.
     var confirmsClear = false
-    /// The counts with what was counted since they were read, cached for the board's 52 caps by the recorder's count.
+    /// The counts with what was counted since they were read, cached for the board's 52 caps by the recorder's changes.
     @ObservationIgnored private var combined: (key: [Int], heatmap: KeyHeatmap)?
 
-    public init() {}
+    public init(recorder: HeatmapRecorder? = nil) { self.recorder = recorder }
 
     var status: HeatmapRecorder.Status { recorder?.status ?? fixedStatus }
     var isOn: Bool { status != .off }
+    /// Why the counts couldn't be saved or read, while that lasts.
+    var error: String? { recorder?.lastError?.errorDescription }
 
     /// Shows fixed counts and a fixed status, with no recorder (snapshots).
     public func show(_ hours: [HeatmapHour], of layoutID: UUID, range: HeatmapRange, status: HeatmapRecorder.Status) {
@@ -47,20 +49,23 @@ public final class HeatmapModel {
         combined = nil
     }
 
-    /// What a load depends on: the layout, the range and the store's contents.
+    /// What a load depends on: the layout, the range and its first hour, and the store's contents.
     struct LoadKey: Equatable {
         var layoutID: UUID
         var range: HeatmapRange
+        var start: Date?
         var version: Int
     }
 
-    func loadKey(_ layoutID: UUID) -> LoadKey { LoadKey(layoutID: layoutID, range: range, version: recorder?.version ?? 0) }
+    func loadKey(_ layoutID: UUID) -> LoadKey {
+        LoadKey(layoutID: layoutID, range: range, start: recorder.flatMap { range.start(now: $0.hour) }, version: recorder?.version ?? 0)
+    }
 
-    /// Reads the layout's stored hours for the range.
+    /// Reads the layout's stored hours for the range, which slides with the recorder's hour.
     func load(_ layoutID: UUID) async {
         guard let recorder else { return }
         let range = range
-        let start = range.start(now: Date())
+        let start = range.start(now: recorder.hour)
         let snapshot = await recorder.snapshot(of: layoutID, from: start)
         guard range == self.range else { return }
         loaded = Loaded(layoutID: layoutID, start: start, snapshot: snapshot, heatmap: KeyHeatmap(snapshot.hours))
@@ -72,7 +77,7 @@ public final class HeatmapModel {
     func heatmap(for layoutID: UUID) -> KeyHeatmap {
         guard let loaded, loaded.layoutID == layoutID else { return KeyHeatmap() }
         guard let recorder else { return loaded.heatmap }
-        let key = [recorder.counted, recorder.version, loaded.snapshot.version]
+        let key = [recorder.changes, recorder.version, loaded.snapshot.version]
         if let combined, combined.key == key { return combined.heatmap }
         var heatmap = loaded.heatmap
         for hour in recorder.unwritten(of: layoutID, from: loaded.start, after: loaded.snapshot.version) { heatmap.add(hour) }

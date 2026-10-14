@@ -58,6 +58,8 @@ extension Scenes {
                 LayoutWindow(model: following, layoutID: .constant(f.entry.id))
             })
 
+        scenes += await heatmapPopover(f, root: root, keyboard: keyboard)
+
         // The Build & Flash sheet in the phases spec §7.3 describes.
         let image = validImage()
         let artifact = BuildEvent.finished(BuildArtifact(image: image, usedBytes: 65_786, log: []))
@@ -145,6 +147,16 @@ extension Scenes {
     }
 
     /// Polls `condition` for up to 5 s.
+    /// The popover's privacy notes while heatmap recording is on (ADR 0053).
+    private static func heatmapPopover(_ f: Fixtures, root: URL, keyboard: ConnectedDevice) async -> [SnapshotScene] {
+        let recording = await deviceModel(f, root: root, devices: [keyboard], live: [.protocolVersion(5), .layer(2)])
+        recording.heatmap.show([], of: f.entry.id, range: .week, status: .recording(f.entry.id))
+        _ = await until { if case .onKeyboard = recording.activity.status { true } else { false } }
+        return SnapshotScene.pair("device-popover-heatmap", size: CGSize(width: 360, height: 640), chrome: .content) {
+            DevicePopover(model: recording)
+        }
+    }
+
     private static func until(_ condition: () -> Bool) async -> Bool {
         for _ in 0..<250 where !condition() { try? await Task.sleep(for: .milliseconds(20)) }
         return condition()

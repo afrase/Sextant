@@ -86,7 +86,7 @@ struct SextantMain: App {
         ) { _ in NSSound.beep() }
         // Off by default; counts only over a paired Live View session, outside the packages (ADR 0053).
         let heatmap = HeatmapRecorder(
-            live: live, onKeyboard: onKeyboard, library: library, layouts: store, store: HeatmapFiles(root: HeatmapFiles.defaultRoot()),
+            live: live, onKeyboard: onKeyboard, library: library, store: HeatmapFiles(root: HeatmapFiles.defaultRoot()),
             isOn: PrivacySettings.recordsHeatmap(), retentionDays: PrivacySettings.heatmapRetentionDays(),
             persist: PrivacySettings.saveHeatmap)
         return SextantServices(
@@ -138,11 +138,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // SwiftUI reports the focus change on a later run-loop turn; let one pass first.
             await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
             let quits = await Quitting(library: library, live: live).run(quitAnyway: Self.quitAnyway)
-            if quits { await heatmap?.flush() }
             // Bounded: the write has no timeout. If it runs out, the colors stay until the keyboard is unplugged.
             if quits {
                 lightingPreview?.releaseAll()
                 await live?.releaseLightsAndWait()
+                // After the lights, so a slow disk never keeps them.
+                await heatmap?.flush()
             }
             sender.reply(toApplicationShouldTerminate: quits)
         }

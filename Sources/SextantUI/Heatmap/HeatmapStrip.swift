@@ -56,7 +56,7 @@ struct HeatmapStrip: View {
     }
 }
 
-/// The Heatmap lens's capsule in the lens lane (spec §3.7, §8.5): "175,044 presses · 7 days · Main 87%", or why nothing
+/// The Heatmap lens's capsule in the lens lane (spec §3.7, §8.5): "175,044 presses · 7 days · Main 87%", and why nothing
 /// is being counted, with the way to start. It also reads the counts whenever the layout, the range or the store
 /// changes, and asks before turning recording on or clearing.
 struct HeatmapCapsule: View {
@@ -67,37 +67,54 @@ struct HeatmapCapsule: View {
         let heatmap = model.heatmap
         let heat = heatmap.heatmap(for: session.id)
         let stats = HeatmapStats(heat, layout: session.layout)
+        let status = heatmap.status
         HStack(spacing: 8) {
             Image(systemName: "flame").foregroundStyle(.secondary).accessibilityHidden(true)
             if stats.total > 0 {
-                Text(summary(stats, range: heatmap.range)).monospacedDigit().lineLimit(1)
+                // Beside the live capsule at the smallest window, the summary sheds the range, then the busiest layer.
+                ViewThatFits(in: .horizontal) {
+                    ForEach(summaries(stats, range: heatmap.range), id: \.self) { Text($0).monospacedDigit().lineLimit(1) }
+                }
+                // With counts to show, only a word for why none are being added; the whole reason is in the help tag.
+                switch status {
+                case .off, .waiting:
+                    let reason = status.text(recordsThisLayout: nil)
+                    Text(status == .off ? "Off" : "Paused").foregroundStyle(.secondary).lineLimit(1).help(reason)
+                        .accessibilityLabel(reason)
+                case .recording: EmptyView()
+                }
+            } else {
+                switch status {
+                case .off: Text("Heatmap recording is off").lineLimit(1)
+                case .waiting: Text(status.text(recordsThisLayout: nil)).foregroundStyle(.secondary).lineLimit(1)
+                case .recording: Text("No presses recorded in this range yet").lineLimit(1)
+                }
             }
-            switch heatmap.status {
-            case .off:
-                if stats.total == 0 { Text("Heatmap recording is off").lineLimit(1) }
-                Button("Turn On…") { heatmap.confirmsTurningOn = true }.buttonStyle(.borderless)
+            switch status {
+            case .off: Button("Turn On…") { heatmap.confirmsTurningOn = true }.buttonStyle(.borderless)
             case .waiting(.liveViewOff):
-                Text("Paused: Live View is off").foregroundStyle(.secondary).lineLimit(1)
                 Button("Turn On Live View") { model.isLive = true }.buttonStyle(.borderless).disabled(!model.canGoLive)
-            case .waiting, .recording:
-                if stats.total == 0 { Text("No presses recorded in this range yet").lineLimit(1) }
+            case .waiting, .recording: EmptyView()
             }
         }
         .font(.callout.weight(.medium))
         .padding(.horizontal, 12)
         .frame(height: 28)
         .surface(Capsule(), interactive: true)
+        // The live capsule beside it says what a press does now; this one gives way first.
+        .layoutPriority(-1)
         .task(id: heatmap.loadKey(session.id)) { await heatmap.load(session.id) }
         .modifier(HeatmapConfirmations(heatmap: heatmap, session: session))
     }
 
-    /// "175,044 presses · 7 days · Main 87%".
-    private func summary(_ stats: HeatmapStats, range: HeatmapRange) -> String {
+    /// "175,044 presses · 7 days · Main 87%", then shorter ones for a narrow lane.
+    private func summaries(_ stats: HeatmapStats, range: HeatmapRange) -> [String] {
         let presses = HeatCount.spoken(stats.total)
         guard let top = stats.layers.max(by: { $0.share < $1.share }), let name = session.layout.layers[safe: top.layer]?.title else {
-            return "\(presses) · \(range.phrase)"
+            return ["\(presses) · \(range.phrase)", presses]
         }
-        return "\(presses) · \(range.phrase) · \(name) \(top.share.formatted(.percent.precision(.fractionLength(0))))"
+        let share = "\(name) \(top.share.formatted(.percent.precision(.fractionLength(0))))"
+        return ["\(presses) · \(range.phrase) · \(share)", "\(presses) · \(share)", presses]
     }
 }
 

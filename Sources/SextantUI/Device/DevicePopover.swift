@@ -84,10 +84,19 @@ public struct DevicePopover: View {
     }
 
     @ViewBuilder private func privacy(_ live: LiveSession) -> some View {
+        // The heatmap, once the user turns it on, saves hourly counts (ADR 0053).
+        let recordsHeatmap = model.heatmap.isOn
         if !seenLiveDataNote, case .connected = live.connection {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Sextant shows the keyboard’s layer and the keys you hold as they happen. Nothing is recorded.")
-                    .fixedSize(horizontal: false, vertical: true)
+                Text(
+                    recordsHeatmap
+                        ? """
+                        Sextant shows the keyboard’s layer and the keys you hold as they happen. The heatmap keeps only \
+                        hourly counts per key.
+                        """
+                        : "Sextant shows the keyboard’s layer and the keys you hold as they happen. Nothing is recorded."
+                )
+                .fixedSize(horizontal: false, vertical: true)
                 Button("OK") { seenLiveDataNote = true }.controlSize(.small)
             }
             .font(.callout)
@@ -95,10 +104,15 @@ public struct DevicePopover: View {
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.accentColor.opacity(0.1)))
         }
         Text(
-            """
-            Key events stay in memory on this Mac and are never written to disk. \
-            Live display pauses while you type in a password field.
-            """
+            recordsHeatmap
+                ? """
+                Key events stay in memory on this Mac; the heatmap saves only hourly counts per key position. \
+                Live display and the heatmap pause while you type in a password field.
+                """
+                : """
+                Key events stay in memory on this Mac and are never written to disk. \
+                Live display pauses while you type in a password field.
+                """
         )
         .font(.caption)
         .foregroundStyle(.secondary)

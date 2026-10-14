@@ -141,6 +141,8 @@ struct StatusLabelStyle: LabelStyle {
 public struct PrivacySettings: View {
     @Bindable var heatmap: HeatmapRecorder
     @State private var confirmsClear = false
+    /// A shorter retention, asked about first: it deletes the older counts at once.
+    @State private var shorterRetention: Int?
 
     public init(heatmap: HeatmapRecorder) { self.heatmap = heatmap }
 
@@ -155,6 +157,44 @@ public struct PrivacySettings: View {
     public static func saveHeatmap(isOn: Bool, retentionDays: Int) {
         UserDefaults.standard.set(isOn, forKey: SettingsKey.recordsHeatmap)
         UserDefaults.standard.set(retentionDays, forKey: SettingsKey.heatmapRetentionDays)
+    }
+
+    static let retentions = [
+        (days: 30, title: String(localized: "30 days")), (days: 90, title: String(localized: "90 days")),
+        (days: 365, title: String(localized: "1 year")),
+    ]
+
+    static func title(_ days: Int?) -> String { retentions.first { $0.days == days }?.title ?? "" }
+
+    /// Keeping counts longer applies at once; keeping them for less asks first.
+    private var retention: Binding<Int> {
+        Binding(
+            get: { heatmap.retentionDays },
+            set: { days in
+                if days < heatmap.retentionDays { shorterRetention = days } else { heatmap.retentionDays = days }
+            })
+    }
+
+    /// A save or read of the heatmap that failed, while that lasts.
+    @ViewBuilder private var failure: some View {
+        if let error = heatmap.lastError?.errorDescription {
+            Label {
+                Text(error).fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tokens.danger.color)
+            }
+        }
+    }
+
+    private var heatmapNote: some View {
+        Text(
+            """
+            Off unless you turn it on. Presses are counted only while Live View is on. Only hourly counts per key \
+            position are saved, on this Mac and apart from your layouts, so they never go with a layout you export or \
+            share.
+            """
+        )
+        .foregroundStyle(.secondary)
     }
 
     public var body: some View {
@@ -172,10 +212,8 @@ public struct PrivacySettings: View {
             }
             Section {
                 Toggle("Record a heatmap of key presses", isOn: $heatmap.isOn)
-                Picker("Keep presses for", selection: $heatmap.retentionDays) {
-                    Text("30 days").tag(30)
-                    Text("90 days").tag(90)
-                    Text("1 year").tag(365)
+                Picker("Keep presses for", selection: retention) {
+                    ForEach(Self.retentions, id: \.days) { Text($0.title).tag($0.days) }
                 }
                 .disabled(!heatmap.isOn)
                 LabeledContent {
@@ -183,19 +221,24 @@ public struct PrivacySettings: View {
                 } label: {
                     Text("Every layout’s counts")
                 }
+                failure
             } header: {
                 Text("Heatmap")
             } footer: {
-                Text(
-                    """
-                    Off unless you turn it on. Only hourly counts per key position are saved, on this Mac and outside \
-                    your layouts, so exports never include them.
-                    """
-                )
-                .foregroundStyle(.secondary)
+                heatmapNote
             }
         }
         .formStyle(.grouped)
+        .alert(
+            Text("Keep presses for \(Self.title(shorterRetention))?"),
+            isPresented: Binding(get: { shorterRetention != nil }, set: { if !$0 { shorterRetention = nil } }),
+            presenting: shorterRetention
+        ) { days in
+            Button("Delete Older Counts", role: .destructive) { heatmap.retentionDays = days }
+            Button("Cancel", role: .cancel) {}
+        } message: { days in
+            Text("Counts older than \(Self.title(days)) are deleted now, for every layout. This can’t be undone.")
+        }
         .alert(Text("Clear all heatmap data?"), isPresented: $confirmsClear) {
             Button("Clear", role: .destructive) { Task { await heatmap.clear(nil) } }
             Button("Cancel", role: .cancel) {}

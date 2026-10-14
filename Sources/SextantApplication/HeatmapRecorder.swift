@@ -48,7 +48,7 @@ public final class HeatmapRecorder {
             if !isOn { Task { await flush() } }
         }
     }
-    /// How long counts are kept, in days; older hours are deleted. The choice is saved.
+    /// How long counts are kept, in days; older hours are deleted when it changes. The choice is saved.
     public var retentionDays: Int {
         didSet {
             guard retentionDays != oldValue else { return }
@@ -58,22 +58,29 @@ public final class HeatmapRecorder {
     }
     /// Bumped whenever stored counts change (a write, a prune, a clear), so windows read them again.
     public private(set) var version = 0
-    /// Presses counted since launch, so a window's heat follows typing between writes.
+    /// Presses counted since launch.
     public private(set) var counted = 0
-    /// Presses counted today, on this Mac's calendar, for the layout being recorded; nil before one has been.
-    public private(set) var today: Int?
-    /// The last write or read that failed; nil once one succeeds.
+    /// Bumped by every press and layer move counted, so a window's heat follows typing between writes.
+    public private(set) var changes = 0
+    /// The hour now, moved on by the minute's write, so a window's range slides while nobody types.
+    public private(set) var hour: Date
+    /// A read, write, prune or clear that failed, until that kind of operation succeeds again.
     public private(set) var lastError: HeatmapStoreError?
+    /// Today's presses as of the last read, for the layout being recorded on the day ``todayStart`` begins.
+    private var today: Int?
 
     /// Counts not yet written, by layout and hour.
     @ObservationIgnored private var pending: [UUID: [Date: HeatmapHour]] = [:]
+    /// Counts being written now: still unwritten for windows until the write lands or fails.
+    @ObservationIgnored private var inFlight: [UUID: [Date: HeatmapHour]] = [:]
+    @ObservationIgnored private var failing: Set<Operation> = []
     /// The latest writes, kept so a window still holding counts read before them can add them.
     @ObservationIgnored private var written: [(version: Int, layoutID: UUID, hours: [HeatmapHour])] = []
     /// The times of the last minute's presses, in memory only, for words per minute.
     @ObservationIgnored private var recentPresses: [Date] = []
     @ObservationIgnored private var lastLayer: Int?
     @ObservationIgnored private var todayLayout: UUID?
-    @ObservationIgnored private var todayStart: Date?
+    private var todayStart: Date?
     @ObservationIgnored private var prunedDay: Date?
     /// Reads, writes, prunes and clears, one after another: a read then sees each write whole or not at all.
     @ObservationIgnored private var queue: Task<Void, Never>?
@@ -82,7 +89,6 @@ public final class HeatmapRecorder {
     @ObservationIgnored private let live: LiveSession
     @ObservationIgnored private let onKeyboard: OnKeyboard
     @ObservationIgnored private let library: Library
-    @ObservationIgnored private let layouts: any LayoutLibrary
     @ObservationIgnored private let store: any HeatmapStore
     @ObservationIgnored private let board: BoardDefinition
     @ObservationIgnored private let clock: any Clock<Duration>
@@ -97,12 +103,11 @@ public final class HeatmapRecorder {
     static let keptWrites = 32
 
     /// - Parameters:
-    ///   - layouts: the library's store, which says whether a layout that left the library is gone (trashed) or only
-    ///     unreadable for now.
+    ///   - library: says which layouts were moved to the Trash, whose counts go with them.
     ///   - isOn, retentionDays: the saved choices (Settings › Privacy); `persist` saves a change.
     ///   - clock: paces the writes; `now` and `calendar` date the hours and the day.
     public init(
-        live: LiveSession, onKeyboard: OnKeyboard, library: Library, layouts: any LayoutLibrary, store: any HeatmapStore,
+        live: LiveSession, onKeyboard: OnKeyboard, library: Library, store: any HeatmapStore,
         board: BoardDefinition = .voyager, clock: any Clock<Duration> = ContinuousClock(),
         now: @escaping @Sendable () -> Date = { Date() }, calendar: Calendar = .current, isOn: Bool, retentionDays: Int,
         persist: @escaping @MainActor (Bool, Int) -> Void = { _, _ in }
@@ -110,7 +115,6 @@ public final class HeatmapRecorder {
         self.live = live
         self.onKeyboard = onKeyboard
         self.library = library
-        self.layouts = layouts
         self.store = store
         self.board = board
         self.clock = clock
@@ -119,6 +123,7 @@ public final class HeatmapRecorder {
         self.isOn = isOn
         self.retentionDays = retentionDays
         self.persist = persist
+        hour = HeatmapHour.start(of: now())
     }
 
     public var status: Status {
@@ -134,8 +139,8 @@ public final class HeatmapRecorder {
         return live.isSecureInputOn ? .waiting(.secureInput) : .recording(running.entry.id)
     }
 
-    /// Follows the keyboard's presses, writes every minute, prunes old hours and drops a trashed layout's counts, for the
-    /// app's lifetime.
+    /// Follows the keyboard's presses and recording's status, writes every minute, prunes old hours and drops a trashed
+    /// layout's counts, for the app's lifetime.
     public func start() {
         guard tasks.isEmpty else { return }
         let feed = live.activity()
@@ -145,15 +150,20 @@ public final class HeatmapRecorder {
                 for await event in feed { self?.record(event) }
             },
             Task { [weak self] in
+                for await status in Observations({ [weak self] in self?.status }) { self?.follow(status) }
+            },
+            Task { [weak self] in
                 while (try? await clock.sleep(for: Self.flushInterval)) != nil {
                     await self?.flush()
                 }
             },
             Task { [weak self] in
-                var known: Set<UUID>?
-                for await (loaded, ids) in Observations({ (library.hasLoaded, Set(library.entries.map(\.id))) }) where loaded {
-                    for id in (known ?? []).subtracting(ids) { await self?.forget(id) }
-                    known = ids
+                // Only Sextant's own Move to Trash: a package that fails to read for now leaves the library but keeps its
+                // counts.
+                var cleared: Set<UUID> = []
+                for await trashed in Observations({ library.trashed }) {
+                    for id in trashed.subtracting(cleared) { await self?.clear(id) }
+                    cleared = trashed
                 }
             },
         ]
@@ -168,21 +178,29 @@ public final class HeatmapRecorder {
         await serially { [store] in
             do throws(HeatmapStoreError) {
                 let hours = try await store.hours(of: layoutID, from: start)
-                self.lastError = nil
+                self.succeed(.read)
                 return Snapshot(hours: hours, version: self.version)
             } catch {
-                self.fail(error)
+                self.fail(.read, error)
                 return Snapshot(hours: [], version: self.version)
             }
         }
     }
 
-    /// Counts a snapshot taken at `version` lacks: written since, or not written yet. Observing it follows each press.
+    /// Counts a snapshot taken at `version` lacks: written since, being written, or not written yet. Observing it follows
+    /// each press and layer move.
     public func unwritten(of layoutID: UUID, from start: Date?, after version: Int) -> [HeatmapHour] {
-        _ = counted
+        _ = changes
         let since = written.filter { $0.version > version && $0.layoutID == layoutID }.flatMap(\.hours)
-        let hours = since + (pending[layoutID].map { Array($0.values) } ?? [])
+        let hours = since + (inFlight[layoutID].map { Array($0.values) } ?? []) + (pending[layoutID].map { Array($0.values) } ?? [])
         return hours.filter { hour in start.map { hour.start >= $0 } ?? true }
+    }
+
+    /// Presses counted today, on this Mac's calendar, for the layout being recorded; nil until they have been read.
+    public func pressesToday(at date: Date) -> Int? {
+        guard let todayStart else { return nil }
+        // A new day has none until its first press, which reads the day again.
+        return calendar.startOfDay(for: date) == todayStart ? today : 0
     }
 
     /// Words per minute over the last minute (five key presses a word); 0 when idle. Never stored.
@@ -194,31 +212,37 @@ public final class HeatmapRecorder {
 
     /// Writes the counts not yet written. Called every minute, when recording is turned off, and at quit.
     public func flush() async {
+        let date = now()
+        if HeatmapHour.start(of: date) != hour { hour = HeatmapHour.start(of: date) }
         await serially {
-            let batch = self.pending
+            self.inFlight = self.pending
             self.pending = [:]
-            for (id, hours) in batch {
-                guard await !self.write(Array(hours.values), to: id) else { continue }
-                // Kept for the next write, with whatever was counted meanwhile.
-                for (start, hour) in hours { self.pending[id, default: [:]][start, default: HeatmapHour(start: start)].add(hour) }
+            var failures = 0
+            // An hour at a time, each saved whole or not at all, so a failure keeps only what wasn't saved.
+            for (id, hours) in self.inFlight {
+                for hour in hours.values.sorted(by: { $0.start < $1.start }) {
+                    failures += await self.write(hour, to: id) ? 0 : 1
+                }
             }
+            if failures == 0 { self.succeed(.write) }
             self.written.removeFirst(max(self.written.count - Self.keptWrites, 0))
         }
-        let day = calendar.startOfDay(for: now())
-        if prunedDay != day { await prune() }
+        if prunedDay != calendar.startOfDay(for: date) { await prune() }
     }
 
-    /// Adds hours to the store; false when that failed.
-    private func write(_ hours: [HeatmapHour], to id: UUID) async -> Bool {
+    /// Adds an hour to the store, then moves it from ``inFlight`` to ``written``, or back to ``pending`` (with whatever
+    /// was counted meanwhile) when that failed. No suspension between, so windows never miss it.
+    private func write(_ hour: HeatmapHour, to id: UUID) async -> Bool {
+        defer { inFlight[id]?[hour.start] = nil }
         do throws(HeatmapStoreError) {
-            try await store.add(hours, to: id)
+            try await store.add(hour, to: id)
         } catch {
-            fail(error)
+            fail(.write, error)
+            pending[id, default: [:]][hour.start, default: HeatmapHour(start: hour.start)].add(hour)
             return false
         }
-        lastError = nil
         version += 1
-        written.append((version, id, hours))
+        written.append((version, id, [hour]))
         return true
     }
 
@@ -234,9 +258,9 @@ public final class HeatmapRecorder {
             }
             do throws(HeatmapStoreError) {
                 try await self.store.clear(layoutID)
-                self.lastError = nil
+                self.succeed(.clear)
             } catch {
-                self.fail(error)
+                self.fail(.clear, error)
             }
             self.version += 1
             if layoutID == nil || layoutID == self.todayLayout { self.today = self.today.map { _ in 0 } }
@@ -252,9 +276,9 @@ public final class HeatmapRecorder {
             for id in self.pending.keys { self.pending[id] = self.pending[id]?.filter { $0.key >= cutoff } }
             do throws(HeatmapStoreError) {
                 try await self.store.prune(before: cutoff)
-                self.lastError = nil
+                self.succeed(.prune)
             } catch {
-                self.fail(error)
+                self.fail(.prune, error)
             }
             self.version += 1
         }
@@ -278,6 +302,7 @@ public final class HeatmapRecorder {
             guard (0..<board.keyCount).contains(index), let layerID = running.layout.layers[safe: layer]?.id else { return }
             pending[id, default: [:]][hour, default: HeatmapHour(start: hour)].presses[layerID, default: [:]][index, default: 0] += 1
             counted += 1
+            changes += 1
             recentPresses = recentPresses.filter { date.timeIntervalSince($0) < 60 } + [date]
             if calendar.startOfDay(for: date) != todayStart { loadToday() } else { today = (today ?? 0) + 1 }
         case let .layer(layer):
@@ -285,6 +310,7 @@ public final class HeatmapRecorder {
             defer { lastLayer = layer }
             guard let last = lastLayer, last != layer, let layerID = running.layout.layers[safe: layer]?.id else { return }
             pending[id, default: [:]][hour, default: HeatmapHour(start: hour)].layerEntries[layerID, default: 0] += 1
+            changes += 1
         case .keyUp, .lighting, .refused: return
         }
     }
@@ -302,15 +328,30 @@ public final class HeatmapRecorder {
         }
     }
 
-    /// A layout left the library: its counts go only if its package is gone (trashed), not if it is unreadable for now.
-    private func forget(_ id: UUID) async {
-        guard await layouts.location(of: id) == nil else { return }
-        await clear(id)
+    /// Recording's status changed: reads today's count for a layout it now records, and forgets the last layer outside
+    /// recording, since the next one reported may have been reached meanwhile (secure input, Live View off and on).
+    private func follow(_ status: Status?) {
+        guard case let .recording(id)? = status else {
+            lastLayer = nil
+            return
+        }
+        guard id != todayLayout || todayStart != calendar.startOfDay(for: now()) else { return }
+        if id != todayLayout { lastLayer = nil }
+        todayLayout = id
+        loadToday()
     }
 
-    private func fail(_ error: HeatmapStoreError) {
+    private enum Operation { case read, write, prune, clear }
+
+    private func fail(_ operation: Operation, _ error: HeatmapStoreError) {
         Self.log.error("Heatmap store: \(String(describing: error), privacy: .public)")
+        failing.insert(operation)
         lastError = error
+    }
+
+    private func succeed(_ operation: Operation) {
+        guard failing.remove(operation) != nil, failing.isEmpty else { return }
+        lastError = nil
     }
 
     /// Runs `body` after every operation queued before it.

@@ -22,7 +22,7 @@ public struct TypingStats: Equatable, Sendable {
         let status = recorder.status
         guard status != .off else { return nil }
         let pause: String? = if case .recording = status { nil } else { status.text(recordsThisLayout: nil) }
-        self.init(today: recorder.today, wordsPerMinute: recorder.wordsPerMinute(at: date), pause: pause)
+        self.init(today: recorder.pressesToday(at: date), wordsPerMinute: recorder.wordsPerMinute(at: date), pause: pause)
     }
 
     var text: String {
@@ -33,13 +33,36 @@ public struct TypingStats: Equatable, Sendable {
     }
 }
 
-/// One line under the mini map.
+/// Where the typing line reads from: the app-wide recorder, or fixed stats (snapshots).
+enum TypingStatsSource {
+    case recorder(HeatmapRecorder)
+    case fixed(TypingStats)
+
+    @MainActor func stats(at date: Date) -> TypingStats? {
+        switch self {
+        case let .recorder(recorder): TypingStats(recorder, at: date)
+        case let .fixed(stats): stats
+        }
+    }
+}
+
+/// One line under the mini map, or nothing while recording is off. It redraws itself every few seconds, so words per
+/// minute fall as typing stops with no press to redraw the panel.
 struct TypingStatsLine: View {
-    var stats: TypingStats
+    var source: TypingStatsSource
 
     var body: some View {
+        if let shown = source.stats(at: .now) {
+            TimelineView(.periodic(from: .now, by: 5)) { context in
+                line(source.stats(at: context.date) ?? shown)
+            }
+        }
+    }
+
+    private func line(_ stats: TypingStats) -> some View {
         Label {
-            Text(verbatim: stats.text).monospacedDigit().lineLimit(1).truncationMode(.tail)
+            // The longest pause reason is wider than the panel: it wraps rather than losing the reason.
+            Text(verbatim: stats.text).monospacedDigit().lineLimit(2).fixedSize(horizontal: false, vertical: true)
         } icon: {
             Image(systemName: "flame").foregroundStyle(.secondary)
         }

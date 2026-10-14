@@ -279,9 +279,10 @@ struct KeyCap: View, Equatable {
                     bandView(band).frame(height: bandHeight)
                 } else if model.isHoldOnly {
                     // Top of the band zone, so it clears the signal bar below it.
+                    // On a heat fill, the legend's second ink, chosen by luminance: tertiary fades into the ramp (spec §8.5).
                     Text("hold")
                         .font(.system(size: 0.11 * u, weight: .medium))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(model.decoration.fill == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(ink.secondary))
                         .frame(height: bandHeight, alignment: .top)
                 }
             }
@@ -304,7 +305,9 @@ struct KeyCap: View, Equatable {
                 }
             }
             if let count = model.decoration.count {
-                Text(count.text).font(.system(size: 0.12 * u, design: .monospaced)).monospacedDigit().lineLimit(1)
+                // Readable on the smallest board too; a long count shrinks to its cap rather than truncating.
+                Text(count.text).font(.system(size: max(0.15 * u, 8), weight: .medium, design: .monospaced)).monospacedDigit()
+                    .lineLimit(1).minimumScaleFactor(0.7)
             }
         }
     }
