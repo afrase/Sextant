@@ -1,6 +1,6 @@
 # Progress
 
-Read this first after a context reset. Plan: `docs/prompts/lead-architect.md`. Design: `docs/architecture.md`. Decisions: `docs/decisions.md` and `docs/adr/`.
+Read this first after a context reset. Plan: `docs/v1-plan.md`. Design: `docs/architecture.md`. Decisions: `docs/decisions.md` and `docs/adr/`.
 
 ## Done
 - **Code design:** `docs/architecture.md`, ADRs 0006–0025.

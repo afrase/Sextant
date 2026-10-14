@@ -209,23 +209,24 @@ struct PalettePanel: View {
     private var header: some View {
         HStack(spacing: 10) {
             if isPicking, let target = model.assignTarget {
-                // The scope token: "[Z] › Hold on Main". ⌫ on an empty field removes it.
+                // The scope token: "[Z] › Hold on Main", or "3 keys › Tap on Main". ⌫ on an empty field removes it.
+                let cap = target.keyCount == 1 ? target.key : nil
                 HStack(spacing: 6) {
-                    if let key = target.key {
+                    if let key = cap {
                         KeyCap(model: KeyCapModel(layout: session.layout, layer: key.layer, index: key.index), u: 32)
                             .frame(width: 32, height: 32)
                     }
                     // A long macro name keeps its end ("› Step 3") and leaves the field room to type.
                     Text(target.title).font(.callout.weight(.medium)).lineLimit(1).truncationMode(.middle).frame(maxWidth: 200)
                 }
-                .padding(.leading, target.key == nil ? 10 : 3)
+                .padding(.leading, cap == nil ? 10 : 3)
                 .padding(.trailing, 10)
                 .frame(height: 30)
                 .background(Capsule().fill(Color.accentColor.opacity(0.14)))
                 .fixedSize()
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(
-                    target.key.map { Text("Assigning to key \($0.index) \(target.title)") } ?? Text("Assigning to \(target.title)"))
+                    cap.map { Text("Assigning to key \($0.index) \(target.title)") } ?? Text("Assigning to \(target.title)"))
             } else {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
             }

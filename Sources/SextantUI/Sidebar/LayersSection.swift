@@ -45,7 +45,7 @@ private struct LayerContextMenu: View {
         Button("Move Down") { session.moveLayer(from: index, to: index + 1) }
             .disabled(index == session.layout.layers.count - 1)
         Divider()
-        Button("Copy Layer To…") {}.disabled(true)
+        Menu("Copy Layer To") { CopyLayerMenu(window: model, layer: index) }
         Button("Clear Layer…") { model.layerPendingClear = index }
         Button("Delete Layer…") {
             session.select(layer: index)

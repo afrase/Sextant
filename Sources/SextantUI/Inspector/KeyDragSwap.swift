@@ -65,13 +65,14 @@ private struct KeySwapGesture: ViewModifier {
 }
 
 extension EditSession {
-    /// Swaps the key under `start` with the key under `end` on the shown layer, or copies it there, and selects where it
-    /// landed. False when either point misses a key or both hit the same one.
+    /// Swaps the key under `start` with the key under `end` on the shown layer, or copies it there, and selects only where
+    /// it landed. False when either point misses a key or both hit the same one.
     @discardableResult
     func dragKey(from start: CGPoint, to end: CGPoint, on board: BoardLayout, copy: Bool) -> Bool {
         guard let source = board.keyIndex(at: start), let target = board.keyIndex(at: end), source != target else { return false }
         swapKeys(source, target, copy: copy)
-        select(key: target)
+        // The landed key alone, even when it was the anchor of several (ADR 0047).
+        select(keys: [target])
         return true
     }
 }

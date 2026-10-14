@@ -20,7 +20,13 @@ struct ContextStrip: View {
     @ViewBuilder private var lensStrip: some View {
         switch model.lens {
         case .keys:
-            if let key = session.selection.keyIndex {
+            if model.selectedKeyCount > 1 {
+                Text("\(model.selectedKeyCount) keys selected · ⌘-click adds or removes a key · esc keeps one")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal, 20)
+            } else if let key = session.selection.keyIndex {
                 cards { index, layer in keyCard(layer: index, key: key, title: layer.title) }
             } else {
                 Text("Select a key to see it on every layer · ⏎ edits · ⌘K finds anything")

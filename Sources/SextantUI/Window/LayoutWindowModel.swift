@@ -39,7 +39,9 @@ enum LaneStatus: Equatable {
 public final class LayoutWindowModel {
     public let library: Library
     /// The open layout, once loaded.
-    public internal(set) var session: EditSession?
+    public internal(set) var session: EditSession? {
+        didSet { session?.showsSeveralKeys = { [weak self] in self?.selectsSeveralKeys ?? true } }
+    }
     public private(set) var loadError: LibraryError?
     public var legendMode: LegendMode = .symbols
     public var lens: Lens = .keys
@@ -317,8 +319,8 @@ public final class LayoutWindowModel {
     var canShowNextLayer: Bool { session.map { $0.selection.layer < $0.layout.layers.count - 1 } ?? false }
     var canDeleteLayer: Bool { (session?.layout.layers.count ?? 0) > 1 }
     var canOverrideKey: Bool {
-        guard page == nil, let session, let index = session.selection.keyIndex else { return false }
-        return session.layout.resolvedKey(layer: session.selection.layer, index: index).isInherited
+        guard page == nil, let session else { return false }
+        return session.selectedKeys.contains { session.layout.resolvedKey(layer: session.selection.layer, index: $0).isInherited }
     }
     /// Live View needs a keyboard plugged in (not in flash mode).
     var canGoLive: Bool { connectedKeyboard != nil }
@@ -401,7 +403,7 @@ public final class LayoutWindowModel {
     func showIssue(_ key: KeyRef) {
         if showMacroIssue(key) { return }
         destination = .layer(key.layer)
-        session?.select(key: key.index, slot: key.slot)
+        session?.select(keys: [key.index], slot: key.slot)
     }
 
     /// A click on a board key, VoiceOver's activate, or ⏎ during a pick: a pick takes the key and ends when it says it is
@@ -410,7 +412,8 @@ public final class LayoutWindowModel {
         if let pick = boardPick {
             if pick.onPick(index) { boardPick = nil }
         } else {
-            session?.select(key: index)
+            // One key, even the anchor of several.
+            session?.select(keys: [index])
             // Even on the key already selected, which leaves the selection as it was (spec §6.4).
             if page == .combos { selectCombo(containing: index) }
         }
@@ -423,13 +426,16 @@ public final class LayoutWindowModel {
         pick?.onCancel()
     }
 
-    /// Esc on the board steps back one level (spec §9.3): a pick ends first (step 4), then the key is deselected (step 5).
+    /// Esc on the board steps back one level (spec §9.3): a pick ends first (step 4), then several keys become their
+    /// anchor (step 5), then the key is deselected (step 6).
     func escapeBoard() {
         if boardPick != nil {
             cancelBoardPick()
         } else if page == .combos, selectedPageCombo != nil {
             // Back to every combo before the key goes (spec §9.3).
             session?.selectCombo(nil)
+        } else if let session, session.selectedKeys.count > 1 {
+            session.select(keys: session.selection.keyIndex.map { [$0] } ?? [])
         } else {
             session?.select(key: nil)
         }

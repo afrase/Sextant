@@ -334,7 +334,7 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
 - **Live badge.** A `dot.radiowaves.left.and.right` badge marks the layer the physical keyboard is on.
 - **Add Layer.** A final row, "Add Layer", with a `plus` symbol (⇧⌘N).
 - **Reordering.** Drag to reorder with `.onMove`. Layer references follow the move, as one undo step: "Move Layer".
-- **Context menu:** Rename… (edits the name in place; no double-click, which held every click's selection until it timed out), Colour ▸ (layout swatches, Custom…, No Colour), Duplicate, Move Up / Move Down, Copy Layer To… (v1), Clear Layer…, Delete Layer….
+- **Context menu:** Rename… (edits the name in place; no double-click, which held every click's selection until it timed out), Colour ▸ (layout swatches, Custom…, No Colour), Duplicate, Move Up / Move Down, Copy Layer To ▸ (v1; §6.1), Clear Layer…, Delete Layer….
 
 **3. Layout**
 - Combos, Macros, App Layers and History each carry a count badge.
@@ -684,14 +684,16 @@ The bench is the content surface behind the board. It is never glass.
 
 ### 5.4 Multi-selection (v1)
 
-- **Selecting.** ⌘-click toggles a key in the selection. ⇧-click selects a range in reading order.
-- **Inspector.** It shows "3 keys". Common actions: Make Transparent, Disable, Set LED Colour, Copy To Layer…, Clear Label.
-- **Slot editing** across keys applies one value to all of them, as one undo step.
+- **Selecting.** ⌘-click toggles a key in the selection. ⇧-click selects a range in reading order (VoiceOver's: the left half row by row, its thumbs, then the right half), from the anchor: the key selected first, which the slot editor shows. Only on the plain board in the Keys lens; another lens or a pick acts on the anchor alone, and the others show again in the Keys lens. Arrows and a drag collapse the selection to one key, and esc first keeps only the anchor (§9.3). VoiceOver's "Add to Selection" action stands in for ⌘-click (ADR 0047).
+- **Board.** A ring on every selected key; the context strip says "3 keys selected · ⌘-click adds or removes a key · esc keeps one".
+- **Inspector.** It shows "3 keys", the layer and the key numbers, and a slot strip with each slot's shared value or "Mixed". Common actions: Make Transparent, Disable, Set LED Colour, Copy To Layer ▸, Clear Label.
+- **Slot editing** across keys applies one value to all of them, as one undo step ("Set Tap on 3 Keys"). When the keys differ in the slot it says "Mixed: 3 different" with Change… and Clear. The picker's target is "3 keys › Tap on Main", with no cap and no preview on one key, and its footer says "Now mixed" when the keys differ; each key keeps its own chord, and a macro from the Macros category goes on every key's tap.
+- **Key menus** act on every selected key (Override on This Layer on the inherited ones); Record Key and Copy QMK Expression act on the anchor. Show Issue and Find Key select the key alone.
 
 ### 5.5 Direct manipulation
 
 - **Drag one key onto another to swap them** on the current layer, as one undo step: "Swap Keys". ⌥-drag copies instead. This is MVP, since it is cheap and is Oryx parity.
-- **Copy and paste (v1).** ⌘C copies a key's full definition, and ⌘V pastes it onto the selected key, as "Paste Key".
+- **Copy and paste (v1).** ⌘C copies the selected keys' full definitions, and ⌘V, with a key selected, pastes one key onto every selected key ("Paste Key"), or several keys back to their own places on the shown layer, which it then selects ("Paste 3 Keys"). ⌘X copies and makes them transparent. These act on keys only while the board has focus. The pasteboard gets a `com.sextant.keys` flavor and the keys' QMK expressions as text; what is pasted is checked first (ADR 0047).
 - **Type to search.** Typing a printable character while the board has focus opens the picker in assign scope, pre-filled with that character. This doesn't apply in the Lighting lens (B/E/I/G) or the Combos lens (N).
 
 ### 5.6 Keycode picker (assign scope)
@@ -805,6 +807,7 @@ The picker is the command palette component in **assign scope**.
   - Clicking a context-strip card switches to that layer.
 - **New Layer (⇧⌘N)** appends a layer with the name "Layer 3", no colour, and all keys transparent. Inline rename starts at once.
 - **Duplicate (⇧⌘D)** copies keys, LED colours and the colour, as "Sym+Num Copy".
+- **Copy Layer To ▸ (v1)** lists the layout's other layers, then New Layer. A layer keeps its name and colour and takes the copied keys; New Layer adds "Sym+Num Copy" at the end. One undo step, which shows that layer. Within one layout only (ADR 0047).
 - **Delete Layer….**
   - If layer keys or holds reference the layer, an alert lists them: "3 keys switch to Brd+Sys: key 51 on Main…".
   - Options: [Delete and Clear References] / [Cancel].
@@ -1315,7 +1318,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 | Rename Layer… | — (or the sidebar row's context menu) |
 | Layer Colour ▸ | — |
 | Move Layer Up / Down | ⌥⌘↑ / ⌥⌘↓ |
-| Copy Layer To… (v1) · Clear Layer… · Delete Layer… | — |
+| Copy Layer To ▸ (v1) · Clear Layer… · Delete Layer… | — |
 | Show Previous / Next Layer | ⇧⌘[ / ⇧⌘] |
 | Show Layer 0 … 8 | ⌘1 … ⌘9 |
 
@@ -1377,7 +1380,8 @@ Each press of esc steps back one level:
 2. Picker or palette → close, wherever focus is in the window.
 3. Popover → close.
 4. An in-progress gesture (combo creation, paint stroke, Assign to Key) → cancel. A board pick also takes esc through its capsule's [Cancel], the window's cancel shortcut (ADR 0042).
-5. Key selection → deselect. On the Combos page a selected combo goes first, back to every combo (§6.4).
+5. Several selected keys → keep only the anchor (ADR 0047).
+6. Key selection → deselect. On the Combos page a selected combo goes first, back to every combo (§6.4).
 
 Esc never switches lens or destination.
 

@@ -7,8 +7,9 @@ import os
 public struct EditorSelection: Hashable, Sendable {
     /// Layer being shown and edited.
     public var layer: Int
-    /// Selected key index, or nil for no key.
-    public var keyIndex: Int?
+    /// Selected key index, or nil for no key. With several keys selected it is the anchor: the inspector's slot editor
+    /// shows it and ⇧-click selects the range from it. Setting another key drops the others (ADR 0047).
+    public var keyIndex: Int? { didSet { if keyIndex != oldValue { others = [] } } }
     /// Slot the inspector edits.
     public var slot: KeySlot
     /// Selected combo's id (the Combos page).
@@ -16,11 +17,22 @@ public struct EditorSelection: Hashable, Sendable {
     /// Selected macro and its selected step (the Macros page).
     public var macro: MacroLocator?
     public var step: Int?
+    /// The keys selected with the anchor, ascending; never the anchor itself.
+    private var others: [Int] = []
+
+    /// Every selected key, ascending: the anchor and the keys ⌘- or ⇧-clicked with it. Empty with no key.
+    public var keyIndices: [Int] { keyIndex.map { (others + [$0]).sorted() } ?? [] }
 
     public init(layer: Int = 0, keyIndex: Int? = nil, slot: KeySlot = .tap) {
         self.layer = layer
         self.keyIndex = keyIndex
         self.slot = slot
+    }
+
+    /// Selects `keys` with `anchor` as the anchor (which joins them); no anchor selects nothing.
+    mutating func select(keys: [Int], anchor: Int?) {
+        keyIndex = anchor
+        others = anchor.map { anchor in Array(Set(keys)).filter { $0 != anchor }.sorted() } ?? []
     }
 }
 
@@ -55,6 +67,9 @@ public final class EditSession {
     /// working copy already differed from its last revision at open: edited until the next revision.
     var revisionBaseline: KeyboardLayout?
 
+    /// Whether the window shows several selected keys right now (the Keys lens on the plain board, no pick; ADR 0047).
+    /// While it says no, edits, copy and the count see only the anchor, and the other keys wait for it to say yes.
+    @ObservationIgnored public var showsSeveralKeys: @MainActor () -> Bool = { true }
     /// The window's undo manager. Edits made while it is nil are not undoable.
     @ObservationIgnored public weak var undoManager: UndoManager?
     @ObservationIgnored let library: any LayoutLibrary
@@ -113,37 +128,50 @@ public final class EditSession {
         selection.layer = layer
     }
 
+    /// Selects one key, or none. Another key than the anchor drops the rest of a multi-selection; the anchor itself
+    /// keeps it, so changing the slot (⇥, ⌥⌘1) edits every selected key.
     public func select(key index: Int?, slot: KeySlot? = nil) {
         selection.keyIndex = index.flatMap { (0..<layout.keyCount).contains($0) ? $0 : nil }
         if let slot { selection.slot = slot }
     }
 
-    /// Arrow-key navigation across the board (crosses halves, reaches thumbs). Selects key 0 if nothing is selected.
+    /// Arrow-key navigation across the board (crosses halves, reaches thumbs). Selects key 0 if nothing is selected. A
+    /// multi-selection collapses to one key, even at the board's edge.
     public func moveSelection(_ direction: BoardGeometry.Direction) {
         guard let i = selection.keyIndex else {
             selection.keyIndex = 0
             return
         }
-        if let n = geometry.neighbor(of: i, toward: direction) { selection.keyIndex = n }
+        select(keys: [geometry.neighbor(of: i, toward: direction) ?? i])
     }
 
     // MARK: Key edits
+    // Without an index, an edit acts on every selected key as one undo step named for the count ("Make 3 Keys
+    // Transparent"); one key keeps the single-key name.
 
     /// Sets (or clears, with nil) the action in a slot. Defaults to the current selection.
     public func setAction(_ action: KeyAction?, slot: KeySlot? = nil, layer: Int? = nil, index: Int? = nil) {
-        guard let (l, i) = target(layer, index) else { return }
+        let keys = targets(layer, index)
+        guard !keys.isEmpty else { return }
         let s = slot ?? selection.slot
-        let name = action == nil ? String(localized: "Clear \(s.title)") : String(localized: "Set \(s.title)")
-        edit(name) { $0.updateKey(layer: l, index: i) { $0[s] = action } }
+        edit(Self.slotEditName(s, clearing: action == nil, count: keys.count)) { doc in
+            for (l, i) in keys { doc.updateKey(layer: l, index: i) { $0[s] = action } }
+        }
     }
 
-    /// Sets a slot to a plain keycode, keeping the slot's existing modifiers unless `modifiers` is given.
+    /// Sets a slot to a plain keycode, keeping each key's modifiers in the slot unless `modifiers` is given.
     public func setCode(_ code: String, modifiers: Modifiers? = nil, slot: KeySlot? = nil, layer: Int? = nil, index: Int? = nil) {
-        guard let (l, i) = target(layer, index) else { return }
+        let keys = targets(layer, index)
+        guard !keys.isEmpty else { return }
         let s = slot ?? selection.slot
-        let existing = layout.key(layer: l, index: i)?[s]
-        let action = KeyAction(code: code, layer: nil, modifiers: modifiers ?? existing?.modifiers ?? [], color: existing?.color)
-        setAction(action, slot: s, layer: l, index: i)
+        edit(Self.slotEditName(s, clearing: false, count: keys.count)) { doc in
+            for (l, i) in keys {
+                doc.updateKey(layer: l, index: i) { key in
+                    let existing = key[s]
+                    key[s] = KeyAction(code: code, layer: nil, modifiers: modifiers ?? existing?.modifiers ?? [], color: existing?.color)
+                }
+            }
+        }
     }
 
     /// Makes the hold slot activate a layer while held (`MO`), turning tap+hold keys into layer-tap keys.
@@ -153,26 +181,46 @@ public final class EditSession {
 
     /// Sets modifiers on the action in a slot.
     public func setModifiers(_ modifiers: Modifiers, slot: KeySlot? = nil, layer: Int? = nil, index: Int? = nil) {
-        guard let (l, i) = target(layer, index) else { return }
+        let keys = targets(layer, index)
+        guard !keys.isEmpty else { return }
         let s = slot ?? selection.slot
-        edit(String(localized: "Change Modifiers")) { $0.updateKey(layer: l, index: i) { $0[s]?.modifiers = modifiers } }
+        let name = keys.count == 1 ? String(localized: "Change Modifiers") : String(localized: "Change Modifiers on \(keys.count) Keys")
+        edit(name) { doc in
+            for (l, i) in keys { doc.updateKey(layer: l, index: i) { $0[s]?.modifiers = modifiers } }
+        }
     }
 
     /// Sets or clears the custom label (trimmed; empty clears).
     public func setLabel(_ label: String?, layer: Int? = nil, index: Int? = nil) {
-        guard let (l, i) = target(layer, index) else { return }
+        let keys = targets(layer, index)
+        guard !keys.isEmpty else { return }
         let trimmed = label?.trimmingCharacters(in: .whitespacesAndNewlines)
         let value = (trimmed?.isEmpty ?? true) ? nil : trimmed
-        edit(value == nil ? String(localized: "Clear Label") : String(localized: "Set Label")) {
-            $0.updateKey(layer: l, index: i) { $0.customLabel = value }
+        let name =
+            switch (value == nil, keys.count) {
+            case (true, 1): String(localized: "Clear Label")
+            case (false, 1): String(localized: "Set Label")
+            case (true, let n): String(localized: "Clear Label on \(n) Keys")
+            case (false, let n): String(localized: "Set Label on \(n) Keys")
+            }
+        edit(name) { doc in
+            for (l, i) in keys { doc.updateKey(layer: l, index: i) { $0.customLabel = value } }
         }
     }
 
     /// Sets or clears a key's LED colour on its layer.
     public func setColor(_ color: HexColor?, layer: Int? = nil, index: Int? = nil) {
-        guard let (l, i) = target(layer, index) else { return }
-        edit(color == nil ? String(localized: "Clear Key Color") : String(localized: "Set Key Color")) {
-            $0.updateKey(layer: l, index: i) { $0.glowColor = color }
+        let keys = targets(layer, index)
+        guard !keys.isEmpty else { return }
+        let name =
+            switch (color == nil, keys.count) {
+            case (true, 1): String(localized: "Clear Key Color")
+            case (false, 1): String(localized: "Set Key Color")
+            case (true, let n): String(localized: "Clear Color on \(n) Keys")
+            case (false, let n): String(localized: "Set Color on \(n) Keys")
+            }
+        edit(name) { doc in
+            for (l, i) in keys { doc.updateKey(layer: l, index: i) { $0.glowColor = color } }
         }
     }
 
@@ -186,22 +234,33 @@ public final class EditSession {
 
     /// Makes a key transparent.
     public func makeTransparent(layer: Int? = nil, index: Int? = nil) {
-        guard let (l, i) = target(layer, index) else { return }
-        edit(String(localized: "Make Transparent")) { $0.updateKey(layer: l, index: i) { $0 = .transparent } }
+        let keys = targets(layer, index)
+        guard !keys.isEmpty else { return }
+        let name = keys.count == 1 ? String(localized: "Make Transparent") : String(localized: "Make \(keys.count) Keys Transparent")
+        edit(name) { doc in
+            for (l, i) in keys { doc.updateKey(layer: l, index: i) { $0 = .transparent } }
+        }
     }
 
     /// Disables a key (`KC_NO`).
     public func disable(layer: Int? = nil, index: Int? = nil) {
-        guard let (l, i) = target(layer, index) else { return }
-        edit(String(localized: "Disable Key")) { $0.updateKey(layer: l, index: i) { $0 = .none } }
+        let keys = targets(layer, index)
+        guard !keys.isEmpty else { return }
+        let name = keys.count == 1 ? String(localized: "Disable Key") : String(localized: "Disable \(keys.count) Keys")
+        edit(name) { doc in
+            for (l, i) in keys { doc.updateKey(layer: l, index: i) { $0 = .none } }
+        }
     }
 
-    /// Copies the inherited definition of a transparent key onto its own layer (spec §5.1 "Override Key").
+    /// Copies the inherited definition of a transparent key onto its own layer (spec §5.1 "Override Key"). Of several
+    /// selected keys, the inherited ones.
     public func overrideInherited(layer: Int? = nil, index: Int? = nil) {
-        guard let (l, i) = target(layer, index) else { return }
-        let resolved = layout.resolvedKey(layer: l, index: i)
-        guard resolved.isInherited else { return }
-        edit(String(localized: "Override Key")) { $0.updateKey(layer: l, index: i) { $0 = resolved.effective } }
+        let resolved = targets(layer, index).map { layout.resolvedKey(layer: $0.layer, index: $0.index) }.filter(\.isInherited)
+        guard !resolved.isEmpty else { return }
+        let name = resolved.count == 1 ? String(localized: "Override Key") : String(localized: "Override \(resolved.count) Keys")
+        edit(name) { doc in
+            for key in resolved { doc.updateKey(layer: key.layer, index: key.index) { $0 = key.effective } }
+        }
     }
 
     /// Replaces a whole key.
@@ -327,6 +386,8 @@ public final class EditSession {
         try await checkpoint(String(localized: "Before importing from Oryx"))
         var next = imported
         next.title = layout.title
+        // Oryx has no drafts, so an import would drop the macros on no key yet (ADR 0047).
+        next.macroDrafts = layout.macroDrafts
         let draft = RevisionDraft(source: .import, message: imported.oryx?.message, layout: next)
         revisions.append(try await library.appendRevision(draft, to: id))
         revisionBaseline = next
@@ -414,6 +475,23 @@ public final class EditSession {
         let l = layer ?? selection.layer
         guard let i = index ?? selection.keyIndex, layout.key(layer: l, index: i) != nil else { return nil }
         return (l, i)
+    }
+
+    /// The keys an edit acts on: the given key, else every selected key; keys not on the layer are left out. Extension
+    /// files that edit one key keep calling ``target(_:_:)``.
+    func targets(_ layer: Int? = nil, _ index: Int? = nil) -> [(layer: Int, index: Int)] {
+        let l = layer ?? selection.layer
+        return (index.map { [$0] } ?? selectedKeys).filter { layout.key(layer: l, index: $0) != nil }.map { (l, $0) }
+    }
+
+    /// "Set Tap", or "Set Tap on 3 Keys" for several.
+    static func slotEditName(_ slot: KeySlot, clearing: Bool, count: Int) -> String {
+        switch (clearing, count) {
+        case (true, 1): String(localized: "Clear \(slot.title)")
+        case (false, 1): String(localized: "Set \(slot.title)")
+        case (true, let n): String(localized: "Clear \(slot.title) on \(n) Keys")
+        case (false, let n): String(localized: "Set \(slot.title) on \(n) Keys")
+        }
     }
 
     private struct Snapshot {
