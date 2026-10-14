@@ -78,6 +78,9 @@ public final class LiveSession {
     /// Live View took this keyboard's lights (`05 01`, `06`, `09`) and hasn't given them back (`05 00`). It outlasts a
     /// session that ends while the keyboard stays plugged in: the board may still show them, so the next one releases.
     @ObservationIgnored private var lightsTaken = false
+    /// A release was asked for while no session was paired (the reconnect after a failed write, Live View turned off
+    /// then): the next session to pair sends it.
+    @ObservationIgnored private var releaseDue = false
     /// `05 00` writes the keyboard hasn't answered (`08 00`) yet.
     @ObservationIgnored private var releasesInFlight = 0
     /// When the link will likely have written every command queued, on `clock`.
@@ -135,17 +138,21 @@ public final class LiveSession {
     public func startLive() {
         guard !isLive else { return }
         isLive = true
-        // While the last session still gives the lights back, it pairs again once that is done.
-        if let keyboard, stopping == nil { goLive(keyboard) }
+        guard let keyboard else { return }
+        // While the last session still gives the lights back, it pairs again once that is done, and reads as connecting.
+        if stopping == nil { goLive(keyboard) } else { connection = .connected(keyboard) }
     }
 
     /// Turns the live view off: ends the link session and forgets its layer and presses; the keyboard stays connected.
     /// A session that took the keyboard's lights gives them back first (ADR 0051): it reads as off and takes no commands at
-    /// once, and ends when the keyboard answers, since ending it drops whatever is still queued.
+    /// once, and ends when the keyboard answers, since ending it drops whatever is still queued. Between two sessions they
+    /// go back when Live View next pairs.
     public func stopLive() {
         guard isLive else { return }
         isLive = false
-        guard let keyboard, stopping == nil else { return }
+        guard let keyboard else { return }
+        // Turned on and off again while the last session gives the lights back: it still ends once that is done.
+        guard stopping == nil else { return connection = .liveOff(keyboard) }
         guard liveCommands != nil, lightsTaken || releasesInFlight > 0 else { return connect(keyboard) }
         let replies = activity()
         releaseLights()
@@ -201,8 +208,8 @@ public final class LiveSession {
         liveCommands.yield(command)
         switch command {
         case .moveToLayer: break
-        case .lighting(true), .setLED, .setAllLEDs: lightsTaken = true
-        case .lighting(false): (lightsTaken, releasesInFlight) = (false, releasesInFlight + 1)
+        case .lighting(true), .setLED, .setAllLEDs: (lightsTaken, releaseDue) = (true, false)
+        case .lighting(false): (lightsTaken, releaseDue, releasesInFlight) = (false, false, releasesInFlight + 1)
         }
         // A layer move is written with the `01` after it (ADR 0038).
         let reports = if case .moveToLayer = command { 2 } else { 1 }
@@ -217,10 +224,11 @@ public final class LiveSession {
         try? await clock.sleep(for: left)
     }
 
-    /// Gives the keyboard its own lighting back (`05 00`) if this paired session took it.
+    /// Gives the keyboard its own lighting back (`05 00`) if Live View took it. With no session paired it is sent when the
+    /// next one pairs, unless the lights are taken again first.
     public func releaseLights() {
         guard lightsTaken else { return }
-        try? send(.lighting(false))
+        do throws(DeviceError) { try send(.lighting(false)) } catch { releaseDue = true }
     }
 
     /// Gives the keyboard its lighting back and waits until it says so for every `05 00` queued, at most until the link has
@@ -283,7 +291,11 @@ public final class LiveSession {
     }
 
     private func connect(_ device: KeyboardDevice) {
+        // The same keyboard, still plugged in, may still show the lights a session took (Live View turned off between
+        // two sessions): the next session to pair gives them back.
+        let taken = device == keyboard && lightsTaken
         disconnect()
+        (lightsTaken, releaseDue) = (taken, taken)
         keyboard = device
         connection = .liveOff(device)
         firmwareSerial = device.serial
@@ -308,7 +320,7 @@ public final class LiveSession {
     private func disconnect() {
         stopping?.cancel()
         stopping = nil
-        (lightsTaken, releasesInFlight, writesDone) = (false, 0, nil)
+        (lightsTaken, releaseDue, releasesInFlight, writesDone) = (false, false, 0, nil)
         linkTask?.cancel()
         linkTask = nil
         liveCommands?.finish()
@@ -342,6 +354,7 @@ public final class LiveSession {
                 // The debounce flushes the last state after the session ends; an ended session takes no commands.
                 if state.isLive, !state.hasEnded, liveCommands == nil, !Task.isCancelled, keyboard == device, isPaired {
                     liveCommands = feed
+                    if releaseDue { releaseLights() }
                 }
             }
             feed.finish()
@@ -385,7 +398,7 @@ public final class LiveSession {
             switch event {
             case .lighting(false): releasesInFlight = max(releasesInFlight - 1, 0)
             // RGB_MATRIX_NOT_ENABLED: this build has no lights to take or give back.
-            case .refused(0x04): (lightsTaken, releasesInFlight) = (false, 0)
+            case .refused(0x04): (lightsTaken, releaseDue, releasesInFlight) = (false, false, 0)
             default: break
             }
             if event.isTyping {

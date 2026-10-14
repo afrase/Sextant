@@ -122,9 +122,14 @@ extension LightingPreviewTests {
 
     @Test func liveViewOffThenOnAgainEndsOn() async throws {
         _ = try await previewing()
+        let keyboard = KeyboardDevice.voyager(serial: "KlgM7/40xJ7M")
         live.stopLive()
         live.startLive()
         #expect(live.isLive)
+        #expect(live.connection == .connected(keyboard) && !live.canSend, "every surface reads it as connecting")
+        live.stopLive()
+        #expect(live.connection == .liveOff(keyboard))
+        live.startLive()
         try await Task.sleep(for: .milliseconds(10))
         #expect(link.sessionCount == 1, "the session giving the lights back isn't cut off")
         link.send(.lighting(false))
@@ -161,6 +166,81 @@ extension LightingPreviewTests {
         #expect(link.commands[0].count == 5, "no 05 00 to a session that ended")
         live.stopLive()
         #expect(await sent(6, session: 1).last == .lighting(false), "the new session took the lights")
+    }
+
+    /// A session ends with the keyboard still plugged in (a failed write): Live View turned off before the next one pairs
+    /// can't send the release, so the next session to pair does.
+    @Test func liveViewOffBetweenSessionsReleasesOnceOnePairsAgain() async throws {
+        _ = try await previewing()
+        link.send(.ended(.io("write failed")))
+        #expect(await eventually { !live.canSend })
+        live.stopLive()
+        #expect(await eventually { !preview.isHeld(by: window) })
+        await live.releaseLightsAndWait()  // a quit now has no session to write to
+        live.startLive()
+        #expect(await eventually { link.sessionCount == 2 })
+        link.send(.layer(0))
+        _ = await eventually {
+            await liveClock.advance(by: .milliseconds(17))
+            return live.canSend
+        }
+        #expect(await sent(1, session: 1) == [.lighting(false)])
+        link.send(.lighting(false))  // the keyboard's reply
+        live.stopLive()
+        #expect(await eventually { !link.isOpen(1) })
+        #expect(link.commands[0].count == 5 && link.commands[1].count == 1, "released once")
+    }
+
+    /// The preview ended while no session was paired: the release goes out when one pairs again.
+    @Test(arguments: ["toggle off", "sleep", "quit"])
+    func aPreviewEndedBetweenSessionsIsReleasedOnceOnePairs(_ path: String) async throws {
+        _ = try await previewing()
+        link.send(.ended(.io("write failed")))
+        #expect(await eventually { !live.canSend })
+        switch path {
+        case "toggle off": preview.release(for: window)
+        case "sleep": preview.releaseAll()
+        default:
+            preview.releaseAll()
+            await live.releaseLightsAndWait()
+        }
+        #expect(
+            await eventually {
+                await liveClock.advance(by: .milliseconds(100))
+                return link.sessionCount == 2
+            })
+        link.send(.layer(0))
+        _ = await eventually {
+            await liveClock.advance(by: .milliseconds(17))
+            return live.canSend
+        }
+        #expect(await sent(1, session: 1) == [.lighting(false)])
+        #expect(link.commands[0].count == 5, "nothing to the session that ended")
+        // Previewing again takes the lights in full.
+        try preview.claim(for: window, title: "Layout")
+        preview.show(Self.frame, for: window, title: "Layout")
+        #expect(await sent(6, session: 1).dropFirst().first == .lighting(true))
+    }
+
+    /// Previewing again before the next session pairs: it gets the whole frame, after the release that was due.
+    @Test func aPreviewClaimedAgainBetweenSessionsShowsOncePaired() async throws {
+        let first = try await previewing()
+        link.send(.ended(.io("write failed")))
+        #expect(await eventually { !live.canSend })
+        preview.release(for: window)
+        try preview.claim(for: window, title: "Layout")
+        preview.show(Self.frame, for: window, title: "Layout")
+        #expect(
+            await eventually {
+                await liveClock.advance(by: .milliseconds(100))
+                return link.sessionCount == 2
+            })
+        link.send(.layer(0))
+        _ = await eventually {
+            await liveClock.advance(by: .milliseconds(17))
+            return live.canSend
+        }
+        #expect(await sent(6, session: 1) == [.lighting(false)] + first)
     }
 
     @Test func anotherHostsReleaseMakesTheNextFrameTakeTheLightsAgain() async throws {

@@ -21,6 +21,13 @@ final class OverlayPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
+    /// Drops the content too: a hidden SwiftUI view would still redraw at every change it reads, the held keys at every
+    /// key event. Each ``OverlayHUD`` presentation installs its own.
+    override func orderOut(_ sender: Any?) {
+        super.orderOut(sender)
+        contentView = nil
+    }
+
     /// Where the HUD goes: centered on the visible frame of the screen with the pointer, 72 pt above its bottom or below
     /// its top, which keeps it clear of the Dock, the menu bar and the notch.
     static func frame(size: CGSize, position: OverlayPosition, on visible: CGRect) -> CGRect {

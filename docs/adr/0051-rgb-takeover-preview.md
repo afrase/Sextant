@@ -46,7 +46,7 @@ or more. Ending a session drops whatever it still has queued, a `05 00` included
   - the Mac going to sleep (`NSWorkspace.willSleepNotification`, in the app delegate; it can't wait);
   - Live View turned off, from any caller: `LiveSession.stopLive()` releases, reads as off at once (no commands, no
     claims, the switches show off), and ends the session only once every release is answered. Turning Live View on
-    again meanwhile pairs again once that is done, so the last click wins;
+    again meanwhile reads as connecting everywhere and pairs again once that is done, so the last click wins;
   - quitting, once `Quitting` has decided to quit: the preview ends and `releaseLightsAndWait()` waits the same way.
 
   Those waits end when every `05 00` has its `08 00` (or on error `04`, a build with no RGB matrix), or once the queued
@@ -55,7 +55,9 @@ or more. Ending a session drops whatever it still has queued, a `05 00` included
 - **Without a session, nothing.** A session that ends (unplugged, Keymapp seizing, a failed write) is released without
   sending: there is no board to write to. The window's switch stays on, and when Live View pairs a session again, the
   whole frame goes out again, starting with `05 01`. A session that ends while the keyboard stays plugged in leaves the
-  lights recorded as taken, so the next session's release still goes out. While the switch is on and nothing shows, the
+  lights recorded as taken, Live View turned off before the next one pairs included, so the next session's release still
+  goes out. A release asked for in that gap (the switch turned off, sleep, quit, Live View off) is kept as due and sent
+  as soon as a session pairs, before any new frame. While the switch is on and nothing shows, the
   inspector names why (unplugged, flash mode, Keymapp) or says Live View is connecting.
 - **Another host's release.** Keymapp or Oryx in Chrome sending `05 00` gives the lights back too. Every `08 00` makes the
   preview forget what it sent, so its next frame takes them again in full (a late reply to Sextant's own release costs
@@ -76,7 +78,8 @@ or more. Ending a session drops whatever it still has queued, a `05 00` included
   on `FakeHID`, and `KeyboardLightingPreviewTests` drive the window's paths on a stand-in link. Trying the takeover on
   the keyboard needs the user's OK in chat for RGB takeover.
 - If Sextant crashes, or the quit wait runs out, the colors stay until the keyboard is unplugged; the next launch sends
-  nothing to repair them. Sleep queues the release but can't wait for it: with at most one batch queued it goes out
+  nothing to repair them. So does quitting between two sessions (a failed write with the keyboard still plugged in),
+  and a due release waits while Live View stays off: Sextant doesn't open a session just to give the lights back. Sleep queues the release but can't wait for it: with at most one batch queued it goes out
   within about half a second.
 - `LiveSession.stop()` (tests only) ends the session at once, without a release.
 - Paired state is shared: Sextant's takeover hides Keymapp's or Oryx's, and either one's `05 00` ends Sextant's until its
