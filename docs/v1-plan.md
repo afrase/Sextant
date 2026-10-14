@@ -471,6 +471,12 @@ The real hot-key adapter stays out of `swift test`, where it would grab ⌃⌥di
 
 ## Wave 3: live features in the window and menu bar (built on fakes; do nothing in the app while live access is off)
 
+**Status (2026-10-15): merged (order 3.4, 3.3, 3.2, 3.1).** "Live access on" now means Live View is on (ADR 0057). Corrections found while building it:
+- 3.1: `SextantMark` already existed (Welcome); it moved to Theme, with a filled `SextantGlyph` added. A third General row, "Show the layer's color in the menu bar" (off); "Keep in the menu bar" defaults off. `WindowRouter` and `AppPresence` are built in SextantMain.
+- 3.2: `LayerHold` has a fourth case, `pointer` (the Navigator's auto-mouse layer with nothing held shows nothing), and `classify` takes each pressed key with the layer it went down on. `OverlayHUD` is the app-wide owner, on `SextantServices`. No full-screen-video check (ADR 0050).
+- 3.3: the window glue is `Lighting/KeyboardLighting.swift`; Live View off and sleep are release paths too; a disconnect sends nothing and resends the frame on reconnect; a release that can't go out is kept for the next pairing.
+- 3.4: the esc rung lives in `LayoutWindowModel.escapeBoard()`; the menu item is disabled with the reason rather than starting Live View (pairing is a write); the Mac's copy of a press is swallowed until its key-up plus a 50 ms tail (longer for a tap dance).
+
 These need wave 0's command channel and OnKeyboard, 1.5's settings, and 2.4's LayerMap and layer move. They read `05`, `06` and `07` events from a paired session, and the RGB preview writes. All are built and tested on FakeKeyboardLink, FakeDeviceWatcher and FakeHID, and can only be tried on the Voyager once the user turns live access on and approves each write category.
 
 ### 3.1 Menu bar extra and activation policy (L)
@@ -717,7 +723,7 @@ Rules that keep merges clean:
 - wave 0: 0.4, 0.2, 0.1, 0.3, 0.5;
 - wave 1: 1.5, 1.1, 1.4, 1.2, 1.3;
 - wave 2: 2.6, 2.5, 2.4, 2.3, 2.1, 2.2 (2.6 was added for wave 1's leftovers);
-- wave 3: 3.4, 3.3, 3.2, 3.1;
+- wave 3: 3.4, 3.3, 3.2, 3.1 (merged 2026-10-15);
 - wave 4: 4.1, 4.2.
 Run scripts/check after every merge, not only per branch.
 
