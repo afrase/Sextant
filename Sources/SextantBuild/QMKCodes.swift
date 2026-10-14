@@ -59,12 +59,12 @@ enum QMKCodes {
     static func mask(_ modifiers: Modifiers) -> String { modifiers.qmkMaskNames.joined(separator: " | ") }
 
     /// `MT(MOD_LALT, KC_Z)`, `LT(1, KC_ENTER)` or `MEH_T(KC_ENTER)` when QMK can express the pair in one keycode:
-    /// a plain basic tap and a single-modifier, `*_T` or momentary-layer (0–15) hold. Nil means a dual-function key.
+    /// a plain basic tap and a single-modifier, mod-tap function (`MEH_T`) or momentary-layer (0–15) hold. Nil means a dual-function key.
     static func modTapOrLayerTap(tap: KeyAction, hold: KeyAction) -> String? {
         // The domain's rule, which combo triggers share (ADR 0046).
         guard Key.isModTapOrLayerTap(tap: tap, hold: hold) else { return nil }
         let tapName = name(tap.code)
-        if hold.code.hasSuffix("_T") { return "\(hold.code)(\(tapName))" }
+        if KeycodeCatalog.modTapFunctions.contains(hold.code) { return "\(hold.code)(\(tapName))" }
         if let m = KeycodeCatalog.modifier(forCode: hold.code), m.rawValue.nonzeroBitCount == 1 { return "MT(\(mask(m)), \(tapName))" }
         if hold.canonicalCode == "MO", let layer = hold.layer, (0...15).contains(layer) { return "LT(\(layer), \(tapName))" }
         return nil

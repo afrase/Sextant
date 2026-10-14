@@ -279,14 +279,17 @@ private struct MacroStepTable: View {
                 let legend = Legends.legend(for: KeyAction(code: row.step.code))
                 Text(verbatim: legend.text).help(Text(verbatim: legend.name))
             }
-            // 76 pt holds the legend of every step, typable or not ("Status LEDs"), at 1120×640 and leaves QMK two
-            // modifiers; with no max, wider windows give Key room too (an imported step's "Clear EEPROM").
+            // 76 pt holds the legend of every step a macro can type and of every one it can't but "Clear EEPROM" (88.5 pt)
+            // at 1120×640, and leaves QMK two modifiers. That one imported step, which a macro can't type anyway, is cut
+            // short there and keeps its name in the tooltip and for VoiceOver; with no max, a wider window shows it.
             .width(min: 56, ideal: 76)
             // Wide enough for ⌃⌥⇧⌘ (48.5 pt), which macros often hold.
             TableColumn("Mods") { row in Text(verbatim: row.step.modifiers.glyphs) }.width(52)
-            // Wide enough for "5000 ms" (54 pt), the longest wait.
+            // Wide enough for "5000 ms" (54 pt), the longest wait, written without a grouping separator as the "Types:"
+            // line writes it: "5,000 ms" would clip.
             TableColumn("Wait") { row in
-                Text(row.step.delay == 0 ? "—" : "\(row.step.delay) ms").monospacedDigit().foregroundStyle(.secondary)
+                Text(row.step.delay == 0 ? "—" : "\(row.step.delay, format: .number.grouping(.never)) ms").monospacedDigit()
+                    .foregroundStyle(.secondary)
             }
             .width(56)
             TableColumn("QMK") { row in

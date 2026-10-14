@@ -73,6 +73,36 @@ struct QMKKeycodeNameTests {
         }
     }
 
+    /// Only QMK's mod-tap functions take a tap as their argument: the letter T as a hold ends in `_T` but is a plain
+    /// keycode, so `KC_T(KC_A)` failed the build that LayoutIssues passed. Every catalog code in the hold slot builds.
+    @Test func onlyAModTapFunctionTakesTheTapAsItsArgument() throws {
+        let letterT = try #require(
+            try QMKGenerator().generate(Self.layout(Key(tap: .code("KC_A"), hold: .code("KC_T"))), identity: Self.identity).files[
+                "keymap.c"])
+        #expect(!letterT.contains("KC_T(KC_A)"))
+        #expect(!Key.isModTapOrLayerTap(tap: .code("KC_A"), hold: .code("KC_T")))
+        for code in ["ALL_T", "HYPR_T", "MEH_T"] {
+            let keymap = try #require(
+                try QMKGenerator().generate(Self.layout(Key(tap: .code("KC_A"), hold: .code(code))), identity: Self.identity).files[
+                    "keymap.c"])
+            #expect(keymap.contains("\(code)(KC_A),"), "\(code)")
+        }
+        for code in Self.codes {
+            let layout = Self.layout(Key(tap: .code("KC_A"), hold: .code(code)))
+            guard let keymap = (try? QMKGenerator().generate(layout, identity: Self.identity))?.files["keymap.c"] else { continue }
+            for match in keymap.matches(of: /\b(\w+_T)\(/) {
+                #expect(KeycodeCatalog.modTapFunctions.contains(String(match.1)), "\(code): \(match.0)")
+            }
+        }
+    }
+
+    /// The mod-tap functions are the pinned QMK's own, when the toolchain is set up.
+    @Test(.enabled(if: PinnedQMK.declared != nil))
+    func pinnedQMKDeclaresEveryModTapFunction() throws {
+        let declared = try #require(PinnedQMK.declared)
+        for name in KeycodeCatalog.modTapFunctions { #expect(declared.contains(name), "\(name)") }
+    }
+
     /// The list names catalog spellings only, never a catalog's own code.
     @Test func droppedSpellingsAreCatalogAliases() {
         for name in QMKCodes.undeclaredLegacyNames {

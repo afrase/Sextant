@@ -15,7 +15,7 @@ extension LayoutWindowModel {
 
     var canAddMacro: Bool { page == .macros && session != nil }
 
-    /// The Macros page's selected macro, which Record Steps… and Assign to Key… act on.
+    /// The Macros page's selected macro, which Record Steps and Assign to Key… act on.
     var pageMacro: MacroLocator? {
         guard page == .macros, let session, let locator = session.selection.macro, session.layout.macro(at: locator) != nil else {
             return nil
@@ -41,7 +41,7 @@ extension LayoutWindowModel {
             if let id = self.comboForKeys { self.session?.deleteCombo(id) }
         }
         add(String(localized: "New Macro"), "", canAddMacro) { self.session?.newMacro() }
-        add(String(localized: "Record Steps…"), "", macroToRecordInto != nil) {
+        add(String(localized: "Record Steps"), "", macroToRecordInto != nil) {
             if let locator = self.macroToRecordInto { self.startRecordingSteps(in: locator) }
         }
         add(String(localized: "Assign to Key…"), "", pageMacro != nil) {
@@ -70,7 +70,7 @@ struct MacroMenuItems: View {
 
     var body: some View {
         Button("New Macro") { window?.session?.newMacro() }.disabled(window?.canAddMacro != true)
-        Button("Record Steps…") { if let locator = window?.macroToRecordInto { window?.startRecordingSteps(in: locator) } }
+        Button("Record Steps") { if let locator = window?.macroToRecordInto { window?.startRecordingSteps(in: locator) } }
             .disabled(window?.macroToRecordInto == nil)
         Button("Assign to Key…") { if let locator = window?.pageMacro { window?.assignMacroToKey(locator) } }
             .disabled(window?.pageMacro == nil)
@@ -79,8 +79,11 @@ struct MacroMenuItems: View {
 
 /// Edit ▸ Delete is AppKit's standard item, which SwiftUI enables for the focused view's `onDeleteCommand`: the selected
 /// combo on the Combos page, the selected macro (or step) on the Macros page, the selection in a text field. It comes
-/// with no key equivalent; this shows plain ⌫ on it, the key those views take (spec §9.1). The item never takes the key
-/// itself: its equivalent is U+0008, and the Mac's ⌫ sends U+007F, which reaches the focused view as before.
+/// with no key equivalent; this gives it plain ⌫ (spec §9.1). AppKit matches the U+0008 equivalent to the ⌫ key, though
+/// the key's character is U+007F (as ⌘⌫ reaches Make Transparent), so while the item is enabled the menu takes ⌫ first
+/// and sends `delete:` to the focus: a text field deletes its selection, a page its combo, macro or step. Disabled (a
+/// field with only a caret, nothing to delete), ⌫ goes to the focused view. So a view under an `onDeleteCommand` can't
+/// give ⌫ a meaning of its own: the menu would run the delete instead.
 @MainActor
 public enum DeleteMenuItem {
     /// Shows ⌫ now and again each time a menu opens, in case SwiftUI rebuilt the menu bar.

@@ -87,6 +87,9 @@
     "%@ layer, no keys down" : {
 
     },
+    "%@ ms" : {
+
+    },
     "%@ of %@" : {
       "localizations" : {
         "en" : {
@@ -938,6 +941,9 @@
     "Combo key %@ is transparent" : {
 
     },
+    "Combo key %@ types the same keycode as another" : {
+
+    },
     "Combos" : {
 
     },
@@ -1178,6 +1184,9 @@
 
     },
     "Each shortcut (⌃⌥0 to ⌃⌥9 unless you record others) moves the keyboard to its layer while Live View is on, whichever app you’re in; one that can’t beeps, and says why above. While they’re on, other apps don’t get those keys." : {
+
+    },
+    "Edit Combo Keys…" : {
 
     },
     "Edit Key" : {

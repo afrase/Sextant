@@ -21,6 +21,8 @@ struct CombosCanvas: View {
                 model.startNewCombo()
                 return .handled
             }
+            // Edit ▸ Delete takes ⌫ first (`DeleteMenuItem`); this answers it until that item has its key again after
+            // the menu bar is rebuilt.
             .onKeyPress(keys: BoardView.deleteKeys, phases: .down) { _ in
                 guard model.boardPick == nil, let id = model.selectedPageCombo?.id else { return .ignored }
                 session.deleteCombo(id)

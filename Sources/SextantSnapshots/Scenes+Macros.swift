@@ -99,15 +99,17 @@ extension Scenes {
             [
                 MacroStep(code: "KC_1", modifiers: [.leftControl, .leftCommand], delay: 100),
                 MacroStep(code: "KC_2", modifiers: [.leftControl, .leftCommand], delay: 100),
-                MacroStep(code: "KC_O", modifiers: [.leftControl, .leftShift, .leftCommand], delay: 250),
+                // The longest wait.
+                MacroStep(code: "KC_O", modifiers: [.leftControl, .leftShift, .leftCommand], delay: 5000),
                 MacroStep(code: "KC_F12", modifiers: [.leftControl, .leftOption, .leftShift, .leftCommand]),
                 MacroStep(code: "MAC_SPOTLIGHT"),
-                // The longest names of steps a macro can't type, by their warning.
-                MacroStep(code: "CW_TOGG"),
+                // The longest names of steps a macro can't type, by their warning: at 1120×640 "Clear EEPROM" alone is
+                // cut short (MacroStepTable).
+                MacroStep(code: "EE_CLR"),
                 MacroStep(code: "LED_LEVEL"),
+                MacroStep(code: "CW_TOGG"),
                 MacroStep(code: "KC_WWW_HOME"),
                 MacroStep(code: "KC_SPACE", modifiers: [.leftControl, .leftCommand]),
-                MacroStep(code: "EE_CLR"),
                 MacroStep(code: "KC_V", modifiers: [.leftCommand], delay: 30),
                 MacroStep(code: "KC_ENTER"),
             ], on: 32)

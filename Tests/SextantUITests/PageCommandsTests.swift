@@ -56,9 +56,9 @@ struct PageCommandsTests {
         try run(model, "New Macro")
         let locator = try #require(session.selection.macro)
         #expect(session.layout.macros.count == 1 && model.pageMacro == locator && model.macroToRecordInto == locator)
-        #expect(commandIDs(model, "steps").contains("command-Record Steps…"))
+        #expect(commandIDs(model, "steps").contains("command-Record Steps"))
 
-        try run(model, "Record Steps…")
+        try run(model, "Record Steps")
         #expect(model.macros.stepRecorder?.macro == locator && model.macroToRecordInto == nil, "already recording")
         model.stopRecordingSteps()
 
