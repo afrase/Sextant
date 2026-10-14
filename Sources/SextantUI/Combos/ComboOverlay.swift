@@ -4,8 +4,9 @@ import SextantDomain
 import SwiftUI
 
 /// The Combos board's drawing over the caps (spec §6.4): a 2 pt trace joining each combo's keys, shown only in the gaps
-/// between caps, and an output pill in the combo's colour, placed where it covers no legend and no number. The caps'
-/// rings, numbers and dimming come from the cap decoration (``LayoutWindowModel/comboDecoration(index:)``).
+/// between caps, an output pill in the combo's colour, placed where it covers no legend and no number, and the numbers
+/// of combos neither a cap's own number nor a trace would show. The caps' rings, numbers and dimming come from the cap
+/// decoration (``LayoutWindowModel/comboDecoration(index:)``).
 /// Drawn in the board area's space, so a pill can sit beside the board when there is no room between the keys.
 struct ComboOverlay: View {
     var board: BoardLayout
@@ -25,6 +26,10 @@ struct ComboOverlay: View {
             let pills = ComboPills.place(drawn, layout: session.layout, legends: legends, board: board, area: area)
             ZStack(alignment: .topLeading) {
                 Canvas { context, _ in traces(drawn, in: &context) }
+                ForEach(ComboPills.strayNumbers(drawn, board: board), id: \.id) { badge in
+                    MarkBadge(mark: badge.item.mark(accessibilityText: ""))
+                        .position(x: badge.center.x + origin.x, y: badge.center.y + origin.y)
+                }
                 ForEach(pills, id: \.item.id) { pill($0) }
             }
             .frame(width: size.width, height: size.height, alignment: .topLeading)
@@ -83,6 +88,14 @@ enum ComboPills {
         var rect: CGRect
     }
 
+    /// A combo's number beside a cap's own, in board points.
+    struct StrayNumber {
+        var item: NumberedCombo
+        var key: Int
+        var center: CGPoint
+        var id: String { "\(item.id)-\(key)" }
+    }
+
     /// Between the number and the output.
     static let spacing: CGFloat = 3
 
@@ -97,9 +110,10 @@ enum ComboPills {
         let font = NSFont.systemFont(ofSize: fontSize, weight: .semibold)
         func width(_ text: String) -> CGFloat { ceil(NSAttributedString(string: text, attributes: [.font: font]).size().width) }
         var obstacles = legends
-        // The number badges on the drawn combos' keys.
+        // The number badges on the drawn combos' keys, and those beside them.
         let numbered = Set(combos.flatMap(\.combo.keyIndices))
         obstacles += board.frames.filter { numbered.contains($0.index) }.map(numberRect)
+        obstacles += strayNumbers(combos, board: board).map { CGRect(x: $0.center.x - 8, y: $0.center.y - 8, width: 16, height: 16) }
         if let nav = board.navigator {
             obstacles.append(
                 CGRect(x: nav.center.x - nav.diameter / 2, y: nav.center.y - nav.diameter / 2, width: nav.diameter, height: nav.diameter))
@@ -164,10 +178,55 @@ enum ComboPills {
     /// out, since what shows of it ends at that cap, which may be ringed for another combo, and reads as joining it. A
     /// combo drawn alone keeps every line: only its own keys are ringed.
     static func trace(_ item: NumberedCombo, board: BoardLayout, alone: Bool) -> [(CGPoint, CGPoint)] {
-        let edges = tree(item.combo.keyIndices.compactMap { board.frames[safe: $0]?.center })
+        traceKeys(item, board: board, alone: alone).compactMap { a, b in
+            guard let p = board.frames[safe: a]?.center, let q = board.frames[safe: b]?.center else { return nil }
+            return (p, q)
+        }
+    }
+
+    /// The trace's lines as pairs of key indices.
+    private static func traceKeys(_ item: NumberedCombo, board: BoardLayout, alone: Bool) -> [(Int, Int)] {
+        let keys = item.combo.keyIndices.filter { board.frames.indices.contains($0) }
+        let edges = tree(keys.map { board.frames[$0].center }).map { (keys[$0], keys[$1]) }
         guard !alone else { return edges }
-        let others = board.frames.filter { !item.combo.keyIndices.contains($0.index) }.map(\.corners)
-        return edges.filter { a, b in !others.contains { crosses(a, b, $0) } }
+        let others = board.frames.filter { !keys.contains($0.index) }.map(\.corners)
+        return edges.filter { a, b in !others.contains { crosses(board.frames[a].center, board.frames[b].center, $0) } }
+    }
+
+    /// The numbers the caps and traces leave out (ADR 0046). A key in several combos shows the lowest number, and the
+    /// overview leaves out lines that pass under other caps, so a combo of keys far apart, or of keys all in lower
+    /// combos, can show nothing that ties its keys to its pill. Each of its keys that no line joins to a key showing its
+    /// number gets the number beside the cap's own, along the top edge.
+    static func strayNumbers(_ combos: [NumberedCombo], board: BoardLayout) -> [StrayNumber] {
+        guard combos.count > 1 else { return [] }
+        var shown: [Int: String] = [:]
+        for item in combos {
+            for key in item.combo.keyIndices where shown[key] == nil { shown[key] = item.id }
+        }
+        var strays: [StrayNumber] = []
+        var besideCount: [Int: Int] = [:]
+        for item in combos {
+            // Keys joined by a drawn line share a group; a group with a key showing the number needs nothing more.
+            var group = Dictionary(item.combo.keyIndices.map { ($0, $0) }, uniquingKeysWith: { a, _ in a })
+            func root(_ key: Int) -> Int {
+                var key = key
+                while let parent = group[key], parent != key { key = parent }
+                return key
+            }
+            for (a, b) in traceKeys(item, board: board, alone: false) {
+                let (ra, rb) = (root(a), root(b))
+                group[ra] = rb
+            }
+            let anchored = Set(item.combo.keyIndices.filter { shown[$0] == item.id }.map(root))
+            for key in item.combo.keyIndices where !anchored.contains(root(key)) {
+                guard let frame = board.frames[safe: key] else { continue }
+                let slot = (besideCount[key] ?? 0) + 1
+                besideCount[key] = slot
+                let center = rotate(CGPoint(x: -frame.size.width / 2 + 3 + 15 * CGFloat(slot), y: -frame.size.height / 2 + 3), frame)
+                strays.append(StrayNumber(item: item, key: key, center: center))
+            }
+        }
+        return strays
     }
 
     /// Whether the segment from `a` to `b` crosses an edge of the polygon (both ends lie outside it: they are other
@@ -179,13 +238,13 @@ enum ComboPills {
         }
     }
 
-    /// The shortest tree joining the points (Prim's), as line segments.
-    static func tree(_ points: [CGPoint]) -> [(CGPoint, CGPoint)] {
-        guard let first = points.first else { return [] }
-        var joined = [first], rest = Array(points.dropFirst()), edges: [(CGPoint, CGPoint)] = []
-        func distance(_ a: CGPoint, _ b: CGPoint) -> CGFloat { hypot(a.x - b.x, a.y - b.y) }
+    /// The shortest tree joining the points (Prim's), as pairs of their positions in `points`.
+    static func tree(_ points: [CGPoint]) -> [(Int, Int)] {
+        guard !points.isEmpty else { return [] }
+        var joined = [0], rest = Array(points.indices.dropFirst()), edges: [(Int, Int)] = []
+        func distance(_ a: Int, _ b: Int) -> CGFloat { hypot(points[a].x - points[b].x, points[a].y - points[b].y) }
         while !rest.isEmpty {
-            var best: (from: CGPoint, to: Int, d: CGFloat)?
+            var best: (from: Int, to: Int, d: CGFloat)?
             for a in joined {
                 for (i, b) in rest.enumerated() where best.map({ distance(a, b) < $0.d }) ?? true { best = (a, i, distance(a, b)) }
             }

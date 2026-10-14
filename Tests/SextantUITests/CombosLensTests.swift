@@ -243,6 +243,25 @@ struct CombosLensTests {
         #expect(ComboPills.trace(beside, board: board, alone: false).count == 2)
     }
 
+    /// A combo whose keys show other combos' numbers and that no line joins to its own number gets its number beside
+    /// theirs on each such key; a key showing its number anchors the keys a line joins to it.
+    @Test func numbersNoCapOrTraceShowsGoBesideTheCapsOwn() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        let board = session.geometry.layout(keySize: 50, spacing: 5.5)
+        let f = 16, d = 15, g = 17
+        let jk = NumberedCombo(number: 1, combo: Combo(keyIndices: [j, k], output: .code("KC_A")))
+        let df = NumberedCombo(number: 2, combo: Combo(keyIndices: [d, f], output: .code("KC_B")))
+        let fj = NumberedCombo(number: 3, combo: Combo(keyIndices: [f, j], output: .code("KC_C")))
+        let fg = NumberedCombo(number: 4, combo: Combo(keyIndices: [f, g], output: .code("KC_D")))
+        let strays = ComboPills.strayNumbers([jk, df, fj, fg], board: board)
+        #expect(strays.map(\.id).sorted() == ["\(fj.id)-\(f)", "\(fj.id)-\(j)"], "G shows 4 and a line joins it to F")
+        let besideF = try #require(strays.first { $0.key == f }?.center)
+        let fFrame = board.frames[f]
+        #expect(abs(besideF.x - (fFrame.center.x - 25 + 18)) < 0.5 && abs(besideF.y - (fFrame.center.y - 25 + 3)) < 0.5)
+        #expect(ComboPills.strayNumbers([fj], board: board).isEmpty, "a combo drawn alone shows its number on every key")
+    }
+
     @Test func paletteFindsCombos() async throws {
         let model = try await openUserLayout()
         let session = try #require(model.session)
@@ -273,7 +292,11 @@ struct CombosLensTests {
         for layer in Set(layout.combos.map(\.keysLayer)) {
             let legends = ComboPills.legendRects(layout: layout, layer: layer, mode: .symbols, board: board)
             let pills = ComboPills.place(combos, layout: layout, legends: legends, board: board, area: area)
-            let numbers = board.frames.filter { f in layout.combos.contains { $0.keyIndices.contains(f.index) } }.map(ComboPills.numberRect)
+            let strays = ComboPills.strayNumbers(combos, board: board).map {
+                CGRect(x: $0.center.x - 7, y: $0.center.y - 7, width: 14, height: 14)
+            }
+            let numbers =
+                board.frames.filter { f in layout.combos.contains { $0.keyIndices.contains(f.index) } }.map(ComboPills.numberRect) + strays
             for pill in pills {
                 #expect(!legends.contains { $0.intersects(pill.rect) }, "\(label): pill \(pill.item.number) covers a legend")
                 #expect(!numbers.contains { $0.intersects(pill.rect) }, "\(label): pill \(pill.item.number) covers a number")
@@ -326,7 +349,7 @@ struct CombosLensTests {
         let points = [CGPoint.zero, CGPoint(x: 10, y: 0), CGPoint(x: 0, y: 10), CGPoint(x: 30, y: 0)]
         let edges = ComboPills.tree(points)
         #expect(edges.count == 3)
-        #expect(edges.contains { $0.0 == CGPoint(x: 10, y: 0) && $0.1 == CGPoint(x: 30, y: 0) }, "the far key joins its nearest")
+        #expect(edges.contains { $0 == (1, 3) }, "the far key joins its nearest")
         #expect(ComboPills.tree([]).isEmpty && ComboPills.tree([.zero]).isEmpty)
     }
 }

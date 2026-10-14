@@ -56,6 +56,20 @@ struct EditSessionCombosTests {
         #expect(session.layout == original)
     }
 
+    /// "Keys from" shows the layer the combo now reads, and undo and redo each bring back the layer that went with it.
+    @Test func changingAComboLayerShowsItThroughUndoAndRedo() async throws {
+        let (session, undo) = try await open()
+        var id = ""
+        step(undo) { id = session.newCombo(keys: [39, 40], layer: 1, output: .code("KC_ESCAPE")) }
+        session.select(layer: 1)
+        step(undo) { session.setComboLayer(2, in: id) }
+        #expect(session.selection.layer == 2 && session.selection.combo == id)
+        undo.undo()
+        #expect(session.layout.combo(id: id)?.layer == 1 && session.selection.layer == 1)
+        undo.redo()
+        #expect(session.layout.combo(id: id)?.layer == 2 && session.selection.layer == 2 && session.selection.combo == id)
+    }
+
     /// Delete Layer takes the combos reading it, and with them a selection that would point at nothing.
     @Test func deletingTheLayerAComboReadsClearsItsSelection() async throws {
         let (session, undo) = try await open()

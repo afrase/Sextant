@@ -26,6 +26,15 @@ struct NumberedCombo: Identifiable {
     var combo: Combo
     var id: String { combo.id }
     var color: Token { Tokens.combo(number - 1) }
+
+    /// Its number as a cap's corner badge. At 14 pt SF Symbols squeezes two digits past reading, and circles numbers
+    /// only up to 50: those are text.
+    func mark(accessibilityText: String) -> CapDecoration.Mark {
+        let twoDigits = number >= 10
+        return CapDecoration.Mark(
+            symbol: twoDigits ? "circle.fill" : "\(number).circle.fill", color: color, accessibilityText: accessibilityText,
+            text: twoDigits ? "\(number)" : nil)
+    }
 }
 
 /// Words for combos: cards, chips, pills and VoiceOver (spec §6.4).
@@ -135,12 +144,7 @@ extension LayoutWindowModel {
         let containing = drawn.filter { $0.combo.keyIndices.contains(index) }
         guard let first = containing.first else { return CapDecoration(opacity: 0.45) }
         let words = containing.map { ComboText.spoken($0, in: session.layout) }.joined(separator: "; ")
-        // At 14 pt SF Symbols squeezes two digits past reading, and circles numbers only up to 50: those are text.
-        let twoDigits = first.number >= 10
-        let mark = CapDecoration.Mark(
-            symbol: twoDigits ? "circle.fill" : "\(first.number).circle.fill", color: first.color, accessibilityText: words,
-            text: twoDigits ? "\(first.number)" : nil)
-        return CapDecoration(ring: first.color, number: mark)
+        return CapDecoration(ring: first.color, number: first.mark(accessibilityText: words))
     }
 
     // MARK: Selecting
@@ -168,11 +172,7 @@ extension LayoutWindowModel {
     }
 
     /// "Keys from": the combo reads another layer, and the board shows it, so the caps show the keys it now reads.
-    func setComboLayer(_ layer: Int, of id: String) {
-        guard let session else { return }
-        session.setComboLayer(layer, in: id)
-        session.select(layer: layer)
-    }
+    func setComboLayer(_ layer: Int, of id: String) { session?.setComboLayer(layer, in: id) }
 
     // MARK: Choosing keys
 

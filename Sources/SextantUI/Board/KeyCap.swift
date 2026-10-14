@@ -397,18 +397,7 @@ struct KeyCap: View, Equatable {
             .offset(x: 4, y: -4)
     }
 
-    /// Drawn like the issue badge: white shows through a filled symbol's cut-out ("plus.circle.fill", "3.circle.fill").
-    @ViewBuilder private func markBadge(_ mark: CapDecoration.Mark) -> some View {
-        if let text = mark.text {
-            NumberDisc(text: text, color: mark.color, diameter: 14)
-        } else {
-            Image(systemName: mark.symbol)
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(mark.color.color)
-                .background { Circle().fill(.white).padding(1) }
-                .frame(width: 14, height: 14)
-        }
-    }
+    private func markBadge(_ mark: CapDecoration.Mark) -> some View { MarkBadge(mark: mark) }
 
     @ViewBuilder private var kindGlyph: some View {
         switch model.kind {

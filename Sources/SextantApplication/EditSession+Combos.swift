@@ -33,9 +33,16 @@ extension EditSession {
         edit(String(localized: "Set Combo Output"), select: { $0.combo = id }) { $0.setComboOutput(output, in: id) }
     }
 
-    /// The layer the combo reads its keys from (ADR 0046); nil is the base layer.
+    /// The layer the combo reads its keys from (ADR 0046); nil is the base layer. The selection shows that layer, so the
+    /// caps show the keys the combo now reads, and redo brings the layer back with the combo.
     public func setComboLayer(_ layer: Int?, in id: String) {
-        edit(String(localized: "Change Combo Layer"), select: { $0.combo = id }) { $0.setComboLayer(layer, in: id) }
+        edit(
+            String(localized: "Change Combo Layer"),
+            select: { selection, layout in
+                selection.combo = id
+                if let combo = layout.combo(id: id) { selection.layer = combo.keysLayer }
+            }
+        ) { $0.setComboLayer(layer, in: id) }
     }
 
     public func renameCombo(_ id: String, to name: String) {
