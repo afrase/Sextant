@@ -599,6 +599,10 @@ The user checks focus and click-through in the app.
 
 ## Wave 4: live features that work in the background (recording and automatic switching)
 
+**Status (2026-10-15): merged (order 4.1, 4.2).** Corrections found while building it:
+- 4.1: "layer holds" became "layers reached" (the keyboard reports the layer, not why); trash cleanup lives in the recorder, which watches the library, so Library.swift is untouched; the heat ramp is quantized to 21 shared tokens; the typing line ticks with a TimelineView.
+- 4.2: the adapter is `SextantApp/WorkspaceAppWatcher.swift`; the port type is `MacApp`; `AppLayersModel` is the per-window model; Sextant itself coming forward is never an app switch; nothing is sent when Live View starts or a rule changes; rules whose layer isn't in the flashed layout count as missing. Question 2 (the consent model) is built as recommended and still awaits the user's answer.
+
 Both run without a click per action, and each needs its own privacy or consent ADR. The Heatmap stores typing positions. App Layers sends SET_LAYER whenever the frontmost app changes. Both need wave 0's channel and OnKeyboard, and App Layers reuses 2.4's layer move and LayerMap. Each adds one row to 3.1's menu bar panel (the app-rule row and the typing-stats line).
 
 ### 4.1 Heatmap lens and its recording (L)
@@ -724,7 +728,7 @@ Rules that keep merges clean:
 - wave 1: 1.5, 1.1, 1.4, 1.2, 1.3;
 - wave 2: 2.6, 2.5, 2.4, 2.3, 2.1, 2.2 (2.6 was added for wave 1's leftovers);
 - wave 3: 3.4, 3.3, 3.2, 3.1 (merged 2026-10-15);
-- wave 4: 4.1, 4.2.
+- wave 4: 4.1, 4.2 (merged 2026-10-15).
 Run scripts/check after every merge, not only per branch.
 
 ## Questions for the user
