@@ -101,17 +101,18 @@ struct KeymapPlan {
             let layer = combo.layer ?? 0
             var keys: [String] = []
             for index in combo.keyIndices {
-                guard tokens.indices.contains(layer), tokens[layer].indices.contains(index) else {
+                guard tokens.indices.contains(layer), tokens[layer].indices.contains(index),
+                    let key = layout.key(layer: layer, index: index)
+                else {
                     throw .unsupported(String(localized: "a combo with a key that isn't on the keyboard"), nil)
                 }
-                // QMK matches a combo's keycodes as pressed: a transparent key never sends KC_TRANSPARENT, a tap dance's TD()
-                // never reaches the combo, and KC_NO is COMBO_END, which would cut the list short (ADR 0046).
-                let token = tokens[layer][index], ref = KeyRef(layer: layer, index: index)
-                switch token {
-                case "KC_TRANSPARENT": throw .unsupported(String(localized: "a combo key that is transparent"), ref)
-                case "KC_NO": throw .unsupported(String(localized: "a combo key that is disabled"), ref)
-                case _ where token.hasPrefix("TD("): throw .unsupported(String(localized: "a combo key that is a tap dance"), ref)
-                default: keys.append(token)
+                // Refused on the key by the rule the live issues use, so a build fails only on what they flag (ADR 0046).
+                let ref = KeyRef(layer: layer, index: index)
+                switch key.comboRefusal {
+                case .transparent?: throw .unsupported(String(localized: "a combo key that is transparent"), ref)
+                case .disabled?: throw .unsupported(String(localized: "a combo key that is disabled"), ref)
+                case .tapDance?: throw .unsupported(String(localized: "a combo key that is a tap dance"), ref)
+                case nil: keys.append(tokens[layer][index])
                 }
             }
             try note(combo.output, at: nil)

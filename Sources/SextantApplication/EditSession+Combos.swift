@@ -2,11 +2,8 @@ import Foundation
 import SextantDomain
 
 /// Combo edits (spec §6.4, ADR 0046). Each is one named undo step that selects the combo it changed, so undo and redo
-/// bring the inspector back to it.
+/// bring the inspector back to it; renaming doesn't, since the name field commits as the user moves to another combo.
 extension EditSession {
-    /// The selected combo, while the layout still has it.
-    public var selectedCombo: Combo? { selection.combo.flatMap { layout.combo(id: $0) } }
-
     public func selectCombo(_ id: String?) { selection.combo = id }
 
     /// Makes a combo from keys chosen on the board and its output, and selects it. `layer` is where it reads its keys.
@@ -42,6 +39,6 @@ extension EditSession {
     }
 
     public func renameCombo(_ id: String, to name: String) {
-        edit(String(localized: "Rename Combo"), select: { $0.combo = id }) { $0.renameCombo(id: id, to: name) }
+        edit(String(localized: "Rename Combo")) { $0.renameCombo(id: id, to: name) }
     }
 }

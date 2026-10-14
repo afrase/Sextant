@@ -63,16 +63,23 @@ enum ComboText {
         String(localized: "Keys from \(layout.layers[safe: combo.keysLayer]?.title ?? "")")
     }
 
-    /// VoiceOver, after the key, by names rather than glyphs: "in combo 2: J + K → Escape".
-    static func spoken(_ item: NumberedCombo, in layout: KeyboardLayout) -> String {
-        let combo = item.combo
-        let keys = combo.keyIndices.map { index in
-            let legend = Legends.legend(layout: layout, layer: combo.keysLayer, index: index).legend
-            return legend.kind == .transparent || legend.kind == .disabled ? "\(index)" : legend.primary?.name ?? "\(index)"
-        }
+    /// A key for VoiceOver, by name rather than glyph ("Return", not "⏎"), else by its index.
+    static func spokenKey(_ index: Int, layer: Int, in layout: KeyboardLayout) -> String {
+        let legend = Legends.legend(layout: layout, layer: layer, index: index).legend
+        return legend.kind == .transparent || legend.kind == .disabled ? "\(index)" : legend.primary?.name ?? "\(index)"
+    }
+
+    /// "J + K → Escape", by names for VoiceOver.
+    static func spokenSummary(_ combo: Combo, in layout: KeyboardLayout) -> String {
+        let keys = combo.keyIndices.map { spokenKey($0, layer: combo.keysLayer, in: layout) }.joined(separator: " + ")
         let output =
             combo.output.macro.map { MacroText.title($0) } ?? Legends.legend(for: combo.output, layerNames: layout.layerNames).name
-        return String(localized: "in combo \(item.number): \(keys.joined(separator: " + ")) → \(output)")
+        return "\(keys) → \(output)"
+    }
+
+    /// VoiceOver, after the key: "in combo 2: J + K → Escape".
+    static func spoken(_ item: NumberedCombo, in layout: KeyboardLayout) -> String {
+        String(localized: "in combo \(item.number): \(spokenSummary(item.combo, in: layout))")
     }
 }
 
@@ -88,11 +95,16 @@ extension LayoutWindowModel {
         }
     }
 
-    /// The combos the board draws: the selected one alone, else every shown one.
-    var focusedCombos: [NumberedCombo] {
-        let shown = shownCombos
-        return shown.first { $0.id == session?.selection.combo }.map { [$0] } ?? shown
+    /// The selected combo while the board shows the layer it reads (spec §6.4). On another layer its rings would sit on
+    /// other keys, so the board, inspector and ⌫ treat it as unselected until that layer is shown again.
+    var selectedPageCombo: NumberedCombo? {
+        guard let session, let item = numberedCombo(session.selection.combo), item.combo.keysLayer == session.selection.layer
+        else { return nil }
+        return item
     }
+
+    /// The combos the board draws: the selected one alone, else every shown one.
+    var focusedCombos: [NumberedCombo] { selectedPageCombo.map { [$0] } ?? shownCombos }
 
     func numberedCombo(_ id: String?) -> NumberedCombo? {
         guard let session, let id, let i = session.layout.combos.firstIndex(where: { $0.id == id }) else { return nil }
@@ -102,6 +114,8 @@ extension LayoutWindowModel {
     /// The draft as a combo, numbered as it will be, for the board and the cards.
     var draftCombo: NumberedCombo? {
         guard let session, let draft = combos.draft else { return nil }
+        // Undo took the combo whose keys are changing: there is nothing left to change.
+        if draft.combo != nil && numberedCombo(draft.combo) == nil { return nil }
         if let existing = numberedCombo(draft.combo) {
             var combo = existing.combo
             combo.keyIndices = draft.keys
@@ -121,10 +135,11 @@ extension LayoutWindowModel {
         let containing = drawn.filter { $0.combo.keyIndices.contains(index) }
         guard let first = containing.first else { return CapDecoration(opacity: 0.45) }
         let words = containing.map { ComboText.spoken($0, in: session.layout) }.joined(separator: "; ")
-        // SF Symbols number circles only up to 50.
+        // At 14 pt SF Symbols squeezes two digits past reading, and circles numbers only up to 50: those are text.
+        let twoDigits = first.number >= 10
         let mark = CapDecoration.Mark(
-            symbol: "\(first.number).circle.fill", color: first.color, accessibilityText: words,
-            text: first.number > 50 ? "\(first.number)" : nil)
+            symbol: twoDigits ? "circle.fill" : "\(first.number).circle.fill", color: first.color, accessibilityText: words,
+            text: twoDigits ? "\(first.number)" : nil)
         return CapDecoration(ring: first.color, number: mark)
     }
 
@@ -143,13 +158,20 @@ extension LayoutWindowModel {
         if let combo = id.flatMap(session.layout.combo(id:)) { session.select(layer: combo.keysLayer) }
     }
 
-    /// A click on a key selects a combo it is in: the selected one if it has the key, else the first shown one; a key in
-    /// no combo clears the selection.
+    /// A click on a key selects a combo it is in: the selected one if it has the key, else the first shown one reading
+    /// the shown layer, else the first shown one, whose layer the board then shows; a key in no combo clears the selection.
     func selectCombo(containing index: Int) {
         guard let session else { return }
         let shown = shownCombos.filter { $0.combo.keyIndices.contains(index) }
-        if shown.contains(where: { $0.id == session.selection.combo }) { return }
-        session.selectCombo(shown.first?.id)
+        if let selected = selectedPageCombo, shown.contains(where: { $0.id == selected.id }) { return }
+        selectCombo((shown.first { $0.combo.keysLayer == session.selection.layer } ?? shown.first)?.id)
+    }
+
+    /// "Keys from": the combo reads another layer, and the board shows it, so the caps show the keys it now reads.
+    func setComboLayer(_ layer: Int, of id: String) {
+        guard let session else { return }
+        session.setComboLayer(layer, in: id)
+        session.select(layer: layer)
     }
 
     // MARK: Choosing keys
@@ -201,8 +223,8 @@ extension LayoutWindowModel {
         combos.draft = draft
     }
 
-    /// The draft has keys enough to keep: 2–6.
-    var canFinishDraft: Bool { (2...Combo.maxKeys).contains(combos.draft?.keys.count ?? 0) }
+    /// The draft has keys enough to keep, 2–6, and its combo is still there.
+    var canFinishDraft: Bool { draftCombo != nil && (2...Combo.maxKeys).contains(combos.draft?.keys.count ?? 0) }
 
     /// Choose Output: the picker as "Combo 3 › Output". The choice makes the combo, on the shown layer's keys, and ends
     /// the pick; closing the picker without one leaves the keys chosen.
@@ -228,6 +250,13 @@ extension LayoutWindowModel {
     func cancelComboDraft() {
         if combos.draft != nil { cancelBoardPick() }
         combos.draft = nil
+    }
+
+    /// Ends Edit Keys when undo has taken its combo: Done would have nothing to change.
+    func endDraftOfRemovedCombo() {
+        guard let id = combos.draft?.combo, session?.layout.combo(id: id) == nil else { return }
+        cancelComboDraft()
+        announce(String(localized: "The combo was removed"))
     }
 
     private func endDraft() {

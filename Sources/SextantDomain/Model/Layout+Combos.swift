@@ -58,14 +58,14 @@ extension KeyboardLayout {
 }
 
 extension LayoutIssues {
-    /// The combo checks the generator can't express, or that won't fire as meant (spec §7.5): more than 6 keys, a key
-    /// set another combo on the same layer has, keys that are transparent or tap dances on the combo's layer (QMK matches
-    /// keycodes, so neither can match), and keys side by side in a row, which fast typing rolls across (a warning).
-    /// Fewer than 2 keys is the empty-combo check's.
+    /// The combo checks the generator can't express, or that won't fire as meant (spec §7.5): more than 6 keys, keycodes
+    /// another combo listens for too (QMK matches keycodes, so only one of the two can fire), a key a combo can't use on
+    /// the combo's layer (``Key/comboRefusal``), and keys side by side in a row, which fast typing rolls across (a
+    /// warning). Fewer than 2 keys is the empty-combo check's.
     static func comboIssues(_ layout: KeyboardLayout) -> [LayoutIssue] {
         let geometry = layout.board?.geometry()
         var issues: [LayoutIssue] = []
-        let triggers = layout.combos.map { "\($0.keysLayer):\(Set($0.keyIndices).sorted())" }
+        let triggers = layout.combos.map { trigger($0, in: layout) }
         for (ci, combo) in layout.combos.enumerated() where combo.keyIndices.count >= 2 {
             func add(_ kind: LayoutIssue.Kind, _ severity: LayoutIssue.Severity = .error) {
                 issues.append(LayoutIssue(kind: kind, severity: severity, key: nil, combo: combo.id))
@@ -73,20 +73,65 @@ extension LayoutIssues {
             if combo.keyIndices.count > Combo.maxKeys { add(.comboTooManyKeys(combo.keyIndices.count)) }
             if triggers.enumerated().contains(where: { $0.offset != ci && $0.element == triggers[ci] }) { add(.duplicateComboTrigger) }
             for index in combo.keyIndices {
-                guard let key = layout.key(layer: combo.keysLayer, index: index) else { continue }
-                if key.isTransparent {
-                    add(.comboKeyTransparent(index))
-                } else if key.isTapDance {
-                    add(.comboKeyTapDance(index))
+                switch layout.key(layer: combo.keysLayer, index: index)?.comboRefusal {
+                case .transparent?: add(.comboKeyTransparent(index))
+                case .disabled?: add(.comboKeyDisabled(index))
+                case .tapDance?: add(.comboKeyTapDance(index))
+                case nil: break
                 }
             }
             if let pair = geometry?.rollingPair(combo.keyIndices) { add(.rollingNeighbors(pair.0, pair.1), .warning) }
         }
         return issues
     }
+
+    /// What a combo's key listens for: the key's one action when the generator writes it as a keycode any key with that
+    /// action shares, else the key itself (a dual-function key or a macro, which the generator numbers per key).
+    private enum Listens: Hashable {
+        case action(KeyAction)
+        case key(layer: Int, index: Int)
+    }
+
+    /// The combo's keycodes, as a count of each, so two combos that listen for the same ones compare equal whichever
+    /// layer or spots they read them from.
+    private static func trigger(_ combo: Combo, in layout: KeyboardLayout) -> [Listens: Int] {
+        var counts: [Listens: Int] = [:]
+        for index in combo.keyIndices {
+            let key = layout.key(layer: combo.keysLayer, index: index)
+            let only = key.flatMap { $0.tap == nil || $0.hold == nil ? $0.tap ?? $0.hold : nil }
+            let listens: Listens =
+                if let only, only.macro == nil, key?.isTapDance == false {
+                    .action(only)
+                } else {
+                    .key(layer: combo.keysLayer, index: index)
+                }
+            counts[listens, default: 0] += 1
+        }
+        return counts
+    }
 }
 
 extension Key {
+    /// Why a combo can't use this key (ADR 0046), the rule the live issues and the generator share.
+    public enum ComboRefusal: Sendable {
+        /// The generator writes KC_TRANSPARENT, which the firmware never reports as pressed: it reports the key below.
+        case transparent
+        /// KC_NO is COMBO_END, which would end the combo's key list early.
+        case disabled
+        /// Oryx refuses tap dances in combos; Sextant keeps its rule.
+        case tapDance
+    }
+
+    /// Nil when a combo can use the key. A key with one of tap and hold is written as that action's keycode, an empty
+    /// key as transparent, whatever its label.
+    public var comboRefusal: ComboRefusal? {
+        if isTapDance { return .tapDance }
+        if tap != nil && hold != nil { return nil }
+        guard let only = tap ?? hold else { return .transparent }
+        if only.isTransparent { return .transparent }
+        return only.isNone ? .disabled : nil
+    }
+
     /// A tap dance: a double tap or tap-then-hold makes the generator build the key as one (spec §6.5).
     var isTapDance: Bool { doubleTap != nil || tapHold != nil }
 }

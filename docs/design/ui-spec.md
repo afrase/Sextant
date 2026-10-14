@@ -875,11 +875,11 @@ The picker is the command palette component in **assign scope**.
 **What a combo's layer means (ADR 0046).** QMK matches combos by keycode. A combo reads the keycodes at its keys on one layer ("Keys from"; none means the base layer), and fires whenever keys typing those keycodes go down together, on any layer. This is Oryx's meaning, so builds match Oryx's; Sextant says it in its own words and never calls it a per-layer restriction.
 
 **Board**
-- Combo keys are ringed in the combo's colour and numbered (a number past 50, which SF Symbols doesn't circle, is text in a filled circle). A key in several combos takes the lowest number; VoiceOver hears every one: "in combo 2: J + K → Escape".
-- A 2 pt trace joins the members (the shortest tree between their centres), drawn only in the gaps between caps.
+- Combo keys are ringed in the combo's colour and numbered (from 10, the number is text in a filled circle: SF Symbols squeezes two digits past reading on a cap, and circles none past 50). A key in several combos takes the lowest number; VoiceOver hears every one: "in combo 2: J + K → Escape".
+- A 2 pt trace joins the members (the shortest tree between their centres), drawn only in the gaps between caps. While several combos are drawn, a line that would pass under a cap outside its combo is left out: what showed of it would end at that cap and read as joining it. A combo drawn alone keeps every line.
 - An output pill (combo colour, its number and the output legend, black or white ink by luminance) sits in the nearest gap above the members. It must never overlap a legend, a number or another pill; if there is no gap, it moves further out, beside or above the board, up to six keys away, and is left out when nothing fits.
 - Non-member keys are at 45%. A selected combo is drawn alone. With no combo to show, nothing dims.
-- The board shows the shown layer: the base layer, the layer chosen in "Keys from", or a selected combo's layer. A click selects a combo the key is in; ⌫ deletes the selected combo; painting and drag-to-swap are off.
+- The board shows the shown layer: the base layer, the layer chosen in "Keys from", or a selected combo's layer. A click selects a combo the key is in, preferring one that reads the shown layer, and shows that combo's layer; ⌫ deletes the selected combo; esc goes back to every combo; painting and drag-to-swap are off. A selected combo counts as selected only while the board shows its layer. VoiceOver's hint on a cap is "Selects a combo with this key.", with no key-editing actions.
 
 **Creating a combo**
 - N, the context strip's "+ New Combo", the lens capsule or the inspector starts creation. The lens lane says "Click 2–6 keys, then Choose Output · esc cancels". A second click takes a key out; a seventh is refused.
@@ -894,7 +894,7 @@ The picker is the command palette component in **assign scope**.
 - Combo window: "50 ms, every combo · Firmware Settings ›".
 - Warnings:
   - "Keys J and K are rolling neighbors" (keys side by side on one row of one half): "Fast typing may set this combo off by accident."
-  - Duplicate trigger set, more than 6 keys, and a transparent or tap-dance key.
+  - Another combo listening for the same keycodes (from any layer: QMK matches keycodes), more than 6 keys, and a transparent, disabled or tap-dance key.
 - [Edit Keys…] and [Delete Combo].
 
 **Combo colours** are Sextant's own categorical palette (§10.1).
@@ -1351,11 +1351,11 @@ The board is one tab stop. These keys are handled with `.onKeyPress` and `.onMov
 | ← ↑ → ↓ | Move the selection to the geometric neighbour. Crosses the halves and reaches the thumbs (`BoardGeometry.neighbor`) |
 | ⏎ | Open the picker for the current slot. During a board pick (§6.3, §6.4), pick the selected key; typing and ⌫ then do nothing |
 | ⇥ / ⇧⇥ | Next / previous slot |
-| ⌫ | Make Transparent |
+| ⌫ | Make Transparent; on the Combos page, delete the selected combo (§6.4) |
 | Space | Show the inherited key (peek) while held, on a transparent key (v1) |
 | Any printable character | Open the picker pre-filled (§5.5) |
 | B / E / I / G | Lighting lens tools |
-| N | Combos lens: new combo |
+| N | On the Combos page: new combo (§6.4) |
 | esc | The Esc ladder (§9.3) |
 
 ### 9.3 Esc ladder
@@ -1365,7 +1365,7 @@ Each press of esc steps back one level:
 2. Picker or palette → close, wherever focus is in the window.
 3. Popover → close.
 4. An in-progress gesture (combo creation, paint stroke, Assign to Key) → cancel. A board pick also takes esc through its capsule's [Cancel], the window's cancel shortcut (ADR 0042).
-5. Key selection → deselect.
+5. Key selection → deselect. On the Combos page a selected combo goes first, back to every combo (§6.4).
 
 Esc never switches lens or destination.
 

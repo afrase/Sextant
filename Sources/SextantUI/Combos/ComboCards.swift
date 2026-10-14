@@ -13,9 +13,11 @@ struct CombosCanvas: View {
             .environment(\.brush, nil)
             .navigationTitle(session.layout.title)
             .navigationSubtitle(session.isEditedSinceRevision ? String(localized: "Combos · Edited") : String(localized: "Combos"))
+            // Clicks select combos in click(key:); the arrow keys move the selected key, and a combo follows it.
             .onChange(of: session.selection.keyIndex) {
                 if model.boardPick == nil, let index = session.selection.keyIndex { model.selectCombo(containing: index) }
             }
+            .onChange(of: session.layout.combos.map(\.id)) { model.endDraftOfRemovedCombo() }
             // The board passes on keys it doesn't use (spec §9.2).
             .onKeyPress(characters: ["n", "N"], phases: .down) { press in
                 guard press.modifiers.isDisjoint(with: [.command, .control, .option]), model.boardPick == nil else { return .ignored }
@@ -23,7 +25,7 @@ struct CombosCanvas: View {
                 return .handled
             }
             .onKeyPress(.delete) {
-                guard model.boardPick == nil, let id = session.selectedCombo?.id else { return .ignored }
+                guard model.boardPick == nil, let id = model.selectedPageCombo?.id else { return .ignored }
                 session.deleteCombo(id)
                 return .handled
             }
@@ -96,8 +98,8 @@ struct ComboCards: View {
 
     private func card(_ item: NumberedCombo) -> some View {
         let layout = session.layout
-        let selected = item.id == session.selection.combo
-        let summary = ComboText.summary(item.combo, in: layout)
+        let selected = item.id == model.selectedPageCombo?.id
+        let summary = ComboText.summary(item.combo, in: layout), spoken = ComboText.spokenSummary(item.combo, in: layout)
         return Button {
             model.cancelComboDraft()
             model.selectCombo(item.id)
@@ -118,7 +120,7 @@ struct ComboCards: View {
         .buttonStyle(.plain)
         .id(item.id)
         .accessibilityLabel(
-            String(localized: "\(ComboText.title(item.combo, number: item.number)): \(summary), \(ComboText.layer(item.combo, in: layout))")
+            String(localized: "\(ComboText.title(item.combo, number: item.number)): \(spoken), \(ComboText.layer(item.combo, in: layout))")
         )
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
@@ -145,12 +147,11 @@ struct ComboNumber: View {
 
     var body: some View {
         Group {
-            // SF Symbols number circles only up to 50.
-            if item.number <= 50 {
+            // Two digits as text, as on the caps (comboDecoration).
+            if item.number < 10 {
                 Image(systemName: "\(item.number).circle.fill").font(.system(size: 18, weight: .bold)).foregroundStyle(item.color.color)
             } else {
-                Text(verbatim: "\(item.number)").font(.system(size: 9, weight: .heavy)).foregroundStyle(.white)
-                    .frame(width: 18, height: 18).background(Circle().fill(item.color.color))
+                NumberDisc(text: "\(item.number)", color: item.color, diameter: 18)
             }
         }
         .accessibilityHidden(true)

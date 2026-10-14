@@ -123,34 +123,124 @@ struct CombosLensTests {
         #expect(model.capDecoration(layer: 0, index: j) == CapDecoration())
     }
 
-    /// SF Symbols number circles only up to 50: past that the number is text.
-    @Test func numbersPastFiftyAreText() async throws {
+    /// SF Symbols squeezes two digits past reading on a cap, and circles numbers only up to 50: from 10 the number is text.
+    @Test func twoDigitNumbersAreText() async throws {
         let model = try await openUserLayout()
         let session = try #require(model.session)
         model.destination = .combos
         for _ in 0..<50 { session.newCombo(keys: [1, 2], layer: 0, output: .code("KC_A")) }
         let last = session.newCombo(keys: [j, k], layer: 0, output: .code("KC_B"))
         session.selectCombo(last)
-        let mark = try #require(model.capDecoration(layer: 0, index: j).number)
-        #expect(mark.text == "51")
-        session.selectCombo(session.layout.combos[49].id)
-        #expect(model.capDecoration(layer: 0, index: 1).number?.text == nil)
+        #expect(model.capDecoration(layer: 0, index: j).number?.text == "51")
+        session.selectCombo(session.layout.combos[9].id)
+        #expect(model.capDecoration(layer: 0, index: 1).number?.text == "10")
+        session.selectCombo(session.layout.combos[8].id)
+        let nine = try #require(model.capDecoration(layer: 0, index: 1).number)
+        #expect(nine.text == nil && nine.symbol == "9.circle.fill")
     }
 
+    /// A click selects a combo through click(key:), so a key already selected still selects its combo (spec §6.4).
     @Test func clickingAMemberSelectsItsCombo() async throws {
         let model = try await openUserLayout()
         let session = try #require(model.session)
+        session.select(key: j)
         model.destination = .combos
         let first = session.newCombo(keys: [j, k], layer: 0, output: .code("KC_ESCAPE"))
         let second = session.newCombo(keys: [k, l], layer: 0, output: .code("KC_ENTER"))
-        model.selectCombo(containing: l)
+        session.selectCombo(nil)
+        model.click(key: j)
+        #expect(session.selection.combo == first, "the key carried over from the layer is already selected")
+        model.click(key: l)
         #expect(session.selection.combo == second)
-        model.selectCombo(containing: k)
+        model.click(key: k)
         #expect(session.selection.combo == second, "the selected combo keeps a key they share")
-        model.selectCombo(containing: j)
+        model.selectCombo(first)
+        model.selectCombo(second)
+        model.click(key: k)
+        model.click(key: j)
         #expect(session.selection.combo == first)
-        model.selectCombo(containing: 0)
+        model.click(key: 0)
+        model.click(key: 0)
         #expect(session.selection.combo == nil)
+    }
+
+    /// The board shows a selected combo's layer, however it was selected, and a combo whose layer isn't shown isn't
+    /// selected on the page (spec §6.4).
+    @Test func theBoardShowsTheSelectedCombosLayer() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        model.destination = .combos
+        let main = session.newCombo(keys: [j, k], layer: 0, output: .code("KC_ESCAPE"))
+        let symNum = session.newCombo(keys: [l, 42], layer: 1, output: .code("KC_TAB"))
+        session.selectCombo(nil)
+        session.select(layer: 0)
+        model.click(key: l)
+        #expect(session.selection.combo == symNum && session.selection.layer == 1, "a click shows the layer its combo reads")
+        model.setComboLayer(2, of: symNum)
+        #expect(session.layout.combo(id: symNum)?.layer == 2 && session.selection.layer == 2, "Keys from shows its layer")
+        #expect(model.selectedPageCombo?.id == symNum && model.focusedCombos.map(\.id) == [symNum])
+
+        model.showCombos(fromLayer: 0)
+        #expect(model.selectedPageCombo == nil, "a combo on a layer the board doesn't show isn't on the page")
+        #expect(model.focusedCombos.map(\.id) == [main], "the board draws what the filter shows")
+        model.showCombos(fromLayer: 2)
+        #expect(model.selectedPageCombo?.id == symNum, "its layer brings it back")
+
+        // A click prefers a combo reading the shown layer.
+        model.showCombos(fromLayer: nil)
+        session.setComboLayer(0, in: symNum)
+        let other = session.newCombo(keys: [j, 43], layer: 1, output: .code("KC_A"))
+        session.selectCombo(nil)
+        session.select(layer: 1)
+        model.click(key: j)
+        #expect(session.selection.combo == other && session.selection.layer == 1)
+    }
+
+    /// Esc goes back to every combo before it deselects the key (spec §9.3).
+    @Test func escShowsEveryComboAgainThenDeselects() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        model.destination = .combos
+        let id = session.newCombo(keys: [j, k], layer: 0, output: .code("KC_ESCAPE"))
+        session.selectCombo(nil)
+        model.click(key: j)
+        #expect(session.selection.combo == id)
+        model.escapeBoard()
+        #expect(session.selection.combo == nil && session.selection.keyIndex == j)
+        model.escapeBoard()
+        #expect(session.selection.keyIndex == nil)
+    }
+
+    /// Undo that takes the combo whose keys are changing ends Edit Keys: Done would change nothing.
+    @Test func undoTakingTheCombosEndsEditKeys() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        let undo = UndoManager()
+        undo.groupsByEvent = false
+        session.undoManager = undo
+        model.destination = .combos
+        undo.beginUndoGrouping()
+        let id = session.newCombo(keys: [j, k], layer: 0, output: .code("KC_ESCAPE"))
+        undo.endUndoGrouping()
+        model.editComboKeys(id)
+        model.click(key: l)
+        undo.undo()
+        #expect(model.draftCombo == nil && !model.canFinishDraft)
+        model.endDraftOfRemovedCombo()
+        #expect(model.combos.draft == nil && model.boardPick == nil)
+    }
+
+    /// Among several combos, a line passing under another cap is left out; drawn alone, a combo keeps it.
+    @Test func overviewTracesNeverRunUnderOtherCaps() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        let board = session.geometry.layout(keySize: 50, spacing: 5.5)
+        let f = 16
+        let apart = NumberedCombo(number: 1, combo: Combo(keyIndices: [f, j], output: .code("KC_A")))
+        let beside = NumberedCombo(number: 2, combo: Combo(keyIndices: [j, k, l], output: .code("KC_B")))
+        #expect(ComboPills.trace(apart, board: board, alone: false).isEmpty, "F to J passes under G and H")
+        #expect(ComboPills.trace(apart, board: board, alone: true).count == 1)
+        #expect(ComboPills.trace(beside, board: board, alone: false).count == 2)
     }
 
     @Test func paletteFindsCombos() async throws {

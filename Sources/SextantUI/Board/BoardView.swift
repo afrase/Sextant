@@ -183,15 +183,13 @@ public struct BoardView: View {
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(KeyText.label(model.legend, index: frame.index))
                         .accessibilityValue(value)
-                        .accessibilityHint(
-                            window?.boardPick.map { Text($0.prompt) }
-                                ?? (display == nil ? Text("Press Return to change. Actions available.") : Text(verbatim: ""))
-                        )
+                        .accessibilityHint(keyHint)
                         .accessibilityAction { select(frame.index) }
                         .accessibilityAddTraits(frame.index == session.selection.keyIndex ? [.isButton, .isSelected] : .isButton)
                         .accessibilitySortPriority(order[safe: frame.index] ?? 0)
                         .accessibilityRotorEntry(id: frame.index, in: rotors)
-                        .accessibilityActions { if display == nil { keyActions(model) } }
+                        // A page's board reads keys; editing them is the layer's.
+                        .accessibilityActions { if display == nil, window?.page == nil { keyActions(model) } }
                 }
             }
             selectionRing(board, cap: cap)
@@ -212,6 +210,14 @@ public struct BoardView: View {
                 if let brush { session.paint(brush.color, keys: stroke) }
                 stroke = []
             }
+    }
+
+    /// What activating a key does, for VoiceOver.
+    private var keyHint: Text {
+        if let pick = window?.boardPick { return Text(pick.prompt) }
+        if display != nil { return Text(verbatim: "") }
+        if window?.page == .combos { return Text("Selects a combo with this key.") }
+        return window?.page == nil ? Text("Press Return to change. Actions available.") : Text(verbatim: "")
     }
 
     /// VoiceOver custom actions (spec §4.11).

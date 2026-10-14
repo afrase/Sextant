@@ -59,7 +59,7 @@ struct ComboTests {
 
         #expect(kinds(layout, "seven") == [.comboTooManyKeys(7)])
         #expect(kinds(layout, "jk").contains(.duplicateComboTrigger) && kinds(layout, "kj").contains(.duplicateComboTrigger))
-        #expect(!kinds(layout, "jk on Sym+Num").contains(.duplicateComboTrigger), "another layer's keys aren't the same trigger")
+        #expect(!kinds(layout, "jk on Sym+Num").contains(.duplicateComboTrigger), "Sym+Num's 5 and 6 aren't J and K")
         #expect(kinds(layout, "see-through") == [.comboKeyTransparent(12), .comboKeyTransparent(24)])
         #expect(kinds(layout, "dance") == [.comboKeyTapDance(13)])
         #expect(kinds(layout, "one") == [.emptyCombo], "fewer than 2 keys is an empty combo, never two errors")

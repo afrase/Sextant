@@ -29,7 +29,8 @@ struct CapDecoration: Equatable {
         var symbol: String
         var color: Token
         var accessibilityText: String
-        /// Drawn in a filled circle instead of the symbol: a combo number past 50, which SF Symbols doesn't circle.
+        /// Drawn in a filled circle instead of the symbol (``NumberDisc``): a combo number of two digits, which SF Symbols
+        /// squeezes past reading at this size, or past 50, which it doesn't circle.
         var text: String?
     }
 
@@ -399,9 +400,7 @@ struct KeyCap: View, Equatable {
     /// Drawn like the issue badge: white shows through a filled symbol's cut-out ("plus.circle.fill", "3.circle.fill").
     @ViewBuilder private func markBadge(_ mark: CapDecoration.Mark) -> some View {
         if let text = mark.text {
-            Circle().fill(mark.color.color)
-                .overlay { Text(verbatim: text).font(.system(size: 7, weight: .heavy)).minimumScaleFactor(0.6).foregroundStyle(.white) }
-                .frame(width: 14, height: 14)
+            NumberDisc(text: text, color: mark.color, diameter: 14)
         } else {
             Image(systemName: mark.symbol)
                 .font(.system(size: 14, weight: .bold))

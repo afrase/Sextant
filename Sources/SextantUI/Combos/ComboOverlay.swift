@@ -40,7 +40,7 @@ struct ComboOverlay: View {
         context.drawLayer { layer in
             for item in drawn {
                 var path = Path()
-                for (a, b) in ComboPills.tree(item.combo.keyIndices.compactMap { board.frames[safe: $0]?.center }) {
+                for (a, b) in ComboPills.trace(item, board: board, alone: drawn.count == 1) {
                     path.move(to: a)
                     path.addLine(to: b)
                 }
@@ -158,6 +158,25 @@ enum ComboPills {
     static func numberRect(_ frame: BoardLayout.KeyFrame) -> CGRect {
         let center = rotate(CGPoint(x: -frame.size.width / 2 + 3, y: -frame.size.height / 2 + 3), frame)
         return CGRect(x: center.x - 8, y: center.y - 8, width: 16, height: 16)
+    }
+
+    /// A combo's trace: its ``tree(_:)``. Among several combos, a line that passes under a cap outside the combo is left
+    /// out, since what shows of it ends at that cap, which may be ringed for another combo, and reads as joining it. A
+    /// combo drawn alone keeps every line: only its own keys are ringed.
+    static func trace(_ item: NumberedCombo, board: BoardLayout, alone: Bool) -> [(CGPoint, CGPoint)] {
+        let edges = tree(item.combo.keyIndices.compactMap { board.frames[safe: $0]?.center })
+        guard !alone else { return edges }
+        let others = board.frames.filter { !item.combo.keyIndices.contains($0.index) }.map(\.corners)
+        return edges.filter { a, b in !others.contains { crosses(a, b, $0) } }
+    }
+
+    /// Whether the segment from `a` to `b` crosses an edge of the polygon (both ends lie outside it: they are other
+    /// caps' centres).
+    static func crosses(_ a: CGPoint, _ b: CGPoint, _ polygon: [CGPoint]) -> Bool {
+        func turn(_ p: CGPoint, _ q: CGPoint, _ r: CGPoint) -> CGFloat { (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x) }
+        return zip(polygon, polygon.dropFirst() + polygon.prefix(1)).contains { c, d in
+            turn(a, b, c) * turn(a, b, d) < 0 && turn(c, d, a) * turn(c, d, b) < 0
+        }
     }
 
     /// The shortest tree joining the points (Prim's), as line segments.

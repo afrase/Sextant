@@ -14,11 +14,13 @@ public struct LayoutIssue: Hashable, Sendable, Identifiable {
         case emptyCombo
         /// A combo with more than 6 keys; fewer than 2 is `emptyCombo`.
         case comboTooManyKeys(Int)
-        /// Another combo on the same layer has the same keys.
+        /// Another combo listens for the same keycodes (QMK matches combos by keycode), from any layer.
         case duplicateComboTrigger
         /// The combo key at this board index is transparent; QMK matches combos by keycode, so it can't fire.
         case comboKeyTransparent(Int)
-        /// The combo key at this board index is a tap dance, whose keycode a combo can't match either.
+        /// The combo key at this board index is disabled: KC_NO ends a combo's key list in QMK.
+        case comboKeyDisabled(Int)
+        /// The combo key at this board index is a tap dance, which Oryx refuses in combos (ADR 0046).
         case comboKeyTapDance(Int)
         /// Two combo keys (board indices) sit side by side, so fast typing may roll across them (a warning).
         case rollingNeighbors(Int, Int)

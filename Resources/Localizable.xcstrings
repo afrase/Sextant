@@ -789,6 +789,9 @@
     "Combo key %@ is a tap dance" : {
 
     },
+    "Combo key %@ is disabled" : {
+
+    },
     "Combo key %@ is transparent" : {
 
     },
@@ -2270,6 +2273,9 @@
     "Select a step" : {
 
     },
+    "Selects a combo with this key." : {
+
+    },
     "Send a key when tapped" : {
 
     },
@@ -2615,6 +2621,9 @@
 
     },
     "The build was stopped." : {
+
+    },
+    "The combo was removed" : {
 
     },
     "The compiler reported an error Sextant couldn’t place on a key." : {
@@ -2994,12 +3003,12 @@
     "home row" : {
 
     },
-    "in combo %lld: %@ → %@" : {
+    "in combo %lld: %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "in combo %1$lld: %2$@ → %3$@"
+            "value" : "in combo %1$lld: %2$@"
           }
         }
       }

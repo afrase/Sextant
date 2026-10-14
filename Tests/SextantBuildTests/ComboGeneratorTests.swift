@@ -49,4 +49,43 @@ struct ComboGeneratorTests {
             try QMKGenerator().generate(layout, identity: identity)
         }
     }
+
+    /// A build fails on a combo key only when the live issues flag it, so the build gate catches it first.
+    @Test func refusesExactlyTheKeysTheIssuesFlag() throws {
+        let shapes: [(String, Key, Bool)] = [
+            ("labelled transparent", Key(tap: .code("KC_TRANSPARENT"), customLabel: "x"), true),
+            ("empty", Key(), true),
+            ("disabled", .none, true),
+            ("disabled hold only", Key(hold: .code("KC_NO")), true),
+            ("tap dance", Key(tap: .code("KC_A"), tapHold: .code("KC_B")), true),
+            ("mod-tap", Key(tap: .code("KC_A"), hold: .code("KC_LEFT_SHIFT")), false),
+            ("labelled key", Key(tap: .code("KC_A"), customLabel: "x"), false),
+            ("macro", Key(tap: KeyAction(code: "KC_TRANSPARENT", macro: Macro(steps: [MacroStep(code: "KC_A")]))), false),
+        ]
+        for (name, key, refused) in shapes {
+            var layout = try layout()
+            layout.updateKey(layer: 0, index: 40) { $0 = key }
+            layout.combos = [Combo(id: "c", keyIndices: [39, 40], layer: 0, output: .code("KC_ESCAPE"))]
+            let flagged = LayoutIssues.check(layout).contains { $0.combo == "c" && $0.severity == .error }
+            var threw = false
+            do { _ = try QMKGenerator().generate(layout, identity: identity) } catch { threw = true }
+            #expect(flagged == refused && threw == refused, "\(name): flagged \(flagged), refused \(threw)")
+        }
+    }
+
+    /// Two combos listening for the same keycodes compile to the same key list, so the issue says so wherever they read
+    /// them from.
+    @Test func combosWithTheSameKeycodesAreDuplicates() throws {
+        var layout = try layout()
+        layout.updateKey(layer: 1, index: 20) { $0 = Key(tap: .code("KC_J")) }
+        layout.updateKey(layer: 1, index: 21) { $0 = Key(tap: .code("KC_K")) }
+        layout.combos = [
+            Combo(id: "a", keyIndices: [39, 40], layer: 0, output: .code("KC_ESCAPE")),
+            Combo(id: "b", keyIndices: [21, 20], layer: 1, output: .code("KC_TAB")),
+        ]
+        let keymap = try #require(QMKGenerator().generate(layout, identity: identity).files["keymap.c"])
+        #expect(keymap.contains("combo0[] = { KC_J, KC_K, COMBO_END};") && keymap.contains("combo1[] = { KC_K, KC_J, COMBO_END};"))
+        let duplicates = LayoutIssues.check(layout).filter { $0.kind == .duplicateComboTrigger }.compactMap(\.combo)
+        #expect(duplicates == ["a", "b"])
+    }
 }

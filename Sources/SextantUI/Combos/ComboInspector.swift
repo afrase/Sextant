@@ -11,7 +11,7 @@ struct ComboInspector: View {
     var body: some View {
         if let draft = model.combos.draft, let item = model.draftCombo {
             draftView(draft, item)
-        } else if let item = model.numberedCombo(session.selection.combo) {
+        } else if let item = model.selectedPageCombo {
             editor(item)
         } else {
             Text("Select a combo or press N to make one").foregroundStyle(.secondary)
@@ -66,7 +66,7 @@ struct ComboInspector: View {
                 LabeledContent("Keys from") {
                     Picker(
                         "Keys from",
-                        selection: Binding(get: { combo.keysLayer }, set: { session.setComboLayer($0, in: combo.id) })
+                        selection: Binding(get: { combo.keysLayer }, set: { model.setComboLayer($0, of: combo.id) })
                     ) {
                         ForEach(Array(layout.layers.enumerated()), id: \.element.id) { index, layer in
                             Text(verbatim: "\(index) · \(layer.title)").tag(index)
@@ -112,7 +112,8 @@ struct ComboInspector: View {
                             Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
                         }
                         .buttonStyle(.borderless)
-                        .accessibilityLabel(String(localized: "Remove \(name)"))
+                        .accessibilityLabel(
+                            String(localized: "Remove \(ComboText.spokenKey(index, layer: combo.keysLayer, in: layout))"))
                     }
                 }
                 .font(.callout)
@@ -159,20 +160,22 @@ struct ComboInspector: View {
         .accessibilityHint(Text("Opens the keycode picker."))
     }
 
-    /// "Window: 50 ms, every combo · Firmware Settings ›" (spec §6.4's combo term).
-    private var comboWindow: some View {
-        let term = session.layout.settingValue("comboTerm")?.doubleValue.map { Int($0) } ?? 50
-        return LabeledContent("Window") {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(term) ms, every combo")
-                Button("Firmware Settings ›") {
-                    model.destination = .firmwareSettings
-                    model.settingsScrollTarget = "combo"
+    /// "Window: 50 ms, every combo · Firmware Settings ›" (spec §6.4's combo term): the layout's, else the catalog's
+    /// default.
+    @ViewBuilder private var comboWindow: some View {
+        if let term = session.layout.settingValue("comboTerm")?.doubleValue.map({ Int($0) }) {
+            LabeledContent("Window") {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(term) ms, every combo")
+                    Button("Firmware Settings ›") {
+                        model.destination = .firmwareSettings
+                        model.settingsScrollTarget = "combo"
+                    }
+                    .buttonStyle(.link)
                 }
-                .buttonStyle(.link)
             }
+            .labeledContentStyle(InspectorRowStyle())
         }
-        .labeledContentStyle(InspectorRowStyle())
     }
 
     /// The combo's live issues (spec §7.5), errors first.

@@ -130,6 +130,7 @@ struct KeyTextTests {
         #expect(text(.rollingNeighbors(19, 20), "a") == "Keys Z and X are rolling neighbors · Combo 1")
         #expect(text(.comboKeyTransparent(24), "c") == "Combo key ⏎ is transparent · Combo 3", "Sym+Num inherits ⏎")
         #expect(text(.comboKeyTapDance(99), "a") == "Combo key 99 is a tap dance · Combo 1")
+        #expect(text(.comboKeyDisabled(98), "a") == "Combo key 98 is disabled · Combo 1")
         #expect(text(.comboTooManyKeys(7), "b") == "Combo has 7 keys; 6 is the most · Save")
         #expect(text(.duplicateComboTrigger, "b") == "Another combo uses the same keys · Save")
         #expect(text(.emptyCombo, "gone") == "Empty combo", "a combo that no longer exists isn't named")
