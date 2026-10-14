@@ -52,21 +52,13 @@ struct QMKGeneratorTests {
             try QMKGenerator().generate(layout, identity: identity)
         }
         layout = clean
-        layout.navigator?.options["invertScrollX"] = .bool(true)
-        #expect(throws: GeneratorError.unsupported("the Navigator's “invertScrollX” option", nil)) {
+        layout.navigator?.options["rotation"] = .number(400)  // out of range
+        #expect(throws: GeneratorError.unsupported("the Navigator's “rotation” option", nil)) {
             try QMKGenerator().generate(layout, identity: identity)
         }
         layout = try Self.settingsLayout(.trackball)
         layout.navigator?.options["aimSpeed"] = .bool(true)  // a value of the wrong type
         #expect(throws: GeneratorError.unsupported("the Navigator's “aimSpeed” option", nil)) {
-            try QMKGenerator().generate(layout, identity: identity)
-        }
-        // QMK's one-shot auto mouse has no idle timeout; the timeout is on whenever stored, and moot without one-shot.
-        layout = try Self.settingsLayout(.trackball)
-        layout.navigator?.options["oneShotAutoMouseTimeout"] = .number(10)
-        _ = try QMKGenerator().generate(layout, identity: identity)
-        layout.navigator?.options["oneShotAutoMouse"] = .bool(true)
-        #expect(throws: GeneratorError.unsupported("the Navigator's “oneShotAutoMouseTimeout” option", nil)) {
             try QMKGenerator().generate(layout, identity: identity)
         }
         layout = try Self.settingsLayout(.trackball)
@@ -174,10 +166,6 @@ struct QMKGeneratorTests {
         Mapping(["legacyDualFunctionDances": .bool(true)], "TD(DANCE_0)", "TAP_DANCE_ENABLE = yes"),
     ]
 
-    /// Settings Sextant keeps but doesn't offer, which write nothing at any value (ADR 0040): the live connection stays
-    /// on and Sextant has no steno keycodes.
-    static let ignored = ["liveTraining", "stenography", "geminipr"]
-
     /// The user's layout with `kind`, an automouse layer, a mouse key, a layer lock key and a per-key tapping term, so
     /// every setting reaches code the firmware compiles.
     static func settingsLayout(_ kind: NavigatorConfig.Kind) throws -> KeyboardLayout {
@@ -231,22 +219,14 @@ struct QMKGeneratorTests {
         #expect(try source(layout) == unchanged)
     }
 
-    /// The settings Sextant hides build exactly as if they weren't stored.
-    @Test func ignoresTheSettingsItHides() throws {
-        var layout = try Self.settingsLayout(.trackpad)
-        let unchanged = try source(layout)
-        try Self.set(["liveTraining": .bool(false), "stenography": .bool(true), "geminipr": .bool(true)], in: &layout)
-        #expect(try source(layout) == unchanged)
-        #expect(unchanged.contains("\"zsa/oryx\"") && unchanged.contains("ORYX_ENABLE = yes"), "the live connection stays on")
-    }
-
-    /// Every setting the Voyager shows is written or ignored, and all of them build together.
+    /// Every setting Sextant offers is written (the locale toggles only change the picker), and all of them build
+    /// together. Offering a setting without a mapping here, such as un-hiding steno, fails this.
     @Test(arguments: [NavigatorConfig.Kind.trackpad, .trackball])
     func writesEverySettingAtOnce(kind: NavigatorConfig.Kind) throws {
-        let shown = SettingsCatalog.voyager.sections.filter { $0.isVisibleOnVoyager && $0.id != "international" }
-            .flatMap(\.settings).filter(\.appliesToVoyager).map(\.id)
+        let catalog = SettingsCatalog.voyager
+        let offered = catalog.allSettings.filter { catalog.offers($0) && catalog.section(containing: $0.id)?.id != "international" }
         let mappings = Self.oryxMappings + Self.ownMappings
-        #expect(Set(shown) == Set(mappings.flatMap(\.changes.keys) + Self.ignored))
+        #expect(Set(offered.map(\.id)).subtracting(mappings.flatMap(\.changes.keys)).isEmpty)
         let changed = try source(Self.everySettingChanged(kind))
         for text in mappings.filter({ $0.only ?? kind == kind }).flatMap(\.text) { #expect(changed.contains(text), "\(text)") }
     }
@@ -333,11 +313,10 @@ struct QMKGeneratorTests {
         #expect(source.sourceMap[line + 1] == KeyRef(layer: 1, index: 4, slot: .hold))
         #expect(source.files["rules.mk"]?.contains("TAP_DANCE_ENABLE = yes") == true)
 
-        // A dance's tap must be a key: a layer tap can't be one.
+        // A dance's tap must be a key: a layer tap can't be one, so that key stays a dual-function key and still builds.
         layout.updateKey(layer: 1, index: 4) { $0 = Key(tap: .moveTo(2), hold: .code("KC_C")) }
-        #expect(throws: GeneratorError.unsupported("a tap dance whose tap isn't a key", KeyRef(layer: 1, index: 4, slot: .tap))) {
-            try QMKGenerator().generate(layout, identity: identity)
-        }
+        let mixed = try #require(try QMKGenerator().generate(layout, identity: identity).files["keymap.c"])
+        #expect(mixed.contains("DUAL_FUNC_") && mixed.contains("case SINGLE_TAP: register_code16(KC_EQUAL); break;"))
         layout.settings["legacyDualFunctionDances"] = nil
         #expect(try QMKGenerator().generate(layout, identity: identity).files["keymap.c"]?.contains("DUAL_FUNC_") == true)
     }
@@ -471,5 +450,51 @@ struct QMKGeneratorTests {
         #expect(keymap.contains("KC_HYPR, KC_MEH,"))
         #expect(keymap.contains("COMBO(combo0, KC_HYPR)"))
         #expect(!keymap.contains(/(ALL|MEH|HYPR)_T[^(]/))
+    }
+}
+
+/// Values the generator keeps but never writes (ADR 0040).
+extension QMKGeneratorTests {
+    /// A value away from `setting`'s unset value, of the setting's type.
+    static func changedValue(_ setting: Setting) -> SettingValue {
+        switch setting.control {
+        case .toggle: .bool(setting.defaultValue != .bool(true))
+        case .slider:
+            .number(
+                setting.unsetValue == .number(setting.range?.upperBound ?? 1)
+                    ? setting.range?.lowerBound ?? 0 : setting.range?.upperBound ?? 1)
+        case .layerSelect: .integers([1])
+        case .animationSelect: .strings(["breathing"])
+        }
+    }
+
+    /// Every setting Sextant doesn't offer (`SettingsCatalog.offers`, the one rule the page also follows) builds exactly
+    /// as if it weren't stored, at any value: hidden ones (the live connection stays on, there are no steno keycodes),
+    /// the locales without codes, and ones the Voyager doesn't have.
+    @Test func ignoresTheSettingsItDoesntOffer() throws {
+        let catalog = SettingsCatalog.voyager
+        var layout = try Self.settingsLayout(.trackpad)
+        let unchanged = try source(layout)
+        let kept = catalog.allSettings.filter { $0.navigatorKinds == nil && !catalog.offers($0) }
+        #expect(Set(["liveTraining", "stenography", "geminipr", "dancesTapAction", "german", "audioClick"]).isSubset(of: kept.map(\.id)))
+        for setting in kept { layout.settings[setting.id] = Self.changedValue(setting) }
+        #expect(try source(layout) == unchanged)
+        #expect(unchanged.contains("\"zsa/oryx\"") && unchanged.contains("ORYX_ENABLE = yes"), "the live connection stays on")
+    }
+
+    /// Another module's options (an import can carry them) build as if they weren't stored: the trackball's on a trackpad,
+    /// and the idle timeout on a trackball, whose one-shot auto mouse has none.
+    @Test(arguments: [NavigatorConfig.Kind.trackpad, .trackball])
+    func ignoresAnotherNavigatorsOptions(kind: NavigatorConfig.Kind) throws {
+        var layout = try Self.settingsLayout(kind)
+        layout.navigator?.options["oneShotAutoMouse"] = .bool(true)
+        let unchanged = try source(layout)
+        let others = SettingsCatalog.voyager.allSettings.filter { $0.navigatorKinds.map { !$0.contains(kind.rawValue) } ?? false }
+        #expect(!others.isEmpty)
+        for setting in others { layout.navigator?.options[setting.id] = Self.changedValue(setting) }
+        #expect(try source(layout) == unchanged)
+        let options = { (settings: [Setting]) in Set(settings.filter { $0.navigatorKinds != nil }.map(\.id)) }
+        #expect(!options(layout.changedSettings()).contains { id in others.contains { $0.id == id } }, "not counted")
+        #expect(options(layout.keptSettings()) == Set(others.map(\.id)), "listed as kept")
     }
 }

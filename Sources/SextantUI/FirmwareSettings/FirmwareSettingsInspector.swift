@@ -61,7 +61,7 @@ struct FirmwareSettingsInspector: View {
     }
 }
 
-/// Imported settings Sextant doesn't offer (ADR 0040): listed so a build that differs from Oryx's isn't a surprise.
+/// Stored values the page doesn't show (ADR 0040): listed so a build that differs from Oryx's isn't a surprise.
 private struct KeptSettings: View {
     var layout: KeyboardLayout
 
@@ -69,13 +69,15 @@ private struct KeptSettings: View {
         let kept = layout.keptSettings()
         if !kept.isEmpty {
             Divider()
-            Text("Kept from Oryx (\(kept.count))").font(.headline)
+            Text("Kept, Not Used (\(kept.count))").font(.headline)
             ForEach(kept) { setting in
                 let value = setting.format(layout.storedValue(of: setting))
                 Text("\(setting.title): \(value)").font(.callout)
             }
-            Text("Sextant doesn't offer these settings. It keeps their values in the layout, and its builds don't use them.")
-                .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(
+                "Hidden, for another Navigator, or waiting on a setting that's off. Kept in the layout; builds don't use them."
+            )
+            .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }
 }

@@ -86,7 +86,7 @@ enum SettingsCatalogData {
     {
      "id": "audioDisable",
      "title": "Silence buzzer",
-     "summary": "Mute every sound, including the start-up tune. Boards with a buzzer only.",
+     "summary": "Mute every sound, including the startup tune. Boards with a buzzer only.",
      "synonyms": ["sound", "mute"],
      "type": "toggle",
      "default": false
@@ -417,7 +417,7 @@ enum SettingsCatalogData {
     },
     {
      "id": "disableUsbStartupCheck",
-     "title": "Skip USB start-up check",
+     "title": "Skip USB startup check",
      "summary": "Start without waiting for the computer to finish configuring USB. Can help KVM switches that fail to detect the board.",
      "synonyms": ["boot", "power bank", "kvm switch"],
      "type": "toggle",

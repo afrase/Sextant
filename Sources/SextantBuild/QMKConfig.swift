@@ -236,24 +236,20 @@ struct Features {
         "enableSpaceCadet", "legacyDualFunctionDances",
     ]).union(ownNumbers.map(\.id)).union(ownToggles.map(\.id))
 
-    /// Settings with no firmware output at any value, so an imported one is kept and never checked (ADR 0040).
-    private static let ignored: Set<String> = [
-        // Same code either way in Oryx's output (JRGQm has both).
-        "ambidexLT", "dancesTapAction",
-        // Not on the Voyager: it has no buzzer and always takes a Navigator.
-        "audioDisable", "audioClick", "enableNavigator",
-        // Sextant keeps the live connection on (its live view needs zsa/oryx) and has no steno keycodes.
-        "liveTraining", "stenography", "geminipr",
-    ]
+    /// Settings Sextant offers with no firmware output at any value: the same code either way in Oryx's output (JRGQm
+    /// has both). The locale toggles too: they only change the picker, and the codes a layout uses carry the locale.
+    private static func writesNothing(_ setting: Setting, in catalog: SettingsCatalog) -> Bool {
+        setting.id == "ambidexLT" || catalog.section(containing: setting.id)?.id == "international"
+    }
 
     /// A changed firmware setting the generator can't write fails the build rather than being dropped, and so does a
     /// number outside the setting's range or a value of the wrong type (imported values feed C defines and arithmetic).
-    /// Locale toggles only change the picker; the codes a layout uses carry the locale.
+    /// A setting Sextant doesn't offer (``SettingsCatalog/offers(_:)``) is kept and never checked: it writes nothing at
+    /// any value (ADR 0040), and refusing a value the user can't see would stop every build with no way out.
     private static func refuseUnsupportedSettings(_ settings: [String: SettingValue]) throws(GeneratorError) {
         let catalog = SettingsCatalog.voyager
         for (id, value) in settings.sorted(by: { $0.key < $1.key }) {
-            guard let setting = catalog.setting(id: id), !ignored.contains(id), catalog.section(containing: id)?.id != "international"
-            else { continue }
+            guard let setting = catalog.setting(id: id), catalog.offers(setting), !writesNothing(setting, in: catalog) else { continue }
             let outOfRange = value.doubleValue.map { v in setting.range.map { !$0.contains(v) } ?? false } ?? false
             let unwritten = !written.contains(id) && value != setting.defaultValue
             if outOfRange || unwritten || !fits(value, setting) {
@@ -291,13 +287,14 @@ struct Features {
                 "sensitivity", "invertScrollX", "invertScrollY", "scrollOnly", "aimSpeed", "turboSpeed", "aimLayers", "turboLayers",
                 "dragScrollLayers",
             ])
-            // QMK's one-shot auto mouse has no idle timeout. With one-shot off, neither Navigator uses the timeout.
-            if navigator.options["oneShotAutoMouse"] == .bool(true) { written.remove("oneShotAutoMouseTimeout") }
         case .knob: throw .unsupported(String(localized: "the Navigator knob"), nil)
         }
         // Written values feed C defines, so they must fit the option, like settings, and name layers that exist.
         for (id, value) in navigator.options.sorted(by: { $0.key < $1.key }) {
             let setting = SettingsCatalog.voyager.setting(id: id)
+            // Another module's option (an import can carry one, such as the idle timeout, which QMK's trackball one-shot
+            // auto mouse doesn't have) is kept and writes nothing, like a setting Sextant doesn't offer.
+            if let kinds = setting?.navigatorKinds, !kinds.contains(navigator.kind.rawValue) { continue }
             let outOfRange = value.doubleValue.map { v in setting?.range.map { !$0.contains(v) } ?? false } ?? false
             // A toggleable slider (the one-shot timeout) is on whenever it is stored, even at its default.
             let unwritten = !written.contains(id) && quietOptions[id] != value && setting?.unsetValue != value

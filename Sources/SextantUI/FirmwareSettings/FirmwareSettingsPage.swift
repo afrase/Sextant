@@ -4,12 +4,12 @@ import SwiftUI
 
 /// Which firmware settings the page shows, and how they read (spec §8.8).
 enum FirmwareSettings {
-    /// Every section with the settings Sextant offers (``SettingsCatalog/offers(_:)``) that apply to this layout's
-    /// Navigator, in catalog order. Navigator is always there: it starts with the choice of module and side (ADR 0035).
+    /// Every section with the settings this layout shows (``KeyboardLayout/offers(_:in:)``), in catalog order.
+    /// Navigator is always there: it starts with the choice of module and side (ADR 0035).
     static func sections(for layout: KeyboardLayout, catalog: SettingsCatalog = .voyager) -> [SettingsSection] {
         catalog.sections.compactMap { section in
             var section = section
-            section.settings = section.settings.filter { catalog.offers($0) && applies($0, to: layout, catalog: catalog) }
+            section.settings = section.settings.filter { layout.offers($0, in: catalog) }
             return section.settings.isEmpty && section.id != navigator ? nil : section
         }
     }
@@ -28,6 +28,19 @@ enum FirmwareSettings {
             let keeps = section.id == navigator && showsNavigatorChoice(query: query, modifiedOnly: modifiedOnly)
             return section.settings.isEmpty && !keeps ? nil : section
         }
+    }
+
+    /// How many rows a filter shows: its settings, and the Navigator's module choice when the query names it.
+    static func count(_ sections: [SettingsSection], query: String, modifiedOnly: Bool) -> Int {
+        let choice =
+            sections.contains { $0.id == navigator } && !query.isEmpty && showsNavigatorChoice(query: query, modifiedOnly: modifiedOnly)
+        return sections.reduce(choice ? 1 : 0) { $0 + $1.settings.count }
+    }
+
+    /// Whether the page shows `id` (a setting id, or ``navigator`` for the module choice) under the filter.
+    static func shows(_ id: String, in layout: KeyboardLayout, query: String, modifiedOnly: Bool) -> Bool {
+        if id == navigator { return showsNavigatorChoice(query: query, modifiedOnly: modifiedOnly) }
+        return sections(for: layout, query: query, modifiedOnly: modifiedOnly).contains { $0.settings.contains { $0.id == id } }
     }
 
     /// The Navigator's module and side rows show unfiltered, or when the query names them.
@@ -52,13 +65,6 @@ enum FirmwareSettings {
 
     static func title(_ side: NavigatorConfig.Side) -> String {
         side == .left ? String(localized: "Left") : String(localized: "Right")
-    }
-
-    /// The board, the Navigator kind (Navigator settings only with a Navigator) and a setting it depends on.
-    private static func applies(_ setting: Setting, to layout: KeyboardLayout, catalog: SettingsCatalog) -> Bool {
-        if let kinds = setting.navigatorKinds, !kinds.contains(layout.navigator?.kind.rawValue ?? "") { return false }
-        guard let dependency = setting.dependsOn, let other = catalog.setting(id: dependency.id) else { return true }
-        return (layout.storedValue(of: other) ?? other.unsetValue) == dependency.value
     }
 
     /// Where a slider starts when it is switched on: its default, else the bottom of its range.
@@ -117,7 +123,8 @@ struct FirmwareSettingsPage: View {
             ScrollViewReader { proxy in
                 Group {
                     if sections.isEmpty {
-                        empty(query: query)
+                        // Filling the column keeps the header at the top rather than centered with the message.
+                        empty(query: query).frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
                         Form {
                             ForEach(sections) { self.section($0, query: query).id($0.id) }
@@ -179,7 +186,7 @@ struct FirmwareSettingsPage: View {
     private func subtitles(_ sections: [SettingsSection]) -> [String] {
         let filter = model.firmwareSettings
         let query = filter.trimmedQuery
-        let count = sections.reduce(0) { $0 + $1.settings.count }
+        let count = FirmwareSettings.count(sections, query: query, modifiedOnly: filter.modifiedOnly)
         switch (query.isEmpty, filter.modifiedOnly) {
         case (true, false):
             let changed = session.layout.changedSettings().count
@@ -313,8 +320,12 @@ private struct SettingRow: View {
         let stored = session.layout.storedValue(of: setting)
         let value = stored ?? setting.unsetValue
         let isChanged = stored.map { $0 != setting.unsetValue } ?? false
+        let leader = self.leader
         VStack(alignment: .leading, spacing: 6) {
-            control(value, title: title(isChanged))
+            // Only the control waits on its leader: Reset to Default still clears a value it kept.
+            control(value, title: title(isChanged, isWaiting: leader != nil))
+                .disabled(leader != nil)
+                .accessibilityHint(leader.map { String(localized: "Used while \($0.title) is on.") } ?? "")
             Text(setting.summary).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if let note = FirmwareSettings.couplingNote(setting.id) {
                 Label(note, systemImage: "link")
@@ -325,27 +336,32 @@ private struct SettingRow: View {
                     Text("Default \(setting.format(setting.unsetValue))").foregroundStyle(.secondary)
                     Button("Reset to Default") { session.setSetting(setting.id, to: nil) }.buttonStyle(.link)
                 }
+                if let leader {
+                    Label(String(localized: "Used while \(leader.title) is on"), systemImage: "pause.circle")
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
                 Text(verbatim: setting.id).font(.caption.monospaced()).foregroundStyle(.tertiary).textSelection(.enabled)
             }
             .font(.caption)
         }
         .padding(.vertical, 4)
-        .disabled(isWaiting)
     }
 
-    /// The setting this one follows is off (``FirmwareSettings/follows``).
-    private var isWaiting: Bool {
-        guard let id = FirmwareSettings.follows[setting.id], let leader = SettingsCatalog.voyager.setting(id: id) else { return false }
-        return (session.layout.storedValue(of: leader) ?? leader.unsetValue) != .bool(true)
+    /// The setting this one follows (``FirmwareSettings/follows``), while it is off.
+    private var leader: Setting? {
+        guard let id = FirmwareSettings.follows[setting.id], let leader = SettingsCatalog.voyager.setting(id: id),
+            (session.layout.storedValue(of: leader) ?? leader.unsetValue) != .bool(true)
+        else { return nil }
+        return leader
     }
 
-    private func title(_ isChanged: Bool) -> some View {
+    private func title(_ isChanged: Bool, isWaiting: Bool) -> some View {
         HStack(spacing: 6) {
             if isChanged {
                 Circle().fill(.tint).frame(width: 6, height: 6).accessibilityHidden(true)
             }
-            Text(setting.title).fontWeight(isChanged ? .semibold : .regular)
+            Text(setting.title).fontWeight(isChanged ? .semibold : .regular).foregroundStyle(isWaiting ? .secondary : .primary)
         }
         .accessibilityElement(children: .combine)
         .accessibilityValue(isChanged ? String(localized: "Changed") : "")

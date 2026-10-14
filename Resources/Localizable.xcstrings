@@ -58,6 +58,9 @@
         }
       }
     },
+    "%@ keycodes are off" : {
+
+    },
     "%@ layer" : {
 
     },
@@ -291,6 +294,9 @@
     "%lld matches" : {
 
     },
+    "%lld more matches. Turn them on in Firmware Settings." : {
+
+    },
     "%lld ms" : {
 
     },
@@ -429,6 +435,9 @@
       }
     },
     "1 match" : {
+
+    },
+    "1 more match. Turn them on in Firmware Settings." : {
 
     },
     "1 other change" : {
@@ -1201,6 +1210,9 @@
     "Heatmap" : {
 
     },
+    "Hidden, for another Navigator, or waiting on a setting that's off. Kept in the layout; builds don't use them." : {
+
+    },
     "Hide" : {
 
     },
@@ -1363,7 +1375,7 @@
     "Keeps the last %lld reports Sextant and the keyboard exchange, for the Device popover. They stay in memory and are never saved; turning the log off clears it. It starts off each time Sextant opens." : {
 
     },
-    "Kept from Oryx (%lld)" : {
+    "Kept, Not Used (%lld)" : {
 
     },
     "Key" : {
@@ -2352,9 +2364,6 @@
     "Sextant couldn’t save: %@" : {
 
     },
-    "Sextant doesn't offer these settings. It keeps their values in the layout, and its builds don't use them." : {
-
-    },
     "Sextant reads the active layer and which key positions are down over the keyboard's raw HID interface. It sees positions, never the characters you type. Key events stay in memory on this Mac and are never written to disk, and the live display pauses while you type in a password field." : {
 
     },
@@ -2802,6 +2811,12 @@
 
     },
     "Use the reset button" : {
+
+    },
+    "Used while %@ is on" : {
+
+    },
+    "Used while %@ is on." : {
 
     },
     "Verify" : {

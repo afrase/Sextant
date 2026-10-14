@@ -116,6 +116,26 @@ struct LayoutSettingsTests {
         for id in ["enableNavigator", "geminipr", "audioDisable"] { #expect(!catalog.offers(try setting(id)), "\(id)") }
     }
 
+    /// A layout shows an offered setting only for its Navigator and while the setting it depends on is on. A stored
+    /// value it doesn't show is kept, not counted as changed, so every changed value has a row (an Oryx trackball layout
+    /// can carry the trackpad's idle timeout; turning one-shot off keeps the timeout for when it is back on).
+    @Test func valuesTheLayoutDoesntShowAreKept() throws {
+        var layout = try Fixtures.layout("my-layout-KlgM7-full.json")
+        let timeout = try setting("oneShotAutoMouseTimeout")
+        layout.navigator = NavigatorConfig(
+            kind: .trackball, side: .right, options: ["oneShotAutoMouse": .bool(true), "oneShotAutoMouseTimeout": .number(5)])
+        let sensitivity = try setting("sensitivity")
+        #expect(!layout.offers(timeout) && layout.offers(sensitivity))
+        #expect(layout.changedSettings().map(\.id) == ["oneShotAutoMouse"])
+        #expect(layout.keptSettings().map(\.id) == ["oneShotAutoMouseTimeout"])
+        layout.navigator?.kind = .trackpad
+        #expect(layout.offers(timeout) && !layout.offers(sensitivity))
+        #expect(layout.changedSettings().map(\.id) == ["oneShotAutoMouse", "oneShotAutoMouseTimeout"])
+        layout.store(nil, for: try setting("oneShotAutoMouse"))
+        #expect(!layout.offers(timeout) && layout.changedSettings().isEmpty)
+        #expect(layout.keptSettings().map(\.id) == ["oneShotAutoMouseTimeout"])
+    }
+
     /// The picker offers a locale's codes only while its International toggle is on; other codes always.
     @Test func localeTogglesGateTheirKeycodes() throws {
         var layout = try Fixtures.layout()

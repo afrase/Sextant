@@ -47,13 +47,31 @@ extension Scenes {
             model.firmwareSettings.query = "animations"
             model.firmwareSettings.showsAnimations = true
         }
-        // A trackball on the left with one-shot auto-mouse on: the idle timeout is a trackpad option, so it isn't there.
+        // A trackball on the left with one-shot auto-mouse on: the idle timeout is a trackpad option, so an imported one
+        // isn't there and is listed as kept.
         await add("trackball", sizes: [("", wholeTrackballForm)]) { _, session in
             session.setNavigator(.trackball)
             session.moveNavigator(to: .left)
             session.setSetting("oneShotAutoMouse", to: .bool(true))
+            session.setSetting("oneShotAutoMouseTimeout", to: .number(5))
             session.setSetting("aimLayers", to: .integers([1]))
             session.setSetting("sensitivity", to: .number(60))
+        }
+        // Auto Shift off with a delay an import kept: the Auto Shift options wait for it, and the delay can still be reset.
+        await add("waiting", sizes: [("", full), ("-min", minimum)]) { model, session in
+            session.setSetting("autoshiftTimeout", to: .number(150))
+            model.firmwareSettings.query = "shift"
+        }
+        // The empty states keep the header at the top: no match, and Modified only with nothing changed.
+        await add("no-match", sizes: [("-min", minimum)]) { model, _ in model.firmwareSettings.query = "zzzz" }
+        await add("none-changed", sizes: [("-min", minimum)]) { model, _ in model.firmwareSettings.modifiedOnly = true }
+        // The module choice counts as a match.
+        await add("navigator-query", sizes: [("-min", minimum)]) { model, _ in model.firmwareSettings.query = "trackball" }
+        // The picker says where English (UK)'s £ went while its toggle is off.
+        if let model = await settingsModel(), let session = model.session {
+            session.select(key: 19)
+            model.openKeycodePicker(prefilled: "pound")
+            scenes += SnapshotScene.pair("picker-locale-off", size: full) { LayoutWindow(model: model, layoutID: .constant(session.id)) }
         }
         return scenes
     }

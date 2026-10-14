@@ -121,8 +121,9 @@ struct KeymapPlan {
         switch (key.tap, key.hold) {
         case let (tap?, hold?):
             if let compact = QMKCodes.modTapOrLayerTap(tap: tap, hold: hold) { return compact }
-            // Oryx built these as tap dances before it had dual-function keys; the setting keeps that (ADR 0040).
-            if layout.settings["legacyDualFunctionDances"] == .bool(true) { return try dance(key, at: ref) }
+            // Oryx built these as tap dances before it had dual-function keys; the setting keeps that (ADR 0040). A key a
+            // dance can't carry stays a dual-function key, so the setting never stops a layout that builds without it.
+            if layout.settings["legacyDualFunctionDances"] == .bool(true), Self.fitsTapDance(key) { return try dance(key, at: ref) }
             for (slot, action) in [(KeySlot.tap, tap), (.hold, hold)] where QMKCodes.statements(action) == nil {
                 throw Self.unsupportedPart(action, KeyRef(layer: ref.layer, index: ref.index, slot: slot))
             }
@@ -132,6 +133,11 @@ struct KeymapPlan {
         case let (nil, hold?): return try expression(hold, at: ref)
         case (nil, nil): return "KC_TRANSPARENT"
         }
+    }
+
+    /// Whether every action of `key` can run in a tap dance and its tap is a key, as ``dance(_:at:)`` requires.
+    private static func fitsTapDance(_ key: Key) -> Bool {
+        key.actions.allSatisfy(\.action.runsInTapDance) && (key.tap?.typesInTapDance ?? true)
     }
 
     /// A tap dance for a key whose every action can run in one and whose tap is a key (``TapDanceSource``).

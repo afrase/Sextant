@@ -36,16 +36,27 @@ extension KeyboardLayout {
         couple(setting.id)
     }
 
-    /// Settings whose stored value differs from their unset value, among those Sextant offers (the Firmware Settings
-    /// badge and Changed list).
-    public func changedSettings(in catalog: SettingsCatalog = .voyager) -> [Setting] {
-        catalog.allSettings.filter { catalog.offers($0) && isChanged($0) }
+    /// Whether this layout shows `setting`: one Sextant offers (``SettingsCatalog/offers(_:)``), for this layout's
+    /// Navigator, and with the setting it depends on set. The Firmware Settings page, its filters and the changed counts
+    /// all follow this, so a value counted as changed always has a row to change it from.
+    public func offers(_ setting: Setting, in catalog: SettingsCatalog = .voyager) -> Bool {
+        guard catalog.offers(setting) else { return false }
+        if let kinds = setting.navigatorKinds, !kinds.contains(navigator?.kind.rawValue ?? "") { return false }
+        guard let dependency = setting.dependsOn, let other = catalog.setting(id: dependency.id) else { return true }
+        return (storedValue(of: other) ?? other.unsetValue) == dependency.value
     }
 
-    /// Settings Sextant doesn't offer whose imported value differs from their unset value: kept for Oryx, unused by
-    /// Sextant's builds.
+    /// Settings this layout shows whose stored value differs from their unset value (the Firmware Settings badge and
+    /// Changed list).
+    public func changedSettings(in catalog: SettingsCatalog = .voyager) -> [Setting] {
+        catalog.allSettings.filter { offers($0, in: catalog) && isChanged($0) }
+    }
+
+    /// Stored values that differ from their unset value but that this layout doesn't show: a setting Sextant doesn't
+    /// offer, another Navigator's option, or one whose setting it depends on is off. Kept in the layout (for Oryx, or
+    /// for when they apply again); Sextant's builds don't use them.
     public func keptSettings(in catalog: SettingsCatalog = .voyager) -> [Setting] {
-        catalog.allSettings.filter { !catalog.offers($0) && isChanged($0) }
+        catalog.allSettings.filter { !offers($0, in: catalog) && isChanged($0) }
     }
 
     private func isChanged(_ setting: Setting) -> Bool { storedValue(of: setting).map { $0 != setting.unsetValue } ?? false }
