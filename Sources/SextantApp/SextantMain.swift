@@ -92,6 +92,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var library: Library?
     var live: LiveSession?
 
+    func applicationDidFinishLaunching(_ notification: Notification) { DeleteMenuItem.showDeleteKey() }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let library else { return .terminateNow }
         // End text editing so a typed label commits (its field commits when focus leaves) before the last save.
@@ -99,21 +101,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             // SwiftUI reports the focus change on a later run-loop turn; let one pass first.
             await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
-            await waitForFirmwareWrite()
-            let saved = await library.flushOpenSessions()
-            let quits = saved || Self.quitAnyway()
-            // A run waiting for flash mode may have started writing while the flush awaited the disk. No await follows
-            // this wait, so nothing can start between it and the reply.
-            if quits { await waitForFirmwareWrite() }
+            let quits = await Quitting(library: library, live: live).run(quitAnyway: Self.quitAnyway)
             sender.reply(toApplicationShouldTerminate: quits)
         }
         return .terminateLater
-    }
-
-    /// A cut-off write leaves the keyboard in flash mode, and a cut-off verify loses the record of what was flashed. The
-    /// flasher's capped polling and timeouts, and the 10 s verify timeout, bound the wait.
-    @MainActor private func waitForFirmwareWrite() async {
-        while live?.isWritingFirmware == true { try? await Task.sleep(for: .milliseconds(200)) }
     }
 
     @MainActor private static func quitAnyway() -> Bool {

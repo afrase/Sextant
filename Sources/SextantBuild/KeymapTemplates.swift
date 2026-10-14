@@ -142,7 +142,7 @@ struct TapDanceSource {
         let key = dance.slots
         // The plan admits only dances whose actions have statements and whose tap is a key.
         let tap = key.tap.flatMap(QMKCodes.statements)
-        let tapCode = key.tap.map { QMKCodes.wrap($0.code, $0.modifiers) } ?? ""
+        let tapCode = key.tap.map { QMKCodes.wrap(QMKCodes.name($0.code), $0.modifiers) } ?? ""
         let steps: [(step: String, slot: KeySlot, statements: (press: String, release: String?))] = [
             tap.map { ("SINGLE_TAP", .tap, $0) },
             key.hold.flatMap(QMKCodes.statements).map { ("SINGLE_HOLD", .hold, $0) },

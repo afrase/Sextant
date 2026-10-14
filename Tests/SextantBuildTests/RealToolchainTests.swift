@@ -56,7 +56,7 @@ struct RealToolchainTests {
     /// macros, a per-key tapping term, a locale); and every setting the generator writes, changed at once, with each
     /// Navigator (ADR 0040). Needs the set-up toolchain (the test above); it downloads nothing.
     @Test(
-        arguments: ["trackball", "none", "every-setting-trackpad", "every-setting-trackball"]
+        arguments: ["trackball", "none", "every-setting-trackpad", "every-setting-trackball", "legacy-names"]
             + (QMKGeneratorGoldenTests.reference == nil ? [] : ["e5Rrr", "JRGQm", "m9dpx", "XlrR4"]))
     func buildsAnotherLayout(variant: String) async throws {
         try #require(installer.isInstalled)
@@ -68,6 +68,15 @@ struct RealToolchainTests {
             layout.setNavigator(variant == "trackball" ? .trackball : nil)
         case "every-setting-trackpad": layout = try QMKGeneratorTests.everySettingChanged(.trackpad)
         case "every-setting-trackball": layout = try QMKGeneratorTests.everySettingChanged(.trackball)
+        case "legacy-names":
+            // Every legacy spelling the pinned QMK dropped, each on a key of its own: the generator writes QMK's names.
+            layout = try KeyboardLayout(
+                oryxJSON: Data(contentsOf: QMKGeneratorGoldenTests.examples.appending(path: "my-layout-KlgM7-full.json")))
+            layout.settings["enableSpaceCadet"] = .bool(true)
+            layout.settings["autoshift"] = .bool(true)
+            for (i, code) in QMKCodes.undeclaredLegacyNames.sorted().enumerated() {
+                layout.updateKey(layer: 1 + i / 48, index: i % 48) { $0 = Key(code) }
+            }
         default:
             layout = try KeyboardLayout(
                 oryxJSON: Data(contentsOf: QMKGeneratorGoldenTests.example("voyager-\(variant).json")))

@@ -135,6 +135,16 @@ public enum KeycodeCatalog {
         "ALL_T", "MEH_T", "SC_LSPO", "SC_RSPC", "SC_LCPO", "SC_RCPC", "SC_LAPO", "SC_RAPC", "SC_SENT",
     ]
 
+    /// QMK's mod-tap functions, `MEH_T(kc)` and the like, as the pinned QMK declares them in `quantum_keycodes.h` (less
+    /// `SH_T` and `SQ_T`, which aren't mod-taps). A hold is one by its exact spelling: a keycode that merely ends in
+    /// `_T`, such as the letter `KC_T`, takes no argument.
+    public static let modTapFunctions: Set<String> = [
+        "LCTL_T", "RCTL_T", "CTL_T", "LSFT_T", "RSFT_T", "SFT_T", "LALT_T", "RALT_T", "ALT_T", "LOPT_T", "ROPT_T", "OPT_T",
+        "ALGR_T", "LGUI_T", "RGUI_T", "GUI_T", "LCMD_T", "RCMD_T", "CMD_T", "LWIN_T", "RWIN_T", "WIN_T", "C_S_T", "MEH_T",
+        "LCAG_T", "RCAG_T", "HYPR_T", "ALL_T", "LSG_T", "SGUI_T", "SCMD_T", "SWIN_T", "RSG_T", "LCA_T", "LSA_T", "RSA_T",
+        "RCS_T", "LAG_T", "RAG_T", "SAGR_T",
+    ]
+
     /// Modifier bit for a plain modifier keycode (`KC_LEFT_GUI` → `.leftCommand`).
     public static func modifier(forCode code: String) -> Modifiers? {
         switch canonicalCode(code) {

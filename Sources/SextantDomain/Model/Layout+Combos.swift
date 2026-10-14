@@ -165,12 +165,12 @@ extension Key {
     var isTapDance: Bool { doubleTap != nil || tapHold != nil }
 
     /// True when QMK writes a tap and hold as one keycode, `MT()`, `LT()` or a `*_T()`, which every key with the pair
-    /// shares: a plain basic tap and a single-modifier, `*_T` or momentary-layer (0–15) hold. Any other dual-function
+    /// shares: a plain basic tap and a single-modifier, mod-tap function (`MEH_T`) or momentary-layer (0–15) hold. Any other dual-function
     /// key the generator numbers per key. The generator builds the keycode exactly when this holds.
     public static func isModTapOrLayerTap(tap: KeyAction, hold: KeyAction) -> Bool {
         guard tap.modifiers.isEmpty, tap.macro == nil, KeycodeCatalog.isBasic(tap.code), hold.macro == nil, hold.modifiers.isEmpty
         else { return false }
-        if hold.code.hasSuffix("_T") { return true }
+        if KeycodeCatalog.modTapFunctions.contains(hold.code) { return true }
         if let m = KeycodeCatalog.modifier(forCode: hold.code), m.rawValue.nonzeroBitCount == 1 { return true }
         return hold.canonicalCode == "MO" && hold.layer.map((0...15).contains) == true
     }
