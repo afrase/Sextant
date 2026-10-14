@@ -1134,27 +1134,33 @@ Typing statistics (WPM, today's count) appear only when heatmap recording is on,
 - style mask `[.nonactivatingPanel, .borderless]`, `level = .statusBar`;
 - `ignoresMouseEvents = true`, `hidesOnDeactivate = false`, `isOpaque = false`, `backgroundColor = .clear`;
 - `collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]`;
-- it never becomes key.
+- it never becomes key or main.
+
+The HUD is app-wide: the composition root owns it, not a window. It shows only while Live View is on, since it reads the keyboard's layer and key events (ADR 0057), and only when Sextant holds the keyboard's layout (`OnKeyboard`).
 
 **Geometry**
-- Width: the smaller of 720 and 46% of the screen width. Sizes S, M (the default) and L are set in Settings.
+- Width: the smaller of 720 and 46% of the screen width at M (the default); S is three quarters of that and L five quarters, never closer than 16 pt to the screen's edges. The size is set in Settings.
 - Corner radius 24, padding 20.
-- Position: bottom centre, 72 pt above the bottom of the visible frame, on the screen that holds the pointer. Settings › Keyboard can move it to top centre, 72 pt below the top of the visible frame, which keeps it clear of the menu bar and the notch.
+- Position: bottom centre, 72 pt above the bottom of the visible frame, on the screen that holds the pointer when it appears. Settings › Keyboard can move it to top centre, 72 pt below the top of the visible frame, which keeps it clear of the menu bar and the notch. It moves when the screens change.
 
 **Content**
-- Header row: a layer index tile in the layer colour, the layer name, "held with ⏎", the status-LED dots, and a trailing hint ("release to hide").
-- The layer's map, with pressed keys lit.
+- Header row: a layer index tile in the layer colour, the layer name, "held with ⏎" (the holding key as its cap shows it on the layer it went down on) or "locked", the status-LED dots, and a trailing hint ("release to hide") while a key holds it.
+- The layer's map (`LayerMap`), with pressed keys lit.
+- VoiceOver reads it as one element: "Overlay: Sym+Num layer, keys down k24, held with ⏎".
 
 **Material**
-- `.glassEffect(.regular)`, or via `NSGlassEffectView`.
+- `NSGlassEffectView` behind the content.
 - Option: tint with the layer colour at 20% (off by default).
-- Under Reduce Transparency, an opaque dark panel.
+- Under Reduce Transparency, an opaque dark panel, without the tint.
+
+**Momentary or locked.** The keyboard reports only its highest layer and the keys held down, so Sextant infers why it is on a layer (`LayerHold`, ADR 0050): momentary when a held key holds it on (MO, a layer-tap's hold, LM, or a TT or OSL key while it is down), each key read on the layer it went down on; locked otherwise (TG, TO, DF, a tapped TT, a tap dance's TO, a move Sextant or another app sent). The Navigator's auto-mouse layer shows nothing.
 
 **Timing**
-- A momentary layer shows the HUD after a 150 ms hold delay (configurable from 0 to 500 ms). It fades in over 0.12 s and out over 0.18 s after release.
-- A toggled layer (`TG` or `TO`) shows a compact reminder pill instead: "Sym+Num locked", 32 pt tall, in the same position, until the keyboard returns to the base layer. Settings offers: full overlay, reminder (the default), or nothing.
+- A momentary layer shows the HUD after a 150 ms hold delay (configurable from 0 to 500 ms); a second held layer replaces a showing HUD at once. It fades in over 0.12 s with an 8 pt rise (a plain fade under Reduce Motion) and out over 0.18 s.
+- It hides the moment the holding key is let go, even when the layer change doesn't arrive (research 03 O2); a one-shot layer (OSL) hides then too.
+- A locked layer shows a compact reminder pill instead: "Sym+Num locked", 32 pt tall, in the same position, until the keyboard returns to the base layer. Settings offers: full overlay, reminder (the default), or nothing. A lock shows after the delay, and never sooner than 50 ms, since a held TT's key-up arrives just before its layer ends.
 
-The HUD is hidden during secure input, in full-screen video (when the screen is captured), and while Sextant's own window is key and showing the same layer.
+The HUD is hidden during secure input and while a Sextant layout window is key and its board shows the same layer of the keyboard's layout. It is not hidden in full-screen video: the check the spec named (`CGDisplayIsCaptured`) is deprecated and the build treats warnings as errors (ADR 0050). One setting, Show overlay while a layer is held, backs Settings › Keyboard, Keyboard ▸ Show Overlay While Holding a Layer, the Device popover and the menu bar extra.
 
 ### 8.5 Heatmap lens (v1)
 

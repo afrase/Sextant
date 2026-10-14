@@ -20,6 +20,7 @@ public struct DevicePopover: View {
     /// First connect shows a note about live data once (spec §12.3).
     @AppStorage(SettingsKey.seenLiveDataNote) private var seenLiveDataNote = false
     @AppStorage(SettingsKey.showsKeyPresses) private var showsPresses = true
+    @AppStorage(SettingsKey.showsOverlay) private var showsOverlay = true
     @State private var showsTrace = true
     @Environment(RawHIDTrace.self) private var trace: RawHIDTrace?
 
@@ -61,7 +62,7 @@ public struct DevicePopover: View {
                         }
                     }
                     .disabled(!model.canFollow)
-                    Toggle("Show key presses on the board", isOn: $showsPresses)
+                    showToggles
                 }
                 if let trace, trace.isOn {
                     Divider()
@@ -73,6 +74,12 @@ public struct DevicePopover: View {
             .padding(16)
             .frame(width: 360)
         }
+    }
+
+    /// Where live presses show: the same settings as Settings › Keyboard's.
+    @ViewBuilder private var showToggles: some View {
+        Toggle("Show key presses on the board", isOn: $showsPresses)
+        Toggle("Show overlay while a layer is held", isOn: $showsOverlay)
     }
 
     @ViewBuilder private func privacy(_ live: LiveSession) -> some View {

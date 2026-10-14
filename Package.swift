@@ -83,6 +83,7 @@ let package = Package(
             dependencies: [
                 "SextantUI", "SextantApplication", "SextantDomain",
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+                .product(name: "Clocks", package: "swift-clocks"),
             ],
             exclude: ["__Snapshots__"]  // swift-snapshot-testing reference images
         ),

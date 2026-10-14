@@ -87,6 +87,9 @@
     "%@ layer, no keys down" : {
 
     },
+    "%@ locked" : {
+
+    },
     "%@ ms" : {
 
     },
@@ -2310,6 +2313,19 @@
     "Overlay" : {
 
     },
+    "Overlay: %@ layer locked" : {
+
+    },
+    "Overlay: %@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Overlay: %1$@, %2$@"
+          }
+        }
+      }
+    },
     "Override %lld Keys" : {
 
     },
@@ -3434,6 +3450,9 @@
         }
       }
     },
+    "held with %@" : {
+
+    },
     "hold" : {
 
     },
@@ -3497,6 +3516,9 @@
 
     },
     "left half" : {
+
+    },
+    "locked" : {
 
     },
     "macros" : {
@@ -3587,6 +3609,9 @@
           }
         }
       }
+    },
+    "release to hide" : {
+
     },
     "revision %lld" : {
 

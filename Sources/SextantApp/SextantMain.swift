@@ -28,6 +28,7 @@ struct SextantMain: App {
         services.live.start()
         services.onKeyboard.start()
         services.layerShortcuts.start()
+        services.overlay.start()
         // `--import <oryx.json>`: add an Oryx layout file to the library at launch.
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--import"), args.indices.contains(i + 1) {
@@ -76,7 +77,7 @@ struct SextantMain: App {
         ) { _ in NSSound.beep() }
         return SextantServices(
             library: library, live: live, trace: trace, onKeyboard: onKeyboard, layerShortcuts: layerShortcuts,
-            makeImport: { ImportFromOryx(oryx: oryx, library: library) },
+            overlay: OverlayHUD(live: live, onKeyboard: onKeyboard), makeImport: { ImportFromOryx(oryx: oryx, library: library) },
             makeBuildFlash: { session in
                 // ADR 0033: the native toolchain, every build sandboxed.
                 BuildFlashSession(

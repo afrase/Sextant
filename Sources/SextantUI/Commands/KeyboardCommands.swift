@@ -6,6 +6,7 @@ struct KeyboardMenu: View {
     var onKeyboard: OnKeyboard?
     var live: LiveSession?
     var layerShortcuts: LayerShortcuts?
+    @AppStorage(SettingsKey.showsOverlay) private var showsOverlay = true
 
     var body: some View {
         Button("Build") { window?.build(.build) }.keyboardShortcut("b").disabled(window?.canBuild != true)
@@ -25,7 +26,7 @@ struct KeyboardMenu: View {
             .keyboardShortcut("l").disabled(window?.canFollow != true)
         MoveKeyboardToLayerMenu(onKeyboard: onKeyboard, live: live, shortcuts: layerShortcuts)
         Button("Preview Lighting on Keyboard") {}.disabled(true)
-        Button("Show Overlay While Holding a Layer") {}.disabled(true)
+        Toggle("Show Overlay While Holding a Layer", isOn: $showsOverlay)
         Divider()
         Button("Device Info…") { window?.devicePopover = .capsule }.disabled(window?.live == nil)
         // shortcut: BuildFlashSession has no path to flash a stored Oryx image yet; enable when it gets one (spec §7.1).

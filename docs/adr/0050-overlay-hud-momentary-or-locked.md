@@ -1,0 +1,33 @@
+# 50. Overlay HUD: inferring a held or locked layer, and no full-screen-video check
+
+Status: accepted, 2026-10-15. v1 plan slice 3.2. Builds on ADRs 0038 (the activity feed), 0039 (OnKeyboard), 0045 (the overlay settings), 0048 (LayerMap) and 0057 (Live View by hand); amends spec §8.4.
+
+## Context
+Spec §8.4 adds an overlay HUD: while a layer is held, a floating panel over every app shows that layer's map after a short delay; a locked layer shows a small reminder instead. Settings › Keyboard already stores its options (ADR 0045), and slice 2.4 built the read-only `LayerMap` it draws.
+
+The keyboard doesn't say why it is on a layer. Over raw HID it reports only its highest active layer (`05`) and each physical key going down and up (`06`, `07`), before the firmware decides tap or hold. Those events reach Sextant only from a paired session, so only while Live View is on (ADR 0057). The firmware can also drop the change back to a layer it never reported leaving (research 03 O2), and `activity()` delivers nothing during secure input, so a key-up can go missing (ADR 0038).
+
+Spec §8.4 also hides the HUD "in full-screen video (when the screen is captured)". The only API for that, `CGDisplayIsCaptured`, has been deprecated since macOS 10.9, and the build treats warnings as errors.
+
+## Decision
+- **Held or locked is inferred** in the domain: `LayerHold.classify(layout:layer:pressed:)` returns
+  - `base` for layer 0;
+  - `momentary(heldBy:)` when a key held down holds the layer on: MO, a layer-tap's hold (`hold` = MO), LM, or TT or OSL while the key is down, in any of the key's slots (a dance's tap-then-hold MO holds too). Each key is read on the layer that was highest when it went down (`LiveActivity.keyDown` carries it), falling through transparent keys as the board shows them (`resolvedKey`), since that is where the firmware chose its action. With several holders, the lowest key index wins;
+  - `pointer` for the Navigator's auto-mouse layer with nothing holding it: the firmware turns it on while the pointer moves, which raw HID doesn't report, so the HUD shows nothing there. A layer that is both (JRGQm's Mouse, which TT(7) also toggles) reads as the pointer once its key is let go;
+  - `locked` otherwise: TG, TO, DF, a tapped TT, a tap dance's TO, a layer move Sextant or another app sent.
+- **`OverlayModel`** (`SextantUI/Overlay`, `@MainActor @Observable`, with an injected clock) folds `LiveSession.activity()` into the keys held (with their layers) and the layer, and decides what shows:
+  - a held layer shows the full overlay after the delay (150 ms by default); once the HUD shows, another held layer replaces it at once;
+  - the holding key's key-up hides it at once, and until the next layer report the layer counts as gone, not locked. The key-up arrives before the layer change (the firmware reports keys in `pre_process_record`), and the change may never arrive (O2), so without this every release would flash a reminder. A TT's key-up is the exception: a tapped TT leaves its layer on, so the layer then reads as locked. An OSL's one-shot layer hides on release and shows no reminder;
+  - a locked layer shows the reminder pill, the full overlay or nothing, per Settings; it waits for the delay too, and never less than 50 ms, so a held TT's key-up doesn't flash a reminder just before its layer ends;
+  - nothing shows while Live View is off (which forgets the keys and the layer), during secure input (which forgets the keys held, since their key-ups won't arrive; the HUD then catches up with the session's layer), without the keyboard's layout (`OnKeyboard.running`), when the overlay is off, or while a key layout window shows the same layer of the keyboard's layout. Windows report that through a view modifier (`reportsShownLayer`) on the overlay model in the environment.
+- **`OverlayHUD`** is the one app-wide object: the composition root builds it, passes it in `SextantServices` and starts it, so it works with no window open. It feeds the model from `LiveSession`, `OnKeyboard` and `UserDefaults` (the ADR 0045 keys and defaults, re-read on `UserDefaults.didChangeNotification`) and shows the model's presentation. It sends nothing to the keyboard.
+- **`OverlayPanel`**, an `NSPanel` subclass: borderless and nonactivating, level `.statusBar`, ignores the mouse, never hides on deactivate, joins all Spaces and full-screen apps, and returns false from `canBecomeKey` and `canBecomeMain`; `orderFrontRegardless` shows it without activating Sextant. It sits on the screen with the pointer when it appears, 72 pt from the visible frame's bottom or top, and moves on `didChangeScreenParametersNotification`. It fades in over 0.12 s rising 8 pt (a plain fade under Reduce Motion) and out over 0.18 s.
+- **`HUDView` and `HUDPill`** draw the content: the index tile, name, "held with ⏎" or "locked", the status lights and "release to hide" over `LayerMap`, or "Sym+Num locked". In the panel, AppKit's `NSGlassEffectView` draws the glass (spec §13.2), tinted with the layer color at 20% when Settings says so; under Reduce Transparency the view draws an opaque dark panel itself, untinted. In snapshots, where glass can't be captured, an opaque surface stands in, with the tint over it. Widths: M is the smaller of 720 pt and 46% of the screen, S three quarters and L five quarters of that, kept 16 pt inside the screen.
+- **One setting** (`showsOverlay`) backs Settings › Keyboard, Keyboard ▸ Show Overlay While Holding a Layer (now a toggle), a Device popover toggle beside Show key presses, and the menu bar extra's switch (slice 3.1).
+- **No full-screen-video check** (a recorded deviation from spec §8.4). The HUD still shows over full-screen apps, as `fullScreenAuxiliary` lets it, and only while a layer is held or locked.
+
+## Consequences
+- The inference can be wrong where the keyboard doesn't tell: a layer locked with a key still held that also holds it, a layer reached through layers Sextant can't see as active (it resolves keys as the board does, from the base layer), a TT whose layer-off went missing (it then reads as locked), or the auto-mouse layer toggled by hand (no reminder).
+- The HUD never shows while Live View is off or for a layout the library doesn't hold; nothing says so on screen, since the HUD is the only place it could. The overlay switches stay usable, as they are preferences.
+- The user checks focus, click-through and the glass in the app: tests make the panel without showing it, and the snapshots render `HUDView` offscreen.
+- Agents never send anything for this slice: it only reads what a Live View session already reports, and its tests run on the model with a test clock.
