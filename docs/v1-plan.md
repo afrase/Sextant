@@ -309,6 +309,13 @@ The user checks ⌘P in the app.
 
 ## Wave 2: document features II, plus the first keyboard write
 
+**Status (2026-10-15): merged, with an extra slice 2.6 for wave 1's leftovers (merge order 2.6, 2.5, 2.4, 2.3, 2.1, 2.2).** Corrections found while building it:
+- 2.1: "Active on" is called "Keys from" (Oryx's meaning, the user's answer); the header's All layers is a view filter. Snapshots use combos built in code on the user's layout, never JRGQm or m9dpx data (ADR 0055); the JRGQm pill test reads `SEXTANT_REFERENCE`. Numbers above 50 draw as text. A disabled key (`KC_NO`, which is `COMBO_END`) and a repeated keycode are refused too.
+- 2.2: the multi-key extras live in `EditSession+MultiSelect.swift` (EditSession.swift hit SwiftLint's length limits) and the click rules in `LayoutWindowModel+Selection.swift`; Copy Layer To is a submenu, without an ellipsis; copied macros aren't clamped to 24 steps (JRGQm has 25), the 1 MB cap bounds them.
+- 2.3: Scenes+Settings.swift existed (1.5), so the page's scenes are in Scenes+FirmwareSettings.swift; the Space Cadet refusal was in QMKGenerator's `note()`, not QMKCodes; about 60 settings show, not 95; settings Sextant doesn't offer (Live Training, Stenography) write nothing instead of being refused.
+- 2.4: with the library, the adapter is `SextantApp/KeyboardShortcutsHotKeys.swift` (no SextantSystem target, no lint change); `HotKeys` is a `@MainActor` port; "live access on" means Live View is on (ADR 0057).
+- 2.5: the size delta compares with the newest earlier revision that has a Sextant-built image.
+
 Combos waits for Macros: its Choose Output takes a macro through the picker's Macros category. Multi-select changes EditSession's core key edits, so it runs once every other feature keeps its EditSession code in extension files. The settings UI and the second generator pass wait for the tap dance work (legacyDualFunctionDances reuses TapDanceSource). Move Keyboard to Layer is the smallest keyboard write and creates the LayerMap that the menu bar and HUD reuse. History's extras need 1.3 and 1.4's exporter.
 
 ### 2.1 Combos lens (L)
@@ -709,7 +716,7 @@ Rules that keep merges clean:
 18. **Merge order within a wave.** Smallest and most isolated first, so the large slices rebase once:
 - wave 0: 0.4, 0.2, 0.1, 0.3, 0.5;
 - wave 1: 1.5, 1.1, 1.4, 1.2, 1.3;
-- wave 2: 2.5, 2.4, 2.3, 2.1, 2.2;
+- wave 2: 2.6, 2.5, 2.4, 2.3, 2.1, 2.2 (2.6 was added for wave 1's leftovers);
 - wave 3: 3.4, 3.3, 3.2, 3.1;
 - wave 4: 4.1, 4.2.
 Run scripts/check after every merge, not only per branch.
