@@ -25,7 +25,7 @@ struct CanvasColumn: View {
                     session: session, mode: model.legendMode, issues: model.issueMap, pressed: model.pressedKeys,
                     highlightedKind: model.highlightedKind, showsGrid: showsGrid
                 )
-                .environment(\.swapsKeys, model.lens == .keys)
+                .environment(\.swapsKeys, model.lens == .keys && model.page != .combos)
             }
             ContextStrip(model: model, session: session).frame(height: 76)
             BoardFooter(model: model).frame(height: 32)
@@ -73,6 +73,8 @@ private struct CanvasHeader: View {
             Spacer(minLength: 8)
             if model.page == .history, let history = model.history {
                 CompareMenu(history: history)
+            } else if model.page == .combos {
+                ComboLayerMenu(model: model, session: session)
             } else {
                 Picker("Lens", selection: $model.lens) {
                     ForEach(Lens.allCases, id: \.self) { Text($0.title).tag($0) }

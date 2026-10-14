@@ -364,6 +364,7 @@ extension LayoutWindowModel {
         }
         items += settingItems(query)
         items += macroDocumentItems(query)
+        items += comboDocumentItems(query)
         items += revisionItems(query)
         return items
     }

@@ -4,6 +4,7 @@ extension LayoutWindowModel {
     func capDecoration(layer: Int, index: Int) -> CapDecoration {
         switch page {
         case .history: history?.decoration(layer: layer, index: index) ?? CapDecoration()
+        case .combos: comboDecoration(index: index)
         default: CapDecoration()
         }
     }

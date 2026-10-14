@@ -116,6 +116,8 @@ public final class LayoutWindowModel {
     var boardPick: BoardPick?
     /// The Macros page's state (spec §6.3).
     let macros = MacrosModel()
+    /// The Combos page's state (spec §6.4).
+    let combos = CombosModel()
     /// Keycodes assigned from the picker and commands run from the palette, newest first (Suggested, Recent).
     var recentKeycodes: [KeyAction] = []
     var recentCommands: [String] = []

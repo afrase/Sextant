@@ -11,6 +11,8 @@ struct LensLane: View {
             HStack(spacing: 8) {
                 if model.page == .history, let history = model.history {
                     HistoryCapsule(history: history).glassEffectTransition(.materialize)
+                } else if model.page == .combos, let session = model.session {
+                    ComboCapsule(model: model, session: session).glassEffectTransition(.materialize)
                 } else if model.lens == .lighting, let session = model.session {
                     LightingCapsule(model: model, session: session).glassEffectTransition(.materialize)
                 }

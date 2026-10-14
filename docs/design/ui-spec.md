@@ -165,7 +165,7 @@ The main complaints about Instrument can all be fixed without changing its struc
 - **Selection.**
   - The selection is a key index plus a slot. It persists across layers, so ⌘1 to ⌘9 keep the same key selected, and across lenses.
   - In the Lighting lens, a click paints instead of selecting.
-  - In the Combos lens, a click toggles combo membership while a combo is being edited.
+  - In the Combos lens, a click selects a combo the key is in, or adds or removes the key while a combo's keys are being chosen.
 - **State restoration.** Each window restores its layout, destination, lens, selected key and slot, the sidebar and inspector visibility, and its frame. Use `SceneStorage`, plus restoration of `WindowGroup(for:)` values.
 
 ### 2.3 Document and library model
@@ -364,12 +364,12 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
   - "LIVE · following the keyboard" while following.
 - **Trailing:** a `Picker(.segmented)` for the lens (Keys / Lighting / Heatmap), at small control size.
 - **Document lenses** replace the trailing control:
-  - Combos: "Active on: All layers ▾";
+  - Combos: "Keys from: All layers ▾", a filter: every combo, or only those reading one layer, which it then shows (ADR 0046);
   - History: "Compare with: Previous revision ▾".
 
 **Lens lane (36 pt)**
 - An `HStack` inside a `GlassEffectContainer(spacing: 8)`, centred. It holds at most:
-  1. a **lens capsule**: Lighting tools, Heatmap summary, Combos "New Combo" plus instructions, or the History comparison;
+  1. a **lens capsule**: Lighting tools, Heatmap summary, Combos "New Combo" with the count (while choosing keys: the keys so far with [Choose Output…] or [Done]), or the History comparison;
   2. a **status capsule**, by priority: board pick > error > recording > Follow/live > app rule. A board pick (choosing combo members, Assign to Key) comes first because only its prompt says what a click does. Record Key started during a pick hides it until recording ends, since esc ends recording first (§9.3, ADR 0037). The pick capsule's [Cancel] is the window's cancel shortcut (esc, ⌘.), so esc ends a pick even when the board misses it (ADR 0042). Choosing another page drops the pick.
 - Capsules are 28 pt tall. They use `.glassEffect(.regular.interactive(), in: .capsule)` and appear with `.glassEffectTransition(.materialize)`.
 
@@ -393,7 +393,7 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
 - **Keys lens, nothing selected:** a hint, "Select a key to see it on every layer · ⏎ edits · ⌘K finds anything". After first use it becomes per-layer key counts.
 - **Lighting:** a card per layer with the layer colour and "19 of 52 keys have their own colour".
 - **Heatmap:** layer share cards. With a key selected, that key's count on each layer.
-- **Combos:** combo cards ("J + K → Esc · all layers"), scrolling horizontally. Click one to select it. The last card is "+ New Combo".
+- **Combos:** combo cards ("J + K → Esc", then the name and "Keys from Main"), scrolling horizontally. Click one to select it and show its layer. The last card is "+ New Combo". With no combos, the empty state (§12.4).
 - **Changes:** per-layer change counts ("Brd+Sys · 4 changes"). Click one to show that layer.
 
 **Board footer (32 pt)**
@@ -872,25 +872,30 @@ The picker is the command palette component in **assign scope**.
 
 ### 6.4 Combos lens (v1)
 
+**What a combo's layer means (ADR 0046).** QMK matches combos by keycode. A combo reads the keycodes at its keys on one layer ("Keys from"; none means the base layer), and fires whenever keys typing those keycodes go down together, on any layer. This is Oryx's meaning, so builds match Oryx's; Sextant says it in its own words and never calls it a per-layer restriction.
+
 **Board**
-- Combo keys are ringed in the combo's colour and numbered.
-- A 2 pt trace joins the members, drawn only in the gaps between caps.
-- An output pill (combo colour, with the output legend) sits in the nearest gap above the members. It must never overlap a legend; if there is no gap, it moves to the side.
-- Non-member keys are at 45%.
-- The board shows the base layer, or the layer chosen in "Active on".
+- Combo keys are ringed in the combo's colour and numbered (a number past 50, which SF Symbols doesn't circle, is text in a filled circle). A key in several combos takes the lowest number; VoiceOver hears every one: "in combo 2: J + K → Escape".
+- A 2 pt trace joins the members (the shortest tree between their centres), drawn only in the gaps between caps.
+- An output pill (combo colour, its number and the output legend, black or white ink by luminance) sits in the nearest gap above the members. It must never overlap a legend, a number or another pill; if there is no gap, it moves further out, beside or above the board, up to six keys away, and is left out when nothing fits.
+- Non-member keys are at 45%. A selected combo is drawn alone. With no combo to show, nothing dims.
+- The board shows the shown layer: the base layer, the layer chosen in "Keys from", or a selected combo's layer. A click selects a combo the key is in; ⌫ deletes the selected combo; painting and drag-to-swap are off.
 
 **Creating a combo**
-- N, or the context strip's "+ New Combo", starts creation. The lens lane says "Click 2–6 keys, then Choose Output · esc cancels".
-- Choose Output opens the picker in assign scope, with the target "Combo 3 › Output". It accepts a keycode, a macro, or a layer action.
+- N, the context strip's "+ New Combo", the lens capsule or the inspector starts creation. The lens lane says "Click 2–6 keys, then Choose Output · esc cancels". A second click takes a key out; a seventh is refused.
+- Choose Output (2–6 keys) opens the picker in assign scope, with the target "Combo 3 › Output". It accepts a keycode, a macro, or a layer action, but not Transparent or No Action. The choice makes the combo (one undo step, "New Combo") on the shown layer's keys; closing the picker keeps the keys chosen.
+- Edit Keys… changes a combo's keys the same way; Done keeps them as one undo step.
 
 **Inspector**
-- Trigger keys as chips, removable.
-- Output tile.
-- "Active on": All layers, or layer chips.
-- Combo term: "50 ms (global) · Firmware Settings ›".
+- The combo's number and title, and a Name field.
+- Trigger keys as chips, removable down to 2.
+- Output tile ("Sends"), which opens the picker.
+- "Keys from": a layer picker, with the line "Sextant reads the keys at these spots on Main. The combo fires whenever keys typing the same keycodes go down together, on any layer."
+- Combo window: "50 ms, every combo · Firmware Settings ›".
 - Warnings:
-  - "J and K are rolling neighbors: fast typing may trigger this combo by accident."
-  - Duplicate trigger set.
+  - "Keys J and K are rolling neighbors" (keys side by side on one row of one half): "Fast typing may set this combo off by accident."
+  - Duplicate trigger set, more than 6 keys, and a transparent or tap-dance key.
+- [Edit Keys…] and [Delete Combo].
 
 **Combo colours** are Sextant's own categorical palette (§10.1).
 
@@ -1443,7 +1448,7 @@ Esc never switches lens or destination.
 
 **Diff:** added `status.success`, changed `status.warning`, removed `status.danger`.
 
-**Combo palette** (Sextant's own; rings at 2 pt): `#F08C00` `#D6336C` `#1C7ED6` `#0CA678` `#7048E8` `#74B816` `#E03131` `#1098AD`.
+**Combo palette** (Sextant's own; rings at 2 pt): `#F08C00` `#D6336C` `#1C7ED6` `#0CA678` `#7048E8` `#74B816` `#E03131` `#1098AD`. Each is darkened to 3:1 on the light bench and lightened to 3:1 on the dark cap for drawing; combo n takes colour n − 1, round the palette (ADR 0046).
 
 **Swatches.** These are the layout's 10 colours, which are user data. New layouts use a Sextant default set, not Oryx's.
 

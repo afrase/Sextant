@@ -35,7 +35,7 @@ struct WindowDetail: View {
                             session.isEditedSinceRevision
                                 ? String(localized: "Firmware Settings · Edited") : String(localized: "Firmware Settings"))
                 // Each v1 page replaces its own line when it lands; until then no sidebar row reaches it (ADR 0037).
-                case .combos: EmptyView()
+                case .combos: CombosCanvas(model: model, session: session)
                 case .macros: MacrosPage(model: model, session: session)
                 case .history: HistoryCanvas(model: model, session: session)
                 case .appLayers: EmptyView()

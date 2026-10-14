@@ -38,6 +38,26 @@ struct TokenContrastTests {
             #expect(resolve(k.tint, mode, over: cap(mode)).contrast(with: cap(mode)) >= 3, "bar \(k.tint.light.hex)")
         }
     }
+
+    /// The 8 combo colours (spec §10.1, ADR 0046): rings and traces at least 3:1 on the cap and the bench, and the output
+    /// pill's ink, black or white by luminance as ComboOverlay picks it, at least 4.5:1 on the pill.
+    @Test(arguments: Mode.allCases)
+    func comboColours(mode: Mode) {
+        #expect(Tokens.combos.count == 8 && Set(Tokens.combos.map(\.light.hex)).count == 8)
+        let surfaces =
+            mode == .dark
+            ? [Tokens.capTop.dark, Tokens.benchBase.dark, Tokens.benchLift.dark]
+            : [
+                Tokens.capTop.light, Tokens.benchBase.light, Tokens.benchLift.light,
+            ]
+        for token in Tokens.combos {
+            let color = mode == .dark ? token.dark : token.light
+            for surface in surfaces { #expect(color.contrast(with: surface) >= 3, "ring \(color.hex) on \(surface.hex)") }
+            let ink: HexColor = color.luminance > 0.179 ? .black : .white
+            #expect(ink.contrast(with: color) >= 4.5, "pill ink on \(color.hex)")
+        }
+        #expect(Tokens.combo(8) == Tokens.combo(0), "the palette goes round")
+    }
 }
 
 /// A token builds its colour once (a fresh dynamic colour on every read made each cap slower to redraw); it still

@@ -91,6 +91,7 @@ public struct BoardView: View {
                     // A child's simultaneous gesture still beats this one, so the swap is off outside the Keys lens (ADR 0029).
                     .highPriorityGesture(paintStroke(board), isEnabled: brush != nil)
                     .position(center)
+                ComboOverlay(board: board, origin: origin, size: proxy.size)
             }
         }
         .simultaneousGesture(SpatialTapGesture().onEnded { _ in focusedByPointer = true })
@@ -104,8 +105,8 @@ public struct BoardView: View {
             press.modifiers.contains(.control) ? .ignored : cycleSlot(back: press.key == Self.backTab || press.modifiers.contains(.shift))
         }
         .onKeyPress(.delete) {
-            // Not under a pick's prompt, which says what the keys do now.
-            guard session.selection.keyIndex != nil, !hasBoardPick, display == nil else { return .ignored }
+            // Not under a pick's prompt, which says what the keys do now, nor on a page: Combos' ⌫ deletes its combo.
+            guard session.selection.keyIndex != nil, !hasBoardPick, display == nil, window?.page == nil else { return .ignored }
             session.makeTransparent()
             return .handled
         }
