@@ -69,6 +69,7 @@ enum Scenes {
         scenes += await export(f)
         scenes += await macros(f)
         scenes += await history(f)
+        scenes += await firmwareSettings(f)
         // The app icon, 1024 pt on a transparent canvas, one scene per detail tier (app-icon serves 128 px and up);
         // scripts/icon renders each at its pixel size into Resources/AppIcon.icns.
         for (name, pixels) in [("app-icon", 1024.0), ("app-icon-64", 64), ("app-icon-32", 32), ("app-icon-16", 16)] {

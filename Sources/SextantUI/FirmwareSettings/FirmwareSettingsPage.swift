@@ -4,24 +4,41 @@ import SwiftUI
 
 /// Which firmware settings the page shows, and how they read (spec §8.8).
 enum FirmwareSettings {
-    /// The MVP core sections (spec §13.5 step 11), with the settings that apply to this layout's board and Navigator.
-    /// Navigator is always there: it starts with the choice of module and side (ADR 0035).
-    /// shortcut: RGB shows only its timeout and the other nine sections are left out; v1 shows all 101 settings.
+    /// Every section with the settings Sextant offers (``SettingsCatalog/offers(_:)``) that apply to this layout's
+    /// Navigator, in catalog order. Navigator is always there: it starts with the choice of module and side (ADR 0035).
     static func sections(for layout: KeyboardLayout, catalog: SettingsCatalog = .voyager) -> [SettingsSection] {
         catalog.sections.compactMap { section in
             var section = section
-            section.settings = section.settings.filter {
-                !hidden.contains($0.id) && isCore($0, in: section.id) && applies($0, to: layout, catalog: catalog)
-            }
+            section.settings = section.settings.filter { catalog.offers($0) && applies($0, to: layout, catalog: catalog) }
             return section.settings.isEmpty && section.id != navigator ? nil : section
         }
     }
 
+    /// The sections the page's search and Modified only filter leave: matching settings only, and the Navigator section
+    /// while it has one or the query names the module choice.
+    static func sections(
+        for layout: KeyboardLayout, query: String, modifiedOnly: Bool, catalog: SettingsCatalog = .voyager
+    ) -> [SettingsSection] {
+        let changed = Set(layout.changedSettings(in: catalog).map(\.id))
+        return sections(for: layout, catalog: catalog).compactMap { section in
+            var section = section
+            section.settings = section.settings.filter {
+                SettingsCatalog.matches($0, query) && (!modifiedOnly || changed.contains($0.id))
+            }
+            let keeps = section.id == navigator && showsNavigatorChoice(query: query, modifiedOnly: modifiedOnly)
+            return section.settings.isEmpty && !keeps ? nil : section
+        }
+    }
+
+    /// The Navigator's module and side rows show unfiltered, or when the query names them.
+    static func showsNavigatorChoice(query: String, modifiedOnly: Bool) -> Bool {
+        guard !modifiedOnly else { return false }
+        let words = [title(nil), title(.trackpad), title(.trackball), title(.left), title(.right)]
+        return SettingsCatalog.matches(([String(localized: "Navigator"), String(localized: "Side")] + words).joined(separator: " "), query)
+    }
+
     /// The Navigator section's id.
     static let navigator = "navigator"
-
-    /// Never shown: Oryx's firmware is the same with "Prefer tap in tap-and-hold dances" on or off (ADR 0041).
-    private static let hidden: Set<String> = ["dancesTapAction"]
 
     /// "Trackpad", or "None" without a Navigator.
     static func title(_ kind: NavigatorConfig.Kind?) -> String {
@@ -37,17 +54,8 @@ enum FirmwareSettings {
         side == .left ? String(localized: "Left") : String(localized: "Right")
     }
 
-    private static func isCore(_ setting: Setting, in section: String) -> Bool {
-        switch section {
-        case "tapping", "oneshot", "debounce", "navigator": true
-        case "rgb": setting.id == "rgbTimeout"
-        default: false
-        }
-    }
-
     /// The board, the Navigator kind (Navigator settings only with a Navigator) and a setting it depends on.
     private static func applies(_ setting: Setting, to layout: KeyboardLayout, catalog: SettingsCatalog) -> Bool {
-        guard setting.appliesToVoyager else { return false }
         if let kinds = setting.navigatorKinds, !kinds.contains(layout.navigator?.kind.rawValue ?? "") { return false }
         guard let dependency = setting.dependsOn, let other = catalog.setting(id: dependency.id) else { return true }
         return (layout.storedValue(of: other) ?? other.unsetValue) == dependency.value
@@ -57,65 +65,206 @@ enum FirmwareSettings {
     static func onValue(_ setting: Setting) -> SettingValue {
         setting.defaultValue ?? .number(setting.range?.lowerBound ?? 0)
     }
-}
 
-/// The Firmware Settings page (spec §8.8): a grouped Form over the settings catalog. Every change is one undo step.
-struct FirmwareSettingsPage: View {
-    var model: LayoutWindowModel
-    var session: EditSession
+    // MARK: Coupling (KeyboardLayout.Coupling)
 
-    var body: some View {
-        let changed = session.layout.changedSettings().count
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.title2)
-                    .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.tint))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Firmware Settings").font(.title2.weight(.semibold))
-                    Text(
-                        changed == 1
-                            ? "Built into the firmware · 1 changed from defaults"
-                            : "Built into the firmware · \(changed) changed from defaults"
-                    )
-                    .font(.callout).foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            Divider()
-            ScrollViewReader { proxy in
-                Form {
-                    ForEach(FirmwareSettings.sections(for: session.layout)) { self.section($0).id($0.id) }
-                }
-                .formStyle(.grouped)
-                // Initial too: the palette sets a target before the page appears.
-                .onChange(of: model.settingsScrollTarget, initial: true) {
-                    guard let target = model.settingsScrollTarget else { return }
-                    withAnimation { proxy.scrollTo(target, anchor: .top) }
-                    model.settingsScrollTarget = nil
-                }
-            }
+    /// Settings that do nothing while another is off, so their rows are dimmed until it is on.
+    static let follows: [String: String] = [
+        "autoshiftTimeout": "autoshift", "autoshiftModifiers": "autoshift", "autoshiftEnableSpecial": "autoshift",
+        "autoshiftEnableNumeric": "autoshift", "autoshiftEnableAlpha": "autoshift", "autoshiftEnableTab": "autoshift",
+        "chordalHoldExcludeThumbs": "chordalHold",
+    ]
+
+    /// What changing this setting also changes, said inline under its row.
+    static func couplingNote(_ id: String) -> String? {
+        switch id {
+        case "tappingTerm":
+            String(localized: "Over \(Int(KeyboardLayout.Coupling.permissiveHoldTerm)) ms, this also turns on Permissive hold.")
+        case "chordalHold": String(localized: "Turning it on or off does the same to Exclude thumbs.")
+        case "autoshift":
+            String(localized: "Turning it on with punctuation, numbers and letters off turns them on; turning all three off turns it off.")
+        default: nil
         }
     }
 
-    /// A section's rows; Navigator starts with the module and side and ends with a footnote.
-    private func section(_ section: SettingsSection) -> some View {
+    /// A section's footnote.
+    static func footer(_ section: String) -> String? {
+        switch section {
+        case navigator: String(localized: "Choose the module attached to your keyboard. The change takes effect after you build and flash.")
+        // ADR 0040: at the catalog defaults nothing is written, so the board's own mouse-key values apply.
+        case "mouse":
+            String(localized: "At their defaults, the keyboard's own mouse key speeds apply. Changing one replaces them with yours.")
+        case "international": String(localized: "Only the input sources Sextant has keycodes for are listed.")
+        default: nil
+        }
+    }
+}
+
+/// The Firmware Settings page (spec §8.8): a grouped Form over the settings catalog, with search (⌘F) and a Modified
+/// only filter. Every change is one undo step, together with the settings it turns on or off.
+struct FirmwareSettingsPage: View {
+    var model: LayoutWindowModel
+    var session: EditSession
+    @FocusState private var isSearchFocused: Bool
+
+    var body: some View {
+        let filter = model.firmwareSettings
+        let query = filter.trimmedQuery
+        let sections = FirmwareSettings.sections(for: session.layout, query: query, modifiedOnly: filter.modifiedOnly)
+        VStack(spacing: 0) {
+            header(sections)
+            Divider()
+            ScrollViewReader { proxy in
+                Group {
+                    if sections.isEmpty {
+                        empty(query: query)
+                    } else {
+                        Form {
+                            ForEach(sections) { self.section($0, query: query).id($0.id) }
+                        }
+                        .formStyle(.grouped)
+                    }
+                }
+                // Initial too: the palette sets a target before the page appears.
+                .onChange(of: model.settingsScrollTarget, initial: true) {
+                    guard let target = model.settingsScrollTarget else { return }
+                    model.settingsScrollTarget = nil
+                    guard sections.contains(where: { $0.id == target }) else {
+                        // A section the filter hides: show everything, then scroll once the Form has it.
+                        filter.clearFilters()
+                        Task { withAnimation { proxy.scrollTo(target, anchor: .top) } }
+                        return
+                    }
+                    withAnimation { proxy.scrollTo(target, anchor: .top) }
+                }
+            }
+        }
+        .onChange(of: filter.searchFocusRequests) { isSearchFocused = true }
+    }
+
+    private func header(_ sections: [SettingsSection]) -> some View {
+        let filter = model.firmwareSettings
+        return HStack(spacing: 12) {
+            Image(systemName: "slider.horizontal.3")
+                .font(.title2)
+                .foregroundStyle(.white)
+                .frame(width: 40, height: 40)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.tint))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Firmware Settings").font(.title2.weight(.semibold))
+                // One line, shorter when narrow: a wrapping line here makes the window's height depend on its width,
+                // which AppKit's constraint passes never settle.
+                let lines = subtitles(sections)
+                ViewThatFits(in: .horizontal) {
+                    ForEach(lines, id: \.self) { Text($0).lineLimit(1) }
+                }
+                .font(.callout).foregroundStyle(.secondary)
+                .accessibilityLabel(lines[0])
+            }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 12)
+            SearchField(query: Bindable(filter).query, isFocused: $isSearchFocused)
+                .frame(minWidth: 140, idealWidth: 220, maxWidth: 240)
+            Toggle("Modified only", isOn: Bindable(filter).modifiedOnly)
+                .toggleStyle(.checkbox)
+                .fixedSize()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    /// "Built into the firmware · 3 changed from defaults", or what the filter shows: "11 settings match ‘hold’". Then
+    /// shorter forms for a narrow window; the last one is truncated if even it doesn't fit.
+    private func subtitles(_ sections: [SettingsSection]) -> [String] {
+        let filter = model.firmwareSettings
+        let query = filter.trimmedQuery
+        let count = sections.reduce(0) { $0 + $1.settings.count }
+        switch (query.isEmpty, filter.modifiedOnly) {
+        case (true, false):
+            let changed = session.layout.changedSettings().count
+            return changed == 1
+                ? [String(localized: "Built into the firmware · 1 changed from defaults"), String(localized: "1 changed from defaults")]
+                : [
+                    String(localized: "Built into the firmware · \(changed) changed from defaults"),
+                    String(localized: "\(changed) changed from defaults"),
+                ]
+        case (true, true):
+            return [count == 1 ? String(localized: "1 changed setting") : String(localized: "\(count) changed settings")]
+        case (false, false):
+            return [
+                count == 1 ? String(localized: "1 setting matches ‘\(query)’") : String(localized: "\(count) settings match ‘\(query)’"),
+                count == 1 ? String(localized: "1 match") : String(localized: "\(count) matches"),
+            ]
+        case (false, true):
+            return [
+                count == 1
+                    ? String(localized: "1 changed setting matches ‘\(query)’")
+                    : String(localized: "\(count) changed settings match ‘\(query)’"),
+                count == 1 ? String(localized: "1 match") : String(localized: "\(count) matches"),
+            ]
+        }
+    }
+
+    @ViewBuilder
+    private func empty(query: String) -> some View {
+        if query.isEmpty {
+            ContentUnavailableView {
+                Label("No Changed Settings", systemImage: "slider.horizontal.3")
+            } description: {
+                Text("Every setting has its default value.")
+            } actions: {
+                Button("Show All Settings") { model.firmwareSettings.modifiedOnly = false }
+            }
+        } else {
+            ContentUnavailableView.search(text: query)
+        }
+    }
+
+    /// A section's rows; Navigator starts with the module and side.
+    private func section(_ section: SettingsSection, query: String) -> some View {
         Section {
-            if section.id == FirmwareSettings.navigator { NavigatorChoice(session: session) }
-            ForEach(section.settings) { SettingRow(setting: $0, session: session) }
+            if section.id == FirmwareSettings.navigator,
+                FirmwareSettings.showsNavigatorChoice(query: query, modifiedOnly: model.firmwareSettings.modifiedOnly)
+            {
+                NavigatorChoice(session: session)
+            }
+            ForEach(section.settings) { SettingRow(setting: $0, session: session, filter: model.firmwareSettings) }
         } header: {
             Text(section.title)
         } footer: {
-            if section.id == FirmwareSettings.navigator {
-                Text("Choose the module attached to your keyboard. The change takes effect after you build and flash.")
-                    .font(.footnote).foregroundStyle(.secondary)
+            if let footer = FirmwareSettings.footer(section.id) {
+                Text(footer).font(.footnote).foregroundStyle(.secondary)
             }
         }
+    }
+}
+
+/// The page's search field: a magnifying glass, the field, and a clear button while it has text. Esc clears it.
+private struct SearchField: View {
+    @Binding var query: String
+    var isFocused: FocusState<Bool>.Binding
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
+            TextField("Search settings", text: $query)
+                .textFieldStyle(.plain)
+                .focused(isFocused)
+                .onExitCommand { query = "" }
+            if !query.isEmpty {
+                Button {
+                    query = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Clear Search"))
+            }
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 28)
+        .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
 }
 
@@ -152,11 +301,13 @@ private struct NavigatorChoice: View {
     }
 }
 
-/// One setting: title (accent dot and semibold when changed), its control, Sextant's description, and a footer with
-/// the default, Reset to Default and the setting id.
+/// One setting: title (accent dot and semibold when changed), its control, Sextant's description, what it changes
+/// with it, and a footer with the default, Reset to Default and the setting id. Dimmed while the setting it follows
+/// is off.
 private struct SettingRow: View {
     var setting: Setting
     var session: EditSession
+    var filter: FirmwareSettingsModel
 
     var body: some View {
         let stored = session.layout.storedValue(of: setting)
@@ -165,6 +316,10 @@ private struct SettingRow: View {
         VStack(alignment: .leading, spacing: 6) {
             control(value, title: title(isChanged))
             Text(setting.summary).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if let note = FirmwareSettings.couplingNote(setting.id) {
+                Label(note, systemImage: "link")
+                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
             HStack(spacing: 8) {
                 if isChanged {
                     Text("Default \(setting.format(setting.unsetValue))").foregroundStyle(.secondary)
@@ -176,6 +331,13 @@ private struct SettingRow: View {
             .font(.caption)
         }
         .padding(.vertical, 4)
+        .disabled(isWaiting)
+    }
+
+    /// The setting this one follows is off (``FirmwareSettings/follows``).
+    private var isWaiting: Bool {
+        guard let id = FirmwareSettings.follows[setting.id], let leader = SettingsCatalog.voyager.setting(id: id) else { return false }
+        return (session.layout.storedValue(of: leader) ?? leader.unsetValue) != .bool(true)
     }
 
     private func title(_ isChanged: Bool) -> some View {
@@ -218,12 +380,7 @@ private struct SettingRow: View {
                 title
             }
         case .animationSelect:
-            // shortcut: no MVP core setting uses it (RGB animations come with all 101 settings in v1).
-            LabeledContent {
-                Text(setting.format(value)).foregroundStyle(.secondary)
-            } label: {
-                title
-            }
+            AnimationSelect(setting: setting, value: value, session: session, isExpanded: Bindable(filter).showsAnimations) { title }
         }
     }
 }

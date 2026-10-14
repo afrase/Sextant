@@ -1205,26 +1205,30 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 - The source device is shown on each revision.
 - A sync conflict appears as two sibling revisions, with a per-key merge: "Use left / Use right" on each changed key.
 
-### 8.8 Firmware Settings page (MVP core sections; all 100 settings in v1)
+### 8.8 Firmware Settings page (every setting Sextant offers, v1)
 
 **Centre column**
-- **Header:** `slider.horizontal.3` tile, "Firmware Settings", "Built into the firmware · 9 changed from defaults", a search field (⌘F), and a "Modified only" toggle.
-- **Form:** `Form { Section … }.formStyle(.grouped)`, with 14 sections in catalog order.
+- **Header:** `slider.horizontal.3` tile, "Firmware Settings", "Built into the firmware · 9 changed from defaults" ("9 changed from defaults" in a narrow window), a search field (⌘F, Edit ▸ Find Setting…; Esc clears it), and a "Modified only" checkbox. While a filter is on, the second line says what it shows: "11 settings match ‘hold’", "3 changed settings". No match shows the system's search empty state; Modified only with nothing changed says so, with Show All Settings.
+- **Form:** `Form { Section … }.formStyle(.grouped)`, with the sections that have a setting Sextant offers, in catalog order: 12 sections and 60 settings for the Voyager (ADR 0040).
 - **Each row:**
   - the title (semibold when modified, with a leading accent dot);
-  - a control: `Toggle`, a `Slider` with a value field and unit, or a `Picker`;
+  - a control: `Toggle`, a `Slider` with a value field and unit, a layer menu, or the animation list;
   - a plain-English description in Sextant's own words (ZSA's text must not be shipped);
+  - a coupling note where one applies (a `link` symbol and a line);
   - a footer: "Default 200 ms · Reset to Default" when modified, and the setting id in mono on the trailing edge.
-- **Navigator section** (always shown, ADR 0035): it starts with "Navigator" (None · Trackpad · Trackball, segmented) and "Side" (Left · Right, disabled with None), then the attached kind's settings. Footer: "Choose the module attached to your keyboard. The change takes effect after you build and flash." A new kind starts from its defaults; moving keeps the options. The knob isn't offered.
-- **Coupling rules** appear inline, for example: "Turning on Chordal hold also turns on Exclude thumbs."
-- **Hidden:** "Prefer tap in tap-and-hold dances" (`dancesTapAction`), since Oryx's firmware is the same either way (ADR 0041).
-- **Search** matches titles, descriptions, ids and synonyms. It shows "11 settings match ‘hold’".
+- **Animations** (RGB Lighting): "46 of 48 included", and under a disclosure a checkbox per animation in Sextant's names, with Include All and Include None. Each change is one undo step.
+- **Navigator section** (always shown, ADR 0035): it starts with "Navigator" (None · Trackpad · Trackball, segmented) and "Side" (Left · Right, disabled with None), then the attached kind's settings. Footer: "Choose the module attached to your keyboard. The change takes effect after you build and flash." A new kind starts from its defaults; moving keeps the options. The knob isn't offered. The one-shot auto-mouse idle timeout is a trackpad option.
+- **Section footers:** Mouse Keys says the keyboard's own mouse key speeds apply at the defaults; International says only the input sources Sextant has keycodes for are listed.
+- **Coupling rules** (ADR 0040), each one undo step with the change that causes it and said inline: a tapping term over 500 ms turns on Permissive hold; Chordal hold on or off does the same to Exclude thumbs; Auto Shift turned on with punctuation, numbers and letters all off turns them on, and turning all three off turns it off. The Auto Shift options and Exclude thumbs are dimmed while the setting they follow is off.
+- **Hidden** (kept when imported, never written; ADR 0040, 0041): "Prefer tap in tap-and-hold dances" (`dancesTapAction`), the live connection (always on), Steno keycodes and GeminiPR, and the locales Sextant has no keycodes for (only English (UK) and US International show). Audio and Navigator support don't apply to the Voyager. The two locale toggles gate the picker's `UK_` and `US_` codes.
+- **Search** matches titles, descriptions, ids and synonyms (Sextant's words: "chatter" finds Debounce time); every word must match. A section the inspector or palette points at clears a filter that hides it.
 
 **Inspector**
 - Sections, with modified counts; clicking one scrolls the Form.
 - **Changed (9):** each row shows the name, the struck-through default and the new value.
-- [Reset All to Defaults…] (confirmation).
+- [Reset All to Defaults…] (confirmation); one undo step, "Reset Firmware Settings". Hidden imported values stay.
 - The footnote "Settings take effect after you build and flash. Values equal to the default aren't stored."
+- **Kept from Oryx (N)**, when a hidden setting differs from its default: each name and value, and "Sextant doesn't offer these settings. It keeps their values in the layout, and its builds don't use them."
 
 ### 8.9 App Settings (Settings scene)
 
@@ -1276,7 +1280,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 | Undo *Action* / Redo *Action* | ⌘Z / ⇧⌘Z | System group, not replaced. Text fields keep their own undo |
 | Cut / Copy / Paste | ⌘X ⌘C ⌘V | With board focus these act on keys (v1). Otherwise standard |
 | Make Transparent | ⌘⌫ | Also ⌫ with board focus |
-| Find Key… | ⌘F | Palette, keys scope. On the Settings page, focuses search |
+| Find Key… | ⌘F | Palette, keys scope. On the Firmware Settings page it reads Find Setting… and focuses its search |
 | Command Palette | ⌘K (alias ⇧⌘O) | |
 
 **View**
@@ -1761,7 +1765,7 @@ All of these were confirmed in the macOS 27 SDK during this session.
 - App Layers.
 - The menu bar extra.
 - The overlay HUD.
-- All 100 firmware settings.
+- Every firmware setting Sextant offers (60 for the Voyager).
 - RGB takeover preview.
 - Per-key tapping term.
 - Multi-select, copy and paste of keys, and Copy Layer To.

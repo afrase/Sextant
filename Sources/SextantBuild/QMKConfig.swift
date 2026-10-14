@@ -155,7 +155,8 @@ struct Features {
         out += ["ORYX_ENABLE = yes", "RGB_MATRIX_CUSTOM_KB = yes"]
         if flag("enableDynamicMacros") || uses({ $0.hasPrefix("DM_") }) { out.append("DYNAMIC_MACRO_ENABLE = yes") }
         if !plan.dances.isEmpty { out.append("TAP_DANCE_ENABLE = yes") }
-        out.append("SPACE_CADET_ENABLE = no")
+        // QMK builds Space Cadet in unless told not to; Oryx's samples all turn it off.
+        out.append("SPACE_CADET_ENABLE = \(flag("enableSpaceCadet") ? "yes" : "no")")
         if plan.codes.contains("CW_TOGG") { out.append("CAPS_WORD_ENABLE = yes") }
         if plan.codes.contains("QK_REP") || plan.codes.contains("QK_AREP") { out.append("REPEAT_KEY_ENABLE = yes") }
         if !plan.combos.isEmpty { out.append("COMBO_ENABLE = yes") }
@@ -227,26 +228,34 @@ struct Features {
 
     // MARK: Refusals
 
-    /// Settings this generator writes, or that don't change the firmware.
-    private static let understood = Set([
+    /// Settings this generator writes.
+    private static let written = Set([
         "tappingTerm", "flowTap", "chordalHold", "chordalHoldExcludeThumbs", "permissiveHold", "oneShotTimeout", "comboTerm",
         "rgbTimeout", "wakeupDelay", "autoshift", "autoshiftTimeout", "mouseInterval", "mouseDelay", "capsLockStatus",
-        "perKeyTappingTerm", "disabledAnimations", "enableDynamicMacros", "enableNavigator", "ambidexLT",
-        // Same tap-dance code either way in Oryx's output (JRGQm has it off).
-        "dancesTapAction",
-        "disableNKRO", "disableUsbStartupCheck",
+        "perKeyTappingTerm", "disabledAnimations", "enableDynamicMacros", "disableNKRO", "disableUsbStartupCheck",
+        "enableSpaceCadet", "legacyDualFunctionDances",
     ]).union(ownNumbers.map(\.id)).union(ownToggles.map(\.id))
+
+    /// Settings with no firmware output at any value, so an imported one is kept and never checked (ADR 0040).
+    private static let ignored: Set<String> = [
+        // Same code either way in Oryx's output (JRGQm has both).
+        "ambidexLT", "dancesTapAction",
+        // Not on the Voyager: it has no buzzer and always takes a Navigator.
+        "audioDisable", "audioClick", "enableNavigator",
+        // Sextant keeps the live connection on (its live view needs zsa/oryx) and has no steno keycodes.
+        "liveTraining", "stenography", "geminipr",
+    ]
 
     /// A changed firmware setting the generator can't write fails the build rather than being dropped, and so does a
     /// number outside the setting's range or a value of the wrong type (imported values feed C defines and arithmetic).
-    /// Locale toggles only change Oryx's picker; the codes a layout uses carry the locale.
+    /// Locale toggles only change the picker; the codes a layout uses carry the locale.
     private static func refuseUnsupportedSettings(_ settings: [String: SettingValue]) throws(GeneratorError) {
         let catalog = SettingsCatalog.voyager
         for (id, value) in settings.sorted(by: { $0.key < $1.key }) {
-            guard let setting = catalog.setting(id: id) else { continue }
+            guard let setting = catalog.setting(id: id), !ignored.contains(id), catalog.section(containing: id)?.id != "international"
+            else { continue }
             let outOfRange = value.doubleValue.map { v in setting.range.map { !$0.contains(v) } ?? false } ?? false
-            let unwritten =
-                !understood.contains(id) && value != setting.defaultValue && catalog.section(containing: id)?.id != "international"
+            let unwritten = !written.contains(id) && value != setting.defaultValue
             if outOfRange || unwritten || !fits(value, setting) {
                 throw .unsupported(String(localized: "the “\(setting.title)” setting"), nil)
             }

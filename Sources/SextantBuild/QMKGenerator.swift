@@ -117,20 +117,12 @@ struct KeymapPlan {
             throw .unsupported(String(localized: "a tapping term of \(term) ms"), ref)
         }
         if key.isTransparent { return "KC_TRANSPARENT" }
-        if key.doubleTap != nil || key.tapHold != nil {
-            for (slot, action) in key.actions where !action.runsInTapDance {
-                throw Self.unsupportedPart(action, KeyRef(layer: ref.layer, index: ref.index, slot: slot))
-            }
-            if let tap = key.tap, !tap.typesInTapDance {
-                throw .unsupported(
-                    String(localized: "a tap dance whose tap isn't a key"), KeyRef(layer: ref.layer, index: ref.index, slot: .tap))
-            }
-            dances.append(Dance(key: ref, slots: key))
-            return "TD(DANCE_\(dances.count - 1))"
-        }
+        if key.doubleTap != nil || key.tapHold != nil { return try dance(key, at: ref) }
         switch (key.tap, key.hold) {
         case let (tap?, hold?):
             if let compact = QMKCodes.modTapOrLayerTap(tap: tap, hold: hold) { return compact }
+            // Oryx built these as tap dances before it had dual-function keys; the setting keeps that (ADR 0040).
+            if layout.settings["legacyDualFunctionDances"] == .bool(true) { return try dance(key, at: ref) }
             for (slot, action) in [(KeySlot.tap, tap), (.hold, hold)] where QMKCodes.statements(action) == nil {
                 throw Self.unsupportedPart(action, KeyRef(layer: ref.layer, index: ref.index, slot: slot))
             }
@@ -140,6 +132,19 @@ struct KeymapPlan {
         case let (nil, hold?): return try expression(hold, at: ref)
         case (nil, nil): return "KC_TRANSPARENT"
         }
+    }
+
+    /// A tap dance for a key whose every action can run in one and whose tap is a key (``TapDanceSource``).
+    private mutating func dance(_ key: Key, at ref: KeyRef) throws(GeneratorError) -> String {
+        for (slot, action) in key.actions where !action.runsInTapDance {
+            throw Self.unsupportedPart(action, KeyRef(layer: ref.layer, index: ref.index, slot: slot))
+        }
+        if let tap = key.tap, !tap.typesInTapDance {
+            throw .unsupported(
+                String(localized: "a tap dance whose tap isn't a key"), KeyRef(layer: ref.layer, index: ref.index, slot: .tap))
+        }
+        dances.append(Dance(key: ref, slots: key))
+        return "TD(DANCE_\(dances.count - 1))"
     }
 
     /// The C expression for one action; registers the macro or colour key it needs.
@@ -187,9 +192,13 @@ struct KeymapPlan {
         if KeycodeCatalog.layerFunctions.contains(action.canonicalCode), !layout.layers.indices.contains(action.layer ?? -1) {
             throw .unsupported(String(localized: "a layer key for a layer that doesn't exist"), ref)
         }
-        // Oryx-only codes this generator doesn't define yet, and Space Cadet, whose handler rules.mk compiles out.
-        if action.code.hasPrefix("MAC_") || action.code.hasPrefix("ORYX_SL_") || action.canonicalCode.hasPrefix("SC_") {
+        // Oryx-only codes this generator doesn't define yet.
+        if action.code.hasPrefix("MAC_") || action.code.hasPrefix("ORYX_SL_") {
             throw .unsupported(String(localized: "the “\(action.code)” key"), ref)
+        }
+        // Without the setting, rules.mk compiles Space Cadet's handler out.
+        if action.canonicalCode.hasPrefix("SC_"), layout.settings["enableSpaceCadet"]?.boolValue != true {
+            throw .unsupported(String(localized: "“\(action.code)” while Space Cadet keys are off"), ref)
         }
         if action.canonicalCode.hasPrefix("AS_"), layout.settings["autoshift"]?.boolValue != true {
             throw .unsupported(String(localized: "“\(action.code)” while Auto Shift is off"), ref)

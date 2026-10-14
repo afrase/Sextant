@@ -163,7 +163,7 @@ struct TapDanceSliceTests {
         #expect(fields(window).last?.stringValue == "1000")
     }
 
-    /// "Prefer tap in tap-and-hold dances" never shows, apart from the MVP's core-section filter that slice 2.3 drops.
+    /// "Prefer tap in tap-and-hold dances" never shows (``SettingsCatalog/offers(_:)``).
     @Test func theDancesTapActionSettingNeverShows() throws {
         let layout = try KeyboardLayout(oryxJSON: try #require(userLayoutData))
         let tapping = try #require(FirmwareSettings.sections(for: layout).first { $0.id == "tapping" })

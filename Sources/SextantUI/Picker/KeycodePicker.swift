@@ -285,7 +285,8 @@ extension LayoutWindowModel {
     /// shortcut: OSM, LM and RGB need a modifier or a colour the picker can't ask for; they stay out until the slot
     /// editors offer them.
     private func pickable(_ entry: KeycodeEntry) -> [KeyAction] {
-        if entry.needsModifiers || entry.needsColor { return [] }
+        // A locale's codes only while Firmware Settings › International has it on (ADR 0040).
+        if entry.needsModifiers || entry.needsColor || session?.layout.offersKeycode(entry.code) == false { return [] }
         guard entry.needsLayer, let layers = session?.layout.layers.indices else { return [KeyAction(code: entry.code)].filter(accepts) }
         return layers.map { KeyAction(code: entry.code, layer: $0) }.filter(accepts)
     }

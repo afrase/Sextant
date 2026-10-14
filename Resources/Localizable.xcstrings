@@ -225,6 +225,19 @@
     "%lld changed from defaults" : {
 
     },
+    "%lld changed settings" : {
+
+    },
+    "%lld changed settings match ‘%@’" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld changed settings match ‘%2$@’"
+          }
+        }
+      }
+    },
     "%lld changes" : {
 
     },
@@ -275,6 +288,9 @@
     "%lld keys use codes Sextant doesn't know yet. They're kept as they are and marked." : {
 
     },
+    "%lld matches" : {
+
+    },
     "%lld ms" : {
 
     },
@@ -284,6 +300,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "%lld of %lld included" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld included"
           }
         }
       }
@@ -309,6 +335,16 @@
     },
     "%lld revisions" : {
 
+    },
+    "%lld settings match ‘%@’" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld settings match ‘%2$@’"
+          }
+        }
+      }
     },
     "%lld steps" : {
 
@@ -358,6 +394,15 @@
     "1 change" : {
 
     },
+    "1 changed from defaults" : {
+
+    },
+    "1 changed setting" : {
+
+    },
+    "1 changed setting matches ‘%@’" : {
+
+    },
     "1 edit" : {
 
     },
@@ -383,10 +428,16 @@
         }
       }
     },
+    "1 match" : {
+
+    },
     "1 other change" : {
 
     },
     "1 revision" : {
+
+    },
+    "1 setting matches ‘%@’" : {
 
     },
     "1 step" : {
@@ -507,6 +558,9 @@
           }
         }
       }
+    },
+    "At their defaults, the keyboard's own mouse key speeds apply. Changing one replaces them with yours." : {
+
     },
     "Base layer" : {
 
@@ -695,6 +749,9 @@
 
     },
     "Clear Layer…" : {
+
+    },
+    "Clear Search" : {
 
     },
     "Clear the key colors on %@?" : {
@@ -1015,6 +1072,9 @@
     "Find Key…" : {
 
     },
+    "Find Setting…" : {
+
+    },
     "Find a key by name" : {
 
     },
@@ -1264,6 +1324,12 @@
     "In use by Keymapp. Quit Keymapp or disconnect it there; Sextant connects automatically." : {
 
     },
+    "Include All" : {
+
+    },
+    "Include None" : {
+
+    },
     "Index" : {
 
     },
@@ -1295,6 +1361,9 @@
 
     },
     "Keeps the last %lld reports Sextant and the keyboard exchange, for the Device popover. They stay in memory and are never saved; turning the log off clears it. It starts off each time Sextant opens." : {
+
+    },
+    "Kept from Oryx (%lld)" : {
 
     },
     "Key" : {
@@ -1627,6 +1696,9 @@
     "Message" : {
 
     },
+    "Modified only" : {
+
+    },
     "Modifier" : {
 
     },
@@ -1721,6 +1793,9 @@
 
     },
     "Next Issue" : {
+
+    },
+    "No Changed Settings" : {
 
     },
     "No Color" : {
@@ -1822,6 +1897,9 @@
     "One-shot" : {
 
     },
+    "Only the input sources Sextant has keycodes for are listed." : {
+
+    },
     "Open Sextant" : {
 
     },
@@ -1847,6 +1925,9 @@
 
     },
     "Oryx's firmware didn't match its checksum, so Sextant didn't keep it. The layout imported fine." : {
+
+    },
+    "Over %lld ms, this also turns on Permissive hold." : {
 
     },
     "Overlay" : {
@@ -2061,6 +2142,9 @@
     "Reset All to Defaults…" : {
 
     },
+    "Reset Firmware Settings" : {
+
+    },
     "Reset all warnings" : {
 
     },
@@ -2140,6 +2224,9 @@
 
     },
     "Search keycodes" : {
+
+    },
+    "Search settings" : {
 
     },
     "Sections" : {
@@ -2265,6 +2352,9 @@
     "Sextant couldn’t save: %@" : {
 
     },
+    "Sextant doesn't offer these settings. It keeps their values in the layout, and its builds don't use them." : {
+
+    },
     "Sextant reads the active layer and which key positions are down over the keyboard's raw HID interface. It sees positions, never the characters you type. Key events stay in memory on this Mac and are never written to disk, and the live display pauses while you type in a password field." : {
 
     },
@@ -2281,6 +2371,9 @@
 
     },
     "Sextant writes only to the keyboard’s bootloader (%@) and checks the image first." : {
+
+    },
+    "Show All Settings" : {
 
     },
     "Show Build Log" : {
@@ -2682,6 +2775,12 @@
 
     },
     "Turn off features you don’t use in Firmware Settings, such as RGB animations, then build again." : {
+
+    },
+    "Turning it on or off does the same to Exclude thumbs." : {
+
+    },
+    "Turning it on with punctuation, numbers and letters off turns them on; turning all three off turns it off." : {
 
     },
     "Types: %@" : {

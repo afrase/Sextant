@@ -51,14 +51,31 @@ struct FirmwareSettingsInspector: View {
         Button("Reset All to Defaults…") { confirmsReset = true }
             .disabled(changed.isEmpty)
             .confirmationDialog("Reset every firmware setting to its default?", isPresented: $confirmsReset) {
-                Button("Reset All", role: .destructive) {
-                    // One event, so the undo manager groups the resets into one step.
-                    for setting in changed { session.setSetting(setting.id, to: nil) }
-                }
+                Button("Reset All", role: .destructive) { session.resetSettings() }
             } message: {
                 Text("You can undo this.")
             }
         Text("Settings take effect after you build and flash. Values equal to the default aren't stored.")
             .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        KeptSettings(layout: session.layout)
+    }
+}
+
+/// Imported settings Sextant doesn't offer (ADR 0040): listed so a build that differs from Oryx's isn't a surprise.
+private struct KeptSettings: View {
+    var layout: KeyboardLayout
+
+    var body: some View {
+        let kept = layout.keptSettings()
+        if !kept.isEmpty {
+            Divider()
+            Text("Kept from Oryx (\(kept.count))").font(.headline)
+            ForEach(kept) { setting in
+                let value = setting.format(layout.storedValue(of: setting))
+                Text("\(setting.title): \(value)").font(.callout)
+            }
+            Text("Sextant doesn't offer these settings. It keeps their values in the layout, and its builds don't use them.")
+                .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
     }
 }

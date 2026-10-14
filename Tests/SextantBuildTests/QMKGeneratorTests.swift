@@ -42,19 +42,15 @@ struct QMKGeneratorTests {
 
     @Test func refusesSettingsAndNavigatorOptionsItCantWrite() throws {
         let clean = try userLayout()
-        for id in Self.stillRefused {
-            let setting = try #require(SettingsCatalog.voyager.setting(id: id))
-            var layout = clean
-            layout.settings[id] = .bool(setting.defaultValue != .bool(true))
-            #expect(throws: GeneratorError.unsupported("the “\(setting.title)” setting", nil)) {
-                try QMKGenerator().generate(layout, identity: identity)
-            }
-            layout.settings[id] = setting.defaultValue  // the default writes nothing
-            _ = try QMKGenerator().generate(layout, identity: identity)
-        }
         var layout = clean
         layout.settings["debounce"] = .text("5")  // a value of the wrong type
-        #expect(throws: GeneratorError.self) { try QMKGenerator().generate(layout, identity: identity) }
+        #expect(throws: GeneratorError.unsupported("the “Debounce time” setting", nil)) {
+            try QMKGenerator().generate(layout, identity: identity)
+        }
+        layout.settings["debounce"] = .number(51)  // out of range
+        #expect(throws: GeneratorError.unsupported("the “Debounce time” setting", nil)) {
+            try QMKGenerator().generate(layout, identity: identity)
+        }
         layout = clean
         layout.navigator?.options["invertScrollX"] = .bool(true)
         #expect(throws: GeneratorError.unsupported("the Navigator's “invertScrollX” option", nil)) {
@@ -173,12 +169,14 @@ struct QMKGeneratorTests {
         Mapping(.trackball, ["aimLayers": .integers([1])], "#define NAVIGATOR_AIM_LAYERS { 1 }"),
         Mapping(.trackball, ["turboLayers": .integers([2])], "#define NAVIGATOR_TURBO_LAYERS { 2 }"),
         Mapping(.trackball, ["dragScrollLayers": .integers([1, 2])], "#define NAVIGATOR_DRAG_SCROLL_LAYERS { 1, 2 }"),
+        Mapping(["enableSpaceCadet": .bool(true)], "SPACE_CADET_ENABLE = yes"),
+        // The user's Equals/Escape key (DUAL_FUNC_0 otherwise) becomes a tap dance.
+        Mapping(["legacyDualFunctionDances": .bool(true)], "TD(DANCE_0)", "TAP_DANCE_ENABLE = yes"),
     ]
 
-    /// Settings the generator refuses to change until they're decided (ADR 0040; Space Cadet and legacy dances: v1 2.3).
-    /// Lifting one means dropping it here and adding its `Mapping`, which also puts it in the every-setting layout that
-    /// RealToolchainTests compiles.
-    static let stillRefused = ["liveTraining", "stenography", "geminipr", "legacyDualFunctionDances", "enableSpaceCadet"]
+    /// Settings Sextant keeps but doesn't offer, which write nothing at any value (ADR 0040): the live connection stays
+    /// on and Sextant has no steno keycodes.
+    static let ignored = ["liveTraining", "stenography", "geminipr"]
 
     /// The user's layout with `kind`, an automouse layer, a mouse key, a layer lock key and a per-key tapping term, so
     /// every setting reaches code the firmware compiles.
@@ -205,6 +203,7 @@ struct QMKGeneratorTests {
     static func everySettingChanged(_ kind: NavigatorConfig.Kind) throws -> KeyboardLayout {
         var layout = try settingsLayout(kind)
         for mapping in oryxMappings + ownMappings where mapping.only ?? kind == kind { try set(mapping.changes, in: &layout) }
+        layout.updateKey(layer: 1, index: 3) { $0 = Key("SC_LSPO") }  // Space Cadet is on
         return layout
     }
 
@@ -232,13 +231,22 @@ struct QMKGeneratorTests {
         #expect(try source(layout) == unchanged)
     }
 
-    /// Every setting the Voyager shows is written, or refused by name, and all of them build together.
+    /// The settings Sextant hides build exactly as if they weren't stored.
+    @Test func ignoresTheSettingsItHides() throws {
+        var layout = try Self.settingsLayout(.trackpad)
+        let unchanged = try source(layout)
+        try Self.set(["liveTraining": .bool(false), "stenography": .bool(true), "geminipr": .bool(true)], in: &layout)
+        #expect(try source(layout) == unchanged)
+        #expect(unchanged.contains("\"zsa/oryx\"") && unchanged.contains("ORYX_ENABLE = yes"), "the live connection stays on")
+    }
+
+    /// Every setting the Voyager shows is written or ignored, and all of them build together.
     @Test(arguments: [NavigatorConfig.Kind.trackpad, .trackball])
     func writesEverySettingAtOnce(kind: NavigatorConfig.Kind) throws {
         let shown = SettingsCatalog.voyager.sections.filter { $0.isVisibleOnVoyager && $0.id != "international" }
             .flatMap(\.settings).filter(\.appliesToVoyager).map(\.id)
         let mappings = Self.oryxMappings + Self.ownMappings
-        #expect(Set(shown) == Set(mappings.flatMap(\.changes.keys) + Self.stillRefused))
+        #expect(Set(shown) == Set(mappings.flatMap(\.changes.keys) + Self.ignored))
         let changed = try source(Self.everySettingChanged(kind))
         for text in mappings.filter({ $0.only ?? kind == kind }).flatMap(\.text) { #expect(changed.contains(text), "\(text)") }
     }
@@ -305,6 +313,45 @@ struct QMKGeneratorTests {
         #expect(throws: GeneratorError.unsupported("a layer key for a layer that doesn't exist", KeyRef(layer: 1, index: 3, slot: .hold))) {
             try QMKGenerator().generate(layout, identity: identity)
         }
+    }
+
+    /// Legacy dual-function keys (ADR 0040): a tap and hold QMK can't put in one keycode becomes a tap dance, under the
+    /// same rules as any dance; mod-taps and layer-taps stay as they are.
+    @Test func legacyDualFunctionKeysAreTapDances() throws {
+        var layout = try userLayout()
+        layout.updateKey(layer: 1, index: 3) { $0 = Key(tap: .code("KC_A"), hold: .code("KC_LEFT_SHIFT")) }
+        layout.updateKey(layer: 1, index: 4) { $0 = Key(tap: .code("KC_B"), hold: .code("KC_C")) }
+        layout.settings["legacyDualFunctionDances"] = .bool(true)
+        let source = try QMKGenerator().generate(layout, identity: identity)
+        let keymap = try #require(source.files["keymap.c"])
+        #expect(keymap.contains("MT(MOD_LSFT, KC_A)") && !keymap.contains("DUAL_FUNC_"))
+        #expect(keymap.contains("ACTION_TAP_DANCE_FN_ADVANCED(on_dance_1, dance_1_finished, dance_1_reset)"))
+        #expect(keymap.contains("case SINGLE_TAP: register_code16(KC_B); break;"))
+        #expect(keymap.contains("case SINGLE_HOLD: register_code16(KC_C); break;"))
+        let lines = keymap.components(separatedBy: "\n")
+        let line = try #require(lines.firstIndex { $0.contains("case SINGLE_HOLD: register_code16(KC_C)") })
+        #expect(source.sourceMap[line + 1] == KeyRef(layer: 1, index: 4, slot: .hold))
+        #expect(source.files["rules.mk"]?.contains("TAP_DANCE_ENABLE = yes") == true)
+
+        // A dance's tap must be a key: a layer tap can't be one.
+        layout.updateKey(layer: 1, index: 4) { $0 = Key(tap: .moveTo(2), hold: .code("KC_C")) }
+        #expect(throws: GeneratorError.unsupported("a tap dance whose tap isn't a key", KeyRef(layer: 1, index: 4, slot: .tap))) {
+            try QMKGenerator().generate(layout, identity: identity)
+        }
+        layout.settings["legacyDualFunctionDances"] = nil
+        #expect(try QMKGenerator().generate(layout, identity: identity).files["keymap.c"]?.contains("DUAL_FUNC_") == true)
+    }
+
+    /// Space Cadet keys build with the setting on (QMK compiles its handler in) and are refused by name without it.
+    @Test func spaceCadetKeysNeedTheSetting() throws {
+        var layout = try userLayout()
+        layout.updateKey(layer: 1, index: 3) { $0 = Key("KC_LSPO") }
+        #expect(throws: GeneratorError.unsupported("“KC_LSPO” while Space Cadet keys are off", KeyRef(layer: 1, index: 3, slot: .tap))) {
+            try QMKGenerator().generate(layout, identity: identity)
+        }
+        layout.settings["enableSpaceCadet"] = .bool(true)
+        let files = try QMKGenerator().generate(layout, identity: identity).files
+        #expect(files["rules.mk"]?.contains("SPACE_CADET_ENABLE = yes") == true && files["keymap.c"]?.contains("    KC_LSPO,") == true)
     }
 
     /// Imported layouts are untrusted: their text is pasted into C, and their numbers feed arithmetic.

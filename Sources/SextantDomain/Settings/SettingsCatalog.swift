@@ -114,6 +114,8 @@ public struct Setting: Identifiable, Hashable, Sendable {
     public var options: [Option]
     /// Oryx hides these on boards without per-key RGB.
     public var requiresPerKeyLighting: Bool
+    /// Other words people search for it by, in Sextant's own words ("chatter" finds debounce).
+    public var synonyms: [String] = []
 
     /// True if this setting applies to the ZSA Voyager.
     public var appliesToVoyager: Bool { boards?.contains("voyager") ?? true }
@@ -121,7 +123,8 @@ public struct Setting: Identifiable, Hashable, Sendable {
     public static func == (a: Self, b: Self) -> Bool { a.id == b.id && a.defaultValue == b.defaultValue && a.title == b.title }
     public func hash(into h: inout Hasher) { h.combine(id) }
 
-    /// Formats a value with its unit, e.g. "200 ms".
+    /// Formats a value with its unit, e.g. "200 ms"; animations as how many are in ("46 of 48"), and an empty layer
+    /// list as "None".
     public func format(_ value: SettingValue?) -> String {
         guard let value else { return "Off" }
         if case let .number(d) = value {
@@ -129,6 +132,11 @@ public struct Setting: Identifiable, Hashable, Sendable {
             let n = Int(exactly: d).map(String.init) ?? String(format: "%.1f", d)
             return unitSymbol.isEmpty || unitSymbol == "°" ? n + unitSymbol : "\(n) \(unitSymbol)"
         }
+        if control == .animationSelect {
+            let excluded: Set<String> = if case let .strings(ids) = value { Set(ids) } else { [] }
+            return String(localized: "\(options.count { !excluded.contains($0.id) }) of \(options.count)")
+        }
+        if control == .layerSelect, value == .integers([]) { return String(localized: "None") }
         return value.description
     }
 }
@@ -174,20 +182,38 @@ public struct SettingsCatalog: Sendable {
 
     public func section(containing id: String) -> SettingsSection? { sections.first { $0.settings.contains { $0.id == id } } }
 
-    /// Case- and diacritic-insensitive search over titles, summaries and ids.
-    public func search(_ query: String) -> [Setting] {
-        let q = query.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return allSettings }
-        let terms = q.lowercased().folding(options: .diacriticInsensitive, locale: nil).split(separator: " ")
-        return allSettings.filter { s in
-            let hay = "\(s.title) \(s.summary) \(s.id)".lowercased().folding(options: .diacriticInsensitive, locale: nil)
-            return terms.allSatisfy { hay.contains($0) }
-        }
+    /// Case- and diacritic-insensitive search over titles, summaries, ids and synonyms: every word must match.
+    public func search(_ query: String) -> [Setting] { allSettings.filter { Self.matches($0, query) } }
+
+    /// Whether `setting` matches a ``search(_:)`` query; an empty query matches everything.
+    public static func matches(_ setting: Setting, _ query: String) -> Bool {
+        matches(([setting.title, setting.summary, setting.id] + setting.synonyms).joined(separator: " "), query)
     }
 
-    /// Settings whose value in `overrides` differs from the default (what a "Modified" filter shows).
-    public func modified(in overrides: [String: SettingValue]) -> [Setting] {
-        allSettings.filter { s in overrides[s.id].map { $0 != s.defaultValue } ?? false }
+    /// Whether every word of `query` is in `text`, ignoring case and diacritics.
+    public static func matches(_ text: String, _ query: String) -> Bool {
+        let hay = fold(text)
+        return fold(query).split(whereSeparator: \.isWhitespace).allSatisfy { hay.contains($0) }
+    }
+
+    private static func fold(_ s: String) -> String { s.lowercased().folding(options: .diacriticInsensitive, locale: nil) }
+
+    // MARK: What Sextant offers (ADR 0040, 0041)
+
+    /// Settings Sextant keeps but never offers: "Prefer tap in tap-and-hold dances" (the firmware is the same either
+    /// way), the live connection (always on: Sextant's live view needs it) and steno (Sextant has no steno keycodes).
+    static let hiddenIDs: Set<String> = ["dancesTapAction", "liveTraining", "stenography", "geminipr"]
+
+    /// The International toggles Sextant has keycodes for, and the prefix of the codes each adds to the picker.
+    public static let localeCodePrefixes: [String: String] = ["uk": "UK_", "usint": "US_"]
+
+    /// Whether Sextant offers `setting` for the Voyager: on the Firmware Settings page, in the palette and in the
+    /// changed counts. A setting it doesn't offer keeps an imported value, which its builds don't use.
+    public func offers(_ setting: Setting) -> Bool {
+        guard setting.appliesToVoyager, !Self.hiddenIDs.contains(setting.id), let section = section(containing: setting.id),
+            section.isVisibleOnVoyager
+        else { return false }
+        return section.id != "international" || Self.localeCodePrefixes[setting.id] != nil
     }
 }
 
@@ -217,6 +243,7 @@ private struct RawCatalog: Decodable {
         var dependsOn: DependsOn?
         var options: [RawOption]?
         var requiresPerKeyLighting: Bool?
+        var synonyms: [String]?
 
         var model: Setting {
             var defaultValue = self.default
@@ -229,7 +256,7 @@ private struct RawCatalog: Decodable {
                 boards: boards, navigatorKinds: navigatorKinds,
                 dependsOn: dependsOn.map { (id: $0.key, value: $0.value) },
                 options: (options ?? []).map { Setting.Option(id: $0.id, title: $0.title) },
-                requiresPerKeyLighting: requiresPerKeyLighting ?? false)
+                requiresPerKeyLighting: requiresPerKeyLighting ?? false, synonyms: synonyms ?? [])
         }
     }
     var sections: [Section]

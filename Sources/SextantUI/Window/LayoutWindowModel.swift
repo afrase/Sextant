@@ -144,6 +144,8 @@ public final class LayoutWindowModel {
     private(set) var page: Destination?
     /// The Firmware Settings section to scroll to (the inspector's Sections list).
     var settingsScrollTarget: String?
+    /// The Firmware Settings page's search and filter (spec §8.8).
+    public let firmwareSettings = FirmwareSettingsModel()
     /// The layout whose Rename… alert is showing.
     var layoutPendingRename: UUID?
     /// The layout whose Move to Trash… confirmation is showing.

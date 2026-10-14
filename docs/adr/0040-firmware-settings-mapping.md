@@ -1,6 +1,6 @@
 # 40. Firmware settings mapping: Sextant's own lines where Oryx's were never seen
 
-Status: accepted, 2026-10-12. Amends 0020 and 0030.
+Status: accepted, 2026-10-12. Amends 0020 and 0030. Amended 2026-10-14 by v1 slice 2.3 (the last section): every setting on the page, the coupling rules, what Sextant hides, Space Cadet and legacy dual-function keys.
 
 ## Context
 ADR 0020 refuses any setting whose QMK output was never observed in Oryx's sources, and ADR 0030 put debounce, tap code delay, one-shot tap toggle and several Navigator options on the MVP page before the generator could write them, so changing one made every build refuse. Research 02 §12 item 5 lists the settings Oryx's five samples never show. On 2026-10-12 the user chose Sextant's own mapping for them over fetching more public Oryx layouts (no downloads, no new ZSA material to strip before a public push).
@@ -45,3 +45,28 @@ ADR 0020 refuses any setting whose QMK output was never observed in Oryx's sourc
 - The catalog's mouse defaults are QMK's, but the Voyager sets its own pointer speed (7), acceleration (60) and delay (0), and ties the wheel's interval, speed and acceleration to the pointer's. At the catalog default nothing is written and the board's values apply, as in Oryx's builds; any change replaces them. The v1 settings page should say so.
 - The lower polling rate also slows the Navigator, which shares the interval. The tap code delay also spaces each character of a macro by 10 ms.
 - NKRO, polling and the startup check can only be checked on the board. The trackball options can't be tried at all: the user has a trackpad.
+
+## Amendment, 2026-10-14: every setting, couplings and what Sextant hides (v1 slice 2.3)
+
+### Context
+v1 shows every firmware setting, not the MVP's core sections, and builds the two left for slice 2.3. The user answered the open question on 2026-10-12: hide Live Training and keep it on, hide Stenography until Sextant has steno keycodes, and show International only for the locales Sextant has codes for, gating the picker with them and keeping imported values.
+
+### Decision
+- **What Sextant offers** is a domain rule, `SettingsCatalog.offers(_:)`: a setting for the Voyager, in a section the Voyager shows, not hidden, and among the locales only English (UK) and US International (`localeCodePrefixes`: `UK_` and `US_`). Hidden: "Prefer tap in tap-and-hold dances" (ADR 0041), the live connection (`liveTraining`), Steno keycodes and GeminiPR, the 34 locales without codes, Audio and Navigator support. That leaves 60 settings in 12 sections. The page, the palette, the changed total, the sidebar badge, the Changed list and Reset All all follow it.
+- **A hidden setting keeps its imported value and writes nothing at any value.** The generator no longer refuses `liveTraining` off, `stenography` or `geminipr`: refusing a value the user can't see or change would stop every build with no way out. The live connection stays on (`zsa/oryx` and `ORYX_ENABLE = yes` are always written), and steno does nothing without steno keycodes, which Sextant doesn't have (an imported steno key is an unknown keycode, already refused). Audio and `enableNavigator` also write nothing now (the Voyager has no buzzer and always takes a Navigator); with `ambidexLT`, `dancesTapAction` and the locales, none of these is range- or type-checked, since nothing reads them. The inspector lists hidden values that differ from their defaults under "Kept from Oryx", saying Sextant's builds don't use them.
+- **Couplings** (`KeyboardLayout.store`), the ones Oryx applies, so a layout edited in Sextant reads the same in Oryx. Each is part of the change that triggers it, so it is one undo step, and each is said inline on its row:
+  - a tapping term over 500 ms turns on Permissive hold. Oryx also turns it off again when the term drops, but only if it turned it on; Sextant keeps no such memory, so it stays on (undo takes both back);
+  - Chordal hold on or off sets Exclude thumbs the same way;
+  - turning Auto Shift on with punctuation, numbers and letters all off turns those three on, and turning the last of the three off turns Auto Shift off (Tab isn't one of them).
+  The Auto Shift options and Exclude thumbs are dimmed while the setting they follow is off. Reset All (`EditSession.resetSettings`) is one step, "Reset Firmware Settings".
+- **International gates the picker:** a `UK_` or `US_` code shows in the keycode picker (its category and its search) only while its toggle is on (`KeyboardLayout.offersKeycode`). Keys that already use one keep it and still build.
+- **Space Cadet:** `enableSpaceCadet` writes `SPACE_CADET_ENABLE = yes` in place of Oryx's `= no` (QMK's default is yes). A Space Cadet key with the setting off is refused by name, "“KC_LSPO” while Space Cadet keys are off", as Auto Shift keys are; it still can't be part of a tap dance or dual-function key (ADR 0041).
+- **Legacy dual-function keys:** with `legacyDualFunctionDances` on, a tap and hold that QMK can't put in one `MT()` or `LT()` keycode is built as a tap dance (`TapDanceSource`), as Oryx did before it had dual-function keys. It follows the dance rules: every action must run in a dance and the tap must be a key, or the build stops at that key.
+- **The one-shot auto-mouse idle timeout is a trackpad option** (`navigatorKinds: ["trackpad"]`): the page doesn't show it on a trackball and switching to a trackball drops it. The generator's refusal of an imported one on a trackball with one-shot on stays.
+- **Search** (⌘F, Edit ▸ Find Setting… on the page) matches titles, descriptions, ids and `Setting.synonyms`, Sextant's own words ("chatter" finds Debounce time); every word must match. Modified only shows the changed settings. Both filter the Form in place, and the header says how many match.
+
+### Consequences
+- The proof table changes: Space Cadet and legacy dual-function keys gain `Mapping` rows (so the every-setting layouts, which also get a Space Cadet key, compile them under the real toolchain), and `stillRefused` gives way to `ignored`, the three hidden settings that must leave the source byte-identical. The goldens are unchanged.
+- An Oryx layout with the live connection off builds with it on in Sextant; one with steno on builds without steno. Both are listed under "Kept from Oryx".
+- A legacy dual-function key whose action can't run in a dance is caught only at build time; the live dance check (ADR 0041) looks at keys with a double tap or tap then hold.
+- Wake-up delay, the pointer interval and delay, and the scroll interval show "ms" (QMK's unit for them).

@@ -27,15 +27,62 @@ extension KeyboardLayout {
     }
 
     /// Stores a setting sparsely, as Oryx does: the unset value is removed. A Navigator setting needs a Navigator.
+    /// Settings that go together change together, as in Oryx (``Coupling``).
     public mutating func store(_ value: SettingValue?, for setting: Setting) {
         // JSON can't hold NaN or infinity: one stored would make every later save of the layout fail.
         if case let .number(n)? = value, !n.isFinite { return }
         let stored = value == setting.unsetValue ? nil : value
         if setting.isNavigatorOption { navigator?.options[setting.id] = stored } else { settings[setting.id] = stored }
+        couple(setting.id)
     }
 
-    /// Settings whose stored value differs from their unset value (the Firmware Settings badge and Changed list).
+    /// Settings whose stored value differs from their unset value, among those Sextant offers (the Firmware Settings
+    /// badge and Changed list).
     public func changedSettings(in catalog: SettingsCatalog = .voyager) -> [Setting] {
-        catalog.allSettings.filter { s in storedValue(of: s).map { $0 != s.unsetValue } ?? false }
+        catalog.allSettings.filter { catalog.offers($0) && isChanged($0) }
     }
+
+    /// Settings Sextant doesn't offer whose imported value differs from their unset value: kept for Oryx, unused by
+    /// Sextant's builds.
+    public func keptSettings(in catalog: SettingsCatalog = .voyager) -> [Setting] {
+        catalog.allSettings.filter { !catalog.offers($0) && isChanged($0) }
+    }
+
+    private func isChanged(_ setting: Setting) -> Bool { storedValue(of: setting).map { $0 != setting.unsetValue } ?? false }
+
+    /// Whether the keycode picker offers `code`: a locale's codes only while its International toggle is on (only the
+    /// locales Sextant has codes for show; ``SettingsCatalog/localeCodePrefixes``).
+    public func offersKeycode(_ code: String) -> Bool {
+        SettingsCatalog.localeCodePrefixes.allSatisfy { id, prefix in !code.hasPrefix(prefix) || settings[id] == .bool(true) }
+    }
+
+    // MARK: Coupling
+
+    /// Settings Oryx changes together (spec §8.8), so a layout edited in Sextant reads the same in Oryx.
+    public enum Coupling {
+        /// A tapping term above this turns on Permissive hold.
+        public static let permissiveHoldTerm = 500.0
+        /// The Auto Shift key groups that switch Auto Shift off when all are off (Tab isn't one of them).
+        static let autoShiftGroups = ["autoshiftEnableSpecial", "autoshiftEnableNumeric", "autoshiftEnableAlpha"]
+    }
+
+    /// Applies the coupling rules after `id` changed. Values stay sparse: on is stored, a default (off, or on for the
+    /// key groups) is removed.
+    private mutating func couple(_ id: String) {
+        switch id {
+        case "tappingTerm":
+            if let term = settings[id]?.doubleValue, term > Coupling.permissiveHoldTerm { settings["permissiveHold"] = .bool(true) }
+        case "chordalHold":
+            settings["chordalHoldExcludeThumbs"] = settings[id] == .bool(true) ? .bool(true) : nil
+        case "autoshift":
+            if settings[id] == .bool(true), !anyAutoShiftGroupOn {
+                for group in Coupling.autoShiftGroups { settings[group] = nil }
+            }
+        case _ where Coupling.autoShiftGroups.contains(id):
+            if !anyAutoShiftGroupOn { settings["autoshift"] = nil }
+        default: break
+        }
+    }
+
+    private var anyAutoShiftGroupOn: Bool { Coupling.autoShiftGroups.contains { settings[$0]?.boolValue ?? true } }
 }
