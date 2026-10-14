@@ -219,26 +219,21 @@ struct RecordingCapsule: View {
 /// While Record Key or Record Steps runs, a local monitor on Sextant's key window feeds it key-downs and modifier changes
 /// (no Input Monitoring, no TCC). Recording ends when the window resigns key or the selected key changes. The global
 /// layer shortcuts stand aside meanwhile, or ⌃⌥ digits would move the keyboard instead of being recorded (ADR 0048).
-/// Select Key by Pressing It shares the monitor to swallow the Mac's copy of the keyboard's press, and ends the same way
-/// (ADR 0052).
+/// Select Key by Pressing It shares the monitor to swallow the Mac's copy of the keyboard's press, and ends the same way;
+/// the shortcuts stand aside for it too, or the press that selects a key could also move the keyboard's layer (ADR 0052).
 struct RecordKeyMonitor: ViewModifier {
     var model: LayoutWindowModel
     @Environment(LayerShortcuts.self) private var layerShortcuts: LayerShortcuts?
 
-    /// What the monitor serves now; a change reinstalls it.
-    private struct Use: Equatable {
-        var records: Bool
-        var selectsByPress: Bool
-    }
-
     func body(content: Content) -> some View {
-        let use = Use(records: model.recorder != nil || model.macros.stepRecorder != nil, selectsByPress: model.selectByPress != nil)
         content
-            .task(id: use) {
-                guard use.records || use.selectsByPress, let window = NSApp.keyWindow else { return }
+            .task(id: model.recorder != nil || model.macros.stepRecorder != nil || model.selectByPress != nil) {
+                guard model.recorder != nil || model.macros.stepRecorder != nil || model.selectByPress != nil,
+                    let window = NSApp.keyWindow
+                else { return }
                 let number = window.windowNumber
-                if use.records { layerShortcuts?.suspend() }
-                defer { if use.records { layerShortcuts?.resume() } }
+                layerShortcuts?.suspend()
+                defer { layerShortcuts?.resume() }
                 let monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
                     guard event.windowNumber == number else { return event }
                     let isKeyDown = event.type == .keyDown

@@ -115,6 +115,10 @@ public final class LayoutWindowModel {
     var recorder: KeyRecorder?
     /// Select Key by Pressing It while it waits for a press on the keyboard, or for that press's key-up; nil when off.
     var selectByPress: SelectByPress?
+    /// The Mac's copy of a keyboard press can reach the window just before or just after the keyboard reports it over raw
+    /// HID, so Select Key by Pressing It waits this long before an esc cancels it, and keeps swallowing this long after
+    /// the key-up. Tests widen it, as a loaded machine can stretch that gap.
+    @ObservationIgnored var selectByPressTail = Duration.milliseconds(50)
     /// A gesture that takes the board's key clicks instead of selection (choosing combo members, Assign to Key); nil
     /// when off.
     var boardPick: BoardPick?

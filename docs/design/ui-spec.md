@@ -378,7 +378,7 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
 | Error | `xmark.octagon.fill` "Unknown keycode on Brd+Sys · key 45 · Tap · keymap.c:31" | [Show Key] (⌘') |
 | Recording | red dot "Listening for a key… esc cancels" | [Cancel] |
 | Board pick (v1) | `hand.point.up.left` "Click a key to play ‘Open Keymap’ on tap · esc cancels" | [Cancel] (esc, ⌘.) |
-| Select by press (v1) | `keyboard` "Press a key on the keyboard… esc cancels"; `eye.slash` "Paused: secure input is on · esc cancels" | [Cancel] |
+| Select by press (v1) | `keyboard` "Press a key on the keyboard to select it"; `eye.slash` "Paused: secure input is on · esc cancels" | [Cancel] |
 | Live (Follow on) | green dot "LIVE · Brd+Sys held by Space · 2 keys down" | [Stop Following] |
 | App rule (v1) | "Xcode is frontmost → keyboard on Sym+Num" | [Rules…] |
 
@@ -798,9 +798,9 @@ The picker is the command palette component in **assign scope**.
 ### 5.8.1 Select Key by Pressing It (v1)
 
 - **Starting.** Key ▸ Select Key by Pressing It (⇧⌘L), while the board shows, no pick is under way and Live View is on and paired. Otherwise the item is disabled and its help tag says why ("Turn on Live View (Keyboard ▸ Live View) to select a key by pressing it."); it never turns Live View on itself. It ends Record Key, Record Steps and the palette, and they end it.
-- **While waiting,** the lens lane shows "Press a key on the keyboard… esc cancels" with [Cancel], or "Paused: secure input is on · esc cancels" while secure input is on, when no press reaches Sextant.
-- **The next key-down on the keyboard** selects that key on the shown layer, as a click does, and VoiceOver hears "Selected key 24, Return, hold for Sym+Num". The same local monitor as Record Key swallows the Mac's own copy of that press until its key-up (and 50 ms after), so it never reaches type-to-search or the esc ladder.
-- **It ends** on esc from the Mac (after 50 ms: a keyboard press meanwhile was the keyboard's own Esc, and is selected), [Cancel], the window resigning key, the session dropping, the board hiding, or a pick starting (ADR 0052).
+- **While waiting,** the lens lane shows "Press a key on the keyboard to select it" with [Cancel]. It doesn't promise esc: with the keyboard as the Mac's only one, its Esc is a press to select. While secure input is on, when no press reaches Sextant, it shows "Paused: secure input is on · esc cancels" (then any esc cancels). VoiceOver hears the capsule's text when the mode starts, pauses and resumes, and "Stopped selecting a key by pressing it." when it ends before a press.
+- **The next key-down on the keyboard** selects that key on the shown layer, as a click does, and VoiceOver hears "Selected key 24, Return, hold for Sym+Num" (on History, the shown revision's legend). ⇧⌘L typed on the keyboard is not that press: a key-down within 50 ms of the start, or while a key held at the start (its ⇧ and ⌘) is still down, is skipped. The same local monitor as Record Key swallows the Mac's own copy of the selected press until its key-up and 50 ms after, or a tapping term and 50 ms after for a key the tapping term times, since a tap dance sends its tap that late. The global layer shortcuts stand aside meanwhile, as during Record Key, so the press can't also move the keyboard's layer.
+- **It ends** on esc from the Mac (after 50 ms: a keyboard press meanwhile was the keyboard's own Esc, and is selected), [Cancel], the window resigning key, the session dropping, the board hiding, or a pick starting. After a press it ends on that key's release, which the session's held keys also show when secure input drops the key-up, or on an esc that isn't the press's own copy (ADR 0052).
 
 ---
 

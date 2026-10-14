@@ -2379,10 +2379,7 @@
     "Press Return to change. Actions available." : {
 
     },
-    "Press a key on the keyboard to select it." : {
-
-    },
-    "Press a key on the keyboard… esc cancels" : {
+    "Press a key on the keyboard to select it" : {
 
     },
     "Press the key" : {
@@ -2992,6 +2989,9 @@
 
     },
     "Stop showing the keyboard’s layer and key presses" : {
+
+    },
+    "Stopped selecting a key by pressing it." : {
 
     },
     "Suggested" : {

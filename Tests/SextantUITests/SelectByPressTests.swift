@@ -36,12 +36,28 @@ struct SelectByPressTests {
         #expect(await eventually { live.canSend })
     }
 
+    /// ⇧⌘L, then a pause past the start's tail, when a press would still be taken for the shortcut's own.
+    func start(_ model: LayoutWindowModel) async throws {
+        model.startSelectByPress()
+        try await Task.sleep(for: model.selectByPressTail * 2)
+    }
+
+    func down(_ index: Int) -> LiveEvent {
+        let key = BoardDefinition.voyager.keys[index]
+        return .keyDown(row: key.matrixRow, column: key.matrixColumn)
+    }
+
+    func up(_ index: Int) -> LiveEvent {
+        let key = BoardDefinition.voyager.keys[index]
+        return .keyUp(row: key.matrixRow, column: key.matrixColumn)
+    }
+
     @Test func pressingRow5Column0SelectsKey24OnTheShownLayer() async throws {
         let (model, live) = try await window()
         await plugIn(live)
         let session = try #require(model.session)
         session.select(layer: 1)
-        model.startSelectByPress()
+        try await start(model)
         #expect(model.selectsByPress)
 
         link.send(.keyDown(row: 5, column: 0))
@@ -61,7 +77,7 @@ struct SelectByPressTests {
     @Test func aDownAndUpWithin16msStillSelects() async throws {
         let (model, live) = try await window()
         await plugIn(live)
-        model.startSelectByPress()
+        try await start(model)
         link.send(.keyDown(row: 5, column: 0), .keyUp(row: 5, column: 0))
         #expect(await eventually { model.session?.selection.keyIndex == 24 && model.selectByPress == nil })
     }
@@ -81,7 +97,8 @@ struct SelectByPressTests {
         #expect(model.selectByPressTakes(keyCode: 0x35, isKeyDown: true))
         #expect(await eventually { model.selectByPress == nil })
 
-        // Esc that reaches the board (the monitor isn't installed while the window isn't key): its rung, before deselecting.
+        // An exit command that comes without a key event through the monitor (as in the moment before it installs): its
+        // rung, before deselecting.
         model.startSelectByPress()
         model.escapeBoard()
         #expect(model.selectByPress == nil)
@@ -97,12 +114,13 @@ struct SelectByPressTests {
     @Test func theKeyboardsOwnEscIsSelectedNotTakenForCancel() async throws {
         let (model, live) = try await window()
         await plugIn(live)
-        model.startSelectByPress()
-        let esc = BoardDefinition.voyager.keys[0]
-        link.send(.keyDown(row: esc.matrixRow, column: esc.matrixColumn))
+        try await start(model)
+        link.send(down(0))
         #expect(await eventually { model.session?.selection.keyIndex == 0 })
+        // Its Mac copy comes within the tail; widened, as a loaded test machine can stretch the gap past 50 ms.
+        model.selectByPressTail = .seconds(30)
         #expect(model.selectByPressTakes(keyCode: 0x35, isKeyDown: true))
-        try await Task.sleep(for: LayoutWindowModel.selectByPressTail * 2)
+        try await Task.sleep(for: .milliseconds(200))
         #expect(model.selectByPress != nil, "it waits for the key-up")
         #expect(model.session?.selection.keyIndex == 0)
     }
@@ -130,8 +148,9 @@ struct SelectByPressTests {
         let (model, live) = try await window()
         await plugIn(live)
         #expect(await eventually { live.isSecureInputOn })
-        model.startSelectByPress()
+        try await start(model)
         #expect(model.selectsByPress && model.selectByPressIsPaused)
+        #expect(model.selectByPressPrompt == "Paused: secure input is on · esc cancels", "what VoiceOver hears at the start too")
 
         // The press reaches the main actor before the debounced layer does, so once the layer shows it was dropped.
         link.send(.keyDown(row: 5, column: 0), .layer(2))
@@ -176,6 +195,135 @@ struct SelectByPressTests {
         model.destination = .firmwareSettings
         #expect(await eventually { model.selectByPress == nil })
     }
+
+    /// ⇧⌘L typed on the keyboard: the menu runs on the Mac's copy of L, and the keyboard's report of the same press
+    /// can come after it. Neither that L nor anything pressed while ⇧ and ⌘ are still down is selected.
+    @Test func theShortcutTypedOnTheKeyboardIsntSelected() async throws {
+        let (model, live) = try await window()
+        await plugIn(live)
+        // Stand-ins for the ⇧ and ⌘ keys; L is key 41 in the user's layout.
+        let (shift, command, l) = (12, 13, 41)
+        link.send(down(shift), down(command))
+        #expect(await eventually { live.pressedKeys == [shift, command] })
+        model.session?.select(key: 19)
+        model.startSelectByPress()
+        link.send(down(l), up(l))
+        try await Task.sleep(for: model.selectByPressTail * 2)
+        link.send(down(l), up(l))  // L again while ⇧⌘ are held
+        link.send(up(shift), up(command), .layer(3))
+        #expect(await eventually { live.activeLayer == 3 })
+        #expect(model.session?.selection.keyIndex == 19)
+        #expect(model.selectsByPress, "still waiting for the key the user means")
+
+        link.send(down(24))
+        #expect(await eventually { model.session?.selection.keyIndex == 24 })
+    }
+
+    /// Secure input on only between two polls of its flag drops the key-up from the feed; the session's held keys still
+    /// show the release, so the mode ends.
+    @Test func aKeyUpDroppedBySecureInputStillEndsTheMode() async throws {
+        let (model, live) = try await window()
+        await plugIn(live)
+        try await start(model)
+        link.send(down(24))
+        #expect(await eventually { model.session?.selection.keyIndex == 24 && live.pressedKeys.contains(24) })
+        secureInput.isOn = true
+        link.send(up(24), .layer(3))
+        #expect(await eventually { live.activeLayer == 3 })
+        secureInput.isOn = false
+        #expect(await eventually { model.selectByPress == nil })
+        #expect(!model.selectByPressTakes(keyCode: 0x35, isKeyDown: true), "the window hears the Mac's keys again")
+    }
+
+    /// While the mode waits for the key-up, an esc from the Mac ends it, unless it is the selected key's own copy (within
+    /// the tail of the press).
+    @Test func escWhileWaitingForTheKeyUpEndsTheMode() async throws {
+        let (model, live) = try await window()
+        await plugIn(live)
+        try await start(model)
+        link.send(down(0))
+        #expect(await eventually { model.session?.selection.keyIndex == 0 })
+        // Set by hand on each side of the tail, as a loaded test machine can stretch any real gap past 50 ms.
+        model.selectByPressTail = .seconds(30)
+        #expect(model.selectByPressTakes(keyCode: 0x35, isKeyDown: true), "Esc's own copy")
+        #expect(model.selectByPress != nil)
+        model.selectByPressTail = .zero
+        #expect(model.selectByPressTakes(keyCode: 0x35, isKeyDown: true), "swallowed, so the ladder keeps the key")
+        #expect(model.selectByPress == nil)
+        #expect(model.session?.selection.keyIndex == 0)
+    }
+
+    /// A key the tapping term times (a hold, a tap dance) can send its Mac copy a tapping term after its key-up, so the
+    /// mode swallows that long; a plain key's ends after the short tail.
+    @Test func aTimedKeysTailCoversItsTappingTerm() async throws {
+        let (model, live) = try await window()
+        await plugIn(live)
+        let session = try #require(model.session)
+        session.setSetting("tappingTerm", to: .number(1000))
+        let layout = session.layout
+        #expect(layout.globalTappingTerm == 1000)
+        let timed = try #require(
+            (0..<layout.keyCount).first {
+                let key = layout.resolvedKey(layer: 0, index: $0).effective
+                return key.usesTappingTerm && key.tappingTerm == nil
+            })
+        let plain = try #require((0..<layout.keyCount).first { !layout.resolvedKey(layer: 0, index: $0).effective.usesTappingTerm })
+
+        try await start(model)
+        link.send(down(timed))
+        #expect(await eventually { model.session?.selection.keyIndex == timed })
+        #expect(model.selectByPress?.releaseTail == .milliseconds(1050), "a Mac copy a tapping term late is still swallowed")
+        link.send(up(timed))
+        #expect(await eventually { model.selectByPress == nil })
+
+        try await start(model)
+        link.send(down(plain))
+        #expect(await eventually { model.session?.selection.keyIndex == plain })
+        #expect(model.selectByPress?.releaseTail == model.selectByPressTail)
+        link.send(up(plain))
+        #expect(await eventually { model.selectByPress == nil })
+    }
+
+    /// Secure input just turned off, its flag not yet: the press selects, and the mode still waits for the key-up.
+    @Test func aStaleSecureInputFlagDoesntEndTheModeEarly() async throws {
+        secureInput.isOn = true
+        let (model, live) = try await window()
+        await plugIn(live)
+        #expect(await eventually { live.isSecureInputOn })
+        try await start(model)
+        secureInput.isOn = false
+        link.send(down(24))
+        #expect(await eventually { model.session?.selection.keyIndex == 24 })
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(model.selectByPress != nil, "the Mac's copy is still swallowed")
+        link.send(up(24))
+        #expect(await eventually { model.selectByPress == nil })
+    }
+
+    /// On History VoiceOver hears the shown revision's legend, not the document's.
+    @Test func onHistoryTheAnnouncementReadsTheShownRevision() async throws {
+        let (model, _) = try await window()
+        let session = try #require(model.session)
+        let revision = try #require(session.revisions.first)
+        let before = model.selectByPressAnnouncement(index: 1)
+        session.setCode("KC_F13", layer: 0, index: 1)
+        #expect(model.selectByPressAnnouncement(index: 1) != before)
+        await model.showRevision(revision.id)
+        #expect(model.selectByPressAnnouncement(index: 1) == before)
+    }
+
+    /// The mode only reads presses: nothing reaches the keyboard's command feed.
+    @Test func itWritesNothingToTheKeyboard() async throws {
+        let (model, live) = try await window()
+        await plugIn(live)
+        try await start(model)
+        link.send(down(24), up(24))
+        #expect(await eventually { model.selectByPress == nil && model.session?.selection.keyIndex == 24 })
+        try await start(model)
+        #expect(model.selectByPressTakes(keyCode: 0x35, isKeyDown: true))
+        #expect(await eventually { model.selectByPress == nil })
+        #expect(link.commandCount == 0)
+    }
 }
 
 // MARK: - Fakes
@@ -209,17 +357,22 @@ private final class FakeDeviceWatcher: DeviceWatcher {
     }
 }
 
-/// A live link whose newest session the test drives. Nothing is written anywhere.
+/// A live link whose newest session the test drives. Nothing is written anywhere; commands are only counted.
 private final class FakeKeyboardLink: KeyboardLink {
     private let open = Mutex<[AsyncStream<LiveEvent>.Continuation]>([])
+    private let commands = Mutex(0)
 
     var sessionCount: Int { open.withLock { $0.count } }
+    var commandCount: Int { commands.withLock { $0 } }
 
     func session(
         with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>
     ) -> AsyncStream<LiveEvent> {
         let (stream, continuation) = AsyncStream.makeStream(of: LiveEvent.self)
         open.withLock { $0.append(continuation) }
+        Task { [self] in
+            for await _ in commands { self.commands.withLock { $0 += 1 } }
+        }
         return stream
     }
 
