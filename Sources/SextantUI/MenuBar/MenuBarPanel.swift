@@ -39,17 +39,22 @@ struct MenuBarPanel: View {
     var shortcuts: LayerShortcuts?
     var library: Library
     var windows: WindowRouter
+    var heatmap: HeatmapRecorder?
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         let state = MenuBarPanelState(
             live: live, onKeyboard: onKeyboard, shortcuts: shortcuts, library: library, buildTarget: windows.target)
-        MenuBarPanelContent(
-            state: state,
-            actions: MenuBarActions(
-                live: live, onKeyboard: onKeyboard, windows: windows, openWindow: { openWindow.layout($0) },
-                openSettings: { openSettings() }))
+        // Words per minute fall as typing stops, with no press to redraw the panel.
+        TimelineView(.periodic(from: .now, by: heatmap?.isOn == true ? 5 : 3600)) { context in
+            MenuBarPanelContent(
+                state: state,
+                actions: MenuBarActions(
+                    live: live, onKeyboard: onKeyboard, windows: windows, openWindow: { openWindow.layout($0) },
+                    openSettings: { openSettings() }),
+                typingStats: heatmap.flatMap { TypingStats($0, at: context.date) })
+        }
     }
 }
 
@@ -57,7 +62,7 @@ extension MenuBarPanel {
     init(services: SextantServices, windows: WindowRouter) {
         self.init(
             live: services.live, onKeyboard: services.onKeyboard, shortcuts: services.layerShortcuts, library: services.library,
-            windows: windows)
+            windows: windows, heatmap: services.heatmap)
     }
 }
 
@@ -66,6 +71,8 @@ extension MenuBarPanel {
 public struct MenuBarPanelContent: View {
     var state: MenuBarPanelState
     var actions = MenuBarActions()
+    /// Shown only while heatmap recording is on (spec §8.3).
+    var typingStats: TypingStats?
     @AppStorage(SettingsKey.showsOverlay) private var showsOverlay = true
 
     static let width: CGFloat = 360
@@ -74,11 +81,15 @@ public struct MenuBarPanelContent: View {
     static let rowHeight: CGFloat = 22
 
     /// A panel whose controls do nothing, for snapshots.
-    public init(state: MenuBarPanelState) { self.state = state }
+    public init(state: MenuBarPanelState, typingStats: TypingStats? = nil) {
+        self.state = state
+        self.typingStats = typingStats
+    }
 
-    init(state: MenuBarPanelState, actions: MenuBarActions) {
+    init(state: MenuBarPanelState, actions: MenuBarActions, typingStats: TypingStats? = nil) {
         self.state = state
         self.actions = actions
+        self.typingStats = typingStats
     }
 
     public var body: some View {
@@ -86,6 +97,7 @@ public struct MenuBarPanelContent: View {
             header
             Divider()
             keyboard
+            if let typingStats { TypingStatsLine(stats: typingStats) }
             // The switch at the trailing edge, as in a menu; a bare Toggle puts it right after its label.
             HStack {
                 // The switch carries the same words for VoiceOver.

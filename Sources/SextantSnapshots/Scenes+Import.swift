@@ -71,7 +71,7 @@ extension Scenes {
                 known: setup)
         }
         scenes += SnapshotScene.pair("settings-privacy", size: CGSize(width: 520, height: 400), chrome: .window(title: "Privacy")) {
-            PrivacySettings()
+            PrivacySettings(heatmap: idleHeatmapRecorder())
         }
 
         // Welcome: an empty library, at the default size and at 640×640 with both columns hidden.

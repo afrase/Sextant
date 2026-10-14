@@ -20,7 +20,17 @@ public struct BoardDefinition: Hashable, Sendable {
         public var qmkPosition: CGPoint
         /// LED coordinate in QMK's 224×64 RGB-matrix space (reference only).
         public var ledPoint: CGPoint
+        /// The half the key is on, and the finger that types it in touch typing (the Heatmap's hands and fingers).
+        public var hand: Hand
+        public var finger: Finger
     }
+
+    /// A half of a split board.
+    public enum Hand: String, CaseIterable, Hashable, Sendable { case left, right }
+
+    /// The finger that presses a key: the two outer columns of each half are the pinky's, the two inner ones the index
+    /// finger's, and the thumb cluster the thumb's (scripts/gen-board-definition.py).
+    public enum Finger: String, CaseIterable, Hashable, Sendable { case pinky, ring, middle, index, thumb }
 
     /// The MCU behind a bootloader product id.
     public enum BootloaderKind: String, Hashable, Sendable { case stm32, gd32 }

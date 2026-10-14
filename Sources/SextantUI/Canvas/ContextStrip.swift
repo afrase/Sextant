@@ -37,6 +37,8 @@ struct ContextStrip: View {
             }
         case .lighting:
             cards { index, layer in lightingCard(layer: index, item: layer) }
+        case .heatmap:
+            HeatmapStrip(model: model, session: session)
         }
     }
 

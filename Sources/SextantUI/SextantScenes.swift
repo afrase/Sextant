@@ -48,7 +48,7 @@ public struct SextantScenes: Scene {
         Settings {
             SettingsView(
                 buildToolsStatus: buildToolsStatus, firmwareSource: firmwareSource, trace: services.trace,
-                layerShortcuts: services.layerShortcuts, layerShortcutRecorder: layerShortcutRecorder)
+                layerShortcuts: services.layerShortcuts, layerShortcutRecorder: layerShortcutRecorder, heatmap: services.heatmap)
         }
 
         // The label is an image the panel's state draws, since a menu bar extra's label shows only an Image and a Text

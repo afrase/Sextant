@@ -15,6 +15,8 @@ struct LensLane: View {
                     ComboCapsule(model: model, session: session).glassEffectTransition(.materialize)
                 } else if model.lens == .lighting, let session = model.session {
                     LightingCapsule(model: model, session: session).glassEffectTransition(.materialize)
+                } else if model.lens == .heatmap, let session = model.session {
+                    HeatmapCapsule(model: model, session: session).glassEffectTransition(.materialize)
                 }
                 // Status by priority: a pick (the only place that says what a click does) or Select Key by Pressing It (the
                 // only place that says what a press does) > an issue > recording > the rest. Record Key hides a pick while it

@@ -5,15 +5,16 @@ import SextantApplication
 import SextantDomain
 import SwiftUI
 
-/// A board lens: a way of reading the same board (spec §2.2). Heatmap arrives in v1; Combos and Changes are board modes
-/// of their destinations, not lenses, since every case is a View ▸ Lens item (ADR 0037).
+/// A board lens: a way of reading the same board (spec §2.2). Combos and Changes are board modes of their destinations,
+/// not lenses, since every case is a View ▸ Lens item (ADR 0037).
 public enum Lens: String, CaseIterable, Sendable {
-    case keys, lighting
+    case keys, lighting, heatmap
 
     var title: String {
         switch self {
         case .keys: String(localized: "Keys")
         case .lighting: String(localized: "Lighting")
+        case .heatmap: String(localized: "Heatmap")
         }
     }
 }
@@ -128,6 +129,8 @@ public final class LayoutWindowModel {
     let macros = MacrosModel()
     /// The Combos page's state (spec §6.4).
     let combos = CombosModel()
+    /// The Heatmap lens's range and counts (spec §8.5).
+    public let heatmap = HeatmapModel()
     /// Keycodes assigned from the picker and commands run from the palette, newest first (Suggested, Recent).
     var recentKeycodes: [KeyAction] = []
     var recentCommands: [String] = []
@@ -200,6 +203,7 @@ public final class LayoutWindowModel {
         self.init(
             library: services.library, live: services.live, makeImport: services.makeImport, makeBuildFlash: services.makeBuildFlash,
             onKeyboard: services.onKeyboard, lightingPreview: services.lightingPreview)
+        heatmap.recorder = services.heatmap
     }
 
     /// Opens `id`, or the most recently modified layout no other window has open when `id` is nil, no longer in the

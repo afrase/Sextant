@@ -115,6 +115,22 @@ public enum Tokens {
 
     /// Combo `index`'s colour (0-based), round the palette.
     static func combo(_ index: Int) -> Token { combos[index % combos.count] }
+
+    /// The heat ramp (spec §10.1): one blue, light to dark in light mode and dark to light in dark mode, interpolated in
+    /// OKLab.
+    static let heatRamp = (
+        light: HeatRamp([0xEAF1FB, 0xB9D0F0, 0x7FA8E3, 0x3F74C8, 0x123E8C].map(hex)),
+        dark: HeatRamp([0x18202D, 0x1F3A63, 0x2F5FA0, 0x5B91D9, 0xA8CCFF].map(hex))
+    )
+
+    /// Heat at `t` (0...1) in 5% steps: 21 tokens built once, shared by every cap (a token made per draw redraws it).
+    static func heat(_ t: Double) -> Token {
+        heatSteps[Int((min(max(t.isNaN ? 0 : t, 0), 1) * Double(heatSteps.count - 1)).rounded())]
+    }
+
+    static let heatSteps = (0...20).map { step in
+        Token(light: heatRamp.light.color(at: Double(step) / 20), dark: heatRamp.dark.color(at: Double(step) / 20))
+    }
 }
 
 /// Display variants of a user's layer colour (spec §4.5), computed once per colour.

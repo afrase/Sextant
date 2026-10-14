@@ -31,11 +31,13 @@ struct SextantMain: App {
         appDelegate.live = services.live
         appDelegate.lightingPreview = services.lightingPreview
         appDelegate.presence = windows.presence
+        appDelegate.heatmap = services.heatmap
         services.live.start()
         services.onKeyboard.start()
         services.layerShortcuts.start()
         services.lightingPreview.start()
         services.overlay.start()
+        services.heatmap.start()
         // `--import <oryx.json>`: add an Oryx layout file to the library at launch.
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--import"), args.indices.contains(i + 1) {
@@ -82,9 +84,14 @@ struct SextantMain: App {
             hotKeys: hotKeys, onKeyboard: onKeyboard, isOn: KeyboardSettings.layerShortcutsOn(),
             persist: KeyboardSettings.saveLayerShortcutsOn
         ) { _ in NSSound.beep() }
+        // Off by default; counts only over a paired Live View session, outside the packages (ADR 0053).
+        let heatmap = HeatmapRecorder(
+            live: live, onKeyboard: onKeyboard, library: library, layouts: store, store: HeatmapFiles(root: HeatmapFiles.defaultRoot()),
+            isOn: PrivacySettings.recordsHeatmap(), retentionDays: PrivacySettings.heatmapRetentionDays(),
+            persist: PrivacySettings.saveHeatmap)
         return SextantServices(
             library: library, live: live, trace: trace, onKeyboard: onKeyboard, layerShortcuts: layerShortcuts,
-            lightingPreview: LightingPreview(live: live), overlay: OverlayHUD(live: live, onKeyboard: onKeyboard),
+            lightingPreview: LightingPreview(live: live), overlay: OverlayHUD(live: live, onKeyboard: onKeyboard), heatmap: heatmap,
             makeImport: { ImportFromOryx(oryx: oryx, library: library) },
             makeBuildFlash: { session in
                 // ADR 0033: the native toolchain, every build sandboxed.
@@ -103,6 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var live: LiveSession?
     var lightingPreview: LightingPreview?
     var presence: AppPresence?
+    var heatmap: HeatmapRecorder?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         DeleteMenuItem.showDeleteKey()
@@ -130,6 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // SwiftUI reports the focus change on a later run-loop turn; let one pass first.
             await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
             let quits = await Quitting(library: library, live: live).run(quitAnyway: Self.quitAnyway)
+            if quits { await heatmap?.flush() }
             // Bounded: the write has no timeout. If it runs out, the colors stay until the keyboard is unplugged.
             if quits {
                 lightingPreview?.releaseAll()

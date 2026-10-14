@@ -15,6 +15,7 @@ struct SettingsView: View {
     var trace: RawHIDTrace
     var layerShortcuts: LayerShortcuts
     var layerShortcutRecorder: LayerShortcutRecorder?
+    var heatmap: HeatmapRecorder
 
     var body: some View {
         TabView {
@@ -23,7 +24,7 @@ struct SettingsView: View {
                 KeyboardSettings(layerShortcuts: layerShortcuts, recorder: layerShortcutRecorder)
             }
             Tab("Build", systemImage: "hammer") { BuildSettings(status: buildToolsStatus, source: firmwareSource) }
-            Tab("Privacy", systemImage: "hand.raised") { PrivacySettings() }
+            Tab("Privacy", systemImage: "hand.raised") { PrivacySettings(heatmap: heatmap) }
             Tab("Advanced", systemImage: "gearshape.2") { AdvancedSettings(trace: trace) }
         }
         .frame(width: 520)
@@ -138,10 +139,23 @@ struct StatusLabelStyle: LabelStyle {
 }
 
 public struct PrivacySettings: View {
-    @AppStorage(SettingsKey.recordsHeatmap) private var recordsHeatmap = false
-    @AppStorage(SettingsKey.heatmapRetentionDays) private var retentionDays = 30
+    @Bindable var heatmap: HeatmapRecorder
+    @State private var confirmsClear = false
 
-    public init() {}
+    public init(heatmap: HeatmapRecorder) { self.heatmap = heatmap }
+
+    /// Whether heatmap recording is on; off by default (ADR 0053).
+    public static func recordsHeatmap() -> Bool { UserDefaults.standard.bool(forKey: SettingsKey.recordsHeatmap) }
+
+    /// How many days of heatmap counts are kept; 30 by default.
+    public static func heatmapRetentionDays() -> Int {
+        UserDefaults.standard.object(forKey: SettingsKey.heatmapRetentionDays) as? Int ?? 30
+    }
+
+    public static func saveHeatmap(isOn: Bool, retentionDays: Int) {
+        UserDefaults.standard.set(isOn, forKey: SettingsKey.recordsHeatmap)
+        UserDefaults.standard.set(retentionDays, forKey: SettingsKey.heatmapRetentionDays)
+    }
 
     public var body: some View {
         Form {
@@ -149,28 +163,44 @@ public struct PrivacySettings: View {
                 Text(
                     """
                     Sextant reads the active layer and which key positions are down over the keyboard's raw HID interface. \
-                    It sees positions, never the characters you type. Key events stay in memory on this Mac and are never \
-                    written to disk, and the live display pauses while you type in a password field.
+                    It sees positions, never the characters you type. Key events stay in memory on this Mac, and the live \
+                    display and the heatmap pause while you type in a password field.
                     """
                 )
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             }
             Section {
-                Toggle("Record a heatmap of key presses", isOn: $recordsHeatmap)
-                Picker("Keep presses for", selection: $retentionDays) {
+                Toggle("Record a heatmap of key presses", isOn: $heatmap.isOn)
+                Picker("Keep presses for", selection: $heatmap.retentionDays) {
                     Text("30 days").tag(30)
                     Text("90 days").tag(90)
                     Text("1 year").tag(365)
                 }
-                .disabled(!recordsHeatmap)
+                .disabled(!heatmap.isOn)
+                LabeledContent {
+                    Button("Clear Heatmap Data…") { confirmsClear = true }
+                } label: {
+                    Text("Every layout’s counts")
+                }
             } header: {
                 Text("Heatmap")
             } footer: {
-                Text("Off unless you turn it on. Counts presses per key position on this Mac, to show which keys you use most.")
-                    .foregroundStyle(.secondary)
+                Text(
+                    """
+                    Off unless you turn it on. Only hourly counts per key position are saved, on this Mac and outside \
+                    your layouts, so exports never include them.
+                    """
+                )
+                .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
+        .alert(Text("Clear all heatmap data?"), isPresented: $confirmsClear) {
+            Button("Clear", role: .destructive) { Task { await heatmap.clear(nil) } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This deletes every key press Sextant has counted, for every layout. It can’t be undone.")
+        }
     }
 }

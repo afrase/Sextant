@@ -63,6 +63,7 @@ enum Scenes {
         scenes += await picker(f)
         // Before any scene edits the shared layout, so none of its windows opens on a recovery copy.
         scenes += await multiSelect(f)
+        scenes += await heatmap(f)
         scenes += await `import`(f)
         scenes += await device(f)
         scenes += await settings(f)
