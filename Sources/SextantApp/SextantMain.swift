@@ -25,9 +25,11 @@ struct SextantMain: App {
         _services = State(initialValue: services)
         appDelegate.library = services.library
         appDelegate.live = services.live
+        appDelegate.lightingPreview = services.lightingPreview
         services.live.start()
         services.onKeyboard.start()
         services.layerShortcuts.start()
+        services.lightingPreview.start()
         // `--import <oryx.json>`: add an Oryx layout file to the library at launch.
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--import"), args.indices.contains(i + 1) {
@@ -76,6 +78,7 @@ struct SextantMain: App {
         ) { _ in NSSound.beep() }
         return SextantServices(
             library: library, live: live, trace: trace, onKeyboard: onKeyboard, layerShortcuts: layerShortcuts,
+            lightingPreview: LightingPreview(live: live),
             makeImport: { ImportFromOryx(oryx: oryx, library: library) },
             makeBuildFlash: { session in
                 // ADR 0033: the native toolchain, every build sandboxed.
@@ -87,12 +90,23 @@ struct SextantMain: App {
 }
 
 /// Quitting waits for a firmware write and its verify (spec §7.4: neither can be stopped) and for open documents' pending
-/// autosaves (each lands up to a second after the last edit), and asks first when an edit couldn't be saved.
+/// autosaves (each lands up to a second after the last edit), and asks first when an edit couldn't be saved. Quitting and
+/// sleep end the keyboard lighting preview (ADR 0051).
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var library: Library?
     var live: LiveSession?
+    var lightingPreview: LightingPreview?
 
-    func applicationDidFinishLaunching(_ notification: Notification) { DeleteMenuItem.showDeleteKey() }
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        DeleteMenuItem.showDeleteKey()
+        // A Mac that sleeps may wake without Sextant's session: give the keyboard its own lighting back first. Observed for
+        // the app's lifetime, so the token is never needed.
+        _ = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification, object: nil, queue: .main
+        ) { [lightingPreview] _ in
+            MainActor.assumeIsolated { lightingPreview?.releaseAll() }
+        }
+    }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let library else { return .terminateNow }
@@ -102,6 +116,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // SwiftUI reports the focus change on a later run-loop turn; let one pass first.
             await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
             let quits = await Quitting(library: library, live: live).run(quitAnyway: Self.quitAnyway)
+            // Bounded: the write has no timeout. If it runs out, the colors stay until the keyboard is unplugged.
+            if quits {
+                lightingPreview?.releaseAll()
+                await live?.releaseLightsAndWait()
+            }
             sender.reply(toApplicationShouldTerminate: quits)
         }
         return .terminateLater

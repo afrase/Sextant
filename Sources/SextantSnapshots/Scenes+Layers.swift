@@ -1,11 +1,14 @@
 import SextantApplication
 import SextantDomain
+import SextantStorage
 import SextantUI
 import SwiftUI
 
 extension Scenes {
     /// Layers and the Lighting lens (spec §3.6, §3.8, §6.1, §6.2).
     static func layers(_ f: Fixtures) async -> [SnapshotScene] {
+        // Loaded before the edits below, like every model here.
+        let previews = await lightingPreview(f)
         let rename = await model(f, layer: 1)
         let menu = await model(f, layer: 1)
         let summary = await model(f, layer: 1)
@@ -34,6 +37,52 @@ extension Scenes {
             + [
                 SnapshotScene("lighting-min-light", size: CGSize(width: 1120, height: 640)) {
                     LayoutWindow(model: lightingMin, layoutID: .constant(f.entry.id))
+                }
+            ] + previews
+    }
+
+    /// The Lighting inspector's "On the keyboard" (ADR 0051): previewing Brd+Sys at 60%, another layout's window
+    /// previewing, and Live View off. (`lighting` above has no keyboard.) The keyboard is a stand-in, and no window feeds
+    /// the preview, so nothing is sent anywhere.
+    static func lightingPreview(_ f: Fixtures) async -> [SnapshotScene] {
+        guard let root = await f.windowModel().library.location(of: f.entry.id)?.deletingLastPathComponent() else { return [] }
+        func window(_ live: LiveSession, _ preview: LightingPreview) async -> LayoutWindowModel {
+            let model = LayoutWindowModel(library: Library(store: PackageLibrary(root: root)), live: live, lightingPreview: preview)
+            await model.open(f.entry.id)
+            model.buildFlash = await idleBuildFlash(model)
+            model.session?.select(layer: 2)
+            model.lens = .lighting
+            Task { await model.followKeyboard() }
+            return model
+        }
+        let paired = LightingKeyboard()
+        let live = LiveSession(watcher: paired, link: paired, secureInputProbe: { false })
+        live.start()
+        live.startLive()
+        let preview = LightingPreview(live: live)
+        preview.start()
+        let on = await window(live, preview)
+        // A preview of its own, held by another layout's window (one window per layout: `on` stands in for it).
+        let elsewherePreview = LightingPreview(live: live)
+        let elsewhere = await window(live, elsewherePreview)
+        for _ in 0..<250 where !live.canSend { try? await Task.sleep(for: .milliseconds(20)) }
+        try? preview.claim(for: on, title: on.session?.layout.title ?? "")
+        preview.setBrightness(0.6)
+        try? elsewherePreview.claim(for: on, title: "Travel")
+
+        let plugged = LightingKeyboard()
+        let liveOff = LiveSession(watcher: plugged, link: plugged, secureInputProbe: { false })
+        liveOff.start()
+        let off = await window(liveOff, LightingPreview(live: liveOff))
+        for _ in 0..<50 where liveOff.connection == .noKeyboard { try? await Task.sleep(for: .milliseconds(10)) }
+
+        func scenes(_ name: String, _ model: LayoutWindowModel) -> [SnapshotScene] {
+            SnapshotScene.pair(name, size: full) { LayoutWindow(model: model, layoutID: .constant(f.entry.id)) }
+        }
+        return scenes("lighting-preview-on", on) + scenes("lighting-preview-live-off", off)
+            + [
+                SnapshotScene("lighting-preview-elsewhere-light", size: full) {
+                    LayoutWindow(model: elsewhere, layoutID: .constant(f.entry.id))
                 }
             ]
     }
@@ -78,5 +127,17 @@ extension Scenes {
             Text("No Color").padding(.horizontal, 26).frame(height: 22)
         }
         .padding(5)
+    }
+}
+
+/// The user's keyboard, present from the start; once Live View starts, its session reports Brd+Sys and stays open. It never
+/// reads the commands it is given.
+private struct LightingKeyboard: DeviceWatcher, KeyboardLink {
+    func events(for board: BoardDefinition) -> AsyncStream<DeviceEvent> {
+        AsyncStream { $0.yield(.attached(.keyboard(KeyboardDevice(id: 1, productID: 0x1977, serial: "KlgM7/40xJ7M")))) }
+    }
+
+    func session(with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>) -> AsyncStream<LiveEvent> {
+        AsyncStream { $0.yield(.layer(2)) }
     }
 }

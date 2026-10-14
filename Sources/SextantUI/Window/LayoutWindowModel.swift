@@ -86,6 +86,8 @@ public final class LayoutWindowModel {
     @ObservationIgnored let makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)?
     /// Which layout the keyboard runs, app-wide; nil in tests and snapshots without a keyboard.
     @ObservationIgnored let onKeyboard: OnKeyboard?
+    /// The keyboard lighting preview, app-wide (ADR 0051); nil in tests and snapshots without a keyboard.
+    @ObservationIgnored let lightingPreview: LightingPreview?
     // MARK: inspector
     /// A key inspector text field (the label or the tapping term) has focus, so ⌘⌫ and ⇧⌘⌫ edit its text rather than
     /// make the key transparent or disable it.
@@ -182,20 +184,22 @@ public final class LayoutWindowModel {
 
     public init(
         library: Library, live: LiveSession? = nil, makeImport: (@MainActor () -> ImportFromOryx)? = nil,
-        makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)? = nil, onKeyboard: OnKeyboard? = nil
+        makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)? = nil, onKeyboard: OnKeyboard? = nil,
+        lightingPreview: LightingPreview? = nil
     ) {
         self.library = library
         self.live = live
         self.makeImport = makeImport
         self.makeBuildFlash = makeBuildFlash
         self.onKeyboard = onKeyboard
+        self.lightingPreview = lightingPreview
     }
 
     /// A window over the composition root's use cases.
     public convenience init(services: SextantServices) {
         self.init(
             library: services.library, live: services.live, makeImport: services.makeImport, makeBuildFlash: services.makeBuildFlash,
-            onKeyboard: services.onKeyboard)
+            onKeyboard: services.onKeyboard, lightingPreview: services.lightingPreview)
     }
 
     /// Opens `id`, or the most recently modified layout no other window has open when `id` is nil, no longer in the
@@ -219,6 +223,8 @@ public final class LayoutWindowModel {
                 return session?.id
             }
             if let old = session {
+                // Another layout's colors aren't what the user turned the preview on for.
+                lightingPreview?.release(for: self)
                 // A waiting Build & Flash has no time limit; stop it so it can't flash the next keyboard in flash mode.
                 buildFlash?.stop()
                 await library.close(old)
@@ -246,6 +252,7 @@ public final class LayoutWindowModel {
     /// The window is closing: stops its layout's Build & Flash (see ``open(_:)``) and lets the layout go, so another
     /// window can open it.
     func close() async {
+        lightingPreview?.release(for: self)
         guard let session else { return }
         buildFlash?.stop()
         await library.close(session)

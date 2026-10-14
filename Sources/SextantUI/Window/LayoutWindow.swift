@@ -47,6 +47,8 @@ public struct LayoutWindow: View {
         // writes, which can't be stopped (spec §7.4).
         .windowDismissBehavior(model.buildFlash?.canStop == false ? .disabled : .automatic)
         .onDisappear { Task { await model.close() } }
+        // The keyboard lighting preview: its frames while on, and its release when the window goes (ADR 0051).
+        .task { await model.feedKeyboardLighting() }
         .onChange(of: model.session?.id, initial: true) {
             model.session?.undoManager = undoManager
             // The model opened a layout itself (New Layout or an import in an empty window): the window keeps it.

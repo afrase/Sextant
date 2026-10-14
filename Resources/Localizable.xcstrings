@@ -688,6 +688,9 @@
     "Bottom center" : {
 
     },
+    "Brightness" : {
+
+    },
     "Bring your layout to Sextant" : {
 
     },
@@ -978,6 +981,9 @@
 
     },
     "Connect your keyboard to move its layer." : {
+
+    },
+    "Connect your keyboard to preview lighting on it." : {
 
     },
     "Connect your keyboard to see it live" : {
@@ -2268,6 +2274,9 @@
     "On keyboard" : {
 
     },
+    "On the keyboard" : {
+
+    },
     "Once the delay passes, shows the layer you’re holding over other apps. A locked layer can show a small reminder until the keyboard is back on its base layer." : {
 
     },
@@ -2402,6 +2411,12 @@
 
     },
     "Preview Lighting on Keyboard" : {
+
+    },
+    "Preview on Keyboard" : {
+
+    },
+    "Previewing in %@" : {
 
     },
     "Previous Issue" : {
@@ -2919,6 +2934,9 @@
     "Shows the combos that read their keys from a layer. A combo fires on any layer where its keys type the same keycodes." : {
 
     },
+    "Shows this layer’s colors on the keyboard as you paint. Nothing is saved to it until you flash, and the preview ends when you leave Lighting. It stays dark while the keyboard’s lights are off: turned off with its own key, or by Lights off when idle in Firmware Settings." : {
+
+    },
     "Side" : {
 
     },
@@ -3284,6 +3302,9 @@
     "Try again" : {
 
     },
+    "Turn On Live View" : {
+
+    },
     "Turn off features you don’t use in Firmware Settings, such as RGB animations, then build again." : {
 
     },
@@ -3291,6 +3312,9 @@
 
     },
     "Turn on Live View to move the keyboard’s layer." : {
+
+    },
+    "Turn on Live View to preview lighting on the keyboard." : {
 
     },
     "Turning it on or off does the same to Exclude thumbs." : {
@@ -3342,6 +3366,9 @@
 
     },
     "Waiting" : {
+
+    },
+    "Waiting for Live View to connect to the keyboard." : {
 
     },
     "Waiting for flash mode" : {

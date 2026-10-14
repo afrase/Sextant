@@ -9,7 +9,8 @@ import SextantDomain
 /// Presence comes from a ``DeviceWatcher``; a keyboard in normal mode also gets a ``KeyboardLink`` session,
 /// reopened with backoff when it ends. Live events are folded into state and published at most 60 times a
 /// second; ``activity()`` streams each press, release and layer change as it happens. They stay in memory and are never
-/// logged. ``send(_:)`` writes a command over the paired session (ADR 0038).
+/// logged. ``send(_:)`` writes a command over the paired session (ADR 0038). A session that took the keyboard's lights
+/// gives them back before Live View ends it (ADR 0051).
 @MainActor
 @Observable
 public final class LiveSession {
@@ -71,6 +72,22 @@ public final class LiveSession {
     @ObservationIgnored private var subscribers: [UUID: AsyncStream<LiveActivity>.Continuation] = [:]
     /// The layer ``activity()`` last reported for this keyboard.
     @ObservationIgnored private var deliveredLayer: Int?
+    /// Live View took this keyboard's lights (`05 01`, `06`, `09`) and hasn't given them back (`05 00`). It outlasts a
+    /// session that ends while the keyboard stays plugged in: the board may still show them, so the next one releases.
+    @ObservationIgnored private var lightsTaken = false
+    /// `05 00` writes the keyboard hasn't answered (`08 00`) yet.
+    @ObservationIgnored private var releasesInFlight = 0
+    /// When the link will likely have written every command queued, on `clock`.
+    @ObservationIgnored private var writesDone: (any InstantProtocol<Duration>)?
+    /// Live View was turned off while the session held the lights: it ends once the keyboard has them back.
+    @ObservationIgnored private var stopping: Task<Void, Never>?
+
+    /// One queued write: the link writes a report and then waits 5 ms (ADR 0022), but its sleeps overshoot and the write
+    /// takes time too (about 7.5 ms a report measured on a Mac with a free transport). A sender that waits this out never
+    /// falls behind the link.
+    static let writeAllowance = Duration.milliseconds(12)
+    /// How long the keyboard's `08 00` may take once the link has likely written the `05 00`.
+    static let releaseReplyWait = Duration.milliseconds(500)
 
     /// - Parameters:
     ///   - followsOnConnect: whether Follow turns on when the live view starts (Settings › Keyboard), asked each time.
@@ -115,15 +132,28 @@ public final class LiveSession {
     public func startLive() {
         guard !isLive else { return }
         isLive = true
-        if let keyboard { goLive(keyboard) }
+        // While the last session still gives the lights back, it pairs again once that is done.
+        if let keyboard, stopping == nil { goLive(keyboard) }
     }
 
     /// Turns the live view off: ends the link session and forgets its layer and presses; the keyboard stays connected.
+    /// A session that took the keyboard's lights gives them back first (ADR 0051): it reads as off and takes no commands at
+    /// once, and ends when the keyboard answers, since ending it drops whatever is still queued.
     public func stopLive() {
         guard isLive else { return }
         isLive = false
-        guard let keyboard else { return }
-        connect(keyboard)
+        guard let keyboard, stopping == nil else { return }
+        guard liveCommands != nil, lightsTaken || releasesInFlight > 0 else { return connect(keyboard) }
+        let replies = activity()
+        releaseLights()
+        liveCommands = nil
+        (connection, isFollowing, activeLayer, pressed) = (.liveOff(keyboard), false, nil, [])
+        stopping = Task {
+            await waitForReleases(replies)
+            guard !Task.isCancelled else { return }
+            stopping = nil
+            connect(keyboard)
+        }
     }
 
     public func follow() { isFollowing = true }
@@ -166,10 +196,59 @@ public final class LiveSession {
         guard let liveCommands else { throw .notLive }
         guard command.isAllowed(on: board) else { throw .outOfRange }
         liveCommands.yield(command)
+        switch command {
+        case .moveToLayer: break
+        case .lighting(true), .setLED, .setAllLEDs: lightsTaken = true
+        case .lighting(false): (lightsTaken, releasesInFlight) = (false, releasesInFlight + 1)
+        }
+        // A layer move is written with the `01` after it (ADR 0038).
+        let reports = if case .moveToLayer = command { 2 } else { 1 }
+        writesDone = clock.instant(Self.writeAllowance * reports, afterNowOr: writesDone)
+    }
+
+    /// Waits until the link has likely written every command queued so far. A sender that can outpace it (the lighting
+    /// preview) waits between batches, so at most one batch is ever queued.
+    public func waitForQueuedWrites() async {
+        let left = clock.time(until: writesDone)
+        guard left > .zero else { return }
+        try? await clock.sleep(for: left)
+    }
+
+    /// Gives the keyboard its own lighting back (`05 00`) if this paired session took it.
+    public func releaseLights() {
+        guard lightsTaken else { return }
+        try? send(.lighting(false))
+    }
+
+    /// Gives the keyboard its lighting back and waits until it says so for every `05 00` queued, at most until the link has
+    /// likely written them and half a second more, since `IOHIDDeviceSetReport` has no timeout. Quitting ends the process
+    /// next, and anything still queued with it.
+    public func releaseLightsAndWait() async {
+        let replies = activity()  // before the write, so the reply can't come first
+        releaseLights()
+        await waitForReleases(replies)
+    }
+
+    private func waitForReleases(_ replies: AsyncStream<LiveActivity>) async {
+        guard releasesInFlight > 0 else { return }
+        let bound = clock.time(until: writesDone) + Self.releaseReplyWait
+        let clock = clock
+        await withTaskGroup { group in
+            // ``deliver(_:from:)`` counts each reply before handing it on.
+            group.addTask {
+                for await event in replies where event == .lighting(false) || event == .refused(0x04) {
+                    if await self.releasesInFlight == 0 { return }
+                }
+            }
+            group.addTask { try? await clock.sleep(for: bound) }
+            await group.next()
+            group.cancelAll()
+        }
     }
 
     /// Everything the keyboard reports from now on, as it reports it: before the 60 Hz coalescing, so a tap shorter
-    /// than a frame still arrives. Nothing arrives while secure input is on. Ends when the consumer stops.
+    /// than a frame still arrives. No press, release or layer arrives while secure input is on; the keyboard's replies
+    /// (``LiveActivity/lighting(_:)``, ``LiveActivity/refused(_:)``) always do. Ends when the consumer stops.
     public func activity() -> AsyncStream<LiveActivity> {
         let (stream, continuation) = AsyncStream.makeStream(of: LiveActivity.self)
         let id = UUID()
@@ -222,6 +301,9 @@ public final class LiveSession {
     }
 
     private func disconnect() {
+        stopping?.cancel()
+        stopping = nil
+        (lightsTaken, releasesInFlight, writesDone) = (false, 0, nil)
         linkTask?.cancel()
         linkTask = nil
         liveCommands?.finish()
@@ -253,16 +335,17 @@ public final class LiveSession {
             let final = await clock.publish(events, board: board, tap: tap, secureInput: secureInputProbe) { state in
                 show(state, from: device)
                 // The debounce flushes the last state after the session ends; an ended session takes no commands.
-                if state.isLive, !state.hasEnded, liveCommands == nil, !Task.isCancelled, keyboard == device {
+                if state.isLive, !state.hasEnded, liveCommands == nil, !Task.isCancelled, keyboard == device, isPaired {
                     liveCommands = feed
                 }
             }
             feed.finish()
             tap.finish()
             // A cancelled run leaves the state alone: disconnect() has reset it, and a new run may own it now.
-            if !Task.isCancelled { liveCommands = nil }
+            if !Task.isCancelled { (liveCommands, releasesInFlight, writesDone) = (nil, 0, nil) }
             await delivered
-            guard !Task.isCancelled else { return }
+            // Live View off while the lights went back: no new session; `stopping` ends this run.
+            guard !Task.isCancelled, stopping == nil else { return }
             pressed = []
             if final.endReason == .heldByAnotherApp { connection = .heldByAnotherApp(device) }
             if final.isLive { delay = .seconds(1) }
@@ -272,7 +355,7 @@ public final class LiveSession {
     }
 
     private func show(_ state: LinkState, from device: KeyboardDevice) {
-        guard keyboard == device, isLive else { return }  // an update still in flight when the keyboard went away or live ended
+        guard keyboard == device, isPaired else { return }  // an update still in flight when the keyboard went away or live ended
         if state.isLive, connection != .connected(device) { connection = .connected(device) }
         if let serial = state.serial, serial != firmwareSerial { firmwareSerial = serial }
         if state.protocolVersion != protocolVersion { protocolVersion = state.protocolVersion }
@@ -280,14 +363,27 @@ public final class LiveSession {
         if state.pressed != pressed { pressed = state.pressed }
     }
 
-    /// Hands one session's activity to every ``activity()`` stream, except during secure input: asked per event,
-    /// because the once-a-second poll would let the first keys typed into a password field through.
+    /// Live View is on and its session isn't giving the lights back before it ends.
+    private var isPaired: Bool { isLive && stopping == nil }
+
+    /// Hands one session's activity to every ``activity()`` stream. Presses and layers stop while Live View is off and
+    /// during secure input, asked per event because the once-a-second poll would let the first keys typed into a password
+    /// field through.
     private func deliver(_ activity: AsyncStream<LiveActivity>, from device: KeyboardDevice) async {
-        for await event in activity where keyboard == device && !secureInputProbe() {
-            // Every pairing reports the layer again (each reconnect, and the resync after a layer move).
-            if case let .layer(layer) = event {
-                guard layer != deliveredLayer else { continue }
-                deliveredLayer = layer
+        for await event in activity where keyboard == device {
+            switch event {
+            case .lighting(false): releasesInFlight = max(releasesInFlight - 1, 0)
+            // RGB_MATRIX_NOT_ENABLED: this build has no lights to take or give back.
+            case .refused(0x04): (lightsTaken, releasesInFlight) = (false, 0)
+            default: break
+            }
+            if event.isTyping {
+                guard isPaired, !secureInputProbe() else { continue }
+                // Every pairing reports the layer again (each reconnect, and the resync after a layer move).
+                if case let .layer(layer) = event {
+                    guard layer != deliveredLayer else { continue }
+                    deliveredLayer = layer
+                }
             }
             subscribers.values.forEach { $0.yield(event) }
         }
@@ -306,6 +402,14 @@ public enum LiveActivity: Hashable, Sendable {
     case lighting(Bool)
     /// The firmware refused a command, with its Oryx error code (`0x04`: the build has no RGB matrix).
     case refused(UInt8)
+
+    /// A press, release or layer: what secure input hides. The keyboard's replies carry no typing.
+    fileprivate var isTyping: Bool {
+        switch self {
+        case .keyDown, .keyUp, .layer: true
+        case .lighting, .refused: false
+        }
+    }
 }
 
 extension Clock where Duration == Swift.Duration {
@@ -323,13 +427,29 @@ extension Clock where Duration == Swift.Duration {
         var last = LinkState()
         let states = events.reductions(into: LinkState()) { state, event in
             // Asked as the event arrives, so a press made during secure input never waits for the main actor.
-            if let activity = state.apply(event, board: board), !secureInput() { tap.yield(activity) }
+            if let activity = state.apply(event, board: board), !activity.isTyping || !secureInput() { tap.yield(activity) }
         }
         for await state in states.debounce(for: .seconds(1) / 60, clock: self) {
             last = state
             await body(state)
         }
         return last
+    }
+
+    /// `duration` after now, or after `start` (an instant of this clock) when that is later. Type-erased, since an
+    /// `any Clock`'s instants can't be named.
+    fileprivate func instant(
+        _ duration: Duration, afterNowOr start: (any InstantProtocol<Duration>)?
+    ) -> any InstantProtocol<Duration> {
+        let now = now
+        guard let start = start as? Instant, start > now else { return now.advanced(by: duration) }
+        return start.advanced(by: duration)
+    }
+
+    /// The time from now until `instant` (one of this clock's), or zero when it has passed or there is none.
+    fileprivate func time(until instant: (any InstantProtocol<Duration>)?) -> Duration {
+        guard let end = instant as? Instant else { return .zero }
+        return max(now.duration(to: end), .zero)
     }
 }
 
@@ -359,8 +479,8 @@ private struct LinkState: Sendable {
             isLive = true
             guard let i = board.keyIndex(matrixRow: row, column: column) else { break }
             pressed.insert(i)
-            // Left out before the session's first layer report: events flow during the handshake only when another
-            // host paired the board earlier, and then there is no layer to tag the press with yet.
+            // Left out before the session's first layer report: there is no layer to tag the press with yet (RawHIDLink
+            // sends none before pairing, which reports the layer).
             return layer.map { .keyDown(index: i, layer: $0) }
         case let .keyUp(row, column):
             isLive = true

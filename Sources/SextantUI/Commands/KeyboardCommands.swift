@@ -24,7 +24,11 @@ struct KeyboardMenu: View {
         Toggle("Follow Keyboard", isOn: Binding(get: { window?.isFollowing == true }, set: { window?.isFollowing = $0 }))
             .keyboardShortcut("l").disabled(window?.canFollow != true)
         MoveKeyboardToLayerMenu(onKeyboard: onKeyboard, live: live, shortcuts: layerShortcuts)
-        Button("Preview Lighting on Keyboard") {}.disabled(true)
+        Toggle(
+            "Preview Lighting on Keyboard",
+            isOn: Binding(get: { window?.previewsLighting == true }, set: { window?.previewsLighting = $0 })
+        )
+        .disabled(window?.previewsLighting != true && (window?.lightingPreviewRefusal != nil || window?.session == nil))
         Button("Show Overlay While Holding a Layer") {}.disabled(true)
         Divider()
         Button("Device Info…") { window?.devicePopover = .capsule }.disabled(window?.live == nil)

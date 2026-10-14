@@ -43,6 +43,7 @@ final class FakeDeviceWatcher: DeviceWatcher {
 final class FakeKeyboardLink: KeyboardLink {
     private let sessions = Mutex<[AsyncStream<LiveEvent>.Continuation]>([])
     private let received = Mutex<[[KeyboardCommand]]>([])
+    private let closed = Mutex<Set<Int>>([])
 
     func session(
         with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>
@@ -54,10 +55,14 @@ final class FakeKeyboardLink: KeyboardLink {
         }
         received.withLock { $0.append([]) }
         Task { for await command in commands { received.withLock { $0[n].append(command) } } }
+        continuation.onTermination = { [self] _ in closed.withLock { _ = $0.insert(n) } }
         return stream
     }
 
     var sessionCount: Int { sessions.withLock { $0.count } }
+
+    /// Session `n` (oldest first) is still open: neither ended nor let go by its consumer.
+    func isOpen(_ n: Int) -> Bool { n < sessionCount && !closed.withLock { $0.contains(n) } }
 
     /// The commands each session received, oldest session first.
     var commands: [[KeyboardCommand]] { received.withLock { $0 } }

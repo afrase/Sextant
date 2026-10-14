@@ -2,6 +2,7 @@ import Foundation
 import SextantApplication
 import SextantDomain
 import SwiftUI
+import Synchronization
 import Testing
 
 @testable import SextantUI
@@ -127,4 +128,154 @@ struct LayersAndLightingTests {
         #expect(picked.hex == "#8040FF")
         #expect(HexColor(hex: picked.hex) == picked, "what the picker sets is what the file reads back")
     }
+}
+
+/// The window's side of the keyboard lighting preview (spec §6.2, ADR 0051), over a stand-in keyboard that pairs at once and
+/// answers `05` like the firmware: nothing here writes to a keyboard.
+@MainActor
+struct KeyboardLightingPreviewTests {
+    private let link = PreviewLink()
+    let live: LiveSession
+    let preview: LightingPreview
+
+    init() {
+        live = LiveSession(watcher: PreviewKeyboard(), link: link, secureInputProbe: { false })
+        preview = LightingPreview(live: live)
+        live.start()
+        preview.start()
+    }
+
+    /// A window on the user's layout, showing Brd+Sys (#42FF00 on every key) with Live View on, and feeding the preview as
+    /// the window does.
+    func window(liveView: Bool = true) async throws -> LayoutWindowModel {
+        let library = Library(store: MemoryLibrary())
+        _ = try await library.importOryxJSON(try #require(userLayoutData))
+        let model = LayoutWindowModel(library: library, live: live, lightingPreview: preview)
+        await model.open(nil)
+        model.session?.select(layer: 2)
+        try #require(await eventually { live.connection != .noKeyboard })
+        if liveView {
+            model.isLive = true
+            try #require(await eventually { live.canSend })
+        }
+        Task { await model.feedKeyboardLighting() }
+        return model
+    }
+
+    /// The model previewing, once its first frame is out.
+    func previewing() async throws -> LayoutWindowModel {
+        let model = try await window()
+        model.previewsLighting = true
+        try #require(await eventually { link.commands.count == 2 })
+        return model
+    }
+
+    @Test func turningItOnShowsLightingAndSendsTheShownLayerAsItChanges() async throws {
+        let model = try await window()
+        #expect(model.lens == .keys && model.lightingPreviewRefusal == nil)
+        model.destination = .macros
+        model.previewsLighting = true
+        #expect(model.lens == .lighting && model.destination == .layer(2), "the switch shows what it previews")
+        #expect(await eventually { link.commands == [.lighting(true), .setAllLEDs(red: 0x42, green: 0xFF, blue: 0)] })
+
+        let orange = try #require(HexColor(hex: "#FF9500"))
+        model.session?.paint(orange, keys: [14], layer: 2)
+        #expect(await eventually { link.commands.last == .setLED(index: 14, red: 0xFF, green: 0x95, blue: 0) })
+        model.session?.select(layer: 1)
+        #expect(await eventually { link.commands.last == .setAllLEDs(red: 0, green: 0xF0, blue: 0xFF) }, "Sym+Num")
+        #expect(!link.commands.contains(.lighting(false)))
+    }
+
+    @Test(arguments: ["switch off", "Keys lens", "a page", "another layout", "window closed", "Live View off"])
+    func everyWayOutGivesTheLightsBack(_ path: String) async throws {
+        let model = try await previewing()
+        switch path {
+        case "switch off": model.previewsLighting = false
+        case "Keys lens": model.lens = .keys
+        case "a page": model.destination = .history
+        case "another layout":
+            let other = try await model.library.importOryxJSON(try #require(userLayoutData))
+            await model.open(other.id)
+        case "window closed": await model.close()
+        default:
+            model.isLive = false
+            #expect(!model.isLive, "off at once, while the keyboard gets its lights back")
+        }
+        #expect(await eventually { link.commands.last == .lighting(false) })
+        #expect(await eventually { !model.previewsLighting })
+        #expect(link.commands.filter { $0 == .lighting(false) }.count == 1)
+    }
+
+    /// The last click wins: Live View turned on again while the lights go back pairs again once they have.
+    @Test func liveViewOffThenOnStaysOn() async throws {
+        let model = try await previewing()
+        model.isLive = false
+        model.isLive = true
+        #expect(model.isLive)
+        #expect(await eventually { link.sessions == 2 && live.canSend })
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(model.isLive && live.isLive)
+        #expect(link.commands.filter { $0 == .lighting(false) }.count == 1)
+    }
+
+    @Test func aSecondWindowSaysWhereThePreviewIs() async throws {
+        let first = try await previewing()
+        let second = try await window()
+        #expect(second.lightingPreviewRefusal == .previewingElsewhere("My MacOS Layout"))
+        second.previewsLighting = true
+        #expect(!second.previewsLighting && first.previewsLighting)
+        second.lens = .lighting
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(link.commands.count == 2, "the second window sends nothing")
+    }
+
+    @Test func withLiveViewOffItAsksForLiveView() async throws {
+        let model = try await window(liveView: false)
+        #expect(model.lightingPreviewRefusal == .liveOff && model.canGoLive)
+        model.previewsLighting = true
+        #expect(!model.previewsLighting && model.lens == .keys)
+        #expect(link.sessions == 0, "nothing paired, nothing written")
+    }
+
+    @Test func withoutAKeyboardThereIsNoPreview() async throws {
+        let model = try await openUserLayout()
+        #expect(model.lightingPreviewRefusal == .noKeyboard)
+        model.previewsLighting = true
+        #expect(!model.previewsLighting && model.keyboardLightingFrame == nil)
+    }
+}
+
+/// A Voyager already plugged in.
+private struct PreviewKeyboard: DeviceWatcher {
+    func events(for board: BoardDefinition) -> AsyncStream<DeviceEvent> {
+        AsyncStream { $0.yield(.attached(.keyboard(KeyboardDevice(id: 1, productID: 0x1977, serial: "KlgM7/40xJ7M")))) }
+    }
+}
+
+/// Sessions that pair at once on layer 0, record the commands they get, and answer `05` with `08` as the firmware does.
+private final class PreviewLink: KeyboardLink {
+    private let state = Mutex<(sessions: Int, commands: [KeyboardCommand])>((0, []))
+
+    var sessions: Int { state.withLock { $0.sessions } }
+    var commands: [KeyboardCommand] { state.withLock { $0.commands } }
+
+    func session(with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>) -> AsyncStream<LiveEvent> {
+        let (stream, continuation) = AsyncStream.makeStream(of: LiveEvent.self)
+        state.withLock { $0.sessions += 1 }
+        continuation.yield(.layer(0))
+        Task { [self] in
+            for await command in commands {
+                self.state.withLock { $0.commands.append(command) }
+                if case let .lighting(on) = command { continuation.yield(.lighting(on)) }
+            }
+        }
+        return stream
+    }
+}
+
+/// Polls `condition`, letting other tasks run, for up to about five seconds: a loaded runner can take more than one.
+@MainActor
+private func eventually(_ condition: () -> Bool) async -> Bool {
+    for _ in 0..<500 where !condition() { try? await Task.sleep(for: .milliseconds(10)) }
+    return condition()
 }
