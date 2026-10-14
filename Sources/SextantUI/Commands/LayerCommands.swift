@@ -22,7 +22,7 @@ struct LayerMenu: View {
         Button("Move Layer Down") { window?.moveLayer(by: 1) }
             .keyboardShortcut(.downArrow, modifiers: [.command, .option]).disabled(window?.canShowNextLayer != true)
         Divider()
-        Button("Copy Layer To…") {}.disabled(true)
+        Menu("Copy Layer To") { CopyLayerMenu(window: window, layer: current) }.disabled(session == nil)
         Button("Clear Layer…") { window?.layerPendingClear = current }.disabled(session == nil)
         Button("Delete Layer…") { window?.requestDeleteLayer() }.disabled(window?.canDeleteLayer != true)
         Divider()

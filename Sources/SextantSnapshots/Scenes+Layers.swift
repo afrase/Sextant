@@ -26,7 +26,7 @@ extension Scenes {
         }
         // The context menu on Sym+Num with Colour ▸ open. Real menus can't render offscreen, so this draws their items.
         let menus = [
-            SnapshotOverlay.menu(size: CGSize(width: 200, height: 0), at: CGPoint(x: 150, y: 190)) { layerMenu },
+            SnapshotOverlay.menu(size: CGSize(width: 200, height: 0), at: CGPoint(x: 150, y: 190)) { layerMenu(open: "Color") },
             SnapshotOverlay.menu(size: CGSize(width: 150, height: 0), at: CGPoint(x: 346, y: 222)) { colourMenu },
         ]
         return window("layers-rename", rename) + window("layers-color-menu", menu, overlays: menus)
@@ -38,10 +38,11 @@ extension Scenes {
             ]
     }
 
-    private static var layerMenu: some View {
+    /// A layer's context menu with the submenu `open` highlighted.
+    static func layerMenu(open: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             let items = [
-                "Rename…", "Color", "-", "Duplicate", "Move Up", "Move Down", "-", "Copy Layer To…", "Clear Layer…", "Delete Layer…",
+                "Rename…", "Color", "-", "Duplicate", "Move Up", "Move Down", "-", "Copy Layer To", "Clear Layer…", "Delete Layer…",
             ]
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 if item == "-" {
@@ -50,12 +51,11 @@ extension Scenes {
                     HStack {
                         Text(item)
                         Spacer()
-                        if item == "Color" { Image(systemName: "chevron.right").font(.caption) }
+                        if ["Color", "Copy Layer To"].contains(item) { Image(systemName: "chevron.right").font(.caption) }
                     }
-                    .foregroundStyle(item == "Copy Layer To…" ? .tertiary : .primary)
                     .padding(.horizontal, 8)
                     .frame(height: 22)
-                    .background(item == "Color" ? Color.accentColor.opacity(0.85) : .clear, in: .rect(cornerRadius: 5))
+                    .background(item == open ? Color.accentColor.opacity(0.85) : .clear, in: .rect(cornerRadius: 5))
                 }
             }
         }

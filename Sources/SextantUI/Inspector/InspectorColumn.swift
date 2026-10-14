@@ -18,6 +18,8 @@ struct InspectorColumn: View {
                     case .layer:
                         if model.lens == .lighting {
                             LightingInspector(model: model, session: session)
+                        } else if model.selectedKeyCount > 1 {
+                            MultiKeyInspector(model: model, session: session)
                         } else if let index = session.selection.keyIndex {
                             KeyInspector(model: model, session: session, index: index)
                         } else {

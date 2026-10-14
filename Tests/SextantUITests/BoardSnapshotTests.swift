@@ -30,6 +30,15 @@ struct BoardSnapshotTests {
         try assertBoard(BoardView(session: session, issues: issues, pressed: pressed), scheme: scheme)
     }
 
+    /// Several selected keys (ADR 0047): a ring on each, across both halves and a rotated thumb.
+    @Test(arguments: [ColorScheme.light, .dark])
+    func mainWithSeveralKeysSelected(scheme: ColorScheme) async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.select(keys: [13, 14, 15, 40, 50], anchor: 13)
+        try assertBoard(BoardView(session: session), scheme: scheme)
+    }
+
     /// The decoration hook (ADR 0037): a diff badge and ring over the LED dot, a combo number and ring beside an
     /// issue, a key at 40%, and the coolest and hottest heat fills with counts, whose legend ink follows the fill.
     @Test(arguments: [ColorScheme.light, .dark])

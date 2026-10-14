@@ -8,7 +8,8 @@ import SwiftUI
 ///
 /// The frame is a pure function of the available size and the layout's board (ADR 0017), so nothing outside
 /// the board area can move it. The board is one tab stop: arrows move the selection, ⇥ / ⇧⇥ change slot,
-/// ⌫ makes the key transparent and esc deselects (§9.2).
+/// ⌫ makes the key transparent and esc deselects (§9.2). ⌘- and ⇧-click select several keys, and ⌘X, ⌘C and ⌘V cut,
+/// copy and paste them while the board has focus (§5.4, §5.5).
 public struct BoardView: View {
     var session: EditSession
     var mode: LegendMode
@@ -41,6 +42,12 @@ public struct BoardView: View {
     /// A display is read-only: no painting, swapping, ⌫ or edit actions.
     private var brush: Brush? { hasBoardPick || display != nil ? nil : lensBrush }
     private var layout: KeyboardLayout { display?.layout ?? session.layout }
+    private var canCopy: Bool { display == nil && window?.hasSelectedKey == true }
+    /// The keys selected with the anchor, ringed in the Keys lens on the plain board.
+    private var others: [Int] {
+        guard display == nil, window?.selectsSeveralKeys ?? true else { return [] }
+        return session.selection.keyIndices.filter { $0 != session.selection.keyIndex }
+    }
     private var layer: Int { display?.layer ?? session.selection.layer }
 
     public init(
@@ -110,6 +117,13 @@ public struct BoardView: View {
             return .handled
         }
         .modifier(BoardPickerKeys(isFocused: $isFocused))
+        // On the board's focus only, so text fields keep the standard commands. A display is read-only.
+        .onCopyCommand(perform: canCopy ? { window?.copyKeys() ?? [] } : nil)
+        .onCutCommand(perform: canCopy && !hasBoardPick ? { window?.cutKeys() ?? [] } : nil)
+        .onPasteCommand(of: [KeyPasteboard.utType]) { _ in
+            guard !hasBoardPick, display == nil, window?.pasteKeys(from: .general) == false else { return }
+            NSSound.beep()
+        }
         .onExitCommand { if let window { window.escapeBoard() } else { session.select(key: nil) } }
         // A pick starting, or the board appearing for one (Assign to Key leaves the Macros page), focuses the board, so
         // ⏎ picks the selected key and esc cancels (spec §9.2, §9.3).
@@ -177,7 +191,7 @@ public struct BoardView: View {
                         model.legend, layout: layout, layer: layer, index: frame.index, geometry: session.geometry,
                         decoration: model.decoration)
                     BoardKey(model: model, u: cap, height: frame.size.height, press: pressed?.state(frame.index))
-                        .onTapGesture { select(frame.index) }
+                        .onTapGesture { select(frame.index, Self.click(NSEvent.modifierFlags)) }
                         .help(value)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(KeyText.label(model.legend, index: frame.index))
@@ -187,7 +201,7 @@ public struct BoardView: View {
                                 ?? (display == nil ? Text("Press Return to change. Actions available.") : Text(verbatim: ""))
                         )
                         .accessibilityAction { select(frame.index) }
-                        .accessibilityAddTraits(frame.index == session.selection.keyIndex ? [.isButton, .isSelected] : .isButton)
+                        .accessibilityAddTraits(traits(frame.index))
                         .accessibilitySortPriority(order[safe: frame.index] ?? 0)
                         .accessibilityRotorEntry(id: frame.index, in: rotors)
                         .accessibilityActions { if display == nil { keyActions(model) } }
@@ -197,6 +211,11 @@ public struct BoardView: View {
             PickerCapOverlay(board: board, cap: cap)
         }
         .animation(SextantMotion.layerChange, value: layer)
+    }
+
+    /// Every selected key reads as selected to VoiceOver.
+    private func traits(_ index: Int) -> AccessibilityTraits {
+        index == session.selection.keyIndex || others.contains(index) ? [.isButton, .isSelected] : .isButton
     }
 
     /// Click or drag across keys to paint them, hit-testing the key polygons; one stroke is one undo step (spec §6.2).
@@ -216,6 +235,14 @@ public struct BoardView: View {
     /// VoiceOver custom actions (spec §4.11).
     @ViewBuilder private func keyActions(_ model: KeyCapModel) -> some View {
         let index = model.index
+        if let window, window.selectsSeveralKeys {
+            // ⌘-click for VoiceOver (spec §5.4).
+            if session.selection.keyIndices.contains(index) {
+                Button("Remove from Selection") { window.click(key: index, .toggle) }
+            } else {
+                Button("Add to Selection") { window.click(key: index, .toggle) }
+            }
+        }
         if let window {
             Button("Change Tap") {
                 session.select(key: index, slot: .tap)
@@ -237,26 +264,33 @@ public struct BoardView: View {
         Button("Copy QMK Expression") { session.copyQMKExpression(index: index) }
     }
 
-    /// One ring that moves between keys, following their rotation (spec §4.7, §10.6).
+    /// One ring that moves between keys, following their rotation (spec §4.7, §10.6), and one on each key selected with
+    /// it (§5.4).
     @ViewBuilder private func selectionRing(_ board: BoardLayout, cap: CGFloat) -> some View {
+        ForEach(others.filter(board.frames.indices.contains), id: \.self) { index in
+            ring(board.frames[index], cap: cap, glows: false)
+        }
         // The picker preview and Record Key draw their own rings instead (§4.7).
         if let index = session.selection.keyIndex, board.frames.indices.contains(index), window?.pickerPreview == nil,
             window?.recorder == nil
         {
-            let frame = board.frames[index]
-            let quiet = contrast == .increased || motion.reduceMotion
-            let width: CGFloat = contrast == .increased || (isFocused && quiet) ? 3 : 2
-            let outset = 2.5 + width
-            RoundedRectangle(cornerRadius: 0.16 * cap + outset, style: .continuous)
-                .strokeBorder(Color.accentColor, lineWidth: width)
-                .frame(width: frame.size.width + outset * 2, height: frame.size.height + outset * 2)
-                .shadow(color: isFocused && !quiet ? Color.accentColor.opacity(0.35) : .clear, radius: 4)
-                .rotationEffect(.degrees(frame.rotation))
-                .position(frame.center)
-                .animation(motion.selection, value: index)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
+            ring(board.frames[index], cap: cap, glows: true).animation(motion.selection, value: index)
         }
+    }
+
+    /// The accent ring around a selected cap; the anchor's glows while the board has focus.
+    private func ring(_ frame: BoardLayout.KeyFrame, cap: CGFloat, glows: Bool) -> some View {
+        let quiet = contrast == .increased || motion.reduceMotion
+        let width: CGFloat = contrast == .increased || (isFocused && quiet) ? 3 : 2
+        let outset = 2.5 + width
+        return RoundedRectangle(cornerRadius: 0.16 * cap + outset, style: .continuous)
+            .strokeBorder(Color.accentColor, lineWidth: width)
+            .frame(width: frame.size.width + outset * 2, height: frame.size.height + outset * 2)
+            .shadow(color: glows && isFocused && !quiet ? Color.accentColor.opacity(0.35) : .clear, radius: 4)
+            .rotationEffect(.degrees(frame.rotation))
+            .position(frame.center)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 
     private func capModels() -> [KeyCapModel] {
@@ -296,9 +330,14 @@ public struct BoardView: View {
 
     private static let backTab = KeyEquivalent("\u{19}")
 
-    private func select(_ index: Int) {
-        if let window { window.click(key: index) } else { session.select(key: index) }
+    private func select(_ index: Int, _ kind: KeyClick = .select) {
+        if let window { window.click(key: index, kind) } else { session.select(key: index) }
         isFocused = true
+    }
+
+    /// ⌘ toggles a key and ⇧ selects a range (spec §5.4); ⌘ wins when both are down.
+    static func click(_ flags: NSEvent.ModifierFlags) -> KeyClick {
+        flags.contains(.command) ? .toggle : flags.contains(.shift) ? .range : .select
     }
 
     private func move(_ direction: MoveCommandDirection) {

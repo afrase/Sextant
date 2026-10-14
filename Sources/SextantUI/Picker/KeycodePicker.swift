@@ -143,13 +143,17 @@ extension LayoutWindowModel {
     /// What the picker assigns to: its own target, or the selected key's slot while a key is shown.
     var assignTarget: AssignTarget? { palette?.target ?? keySlotTarget }
 
+    /// The selected key's slot, or that slot of every selected key: "3 keys › Tap on Main" (ADR 0047). The token shows
+    /// the anchor and the board previews it.
     private var keySlotTarget: AssignTarget? {
         guard hasSelectedKey, let session, let index = session.selection.keyIndex else { return nil }
-        let (layer, slot) = (session.selection.layer, session.selection.slot)
+        let (layer, slot, count) = (session.selection.layer, session.selection.slot, session.selection.keyIndices.count)
+        let name = session.currentLayer?.title ?? ""
         return AssignTarget(
-            title: String(localized: "› \(slot.title) on \(session.currentLayer?.title ?? "")"),
+            title: count > 1
+                ? String(localized: "\(count) keys › \(slot.title) on \(name)") : String(localized: "› \(slot.title) on \(name)"),
             key: KeyRef(layer: layer, index: index, slot: slot), current: session.selectedAction
-        ) { session.setAction(self.assigned($0)) }
+        ) { action in session.setAction { Self.assigned(action, over: $0) } }
     }
 
     /// The results for the open panel, in display order.
@@ -219,10 +223,10 @@ extension LayoutWindowModel {
         palette?.query = ""
     }
 
-    private func assigned(_ action: KeyAction) -> KeyAction {
+    private static func assigned(_ action: KeyAction, over existing: KeyAction?) -> KeyAction {
         // Only a HID keycode takes a chord (LSFT(QK_BOOT) is another keycode, QK_KB_0). OSM and LM keep their modifiers
         // in the same field, but they aren't a chord for the keycode replacing them. The picker never offers a colour key.
-        guard action.code.hasPrefix("KC_"), !action.isTransparent, !action.isNone, let existing = session?.selectedAction,
+        guard action.code.hasPrefix("KC_"), !action.isTransparent, !action.isNone, let existing,
             !existing.isLayerAction, KeycodeCatalog.entry(for: existing.code)?.needsModifiers != true
         else { return action }
         return KeyAction(code: action.code, modifiers: existing.modifiers)
@@ -236,7 +240,9 @@ extension LayoutWindowModel {
         else { return nil }
         var layout = session.layout
         // As `assign` writes it: only the selected slot keeps its chord.
-        layout.updateKey(layer: key.layer, index: key.index) { $0[key.slot ?? .tap] = palette?.target == nil ? assigned(action) : action }
+        layout.updateKey(layer: key.layer, index: key.index) {
+            $0[key.slot ?? .tap] = palette?.target == nil ? Self.assigned(action, over: session.selectedAction) : action
+        }
         return KeyCapModel(layout: layout, layer: key.layer, index: key.index, mode: legendMode)
     }
 

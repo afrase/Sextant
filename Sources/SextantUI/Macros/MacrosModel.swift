@@ -160,8 +160,9 @@ extension LayoutWindowModel {
                 note: MacroText.place(entry.locator, in: layout), leading: .cap(KeyCapModel(layout: shown, layer: 0, index: 0)),
                 isCurrent: target?.current?.macro == entry.macro
             ) { [weak self] in
-                if isKeySlot, let key = target?.key {
-                    session.assignMacro(entry.locator, layer: key.layer, index: key.index)
+                if isKeySlot, target?.key != nil {
+                    // Every selected key's tap (ADR 0047).
+                    session.assignMacroToSelectedKeys(entry.locator)
                 } else {
                     target?.assign(action)
                 }

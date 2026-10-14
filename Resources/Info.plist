@@ -16,6 +16,14 @@
 	<key>LSMinimumSystemVersion</key><string>26.0</string>
 	<key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
 	<key>NSHighResolutionCapable</key><true/>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key><string>com.sextant.keys</string>
+			<key>UTTypeDescription</key><string>Sextant Keys</string>
+			<key>UTTypeConformsTo</key><array><string>public.json</string></array>
+		</dict>
+	</array>
 	<key>NSHumanReadableCopyright</key><string>© 2026 Aaron Frase. Not affiliated with ZSA Technology Labs.</string>
 </dict>
 </plist>

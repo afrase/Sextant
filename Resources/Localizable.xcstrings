@@ -249,6 +249,9 @@
     "%lld keys down" : {
 
     },
+    "%lld keys selected · ⌘-click adds or removes a key · esc keeps one" : {
+
+    },
     "%lld keys set on this layer" : {
 
     },
@@ -274,6 +277,16 @@
     },
     "%lld keys use codes Sextant doesn't know yet. They're kept as they are and marked." : {
 
+    },
+    "%lld keys › %@ on %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld keys › %2$@ on %3$@"
+          }
+        }
+      }
     },
     "%lld ms" : {
 
@@ -446,6 +459,9 @@
     "Add tap" : {
 
     },
+    "Add to Selection" : {
+
+    },
     "Added" : {
 
     },
@@ -474,6 +490,9 @@
 
     },
     "Another window is flashing the keyboard. Try again when it finishes." : {
+
+    },
+    "Assign Macro to %lld Keys" : {
 
     },
     "Assign Macro to Key" : {
@@ -616,6 +635,9 @@
     "Change Modifiers" : {
 
     },
+    "Change Modifiers on %lld Keys" : {
+
+    },
     "Change Setting" : {
 
     },
@@ -676,7 +698,20 @@
     "Clear %@" : {
 
     },
+    "Clear %@ on %lld Keys" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clear %1$@ on %2$lld Keys"
+          }
+        }
+      }
+    },
     "Clear %@?" : {
+
+    },
+    "Clear Color on %lld Keys" : {
 
     },
     "Clear Key Color" : {
@@ -689,6 +724,9 @@
 
     },
     "Clear Label" : {
+
+    },
+    "Clear Label on %lld Keys" : {
 
     },
     "Clear Layer" : {
@@ -772,10 +810,29 @@
     "Convert" : {
 
     },
+    "Copy %lld Keys to %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copy %1$lld Keys to %2$@"
+          }
+        }
+      }
+    },
     "Copy Key" : {
 
     },
-    "Copy Layer To…" : {
+    "Copy Key to %@" : {
+
+    },
+    "Copy Layer To" : {
+
+    },
+    "Copy Layer to %@" : {
+
+    },
+    "Copy Layer to New Layer" : {
 
     },
     "Copy Log" : {
@@ -784,7 +841,10 @@
     "Copy QMK Expression" : {
 
     },
-    "Copy To…" : {
+    "Copy To" : {
+
+    },
+    "Copy To Layer" : {
 
     },
     "Couldn’t set up the build tools" : {
@@ -806,6 +866,12 @@
 
     },
     "Custom…" : {
+
+    },
+    "Cut %lld Keys" : {
+
+    },
+    "Cut Key" : {
 
     },
     "DFU status %lld at %@" : {
@@ -852,6 +918,9 @@
 
     },
     "Disable" : {
+
+    },
+    "Disable %lld Keys" : {
 
     },
     "Disable Key" : {
@@ -1385,12 +1454,32 @@
     "Keys" : {
 
     },
+    "Keys %@ and %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keys %1$@ and %2$@"
+          }
+        }
+      }
+    },
     "Keys %@ and %@ are rolling neighbors" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "Keys %1$@ and %2$@ are rolling neighbors"
+          }
+        }
+      }
+    },
+    "Keys %@ and %lld more" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keys %1$@ and %2$lld more"
           }
         }
       }
@@ -1606,6 +1695,9 @@
     "Main Window" : {
 
     },
+    "Make %lld Keys Transparent" : {
+
+    },
     "Make Transparent" : {
 
     },
@@ -1625,6 +1717,12 @@
 
     },
     "Message" : {
+
+    },
+    "Mixed" : {
+
+    },
+    "Mixed: %lld different" : {
 
     },
     "Modifier" : {
@@ -1852,6 +1950,9 @@
     "Overlay" : {
 
     },
+    "Override %lld Keys" : {
+
+    },
     "Override Key" : {
 
     },
@@ -1879,10 +1980,19 @@
     "Paints with the brush." : {
 
     },
+    "Paste %lld Keys" : {
+
+    },
+    "Paste Key" : {
+
+    },
     "Paste a configure.zsa.io link, or a layout ID such as KlgM7/40xJ7M." : {
 
     },
     "Paste an Oryx link" : {
+
+    },
+    "Paste onto %lld Keys" : {
 
     },
     "Paused: secure input is on" : {
@@ -1932,6 +2042,9 @@
 
     },
     "Put the keyboard in flash mode" : {
+
+    },
+    "Puts these keys in the same places on another layer." : {
 
     },
     "QMK" : {
@@ -1995,6 +2108,9 @@
 
     },
     "Remove from Key" : {
+
+    },
+    "Remove from Selection" : {
 
     },
     "Removed" : {
@@ -2166,13 +2282,29 @@
     "Set %@" : {
 
     },
+    "Set %@ on %lld Keys" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Set %1$@ on %2$lld Keys"
+          }
+        }
+      }
+    },
     "Set Color" : {
+
+    },
+    "Set Color on %lld Keys" : {
 
     },
     "Set Key Color" : {
 
     },
     "Set Label" : {
+
+    },
+    "Set Label on %lld Keys" : {
 
     },
     "Set Layer Color" : {
@@ -2906,6 +3038,9 @@
 
     },
     "matches this layout" : {
+
+    },
+    "mixed" : {
 
     },
     "ms" : {

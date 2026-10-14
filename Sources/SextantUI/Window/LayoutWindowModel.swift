@@ -42,7 +42,8 @@ public final class LayoutWindowModel {
     public internal(set) var session: EditSession?
     public private(set) var loadError: LibraryError?
     public var legendMode: LegendMode = .symbols
-    public var lens: Lens = .keys
+    /// Several selected keys are a Keys lens selection (ADR 0047): another lens keeps only the anchor.
+    public var lens: Lens = .keys { didSet { if lens != .keys, let key = session?.selection.keyIndex { session?.select(keys: [key]) } } }
     public var columnVisibility: NavigationSplitViewVisibility = .all
     public var showsInspector = true
     /// The live view is on (ADR 0057): Sextant pairs with the keyboard and shows its layer and presses. App-wide, and only
@@ -405,7 +406,8 @@ public final class LayoutWindowModel {
         if let pick = boardPick {
             if pick.onPick(index) { boardPick = nil }
         } else {
-            session?.select(key: index)
+            // One key, even the anchor of several.
+            session?.select(keys: [index])
         }
     }
 
@@ -416,9 +418,16 @@ public final class LayoutWindowModel {
         pick?.onCancel()
     }
 
-    /// Esc on the board steps back one level (spec §9.3): a pick ends first (step 4), then the key is deselected (step 5).
+    /// Esc on the board steps back one level (spec §9.3): a pick ends first (step 4), then several keys become their
+    /// anchor, then the key is deselected (step 5).
     func escapeBoard() {
-        if boardPick != nil { cancelBoardPick() } else { session?.select(key: nil) }
+        if boardPick != nil {
+            cancelBoardPick()
+        } else if let session, session.selection.keyIndices.count > 1 {
+            session.select(keys: session.selection.keyIndex.map { [$0] } ?? [])
+        } else {
+            session?.select(key: nil)
+        }
     }
 
     /// Opens the layout's package in Finder (File ▸ Show in Finder).
