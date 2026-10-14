@@ -12,6 +12,9 @@ struct SextantCommands: Commands {
     let onKeyboard: OnKeyboard
     let live: LiveSession
     let layerShortcuts: LayerShortcuts
+    /// Window ▸ Main Window opens the keyboard's layout, as the menu bar extra's Open Sextant does.
+    let windows: WindowRouter
+    @Environment(\.openWindow) private var openWindow
     @AppStorage(BenchGrid.key) private var showsGrid = true
 
     var body: some Commands {
@@ -35,7 +38,7 @@ struct SextantCommands: Commands {
         CommandMenu("Key") { KeyMenu(window: window) }
         CommandMenu("Keyboard") { KeyboardMenu(window: window, onKeyboard: onKeyboard, live: live, layerShortcuts: layerShortcuts) }
         CommandGroup(before: .windowList) {
-            Button("Main Window") {}.keyboardShortcut("0").disabled(true)
+            Button("Main Window") { windows.showMainWindow { openWindow.layout($0) } }.keyboardShortcut("0")
         }
         CommandGroup(replacing: .help) {
             Button("Sextant Help") {}.disabled(true)

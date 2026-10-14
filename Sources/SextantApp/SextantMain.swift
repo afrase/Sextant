@@ -19,13 +19,18 @@ struct SextantMain: App {
     /// One toolchain, so every window shares its setup (only one runs at a time).
     private let toolchain = NativeToolchain(installer: ToolchainInstaller())
     private let hotKeys = KeyboardShortcutsHotKeys()
+    /// Window requests from the menu bar extra, and the Dock icon's presence (ADR 0049): built once, outliving windows.
+    private let windows: WindowRouter
 
     init() {
         let services = Self.makeServices(toolchain: toolchain, hotKeys: hotKeys)
         _services = State(initialValue: services)
+        windows = WindowRouter(
+            library: services.library, onKeyboard: services.onKeyboard, live: services.live, presence: AppPresence())
         appDelegate.library = services.library
         appDelegate.live = services.live
         appDelegate.lightingPreview = services.lightingPreview
+        appDelegate.presence = windows.presence
         services.live.start()
         services.onKeyboard.start()
         services.layerShortcuts.start()
@@ -48,7 +53,7 @@ struct SextantMain: App {
 
     var body: some Scene {
         SextantScenes(
-            services: services, buildToolsStatus: { [toolchain] in await toolchain.status() },
+            services: services, windows: windows, buildToolsStatus: { [toolchain] in await toolchain.status() },
             firmwareSource: (ToolchainPins.firmwareCommit, ToolchainPins.modulesCommit),
             layerShortcutRecorder: hotKeys.recorder(for: services.layerShortcuts))
     }
@@ -97,6 +102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var library: Library?
     var live: LiveSession?
     var lightingPreview: LightingPreview?
+    var presence: AppPresence?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         DeleteMenuItem.showDeleteKey()
@@ -107,6 +113,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [lightingPreview] _ in
             MainActor.assumeIsolated { lightingPreview?.releaseAll() }
         }
+    }
+
+    /// Opening Sextant again (Finder, Spotlight, the Dock) with no window open: the way back when the menu bar item can't
+    /// be seen. The Dock icon returns before SwiftUI opens the window (ADR 0049).
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        if !hasVisibleWindows { presence?.prepareToOpen() }
+        return true
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

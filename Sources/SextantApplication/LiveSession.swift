@@ -47,6 +47,9 @@ public final class LiveSession {
     /// A Build & Flash is validating, erasing or writing the keyboard, or verifying it to record what it flashed, none of
     /// which can be interrupted: quitting waits. Verifying ends within 10 s.
     public internal(set) var isWritingFirmware = false
+    /// How far that write has come, 0–1 in 5% steps (erasing fills the first half, writing the second); nil while nothing
+    /// is being written. The menu bar's arc fills with it (spec §8.3); the steps keep it from redrawing at every block.
+    public internal(set) var flashProgress: Double?
     private var pressed: Set<Int> = []
     /// The command feed of the link session that is paired now; nil otherwise.
     private var liveCommands: AsyncStream<KeyboardCommand>.Continuation?

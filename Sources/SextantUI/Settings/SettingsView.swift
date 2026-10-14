@@ -45,11 +45,25 @@ public struct GeneralSettings: View {
     @AppStorage(SettingsKey.keyboardConnectAction) private var connectAction = "nothing"
     @AppStorage(BenchGrid.key) private var showsGrid = true
     @AppStorage(SettingsKey.notifiesWhenFlashFinishes) private var notifies = false
+    @AppStorage(SettingsKey.showsInMenuBar) private var showsInMenuBar = true
+    @AppStorage(SettingsKey.showsMenuBarLayerColor) private var showsLayerColor = false
+    @AppStorage(SettingsKey.keepsInMenuBar) private var keepsInMenuBar = false
 
     public init() {}
 
     public var body: some View {
         Form {
+            Section {
+                Toggle("Show in menu bar", isOn: $showsInMenuBar)
+                Group {
+                    Toggle("Show the layer’s color in the menu bar", isOn: $showsLayerColor)
+                    Toggle("Keep Sextant in the menu bar when its windows are closed", isOn: $keepsInMenuBar)
+                }
+                .disabled(!showsInMenuBar)
+            } footer: {
+                Text("Kept in the menu bar, Sextant leaves the Dock when you close its last window. Open it again from the menu bar.")
+                    .foregroundStyle(.secondary)
+            }
             Picker("When the keyboard connects", selection: $connectAction) {
                 Text("Open Sextant").tag("open")
                 Text("Do nothing").tag("nothing")

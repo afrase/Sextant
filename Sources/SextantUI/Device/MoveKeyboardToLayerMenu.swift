@@ -42,10 +42,16 @@ struct MoveKeyboardToLayerMenu: View {
     /// The layers of the layout the keyboard runs; only layer 0 when Sextant doesn't have it, and none without a
     /// keyboard.
     private func layers(_ onKeyboard: OnKeyboard) -> [(layer: Int, title: String)] {
-        if let layout = onKeyboard.running?.layout {
-            return layout.layers.prefix(32).enumerated().map { ($0.offset, $0.element.title) }
-        }
-        return Self.refusal(onKeyboard, layer: 0) == .noKeyboard ? [] : [(0, String(localized: "Layer 0"))]
+        let layout = onKeyboard.running?.layout
+        guard layout != nil || Self.refusal(onKeyboard, layer: 0) != .noKeyboard else { return [] }
+        return Self.reachableLayers(layout).map { ($0.index, $0.title) }
+    }
+
+    /// The layers a move can reach: the layout's first 32 (ADR 0038), or only layer 0 for a layout Sextant doesn't have.
+    /// This menu and the menu bar panel list these.
+    nonisolated static func reachableLayers(_ layout: KeyboardLayout?) -> [(index: Int, title: String, color: HexColor?)] {
+        guard let layout else { return [(0, String(localized: "Layer 0"), nil)] }
+        return layout.layers.prefix(32).enumerated().map { ($0.offset, $0.element.title, $0.element.color) }
     }
 
     /// The heading over the items: why they're disabled, or why a layout Sextant doesn't have offers only layer 0; nil
