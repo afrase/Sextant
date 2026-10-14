@@ -202,7 +202,7 @@ private struct RevisionDetails: View {
 }
 
 extension FirmwareSize {
-    /// "Firmware 65.8 KB · +292 B since revision 2" (spec §8.7); the size alone when no earlier revision has an image.
+    /// "Firmware 66 kB · +292 B since revision 2" (spec §8.7); the size alone when no earlier revision has an image.
     var text: String {
         let total = Int64(bytes).formatted(.byteCount(style: .file))
         guard let change else { return String(localized: "Firmware \(total)") }

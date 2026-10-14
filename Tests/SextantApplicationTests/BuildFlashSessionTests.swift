@@ -178,6 +178,30 @@ struct BuildFlashSessionTests {
         #expect(session.diagnostics.map(\.key) == [nil], "the board shows the document, whose keys may differ")
     }
 
+    @Test func aRevisionsGeneratorErrorPointsAtNoKeyOfTheDocument() async throws {
+        let key = KeyRef(layer: 1, index: 7, slot: .tap)
+        let (session, document) = try await make(generator: FakeGenerator(error: .unsupported("x", key)))
+        let imported = try #require(document.revisions.first)
+        let layout = try await document.revisionLayout(imported.id)
+        session.buildAndFlash(connectedKeyboard: nil, revision: RevisionLayout(revision: imported, layout: layout))
+        #expect(await eventually { session.phase == .failed(.generator(.unsupported("x", nil))) })
+
+        session.buildAndFlash(connectedKeyboard: nil)
+        #expect(await eventually { session.phase == .failed(.generator(.unsupported("x", key))) }, "the working copy's key stays")
+    }
+
+    /// Stop, Cancel and Done end the revision's run: what the sheet offers next is the working copy's Build & Flash.
+    @Test func stoppingARevisionsRunForgetsTheRevision() async throws {
+        let (session, document) = try await make()
+        let imported = try #require(document.revisions.first)
+        let layout = try await document.revisionLayout(imported.id)
+        document.setCode("KC_F13", layer: 0, index: 1)
+        session.buildAndFlash(connectedKeyboard: nil, revision: RevisionLayout(revision: imported, layout: layout))
+        #expect(await eventually { session.phase == .waitingForFlashMode(stillWaiting: false) })
+        session.stop()
+        #expect(session.phase == .idle && session.revision == nil && session.layout == document.layout)
+    }
+
     // MARK: Before building
 
     @Test func liveIssueErrorsBlockTheBuild() async throws {

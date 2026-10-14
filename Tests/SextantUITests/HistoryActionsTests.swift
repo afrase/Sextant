@@ -54,9 +54,19 @@ struct HistoryActionsTests {
         #expect(model.history?.firmware == nil, "no Build & Flash to read it through")
     }
 
+    /// A revision can't be fixed where it is, so its blocked title says what it has rather than asking for a fix.
+    @Test func aBlockedRevisionSaysWhatItHas() {
+        let revision = RevisionSummary(id: "0002-a", number: 2, createdAt: Date(), source: .save, message: nil, contentHash: "")
+        let issue = LayoutIssue(kind: .missingLayer(9), severity: .error, key: KeyRef(layer: 0, index: 3, slot: .tap))
+        let other = LayoutIssue(kind: .emptyCombo, severity: .error, key: nil)
+        #expect(BuildFlashText.title(.blocked([issue]), revision: revision) == "Revision 2 has 1 issue")
+        #expect(BuildFlashText.title(.blocked([issue, other]), revision: revision) == "Revision 2 has 2 issues")
+        #expect(BuildFlashText.title(.blocked([issue])) == "Fix 1 issue before building")
+    }
+
     @Test func theSizeLineSaysHowTheFirmwareChanged() {
         let earlier = RevisionSummary(id: "0002-a", number: 2, createdAt: Date(), source: .flash, message: nil, contentHash: "")
-        // The size is the system's file size, in the user's locale ("65.8 KB").
+        // The size is the system's file size, in the user's locale ("66 kB" in US English).
         let total = Int64(65_786).formatted(.byteCount(style: .file))
         #expect(FirmwareSize(bytes: 65_786).text == "Firmware \(total)")
         #expect(

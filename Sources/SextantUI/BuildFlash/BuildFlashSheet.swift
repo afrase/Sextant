@@ -59,7 +59,8 @@ public struct BuildFlashSheet: View {
                         .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.accentColor))
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(BuildFlashText.title(phase)).font(.title3.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                        Text(BuildFlashText.title(phase, revision: build.revision)).font(.title3.weight(.semibold)).accessibilityAddTraits(
+                            .isHeader)
                         let name = build.revision.map { String(localized: "\(session.layout.title), revision \($0.number)") }
                         Text(verbatim: "\(name ?? session.layout.title) → \(keyboard)").font(.callout).foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -129,6 +130,13 @@ public struct BuildFlashSheet: View {
             Button("Close", action: hide).keyboardShortcut(.cancelAction)
             Button("Build & Flash") { model.build(.buildAndFlash) }.keyboardShortcut(.defaultAction).disabled(!model.canBuild)
         case .blocked:
+            // A revision can't be fixed where it is: restoring makes it the layout, whose keys can be.
+            if let revision = build.revision, model.canRestore(revision) {
+                Button("Restore This Revision") {
+                    stop()
+                    Task { await model.restore(revision) }
+                }
+            }
             Button("Close", action: hide).keyboardShortcut(.defaultAction)
         case .confirmingReplace:
             Button("Cancel", action: stop).keyboardShortcut(.cancelAction)
@@ -175,11 +183,11 @@ extension BuildFlashSession.Phase {
 
 /// The sheet's words that depend only on the phase (spec §7.3, §11).
 enum BuildFlashText {
-    static func title(_ phase: BuildFlashSession.Phase) -> String {
+    /// - Parameter revision: the revision the run builds instead of the working copy, if any.
+    static func title(_ phase: BuildFlashSession.Phase, revision: RevisionSummary? = nil) -> String {
         switch phase {
         case .idle: String(localized: "Build & Flash")
-        case let .blocked(issues) where issues.count == 1: String(localized: "Fix 1 issue before building")
-        case let .blocked(issues): String(localized: "Fix \(issues.count) issues before building")
+        case let .blocked(issues): blockedTitle(issues.count, revision: revision)
         case .confirmingReplace: String(localized: "Replace the layout on this keyboard?")
         case .needsSetup: String(localized: "Set up the build tools")
         case .settingUp: String(localized: "Setting up the build tools")
@@ -190,6 +198,16 @@ enum BuildFlashText {
         case .verifying: String(localized: "Verifying")
         case .done: String(localized: "Flashed")
         case let .failed(error): failureTitle(error)
+        }
+    }
+
+    /// A revision can't be fixed, so its title only says what it has.
+    private static func blockedTitle(_ count: Int, revision: RevisionSummary?) -> String {
+        switch (count, revision) {
+        case let (1, revision?): String(localized: "Revision \(revision.number) has 1 issue")
+        case let (count, revision?): String(localized: "Revision \(revision.number) has \(count) issues")
+        case (1, nil): String(localized: "Fix 1 issue before building")
+        case let (count, nil): String(localized: "Fix \(count) issues before building")
         }
     }
 

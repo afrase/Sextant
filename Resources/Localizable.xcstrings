@@ -2172,6 +2172,19 @@
     "Revision %lld" : {
 
     },
+    "Revision %lld has %lld issues" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Revision %1$lld has %2$lld issues"
+          }
+        }
+      }
+    },
+    "Revision %lld has 1 issue" : {
+
+    },
     "Revisions" : {
 
     },
@@ -2311,6 +2324,9 @@
 
     },
     "Sextant can’t map that key. Try another." : {
+
+    },
+    "Sextant checks the layout before every build, and a revision can’t be changed. Restore it, fix these keys, then build and flash it." : {
 
     },
     "Sextant checks the layout before every build. These keys need fixing first." : {

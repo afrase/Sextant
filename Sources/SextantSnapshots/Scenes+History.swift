@@ -91,7 +91,29 @@ extension Scenes {
             SnapshotScene("buildflash-revision-light", size: full, overlays: [.sheet(width: 640) { BuildFlashSheet(model: flashing) }]) {
                 LayoutWindow(model: flashing, layoutID: .constant(flashing.session?.id))
             })
+        scenes += await blockedRevision(f, store: store)
         return scenes
+    }
+
+    /// Flash This Revision… on a saved revision with a key on a layer that doesn't exist, fixed since in the working copy.
+    private static func blockedRevision(_ f: Fixtures, store: PackageLibrary) async -> [SnapshotScene] {
+        guard let model = await historyModel(f), let document = model.session else { return [] }
+        var broken = document.layout
+        broken.updateKey(layer: 0, index: 3) { $0 = Key(tap: .momentary(9)) }
+        guard let revision = try? await document.recordRevision(RevisionDraft(source: .save, message: "Try layer 9", layout: broken))
+        else { return [] }
+        await model.showRevision(revision.id)
+        let build = BuildFlashSession(
+            session: document, library: store, generator: RevisionSceneGenerator(), toolchain: RevisionSceneToolchain(),
+            watcher: NoBootloader(), flasher: NeverFlashes(), md5: { _ in "" })
+        model.buildFlash = build
+        build.buildAndFlash(connectedKeyboard: nil, revision: RevisionLayout(revision: revision, layout: broken))
+        for _ in 0..<250 where build.phase == .idle { try? await Task.sleep(for: .milliseconds(20)) }
+        return SnapshotScene.pair(
+            "buildflash-revision-blocked", size: full, overlays: [.sheet(width: 640) { BuildFlashSheet(model: model) }]
+        ) {
+            LayoutWindow(model: model, layoutID: .constant(model.session?.id))
+        }
     }
 
     /// The fixture on its History page, showing revision 2 on Brd+Sys. Snapshots run no tasks, so the page's load runs here.

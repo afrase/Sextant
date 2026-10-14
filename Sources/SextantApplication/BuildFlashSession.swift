@@ -122,7 +122,8 @@ public final class BuildFlashSession {
     public var currentArtifact: BuildArtifact? { builtLayout == session.layout ? artifact : nil }
     /// The serial the last build reports (``FirmwareIdentity``).
     public private(set) var identity: FirmwareIdentity?
-    /// The revision this run builds and flashes (History's Flash This Revision…); nil for the working copy.
+    /// The revision this run builds and flashes (History's Flash This Revision…), until it is stopped or done; nil for the
+    /// working copy.
     public var revision: RevisionSummary? { target?.revision }
     /// What this run builds: the revision's layout, or the working copy.
     public var layout: KeyboardLayout { target?.layout ?? session.layout }
@@ -263,6 +264,8 @@ public final class BuildFlashSession {
         guard canStop else { return }
         task?.cancel()
         task = nil
+        // The sheet's next Build & Flash is the working copy's, so it mustn't still name the revision.
+        target = nil
         phase = .idle
     }
 
@@ -336,6 +339,9 @@ public final class BuildFlashSession {
         do {
             source = try generator.generate(layout, identity: identity)
         } catch {
+            var error = error
+            // As with compile errors below: a revision's keys aren't the document's, so the error points at none.
+            if target != nil, case let .unsupported(what, _) = error { error = .unsupported(what, nil) }
             fail(.generator(error))
             return false
         }

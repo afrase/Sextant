@@ -186,7 +186,7 @@ The main complaints about Instrument can all be fixed without changing its struc
 - **Undo.** Every edit is undoable with a named action, through the window's `UndoManager`.
 - **Revisions are checkpoints.** Each records the source device (Future), the date and the content hash. They are created by:
   - an import;
-  - every flash (automatically: "Flashed 11 Oct 14:02");
+  - every flash (automatically: "Flashed 11 Oct 14:02", or "Flashed revision 2" for History's Flash This Revision…);
   - ⌘S, Save Revision…, which asks for a message.
 - **Imported titles.** Oryx's " [fork]" suffix is stripped from titles on import.
 
@@ -1199,7 +1199,9 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
   - [Restore This Revision]: checkpoints unsaved edits, records the restore as a new revision ("Restored revision 3") and makes it the layout as one undo step, keeping the title; nothing is lost. It is off when the layout already equals the revision, and while a restore runs.
   - [Flash This Revision…]: builds the revision as it was recorded and flashes it through the Build & Flash sheet ("My MacOS Layout, revision 2 → ZSA Voyager"), with every flasher check unchanged. The flash is recorded as a new revision, "Flashed revision 2"; the working copy stays as it is. A revision's build errors point at no key, since the board shows the working copy.
   - [Export Source Zip…]: the QMK source a build of the revision compiles, zipped, through File ▸ Export's panel ("<title> Revision 2 QMK Source").
+  - If the revision has issues that block a build (§7.5), the sheet says "Revision 2 has 1 issue": a revision can't be changed, so its rows offer no Show Key, and [Restore This Revision] makes it the layout to fix them in.
   - Restore and Flash This Revision are off while a flash is writing, from this window or another.
+  - Keyboard ▸ Flash This Revision… is History's selected revision. Keyboard ▸ Flash Oryx's Build of This Revision… (§7.1, not in v1) means the import the working copy equals, which can be another revision; the slice that enables it should give the two distinct titles.
   - Every action is also in the menus (File ▸ Restore This Revision, File ▸ Export ▸ This Revision’s QMK Source (.zip)…, View ▸ Compare Revision With ▸, Keyboard ▸ Flash This Revision…) and the palette (Restore This Revision, Flash This Revision…, Export Source Zip…, "Compare with: …"), on the History page only.
 - **Empty state:** §12.4. The context strip reads "No revisions yet" and Compare with is off.
 
