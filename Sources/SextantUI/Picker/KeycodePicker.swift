@@ -249,6 +249,10 @@ extension LayoutWindowModel {
         return String(localized: "Now \(Legends.legend(for: action).qmk)")
     }
 
+    /// The keycodes the picker offers its target, for the search field's placeholder: a macro step takes only those it
+    /// can type.
+    var pickerKeycodeCount: Int { KeycodeCatalog.entries.count { !pickable($0).isEmpty } }
+
     /// Results in a rail category (nil is Suggested).
     func pickerCount(_ category: KeycodeCategory?) -> Int {
         if category == .macros { return macroPickerCount }

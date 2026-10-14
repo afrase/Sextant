@@ -20,6 +20,26 @@ struct MacrosPageTests {
         return model
     }
 
+    @Test func thePickerPlaceholderCountsTheKeycodesItOffers() async throws {
+        let library = Library(store: MemoryLibrary())
+        let entry = try await library.importOryxJSON(Data(contentsOf: exampleURL("my-layout-KlgM7-40xJ7M.json")))
+        let model = LayoutWindowModel(library: library)
+        await model.open(entry.id)
+        let session = try #require(model.session)
+        session.select(key: 7)
+        model.openKeycodePicker()
+        let everything = model.pickerKeycodeCount
+        // OSM, LM and the RGB color code need a value the picker can't ask for.
+        #expect(everything == KeycodeCatalog.entries.count { !$0.needsModifiers && !$0.needsColor })
+
+        model.destination = .macros
+        session.newMacro()
+        let draft = try #require(session.selection.macro)
+        model.openStepPicker(step: nil, in: draft)
+        let typable = KeycodeCatalog.entries.count { !$0.needsModifiers && !$0.needsColor && MacroStep.typing($0.code) != nil }
+        #expect(model.pickerKeycodeCount == typable && typable < everything, "\(typable) of \(everything)")
+    }
+
     @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
     func theStepPickerOffersOnlyKeysAStepCanType() async throws {
         let model = try await open("voyager-JRGQm.json")

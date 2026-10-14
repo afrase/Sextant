@@ -235,6 +235,7 @@ private struct MacroNameField: View {
         TextField("Name", text: $draft, prompt: Text(verbatim: prompt))
             .textFieldStyle(.plain)
             .font(.title3.weight(.semibold))
+            .help(Text(verbatim: draft.isEmpty ? prompt : draft))
             .focused($focused)
             .onSubmit(commit)
             .onChange(of: focused) { if !focused { commit() } }
@@ -281,6 +282,8 @@ private struct MacroStepTable: View {
                     Text(verbatim: Legends.legend(for: KeyAction(code: row.step.code)).text)
                 }
             }
+            // Legends are short; the QMK column gets the room for nested modifiers.
+            .width(min: 44, ideal: 56, max: 72)
             // Wide enough for ⌃⌥⇧⌘, which macros often hold.
             TableColumn("Mods") { row in Text(verbatim: row.step.modifiers.glyphs) }.width(54)
             TableColumn("Wait") { row in
@@ -288,10 +291,17 @@ private struct MacroStepTable: View {
             }
             .width(60)
             TableColumn("QMK") { row in
-                Text(verbatim: Legends.legend(for: KeyAction(code: row.step.code, modifiers: row.step.modifiers)).qmk)
+                let qmk = Legends.legend(for: KeyAction(code: row.step.code, modifiers: row.step.modifiers)).qmk
+                // Two modifiers fit at the minimum window; three or four keep both ends, the key and its first modifier.
+                Text(verbatim: qmk)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .help(Text(verbatim: qmk))
             }
+            .width(min: 120)
         } rows: {
             ForEach(rows) { row in TableRow(row).draggable(Self.dragPrefix + "\(row.id)") }
                 .dropDestination(for: String.self) { offset, items in
