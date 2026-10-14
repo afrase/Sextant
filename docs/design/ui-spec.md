@@ -707,9 +707,9 @@ The picker is the command palette component in **assign scope**.
 **Live preview.** The target cap shows the highlighted keycode in the preview state (§4.7).
 
 **Header**
-- A scope token shows the target: "[Z] › Hold on Main". ⌫ on an empty field removes the token and turns the panel into the general palette.
+- A scope token shows the target: "[Z] › Hold on Main". ⌫ on an empty field removes the token and turns the panel into the general palette. A long title (a long macro name) is cut in the middle at 200 pt, so its end ("› Step 3") and the field stay visible.
 - A target that isn't a key ("Combo 3 › Output", a macro step) has no cap and no board preview. ⌘⏎ assigns and closes, the footer leaves out "& next" and ⇧⌘R, and the selected key never changes (ADR 0037).
-- The search field is focused, with the placeholder "Search 320 keycodes, or type a character".
+- The search field is focused, with the placeholder "Search N keycodes, or type a character". N is the sum of the rail's counts for this target, so the two always agree: a layer function counts once per layer, a key's tap adds the layout's macros, and a macro step's picker counts only the keys a step can type.
 
 **Category rail** (160 pt, labelled, with counts):
 - Suggested (recents, plus slot-aware suggestions: layers and modifiers for Hold);
@@ -858,7 +858,7 @@ The picker is the command palette component in **assign scope**.
     - Delays are proportional gaps: hatched, labelled "150 ms", and drawn over a time ruler in ms.
     - Modifier badges sit on the caps, e.g. "⇧⌘" on O.
   - Above the table: [Add Step] (the picker, offering only keys a step can type; a shifted symbol such as "{" becomes its key with ⇧), [Record Steps] and a "Keep pauses" checkbox.
-  - **Step table:** #, Key, Mods, Wait, QMK. Steps can be reordered by dragging. ⌫ deletes the selected step; a double click opens its key in the picker. A step `SEND_STRING` can't type shows a warning.
+  - **Step table:** #, Key, Mods, Wait, QMK. At 1120×640, Key holds every legend a step can type ("Web Home") and QMK holds two modifiers on a short key (`LCTL(LGUI(KC_1))`); a longer chord is cut in the middle, with the whole expression in its tooltip, and an imported step's long legend beside its warning ("Clear EEPROM") is cut at the end, with the key's name in its tooltip. Wider windows give both columns room. Steps can be reordered by dragging. ⌫ deletes the selected step; a double click opens its key in the picker. A step `SEND_STRING` can't type shows a warning.
   - **Options:** "End with ⏎ Return" and "Hold ⌥ while typing (Unicode)".
   - **Preview:** "Types: ⇧⌘O ⧗150 k e y m a p ⧗60 ⏎".
   - A footer warning, with `lock.fill`: "Macros are stored on the keyboard as plain keystrokes. Never put a password in one."

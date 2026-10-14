@@ -14,6 +14,10 @@ import QuartzCore
 /// - **Mask layers** with `destIn` / `destOut` compositing (scroll-edge effects): hidden; otherwise they erase content.
 /// - **Vibrancy** (`vibrantColorMatrix` filter): the filter's colour matrix is applied to the layer's bitmap
 ///   (text, symbols) or background colour. Hairline vibrant separators use `NSColor.separatorColor`.
+///   Known gap: the window server applies the matrix to what lies *behind* the layer, not to the layer's own colour. A
+///   bordered button in a dark inspector is two white layers (matrices "+0.08" and "×0.31 +0.94, alpha ×0.03"); on
+///   screen they lift the backdrop (0.26 → 0.375, 0.574 → 0.661 grey, red stays red-tinted), but here they come out
+///   white. So white Duplicate/Delete-style buttons in dark inspector scenes are this gap, not a bug in the app.
 /// - **Selection material** (`NSVisualEffectView.material == .selection`): filled with the selected-content colour.
 @MainActor
 enum LayerFlattener {

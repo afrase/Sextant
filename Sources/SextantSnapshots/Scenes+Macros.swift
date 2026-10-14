@@ -40,8 +40,26 @@ extension Scenes {
         let brackets = MacroLocator.key(KeyRef(layer: 1, index: 35, slot: .tap))
         let min = CGSize(width: 1120, height: 640)
 
-        // The empty page is the user's layout; the rest need other people's samples (under $SEXTANT_REFERENCE).
+        // The empty page is the user's layout; so is the dense one, with macros added in code. The rest need other
+        // people's samples (under $SEXTANT_REFERENCE).
         var scenes = await pair("macros-empty", f.entry, make: { await model(f) }) { $0.destination = .macros }
+        for (name, size, picker) in [("macros-dense", full, false), ("macros-dense-min", min, false), ("macros-dense-picker", full, true)] {
+            for appearance in SnapshotAppearance.allCases {
+                // A library per scene, so each window edits its own copy and the sidebar lists only that one.
+                let own = root.deletingLastPathComponent().appending(path: "\(name)-\(appearance.rawValue)")
+                guard let mine = await importExample("my-layout-KlgM7-40xJ7M.json", into: own) else { continue }
+                let model = LayoutWindowModel(library: Library(store: PackageLibrary(root: own)))
+                await model.open(mine.id)
+                model.buildFlash = await idleBuildFlash(model)
+                model.destination = .macros
+                guard let locator = model.session.flatMap(addDenseMacros) else { continue }
+                if picker { model.openStepPicker(step: 2, in: locator) }
+                scenes.append(
+                    SnapshotScene("\(name)-\(appearance.rawValue)", size: size, appearance: appearance) {
+                        LayoutWindow(model: model, layoutID: .constant(mine.id))
+                    })
+            }
+        }
         guard let jr = await importExample("voyager-JRGQm.json", into: root), let xl = await importExample("voyager-XlrR4.json", into: root)
         else { return scenes }
         scenes += await pair("macros-jrgqm", jr) { $0.session?.selectMacro(teamsCam, step: 1) }
@@ -62,6 +80,45 @@ extension Scenes {
         // ⌘K's Documents group finds macros by title.
         scenes += await pair("palette-macros", jr) { $0.openPalette(query: "teams") }
         return scenes
+    }
+
+    /// Macros built in code on the user's layout (which has none), for the widest cells the page draws: a long name with
+    /// descenders, steps holding two, three and four modifiers, the longest legend a step can type ("Web Home"), and an
+    /// imported step a macro can't type beside its warning. Returns the first, on the Brd+Sys key 32's tap, with its third
+    /// step selected.
+    private static func addDenseMacros(_ session: EditSession) -> MacroLocator? {
+        func add(_ name: String, _ steps: [MacroStep], on index: Int) {
+            session.newMacro()
+            guard let draft = session.selection.macro else { return }
+            for (at, step) in steps.enumerated() { session.insertStep(step, at: at, in: draft) }
+            session.renameMacro(draft, to: name)
+            session.assignMacro(draft, layer: 2, index: index)
+        }
+        add(
+            "Typography quickly: jump, paste, apply styling, and play back my gigantic yearly signature",
+            [
+                MacroStep(code: "KC_1", modifiers: [.leftControl, .leftCommand], delay: 100),
+                MacroStep(code: "KC_2", modifiers: [.leftControl, .leftCommand], delay: 100),
+                MacroStep(code: "KC_O", modifiers: [.leftControl, .leftShift, .leftCommand], delay: 250),
+                MacroStep(code: "KC_F12", modifiers: [.leftControl, .leftOption, .leftShift, .leftCommand]),
+                MacroStep(code: "MAC_SPOTLIGHT"),
+                MacroStep(code: "KC_WWW_HOME"),
+                MacroStep(code: "KC_SPACE", modifiers: [.leftControl, .leftCommand]),
+                MacroStep(code: "EE_CLR"),
+                MacroStep(code: "KC_V", modifiers: [.leftCommand], delay: 30),
+                MacroStep(code: "KC_ENTER"),
+            ], on: 32)
+        add(
+            "Copy line",
+            [
+                MacroStep(code: "KC_HOME"), MacroStep(code: "KC_END", modifiers: [.leftShift]),
+                MacroStep(code: "KC_C", modifiers: [.leftCommand]),
+            ], on: 33)
+        add("Spotlight", [MacroStep(code: "KC_SPACE", modifiers: [.leftCommand], delay: 200)], on: 34)
+        let first = MacroLocator.key(KeyRef(layer: 2, index: 32, slot: .tap))
+        guard session.layout.macro(at: first) != nil else { return nil }
+        session.selectMacro(first, step: 2)
+        return first
     }
 
     private static func importExample(_ file: String, into root: URL) async -> LibraryEntry? {

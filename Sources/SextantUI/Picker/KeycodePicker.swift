@@ -249,6 +249,13 @@ extension LayoutWindowModel {
         return String(localized: "Now \(Legends.legend(for: action).qmk)")
     }
 
+    /// The search field's placeholder, counting what the rail lists for this target: a layer function once per layer and
+    /// the layout's macros for a key; for a macro step, only the keys a step can type.
+    var pickerPrompt: String {
+        let offered = KeycodeCategory.allCases.reduce(0) { $0 + pickerCount($1) }
+        return String(localized: "Search \(offered) keycodes, or type a character")
+    }
+
     /// Results in a rail category (nil is Suggested).
     func pickerCount(_ category: KeycodeCategory?) -> Int {
         if category == .macros { return macroPickerCount }

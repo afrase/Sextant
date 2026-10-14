@@ -235,6 +235,7 @@ private struct MacroNameField: View {
         TextField("Name", text: $draft, prompt: Text(verbatim: prompt))
             .textFieldStyle(.plain)
             .font(.title3.weight(.semibold))
+            .help(Text(verbatim: draft.isEmpty ? prompt : draft))
             .focused($focused)
             .onSubmit(commit)
             .onChange(of: focused) { if !focused { commit() } }
@@ -273,14 +274,18 @@ private struct MacroStepTable: View {
         Table(of: Row.self, selection: Binding(get: { session.selection.step }, set: { session.selectMacro(locator, step: $0) })) {
             TableColumn("#") { row in Text(verbatim: "\(row.id + 1)").monospacedDigit().foregroundStyle(.secondary) }.width(22)
             TableColumn("Key") { row in
-                HStack(spacing: 4) {
+                let legend = Legends.legend(for: KeyAction(code: row.step.code))
+                HStack(spacing: 3) {
                     if !MacroStep.canType(row.step.code) {
-                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tokens.danger.color)
+                        Image(systemName: "exclamationmark.triangle.fill").imageScale(.small).foregroundStyle(Tokens.danger.color)
                             .help(Text("A macro can’t type this key"))
                     }
-                    Text(verbatim: Legends.legend(for: KeyAction(code: row.step.code)).text)
+                    Text(verbatim: legend.text).help(Text(verbatim: legend.name))
                 }
             }
+            // 70 pt holds every legend a step can type ("Web Home") and leaves QMK two modifiers at 1120×640; with no
+            // max, wider windows give Key room too (an imported step's "Clear EEPROM" beside its warning).
+            .width(min: 56, ideal: 70)
             // Wide enough for ⌃⌥⇧⌘, which macros often hold.
             TableColumn("Mods") { row in Text(verbatim: row.step.modifiers.glyphs) }.width(54)
             TableColumn("Wait") { row in
@@ -288,10 +293,18 @@ private struct MacroStepTable: View {
             }
             .width(60)
             TableColumn("QMK") { row in
-                Text(verbatim: Legends.legend(for: KeyAction(code: row.step.code, modifiers: row.step.modifiers)).qmk)
+                let qmk = Legends.legend(for: KeyAction(code: row.step.code, modifiers: row.step.modifiers)).qmk
+                // Two modifiers on a short key fit at the minimum window; longer chords keep both ends, the key and its
+                // first modifier.
+                Text(verbatim: qmk)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .help(Text(verbatim: qmk))
             }
+            .width(min: 90)
         } rows: {
             ForEach(rows) { row in TableRow(row).draggable(Self.dragPrefix + "\(row.id)") }
                 .dropDestination(for: String.self) { offset, items in

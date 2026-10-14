@@ -215,7 +215,8 @@ struct PalettePanel: View {
                         KeyCap(model: KeyCapModel(layout: session.layout, layer: key.layer, index: key.index), u: 32)
                             .frame(width: 32, height: 32)
                     }
-                    Text(target.title).font(.callout.weight(.medium)).lineLimit(1)
+                    // A long macro name keeps its end ("› Step 3") and leaves the field room to type.
+                    Text(target.title).font(.callout.weight(.medium)).lineLimit(1).truncationMode(.middle).frame(maxWidth: 200)
                 }
                 .padding(.leading, target.key == nil ? 10 : 3)
                 .padding(.trailing, 10)
@@ -249,7 +250,7 @@ struct PalettePanel: View {
     private var placeholder: String {
         switch palette.scope {
         case .assign where isPicking && compact: String(localized: "Search keycodes")
-        case .assign where isPicking: String(localized: "Search \(KeycodeCatalog.entries.count) keycodes, or type a character")
+        case .assign where isPicking: model.pickerPrompt
         case .keys: String(localized: "Find a key by name")
         default: String(localized: "Search commands, keys, layers and settings")
         }

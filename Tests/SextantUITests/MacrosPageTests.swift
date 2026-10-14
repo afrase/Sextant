@@ -20,6 +20,37 @@ struct MacrosPageTests {
         return model
     }
 
+    @Test func thePickerPlaceholderCountsWhatTheRailLists() async throws {
+        let library = Library(store: MemoryLibrary())
+        let entry = try await library.importOryxJSON(Data(contentsOf: exampleURL("my-layout-KlgM7-40xJ7M.json")))
+        let model = LayoutWindowModel(library: library)
+        await model.open(entry.id)
+        let session = try #require(model.session)
+        session.newMacro()
+        let draft = try #require(session.selection.macro)
+        /// The results the picker shows, browsing every rail category in turn.
+        func listed() -> Int {
+            defer { model.palette?.category = nil }
+            return KeycodeCategory.allCases.reduce(0) { total, category in
+                model.palette?.category = category
+                return total + model.paletteItems.count
+            }
+        }
+
+        session.select(key: 7)
+        model.openKeycodePicker()
+        let everything = listed()
+        // A key's tap takes the layout's macro, and a layer function counts once per layer, as the rail lists them.
+        #expect(model.pickerCount(.macros) == 1 && model.pickerCount(.layers) > KeycodeCatalog.entries(in: .layers).count)
+        #expect(model.pickerPrompt == "Search \(everything) keycodes, or type a character")
+
+        model.destination = .macros
+        model.openStepPicker(step: nil, in: draft)
+        let typable = listed()
+        #expect(model.pickerPrompt == "Search \(typable) keycodes, or type a character")
+        #expect(typable < everything, "\(typable) of \(everything)")
+    }
+
     @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
     func theStepPickerOffersOnlyKeysAStepCanType() async throws {
         let model = try await open("voyager-JRGQm.json")
