@@ -14,29 +14,45 @@ extension Scenes {
         let running = "\(layout.title), revision 1"
         let twelve = twelveLayers(layout)
         let shortcuts = Dictionary(uniqueKeysWithValues: (0..<10).map { ($0, "⌃⌥\($0)") })
-        let panels: [(String, MenuBarPanelState, Bool)] = [
+        let target = layout.title
+        var panels: [(String, MenuBarPanelState, Bool)] = [
             // Brd+Sys, reached by holding Space (51), with Space and a key it defines (13) down.
-            ("tiles", MenuBarPanelState(keyboard: .live, running: running, layout: layout, layer: 2, pressed: [13, 51]), true),
             (
-                "list",
-                MenuBarPanelState(keyboard: .live, running: "Twelve layers, revision 4", layout: twelve, layer: 5, shortcuts: shortcuts),
+                "tiles",
+                MenuBarPanelState(keyboard: .live, running: running, layout: layout, layer: 2, pressed: [13, 51], buildTarget: target),
                 true
             ),
-            ("no-keyboard", MenuBarPanelState(keyboard: .none), true),
-            ("live-off", MenuBarPanelState(keyboard: .liveOff, running: running, layout: layout), true),
+            (
+                "list",
+                MenuBarPanelState(
+                    keyboard: .live, running: "Twelve layers, revision 4", layout: twelve, layer: 5, shortcuts: shortcuts,
+                    buildTarget: twelve.title),
+                true
+            ),
+            ("no-keyboard", MenuBarPanelState(keyboard: .none, buildTarget: target), true),
+            ("live-off", MenuBarPanelState(keyboard: .liveOff, running: running, layout: layout, buildTarget: target), true),
             (
                 "flashing",
-                MenuBarPanelState(keyboard: .flashMode, flash: MenuBarPanelState.Flash(title: layout.title, progress: 0.65)), true
+                MenuBarPanelState(
+                    keyboard: .flashMode, flash: MenuBarPanelState.Flash(title: layout.title, progress: 0.65), buildTarget: target),
+                true
             ),
-            ("held", MenuBarPanelState(keyboard: .heldByAnotherApp, running: "KlgM7/40xJ7M"), false),
+            ("held", MenuBarPanelState(keyboard: .heldByAnotherApp, running: "KlgM7/40xJ7M", buildTarget: target), false),
             (
                 "unknown-layout",
                 MenuBarPanelState(
-                    keyboard: .live, running: "Q9x2/aa11", layer: 0,
-                    layerNote: "Sextant doesn’t have the keyboard’s layout, so it can move it only to layer 0."), false
+                    keyboard: .live, running: "Q9x2/aa11", layer: 3,
+                    layerNote: "Sextant doesn’t have the keyboard’s layout, so it can move it only to layer 0.", buildTarget: target),
+                false
             ),
-            ("secure-input", MenuBarPanelState(keyboard: .live, running: running, layout: layout, layer: 1, isSecureInputOn: true), false),
+            (
+                "secure-input",
+                MenuBarPanelState(keyboard: .live, running: running, layout: layout, layer: 1, isSecureInputOn: true, buildTarget: target),
+                false
+            ),
         ]
+        // In flash mode with the keyboard's layout unknown, the row names the layout it would write.
+        panels.append(("flash-mode", MenuBarPanelState(keyboard: .flashMode, buildTarget: target), false))
         for (name, state, both) in panels {
             let size = NSHostingView(rootView: MenuBarPanelContent(state: state)).fittingSize
             let make = { MenuBarPanelContent(state: state) }

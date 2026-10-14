@@ -29,6 +29,31 @@ struct MenuBarTests {
         #expect(MenuBarLabelState(connection: .heldByAnotherApp(keyboard), layer: 2, progress: nil).layer == nil)
     }
 
+    /// The label over the app's live session shows a layer only while a session is paired: not the last one's while the
+    /// next pairs, after a session ended.
+    @Test func theLabelDropsTheLayerWhenTheSessionEnds() async throws {
+        let fake = StandInKeyboard(serial: "KlgM7/40xJ7M", events: [.layer(2), .ended(.io("unplugged mid-write"))])
+        let (live, onKeyboard, library) = Self.session(fake)
+        live.startLive()
+        #expect(await eventually { live.activeLayer == 2 && !live.canSend && live.connection == .connected(keyboard) })
+        let label = MenuBarLabelState(live: live, onKeyboard: onKeyboard, showsColor: true)
+        #expect(label.layer == nil && label.dot == nil && label.accessibilityText == "Sextant, keyboard connected")
+        let panel = MenuBarPanelState(live: live, onKeyboard: onKeyboard, shortcuts: nil, library: library, buildTarget: nil)
+        #expect(panel.keyboard == .connecting && panel.layer == nil && !panel.canMove)
+        #expect(panel.status == "Connected · connecting…")
+    }
+
+    /// A session pairs on key events before it reports a layer: it can take a move, so the panel is live with no layer.
+    @Test func aSessionPairedBeforeItsFirstLayerIsLive() async throws {
+        let fake = StandInKeyboard(serial: "KlgM7/40xJ7M", events: [.keyDown(row: 0, column: 0)])
+        let (live, onKeyboard, library) = Self.session(fake)
+        live.startLive()
+        #expect(await eventually { live.canSend && live.activeLayer == nil })
+        let panel = MenuBarPanelState(live: live, onKeyboard: onKeyboard, shortcuts: nil, library: library, buildTarget: nil)
+        #expect(panel.keyboard == .live && panel.layer == nil && panel.canMove && panel.status == "Connected · Live View on")
+        #expect(MenuBarLabelState(live: live, onKeyboard: onKeyboard, showsColor: false).layer == nil)
+    }
+
     @Test func aFlashFillsTheArcInFivePercentSteps() {
         let bootloader = BootloaderDevice(id: 9, productID: 0x0791, kind: .stm32, version: 0x0200)
         let flashing = MenuBarLabelState(connection: .bootloader(bootloader), layer: nil, progress: 0.37)
@@ -101,6 +126,15 @@ struct MenuBarTests {
         #expect(MenuBarPanelState(keyboard: .liveOff, layout: layout).layers.isEmpty)
     }
 
+    /// The heading names how the layer is reached, or the layer itself when the panel doesn't list it.
+    @Test func theHeadingNamesALayerThePanelDoesntList() throws {
+        let layout = try KeyboardLayout(oryxJSON: #require(userLayoutData))
+        #expect(MenuBarPanelState(keyboard: .live, layer: 3).layerDetail == "On layer 3", "a layout Sextant doesn't have")
+        #expect(MenuBarPanelState(keyboard: .live, layer: 0).layerDetail == nil)
+        let known = MenuBarPanelState(keyboard: .live, layout: layout, layer: 2)
+        #expect(known.layerDetail == known.activator && known.activator != nil)
+    }
+
     @Test(.enabled(if: referenceExamples != nil, "needs SEXTANT_REFERENCE"))
     func jrgqmsTwelveLayersAreRows() throws {
         let layout = try KeyboardLayout(oryxJSON: Data(contentsOf: exampleURL("voyager-JRGQm.json")))
@@ -132,58 +166,81 @@ struct MenuBarTests {
         #expect(MenuBarPanelState(keyboard: .live, layout: Self.layout(layout, layers: 40), layer: 0).layers.count == 32)
     }
 
-    /// The panel over the app's live session: Live View off offers to turn it on, and once on, the user's layout gets
-    /// tiles that move the keyboard through Move Keyboard to Layer, with the global shortcuts' hints.
+    /// The panel over the app's live session, driven through its own controls: showing the panel and its label pairs
+    /// with nothing, Turn On Live View starts Live View, the user's layout gets tiles with the global shortcuts' hints,
+    /// and a tile moves the keyboard through Move Keyboard to Layer. Build & Flash… names the layout it opens.
     @Test func thePanelFollowsTheKeyboardAndMovesItsLayer() async throws {
         let fake = StandInKeyboard(serial: "KlgM7/40xJ7M")
-        let live = LiveSession(watcher: fake, link: fake, secureInputProbe: { false })
-        let store = MemoryLibrary()
-        let library = Library(store: store)
-        _ = try await library.importOryxJSON(#require(userLayoutData))
-        let onKeyboard = OnKeyboard(library: library, store: store, live: live)
-        let hotKeys = SilentHotKeys()
-        let shortcuts = LayerShortcuts(hotKeys: hotKeys, onKeyboard: onKeyboard, isOn: true)
-        live.start()
-        onKeyboard.start()
+        let (live, onKeyboard, library) = Self.session(fake)
+        let entry = try await library.importOryxJSON(#require(userLayoutData))
+        let shortcuts = LayerShortcuts(hotKeys: SilentHotKeys(), onKeyboard: onKeyboard, isOn: true)
         shortcuts.start()
         #expect(await eventually { onKeyboard.running != nil })
-        let off = MenuBarPanelState(live: live, onKeyboard: onKeyboard, shortcuts: shortcuts, library: library)
+        let router = WindowRouter(
+            library: library, onKeyboard: onKeyboard, live: live, presence: AppPresence(apply: { _ in }), activate: {})
+        // In windows that are never ordered in, so the views appear without anything on screen.
+        let hosts: [NSWindow] = [
+            NSHostingView(
+                rootView: MenuBarPanel(live: live, onKeyboard: onKeyboard, shortcuts: shortcuts, library: library, windows: router)),
+            NSHostingView(rootView: MenuBarLabel(live: live, onKeyboard: onKeyboard)),
+        ].map { view in
+            let window = NSWindow(
+                contentRect: CGRect(x: 0, y: 0, width: 360, height: 500), styleMask: .borderless, backing: .buffered, defer: true)
+            window.contentView = view
+            view.layoutSubtreeIfNeeded()
+            return window
+        }
+        let state = {
+            MenuBarPanelState(live: live, onKeyboard: onKeyboard, shortcuts: shortcuts, library: library, buildTarget: router.target)
+        }
+        let off = state()
         #expect(off.keyboard == .liveOff && off.layers.isEmpty && off.running == "My MacOS Layout, revision 1")
-        #expect(fake.sessions == 0, "Live View off pairs with nothing")
+        #expect(off.buildTarget == "My MacOS Layout")
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(fake.sessions == 0 && fake.commands.isEmpty, "showing the panel and its label pairs with nothing")
 
-        // The panel's Turn On Live View is the toolbar's path: LiveSession.startLive.
-        live.startLive()
+        var opened: [UUID?] = []
+        let actions = MenuBarActions(live: live, onKeyboard: onKeyboard, windows: router, openWindow: { opened.append($0) }) {}
+        actions.turnOnLiveView()
         #expect(await eventually { live.canSend && live.activeLayer == 1 })
-        let on = MenuBarPanelState(live: live, onKeyboard: onKeyboard, shortcuts: shortcuts, library: library)
+        let on = state()
         #expect(on.keyboard == .live && on.layer == 1 && on.canMove && on.usesTiles)
         #expect(on.layers.map(\.title) == ["Main", "Sym+Num", "Brd+Sys"])
         #expect(on.layers.map(\.shortcut) == ["⌃⌥0", "⌃⌥1", "⌃⌥2"])
         #expect(on.layerNote == nil && on.layout != nil)
 
-        try onKeyboard.moveKeyboard(toLayer: 2)
+        actions.moveToLayer(2)
         #expect(await eventually { fake.commands == [.moveToLayer(2)] })
         // Past the layout's layers nothing is sent.
-        #expect(throws: LayerMoveRefusal.noSuchLayer(3)) { try onKeyboard.moveKeyboard(toLayer: 3) }
+        actions.moveToLayer(3)
+        actions.buildAndFlash()
+        #expect(opened == [entry.id] && router.pendingBuild?.layout == entry.id)
         live.stopLive()
-        let stopped = MenuBarPanelState(live: live, onKeyboard: onKeyboard, shortcuts: shortcuts, library: library)
-        #expect(stopped.keyboard == .liveOff && fake.commands == [.moveToLayer(2)])
+        #expect(state().keyboard == .liveOff && fake.commands == [.moveToLayer(2)])
+        _ = hosts
     }
 
     @Test func theRefusalShowsWhileTheItemsAreDisabled() async throws {
-        let fake = StandInKeyboard(serial: "Q9x2/aa11", reportsLayer: false)
+        let fake = StandInKeyboard(serial: "Q9x2/aa11", events: [])
+        let (live, onKeyboard, library) = Self.session(fake)
+        #expect(await eventually { live.connection != .noKeyboard })
+        live.startLive()
+        #expect(await eventually { fake.sessions == 1 })
+        let connecting = MenuBarPanelState(live: live, onKeyboard: onKeyboard, shortcuts: nil, library: library, buildTarget: nil)
+        #expect(connecting.keyboard == .connecting && !connecting.canMove)
+        #expect(connecting.layerNote == "Live View is still connecting to the keyboard.")
+        #expect(connecting.running == "Q9x2/aa11" && !connecting.canBuildAndFlash, "an empty library has nothing to build")
+    }
+
+    /// A started live session and the layout on its keyboard, over `fake` and an empty in-memory library.
+    private static func session(_ fake: StandInKeyboard) -> (LiveSession, OnKeyboard, Library) {
         let live = LiveSession(watcher: fake, link: fake, secureInputProbe: { false })
         let store = MemoryLibrary()
         let library = Library(store: store)
         let onKeyboard = OnKeyboard(library: library, store: store, live: live)
         live.start()
         onKeyboard.start()
-        #expect(await eventually { live.connection != .noKeyboard })
-        live.startLive()
-        #expect(await eventually { fake.sessions == 1 })
-        let connecting = MenuBarPanelState(live: live, onKeyboard: onKeyboard, shortcuts: nil, library: library)
-        #expect(connecting.keyboard == .connecting && !connecting.canMove)
-        #expect(connecting.layerNote == "Live View is still connecting to the keyboard.")
-        #expect(connecting.running == "Q9x2/aa11" && !connecting.canBuildAndFlash, "an empty library has nothing to build")
+        return (live, onKeyboard, library)
     }
 
     // MARK: Requests
@@ -200,7 +257,8 @@ struct MenuBarTests {
         var opened: [UUID?] = []
         let router = WindowRouter(
             library: library, onKeyboard: onKeyboard, live: live, presence: AppPresence(apply: { _ in }), activate: {}, now: { now })
-        // No keyboard: the most recently modified layout.
+        // No keyboard and no window: the library's first entry (the package store lists the most recently modified
+        // first; this in-memory one doesn't sort).
         await library.refresh()
         router.showMainWindow { opened.append($0) }
         #expect(opened == [library.entries.first?.id])
@@ -252,16 +310,16 @@ private func eventually(_ condition: () -> Bool) async -> Bool {
     return condition()
 }
 
-/// A keyboard plugged in from the start. Each session reports Sym+Num (unless `reportsLayer` is false, so it stays
-/// pairing) and records the commands it is sent; nothing reaches hardware.
+/// A keyboard plugged in from the start. Each session reports `events` (by default Sym+Num; none, and it stays pairing;
+/// an `.ended` ends it) and records the commands it is sent; nothing reaches hardware.
 final class StandInKeyboard: DeviceWatcher, KeyboardLink, Sendable {
     private let serial: String
-    private let reportsLayer: Bool
+    private let events: [LiveEvent]
     private let state = Mutex<(sessions: Int, commands: [KeyboardCommand])>((0, []))
 
-    init(serial: String, reportsLayer: Bool = true) {
+    init(serial: String, events: [LiveEvent] = [.layer(1)]) {
         self.serial = serial
-        self.reportsLayer = reportsLayer
+        self.events = events
     }
 
     var sessions: Int { state.withLock { $0.sessions } }
@@ -275,9 +333,12 @@ final class StandInKeyboard: DeviceWatcher, KeyboardLink, Sendable {
 
     func session(with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>) -> AsyncStream<LiveEvent> {
         state.withLock { $0.sessions += 1 }
-        let reportsLayer = reportsLayer
+        let events = events
         return AsyncStream { continuation in
-            if reportsLayer { continuation.yield(.layer(1)) }
+            for event in events {
+                continuation.yield(event)
+                if case .ended = event { continuation.finish() }
+            }
             let task = Task {
                 for await command in commands { self.record(command) }
             }

@@ -1110,7 +1110,7 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
 ### 8.3 Menu bar extra (v1)
 
 **Label**
-- A template image of the sextant mark, followed by the active layer index in SF Pro Rounded 11 bold, e.g. "◠ 2". A menu bar extra's label draws only an Image and a Text, so the number is drawn into the image (ADR 0049). The number shows only while Live View reports a layer.
+- A template image of the sextant mark, followed by the active layer index in SF Pro Rounded 11 bold, e.g. "◠ 2". A menu bar extra's label draws only an Image and a Text, so the number is drawn into the image (ADR 0049). The number shows only while a paired Live View session reports a layer, never the layer of one that ended.
 - Disconnected: the glyph at 50%, with no number.
 - Flashing: the arc fills with progress, in 5% steps (erasing fills the first half, writing the second).
 - Optional, off by default: a small layer-colour dot (Settings › General). The image is then not a template.
@@ -1120,13 +1120,13 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
 2. **"Layer on the keyboard"** (held by Space).
    - With 4 or fewer layers: one tile per layer, each with its index (L0), name and colour chip. The active tile is lit in its layer colour.
    - With more layers: list rows with ⌃⌥ hints.
-   - Clicking moves the keyboard to that layer (Move Keyboard to Layer, ADR 0048). Caption: "Switching here moves the keyboard to that layer." While it can't (still connecting), the tiles or rows are disabled and the caption gives the reason. A layout Sextant doesn't have offers layer 0 alone.
-   - Rows scroll after five, which keeps the panel under 520 pt with all 32 reachable layers.
+   - Clicking moves the keyboard to that layer (Move Keyboard to Layer, ADR 0048). Caption: "Switching here moves the keyboard to that layer." While it can't (still connecting), the tiles or rows are disabled and the caption gives the reason. A layout Sextant doesn't have offers layer 0 alone, with "On layer 3" after the section's title when the keyboard is above it.
+   - Past five rows the list scrolls, cut half a row short so it reads as one that scrolls; this keeps the panel under 520 pt with all 32 reachable layers.
    - Instead of this section: "Connect your keyboard with a USB cable." (no keyboard); the write's progress or a note (flash mode); Keymapp's note (held); and, with Live View off, a line saying what it shows and a **Turn On Live View** button, the same path as the toolbar's live button. Nothing starts when the panel opens.
 3. **Mini map** of the active layer, with pressed keys lit (paused during secure input).
 4. **App-aware layers:** "Xcode → Sym+Num", with a switch.
 5. **"Show overlay while holding a layer"** switch.
-6. **Native menu-style rows:** Build & Flash… (⌘R; shows progress while flashing), Open Sextant (⌘0), Settings… (⌘,), Quit Sextant (⌘Q). Build & Flash… and Open Sextant open or bring forward the window of the layout a flash is writing, else the keyboard's, else an open one, else the most recently modified; Build & Flash… then starts in that window as ⌘R does (ADR 0049).
+6. **Native menu-style rows:** Build & Flash “My MacOS Layout”… (⌘R; names the layout it writes; shows progress while flashing), Open Sextant (⌘0), Settings… (⌘,), Quit Sextant (⌘Q). Build & Flash… and Open Sextant open or bring forward the window of the layout a flash is writing, else the keyboard's, else an open one, else the most recently modified; Build & Flash… then starts in that window as ⌘R does (ADR 0049).
 
 Typing statistics (WPM, today's count) appear only when heatmap recording is on, and then only as one line under the mini map.
 

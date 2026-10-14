@@ -13,8 +13,8 @@ struct MenuBarLayers: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("Layer on the keyboard").font(.subheadline.weight(.semibold))
                 Spacer()
-                if let activator = state.activator {
-                    Text(verbatim: activator).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                if let detail = state.layerDetail {
+                    Text(verbatim: detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             Group {
@@ -25,16 +25,19 @@ struct MenuBarLayers: View {
                         if state.layers.count == 1 { Color.clear.frame(maxWidth: .infinity, maxHeight: 0) }
                     }
                 } else {
-                    // Opens on the keyboard's layer, which may be past the rows that fit.
+                    // Opens on the keyboard's layer, which may be past the rows that fit: two rows above it at the top,
+                    // so the cut falls through the half row at an edge, never through the row it's on.
                     ScrollViewReader { proxy in
                         ScrollView {
                             VStack(spacing: 0) { ForEach(state.layers) { row($0).id($0.index) } }
                         }
                         .scrollBounceBehavior(.basedOnSize)
-                        .onAppear { if let layer = state.layer { proxy.scrollTo(layer, anchor: .center) } }
-                        .onChange(of: state.layer) { _, layer in if let layer { proxy.scrollTo(layer, anchor: .center) } }
+                        // Overlay scrollers stay hidden until a scroll: show them once, beside the half row.
+                        .scrollIndicatorsFlash(onAppear: true)
+                        .onAppear { if let layer = state.layer { proxy.scrollTo(max(layer - 2, 0), anchor: .top) } }
+                        .onChange(of: state.layer) { _, layer in if let layer { proxy.scrollTo(max(layer - 2, 0), anchor: .top) } }
                     }
-                    .frame(height: CGFloat(min(state.layers.count, MenuBarPanelContent.visibleRows)) * MenuBarPanelContent.rowHeight)
+                    .frame(height: listHeight)
                     .padding(.horizontal, -6)
                 }
             }
@@ -49,6 +52,13 @@ struct MenuBarLayers: View {
                 }
             }
         }
+    }
+
+    /// Every row up to ``MenuBarPanelContent/visibleRows``. A longer list is cut through a row, half a row short, so it
+    /// reads as one that scrolls; half a row more would take the panel past 520 pt.
+    private var listHeight: CGFloat {
+        let count = state.layers.count, visible = MenuBarPanelContent.visibleRows
+        return (count > visible ? CGFloat(visible) - 0.5 : CGFloat(count)) * MenuBarPanelContent.rowHeight
     }
 
     private func isActive(_ item: MenuBarPanelState.LayerItem) -> Bool { state.layer == item.index }

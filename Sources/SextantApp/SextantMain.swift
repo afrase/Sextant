@@ -29,6 +29,7 @@ struct SextantMain: App {
             library: services.library, onKeyboard: services.onKeyboard, live: services.live, presence: AppPresence())
         appDelegate.library = services.library
         appDelegate.live = services.live
+        appDelegate.presence = windows.presence
         services.live.start()
         services.onKeyboard.start()
         services.layerShortcuts.start()
@@ -95,8 +96,16 @@ struct SextantMain: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var library: Library?
     var live: LiveSession?
+    var presence: AppPresence?
 
     func applicationDidFinishLaunching(_ notification: Notification) { DeleteMenuItem.showDeleteKey() }
+
+    /// Opening Sextant again (Finder, Spotlight, the Dock) with no window open: the way back when the menu bar item can't
+    /// be seen. The Dock icon returns before SwiftUI opens the window (ADR 0049).
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        if !hasVisibleWindows { presence?.prepareToOpen() }
+        return true
+    }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let library else { return .terminateNow }

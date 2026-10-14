@@ -99,9 +99,18 @@ struct MenuBarLabel: View {
     @AppStorage(SettingsKey.showsMenuBarLayerColor) private var showsColor = false
 
     var body: some View {
-        let layer = live.activeLayer
-        let color = showsColor ? layer.flatMap { onKeyboard.running?.layout.layers[safe: $0]?.color } : nil
-        let state = MenuBarLabelState(connection: live.connection, layer: layer, progress: live.flashProgress, dot: color)
+        let state = MenuBarLabelState(live: live, onKeyboard: onKeyboard, showsColor: showsColor)
         Image(nsImage: state.image).accessibilityLabel(state.accessibilityText)
+    }
+}
+
+extension MenuBarLabelState {
+    /// The label for the app's live session. The layer shows only while a session is paired: the last session's stays
+    /// in `activeLayer` while the next one pairs.
+    @MainActor
+    init(live: LiveSession, onKeyboard: OnKeyboard, showsColor: Bool) {
+        let layer = live.canSend ? live.activeLayer : nil
+        let color = showsColor ? layer.flatMap { onKeyboard.running?.layout.layers[safe: $0]?.color } : nil
+        self.init(connection: live.connection, layer: layer, progress: live.flashProgress, dot: color)
     }
 }

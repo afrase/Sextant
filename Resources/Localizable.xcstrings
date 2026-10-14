@@ -719,6 +719,9 @@
     "Build & Flash stopped" : {
 
     },
+    "Build & Flash “%@”…" : {
+
+    },
     "Build & Flash…" : {
 
     },
@@ -2309,6 +2312,9 @@
 
     },
     "On keyboard" : {
+
+    },
+    "On layer %lld" : {
 
     },
     "Once the delay passes, shows the layer you’re holding over other apps. A locked layer can show a small reminder until the keyboard is back on its base layer." : {

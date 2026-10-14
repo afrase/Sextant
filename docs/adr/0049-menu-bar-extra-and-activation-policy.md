@@ -21,7 +21,8 @@ and no menu bar item.
   VoiceOver text, and draws one `NSImage`: the mark (`SextantGlyph`, the Welcome's `SextantMark` stroked heavier as one
   filled outline) with the layer number composed in, in SF Pro Rounded 11 bold. It is a template image, so the menu bar
   tints it. With no keyboard the mark is at 50% alpha and has no number; a number shows only while a paired session
-  reports a layer. While a flash writes, a band fills the arc from its left end with `LiveSession.flashProgress`. With
+  reports a layer (`LiveSession.canSend`: the last session's layer stays in `activeLayer` while the next one pairs, and
+  is never shown). While a flash writes, a band fills the arc from its left end with `LiveSession.flashProgress`. With
   the color dot on, the image is not a template: the mark and number are drawn in the label color as the system draws
   the image, and the dot in the layer's color.
 - **`LiveSession.flashProgress`** (application) is the whole write in 0–1, erasing as the first half and writing as the
@@ -30,7 +31,9 @@ and no menu bar item.
 - **The panel** (`MenuBarPanel`, 360 pt) draws from a `MenuBarPanelState` value read from `LiveSession`, `OnKeyboard`,
   `LayerShortcuts` and `Library`:
   - the header names the board, the connection, and what the keyboard runs as it was flashed: the library title and
-    revision number (ADR 0039), or its serial when Sextant doesn't have that layout; the status-light pips show the layer;
+    revision number (ADR 0039), or its serial when Sextant doesn't have that layout; the status-light pips show the layer.
+    "Live View on" means a paired session, as Move Keyboard to Layer decides (`canSend`), not a reported layer: a session
+    that ended shows "connecting…" with no layer while the next one pairs;
   - no keyboard, flash mode (with the write's progress) and held by Keymapp each show a line saying so;
   - **Live View off** shows "Turn On Live View", which calls `LiveSession.startLive()` as the toolbar's button does.
     It is the only way the panel starts anything, and only on that click; nothing starts when the panel opens;
@@ -38,26 +41,34 @@ and no menu bar item.
     shortcut (`LayerShortcuts.menuShortcut(forLayer:)`, so only while the shortcuts are on and that one can fire). A
     click goes through `OnKeyboard.moveKeyboard(toLayer:)` only. While that would send nothing (still connecting), the
     items are disabled under the refusal's own words; a layout Sextant doesn't have offers layer 0 alone, under the same
-    heading Move Keyboard to Layer uses. The rows scroll after five, which with all 32 reachable layers keeps the panel
-    under 520 pt (spec §13.3; a test measures every state);
+    heading Move Keyboard to Layer uses, with "On layer 3" after the section's title when the keyboard is above it. Both
+    lists come from one source (`MoveKeyboardToLayerMenu.reachableLayers`). Past five rows the list scrolls, cut half a
+    row short so it reads as one that scrolls, with its scroller flashed on opening; it opens with the keyboard's layer
+    third from the top. This keeps the panel under 520 pt with all 32 reachable layers (spec §13.3; a test measures every
+    state);
   - the `LayerMap` of the keyboard's layer with the keys held down, paused during secure input;
   - the overlay switch, bound to Settings › Keyboard's `showsOverlay` (ADR 0045);
-  - menu-style rows with their shortcuts: Build & Flash… (⌘R; "Flashing… 64%" while a flash writes), Open Sextant (⌘0),
-    Settings… (⌘,) and Quit Sextant (⌘Q).
+  - menu-style rows with their shortcuts: Build & Flash “My MacOS Layout”… (⌘R; "Flashing… 64%" while a flash writes),
+    Open Sextant (⌘0), Settings… (⌘,) and Quit Sextant (⌘Q). The Build & Flash row names its target layout, because
+    the click is the consent to write it (ADR 0056), and the target can be a guess: in flash mode, or with a layout
+    Sextant doesn't have, the keyboard's layout is unknown.
 - **Window requests.** `WindowRouter` (UI, app-wide, built once in the composition root with an `AppPresence`) serves
   the panel and Window ▸ Main Window (⌘0, now enabled). It opens or brings forward the window of a target layout with
   `openWindow(id:value:)`, then calls `NSApp.activate()`. The target is the layout a Build & Flash is flashing, else the
   keyboard's (`OnKeyboard`), else one open in a window, else the most recently modified; an empty library opens the
   Welcome, unless a window is already open. Build & Flash… also leaves a pending request for that layout, which its
-  window takes when it shows the layout and can build, and runs as ⌘R does. A request no window takes within 10 s is
-  dropped, so it never starts a build the next time that layout opens. While a flash is under way, the row only brings
-  its window forward.
+  window takes as soon as it shows the layout and runs as ⌘R does. A window that can't build then (a build or flash is
+  under way) still takes it and only comes forward, showing that run: a request left waiting would start a flash later
+  that the click no longer meant. A request no window takes within 10 s is dropped, so it never starts a build the next
+  time that layout opens. While a flash is under way, the row only brings its window forward.
 - **Activation policy.** `AppPresence` counts layout windows (each reports its appearance and disappearance) and sets
   `.accessory` only when the last one closes while both "Show in menu bar" and "Keep Sextant in the menu bar…" are on.
   It sets `.regular` before any request opens a window (so the Dock icon and the main menu are back before the window
   appears), when a window appears by any other path, and as soon as either setting is turned off. Turning both on doesn't
-  hide the Dock icon until the last window closes. Since `.accessory` needs the extra in the menu bar, Sextant always has
-  one of the two.
+  hide the Dock icon until the last window closes. `.accessory` needs the extra in the menu bar, but that is the
+  setting, not the item being seen: macOS can hide an inserted item (behind the notch in a full menu bar, or when the
+  user disallows it in System Settings › Menu Bar). Opening Sextant again from Finder, Spotlight or the Dock is the way
+  back then: the app delegate's reopen handler sets `.regular` before SwiftUI opens the window.
 
 ## Consequences
 - Nothing new is written to the keyboard. Reading needs Live View on (pairing writes `FE`, `00`, `01`, ADR 0057); tile and
@@ -69,3 +80,5 @@ and no menu bar item.
 - The rows don't close the panel themselves: it is expected to close when the window they open becomes key, which every
   row but the layer items and the overlay switch does. The user checks this in the app.
 - The pending Build & Flash is UI state, not a use case: it lives only until a window takes it or 10 s pass.
+- Not done: checking that the status item can be seen before going `.accessory`. SwiftUI doesn't expose the item, and
+  the hidden cases need the real menu bar to verify; reopening covers them.

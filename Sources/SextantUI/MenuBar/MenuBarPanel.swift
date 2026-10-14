@@ -14,26 +14,50 @@ struct MenuBarActions {
     var quit: @MainActor () -> Void = {}
 }
 
+extension MenuBarActions {
+    /// The live panel's controls. Live View starts only on Turn On Live View, and a layer reaches the keyboard only
+    /// through Move Keyboard to Layer (ADR 0048).
+    @MainActor
+    init(
+        live: LiveSession, onKeyboard: OnKeyboard, windows: WindowRouter, openWindow: @escaping WindowRouter.OpenWindow,
+        openSettings: @escaping @MainActor () -> Void
+    ) {
+        self.init(
+            moveToLayer: { try? onKeyboard.moveKeyboard(toLayer: $0) },
+            turnOnLiveView: { live.startLive() },
+            buildAndFlash: { windows.buildAndFlash(openWindow) },
+            openSextant: { windows.showMainWindow(openWindow) },
+            openSettings: { windows.showSettings(openSettings) },
+            quit: { NSApplication.shared.terminate(nil) })
+    }
+}
+
 /// The menu bar extra's panel over the app's live session (spec §8.3).
 struct MenuBarPanel: View {
-    var services: SextantServices
+    var live: LiveSession
+    var onKeyboard: OnKeyboard
+    var shortcuts: LayerShortcuts?
+    var library: Library
     var windows: WindowRouter
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         let state = MenuBarPanelState(
-            live: services.live, onKeyboard: services.onKeyboard, shortcuts: services.layerShortcuts, library: services.library)
-        let open: WindowRouter.OpenWindow = { openWindow.layout($0) }
+            live: live, onKeyboard: onKeyboard, shortcuts: shortcuts, library: library, buildTarget: windows.target)
         MenuBarPanelContent(
             state: state,
             actions: MenuBarActions(
-                moveToLayer: { try? services.onKeyboard.moveKeyboard(toLayer: $0) },
-                turnOnLiveView: { services.live.startLive() },
-                buildAndFlash: { windows.buildAndFlash(open) },
-                openSextant: { windows.showMainWindow(open) },
-                openSettings: { windows.showSettings { openSettings() } },
-                quit: { NSApplication.shared.terminate(nil) }))
+                live: live, onKeyboard: onKeyboard, windows: windows, openWindow: { openWindow.layout($0) },
+                openSettings: { openSettings() }))
+    }
+}
+
+extension MenuBarPanel {
+    init(services: SextantServices, windows: WindowRouter) {
+        self.init(
+            live: services.live, onKeyboard: services.onKeyboard, shortcuts: services.layerShortcuts, library: services.library,
+            windows: windows)
     }
 }
 
@@ -64,7 +88,8 @@ public struct MenuBarPanelContent: View {
             keyboard
             // The switch at the trailing edge, as in a menu; a bare Toggle puts it right after its label.
             HStack {
-                Text("Show overlay while holding a layer")
+                // The switch carries the same words for VoiceOver.
+                Text("Show overlay while holding a layer").accessibilityHidden(true)
                 Spacer()
                 Toggle("Show overlay while holding a layer", isOn: $showsOverlay).toggleStyle(.switch).controlSize(.small)
                     .labelsHidden()
@@ -106,7 +131,7 @@ public struct MenuBarPanelContent: View {
 
     @ViewBuilder private var keyboard: some View {
         switch state.keyboard {
-        case .none: note(Text("Connect your keyboard with a USB cable."), symbol: "cable.connector")
+        case .none: note("cable.connector") { Text("Connect your keyboard with a USB cable.") }
         case .flashMode:
             if let flash = state.flash, let progress = flash.progress {
                 VStack(alignment: .leading, spacing: 6) {
@@ -115,17 +140,20 @@ public struct MenuBarPanelContent: View {
                         .accessibilityLabel(Text("Writing firmware, \(Int((progress * 100).rounded())) percent"))
                 }
             } else {
-                note(Text("The keyboard is in flash mode, ready for Build & Flash."), symbol: "bolt.fill")
+                note("bolt.fill") { Text("The keyboard is in flash mode, ready for Build & Flash.") }
             }
         case .heldByAnotherApp:
-            note(Text(verbatim: DeviceError.heldByAnotherApp.localizedDescription), symbol: "exclamationmark.triangle.fill")
+            note("exclamationmark.triangle.fill") { Text(verbatim: DeviceError.heldByAnotherApp.localizedDescription) }
         case .liveOff:
-            VStack(alignment: .leading, spacing: 8) {
-                note(
+            // The button under the note's text, which it acts on.
+            note("dot.radiowaves.left.and.right") {
+                VStack(alignment: .leading, spacing: 8) {
                     Text(
                         "Live View is off. Turn it on to see the keyboard’s layer and the keys you press, and to switch layers here."
-                    ), symbol: "dot.radiowaves.left.and.right")
-                Button("Turn On Live View", action: actions.turnOnLiveView).controlSize(.small)
+                    )
+                    .fixedSize(horizontal: false, vertical: true)
+                    Button("Turn On Live View", action: actions.turnOnLiveView).controlSize(.small)
+                }
             }
         case .connecting, .live: MenuBarLayers(state: state, moveToLayer: actions.moveToLayer)
         }
@@ -136,6 +164,8 @@ public struct MenuBarPanelContent: View {
             if let flash = state.flash {
                 flash.progress.map { String(localized: "Flashing… \(Int(($0 * 100).rounded()))%") }
                     ?? String(localized: "Waiting to flash \(flash.title)…")
+            } else if let target = state.buildTarget {
+                String(localized: "Build & Flash “\(target)”…")
             } else {
                 String(localized: "Build & Flash…")
             }
@@ -144,9 +174,9 @@ public struct MenuBarPanelContent: View {
             .disabled(!state.canBuildAndFlash)
     }
 
-    private func note(_ text: Text, symbol: String) -> some View {
+    private func note(_ symbol: String, @ViewBuilder text: () -> some View) -> some View {
         Label {
-            text.fixedSize(horizontal: false, vertical: true)
+            text().fixedSize(horizontal: false, vertical: true)
         } icon: {
             Image(systemName: symbol).foregroundStyle(.secondary)
         }
@@ -166,7 +196,8 @@ struct MenuBarRow<Title: View>: View {
         let lit = isHovered && isEnabled
         Button(action: action) {
             HStack {
-                title
+                // A long layout name keeps both ends: "Build & Flash “My Ma…out”…".
+                title.lineLimit(1).truncationMode(.middle)
                 Spacer()
                 if let shortcut { Text(verbatim: shortcut).opacity(lit ? 1 : 0.55).accessibilityHidden(true) }
             }

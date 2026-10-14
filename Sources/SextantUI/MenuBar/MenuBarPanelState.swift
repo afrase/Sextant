@@ -7,8 +7,9 @@ import SextantDomain
 public struct MenuBarPanelState: Equatable {
     public enum Keyboard: Equatable, Sendable {
         case none, flashMode, liveOff, heldByAnotherApp
-        /// Live View is on and hasn't paired yet.
+        /// Live View is on and no session is paired: it hasn't paired yet, or is pairing again after one ended.
         case connecting
+        /// A paired session: choosing a layer sends.
         case live
     }
 
@@ -55,15 +56,17 @@ public struct MenuBarPanelState: Equatable {
     var pressed: Set<Int> = []
     var isSecureInputOn = false
     var flash: Flash?
-    /// Build & Flash… has a layout to open: the library isn't empty.
-    var canBuildAndFlash = true
+    /// The layout Build & Flash… builds and writes, named on the row so the click consents to that layout (ADR 0056);
+    /// nil with an empty library.
+    var buildTarget: String?
 
     /// A panel from given values, for snapshots. Layers come from `layout`, or only layer 0 without one, while the
     /// keyboard is live or connecting; `shortcuts` gives each one's global shortcut.
     public init(
         keyboard: Keyboard, boardName: String = BoardDefinition.voyager.displayName, running: String? = nil,
         layout: KeyboardLayout? = nil, layer: Int? = nil, shortcuts: [Int: String] = [:], layerNote: String? = nil,
-        canMove: Bool = true, pressed: Set<Int> = [], isSecureInputOn: Bool = false, flash: Flash? = nil
+        canMove: Bool = true, pressed: Set<Int> = [], isSecureInputOn: Bool = false, flash: Flash? = nil,
+        buildTarget: String? = nil
     ) {
         self.boardName = boardName
         self.keyboard = keyboard
@@ -75,19 +78,28 @@ public struct MenuBarPanelState: Equatable {
         self.pressed = pressed
         self.isSecureInputOn = isSecureInputOn
         self.flash = flash
+        self.buildTarget = buildTarget
         if keyboard == .live || keyboard == .connecting { layers = Self.items(layout) { shortcuts[$0] } }
         if let layout, let layer, layer > 0 { activator = KeyText.activator(layout: layout, layer: layer)?.text }
     }
 
-    /// The keyboard layout's layers (the first 32, all a move can reach), or only layer 0 when Sextant doesn't have it.
+    /// The layers Move Keyboard to Layer offers, with their shortcuts.
     static func items(_ layout: KeyboardLayout?, shortcut: (Int) -> String?) -> [LayerItem] {
-        guard let layout else { return [LayerItem(index: 0, title: String(localized: "Layer 0"), shortcut: shortcut(0))] }
-        return layout.layers.prefix(32).enumerated().map {
-            LayerItem(index: $0.offset, title: $0.element.title, color: $0.element.color, shortcut: shortcut($0.offset))
+        MoveKeyboardToLayerMenu.reachableLayers(layout).map {
+            LayerItem(index: $0.index, title: $0.title, color: $0.color, shortcut: shortcut($0.index))
         }
     }
 
     var usesTiles: Bool { layers.count <= Self.maxTiles }
+
+    var canBuildAndFlash: Bool { buildTarget != nil }
+
+    /// After "Layer on the keyboard": how the layer is reached, or, when the keyboard is on a layer the panel doesn't
+    /// list (a layout Sextant doesn't have), that layer's number.
+    var layerDetail: String? {
+        guard let layer, !layers.contains(where: { $0.index == layer }) else { return activator }
+        return String(localized: "On layer \(layer)")
+    }
 
     /// The status line under the board's name.
     var status: String {
@@ -104,15 +116,21 @@ public struct MenuBarPanelState: Equatable {
 
 extension MenuBarPanelState {
     /// The panel for the keyboard as it is now.
+    /// - Parameter buildTarget: the layout Build & Flash… acts on (``WindowRouter/target``).
     @MainActor
-    init(live: LiveSession, onKeyboard: OnKeyboard, shortcuts: LayerShortcuts?, library: Library, board: BoardDefinition = .voyager) {
+    init(
+        live: LiveSession, onKeyboard: OnKeyboard, shortcuts: LayerShortcuts?, library: Library, buildTarget: UUID?,
+        board: BoardDefinition = .voyager
+    ) {
         boardName = board.displayName
         switch live.connection {
         case .noKeyboard: keyboard = .none
         case .bootloader: keyboard = .flashMode
         case .liveOff: keyboard = .liveOff
         case .heldByAnotherApp: keyboard = .heldByAnotherApp
-        case .connected: keyboard = live.activeLayer == nil ? .connecting : .live
+        // Paired or not, as Move Keyboard to Layer decides: the last session's layer stays in `activeLayer` while the
+        // next one pairs, and a session can pair on key events before it reports a layer.
+        case .connected: keyboard = live.canSend ? .live : .connecting
         }
         let running = onKeyboard.running
         if let running {
@@ -122,13 +140,13 @@ extension MenuBarPanelState {
             self.running = live.firmwareSerial
         }
         layout = running?.layout
-        layer = live.activeLayer
+        layer = keyboard == .live ? live.activeLayer : nil
         pressed = live.pressedKeys
         isSecureInputOn = live.isSecureInputOn
         if let id = live.flashingLayoutID {
             flash = Flash(title: library.entries.first { $0.id == id }?.title ?? "", progress: live.flashProgress)
         }
-        canBuildAndFlash = !library.entries.isEmpty
+        self.buildTarget = buildTarget.flatMap { id in library.entries.first { $0.id == id }?.title }
         guard keyboard == .live || keyboard == .connecting else { return }
         layers = Self.items(layout) { shortcuts?.menuShortcut(forLayer: $0)?.text }
         let heading = MoveKeyboardToLayerMenu.heading(onKeyboard)

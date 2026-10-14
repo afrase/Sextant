@@ -68,9 +68,11 @@ public struct LayoutWindow: View {
         }
     }
 
-    /// Starts the Build & Flash the menu bar asked for, once this window shows its layout and can build.
+    /// Starts the Build & Flash the menu bar asked for, once this window shows its layout. The window takes the request
+    /// even when it can't build now (a build or flash is under way): it comes forward showing that run, and a request
+    /// left waiting would start a flash later that the click no longer meant.
     private func runRequestedBuild() {
-        guard let id = model.session?.id, model.canBuild, windows?.takeBuild(for: id) == true else { return }
+        guard let id = model.session?.id, windows?.takeBuild(for: id) == true, model.canBuild else { return }
         model.build(.buildAndFlash)
     }
 }
