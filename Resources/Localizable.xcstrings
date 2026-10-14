@@ -215,6 +215,16 @@
         }
       }
     },
+    "%@, layer %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, layer %2$lld"
+          }
+        }
+      }
+    },
     "%@, revision %lld" : {
       "localizations" : {
         "en" : {
@@ -709,6 +719,9 @@
     "Build & Flash stopped" : {
 
     },
+    "Build & Flash…" : {
+
+    },
     "Build Failed" : {
 
     },
@@ -983,6 +996,9 @@
     "Connect your keyboard to see it live" : {
 
     },
+    "Connect your keyboard with a USB cable." : {
+
+    },
     "Connected" : {
 
     },
@@ -995,7 +1011,19 @@
     "Connected over USB. Turn on Live View to see its layer and the keys you press." : {
 
     },
+    "Connected · Live View off" : {
+
+    },
+    "Connected · Live View on" : {
+
+    },
     "Connected · USB" : {
+
+    },
+    "Connected · connecting…" : {
+
+    },
+    "Connected · in use by Keymapp" : {
 
     },
     "Convert" : {
@@ -1435,6 +1463,9 @@
     "Flashing, %lld percent" : {
 
     },
+    "Flashing… %lld%%" : {
+
+    },
     "Flash…" : {
 
     },
@@ -1585,6 +1616,9 @@
     "Imports a public layout from configure.zsa.io. Oryx stays read-only; Sextant keeps its own copy." : {
 
     },
+    "In flash mode" : {
+
+    },
     "In flash mode, ready for Build & Flash. Unplug it and plug it back in to leave flash mode." : {
 
     },
@@ -1630,6 +1664,9 @@
     "It reconnected and reported %@ ✓." : {
 
     },
+    "Keep Sextant in the menu bar when its windows are closed" : {
+
+    },
     "Keep pauses" : {
 
     },
@@ -1640,6 +1677,9 @@
 
     },
     "Keeps the last %lld reports Sextant and the keyboard exchange, for the Device popover. They stay in memory and are never saved; turning the log off clears it. It starts off each time Sextant opens." : {
+
+    },
+    "Kept in the menu bar, Sextant leaves the Dock when you close its last window. Open it again from the menu bar." : {
 
     },
     "Kept, Not Used (%lld)" : {
@@ -1904,6 +1944,9 @@
     "Layer name" : {
 
     },
+    "Layer on the keyboard" : {
+
+    },
     "Layer shortcuts" : {
 
     },
@@ -1971,6 +2014,9 @@
 
     },
     "Live View" : {
+
+    },
+    "Live View is off. Turn it on to see the keyboard’s layer and the keys you press, and to switch layers here." : {
 
     },
     "Live View is still connecting to the keyboard." : {
@@ -2211,6 +2257,9 @@
     "None — shows the keycode" : {
 
     },
+    "Not connected" : {
+
+    },
     "Not connected. Connect your keyboard with a USB cable." : {
 
     },
@@ -2417,6 +2466,9 @@
 
     },
     "Quit Anyway" : {
+
+    },
+    "Quit Sextant" : {
 
     },
     "Quitting now may lose them. The layout’s window says what went wrong." : {
@@ -2741,10 +2793,16 @@
     "Setting up the build tools" : {
 
     },
+    "Settings" : {
+
+    },
     "Settings take effect after you build and flash. Values equal to the default aren't stored." : {
 
     },
     "Settings: %@" : {
+
+    },
+    "Settings…" : {
 
     },
     "Sextant Help" : {
@@ -2834,6 +2892,27 @@
     "Sextant writes only to the keyboard’s bootloader (%@) and checks the image first." : {
 
     },
+    "Sextant, flashing the keyboard, %lld percent" : {
+
+    },
+    "Sextant, keyboard connected" : {
+
+    },
+    "Sextant, keyboard connected, Live View off" : {
+
+    },
+    "Sextant, keyboard in flash mode" : {
+
+    },
+    "Sextant, keyboard in use by another app" : {
+
+    },
+    "Sextant, keyboard on layer %lld" : {
+
+    },
+    "Sextant, no keyboard connected" : {
+
+    },
     "Show All Settings" : {
 
     },
@@ -2873,6 +2952,9 @@
     "Show in Finder" : {
 
     },
+    "Show in menu bar" : {
+
+    },
     "Show key presses on the board" : {
 
     },
@@ -2882,7 +2964,13 @@
     "Show overlay while a layer is held" : {
 
     },
+    "Show overlay while holding a layer" : {
+
+    },
     "Show the keyboard’s layer and the keys you press, live" : {
+
+    },
+    "Show the layer’s color in the menu bar" : {
 
     },
     "Shows the Device popover" : {
@@ -2970,6 +3058,9 @@
 
     },
     "Swap Keys" : {
+
+    },
+    "Switching here moves the keyboard to that layer." : {
 
     },
     "Symbols" : {
@@ -3099,6 +3190,9 @@
 
     },
     "The keyboard has no such layer or light." : {
+
+    },
+    "The keyboard is in flash mode, ready for Build & Flash." : {
 
     },
     "The keyboard is in flash mode." : {
@@ -3253,6 +3347,9 @@
     "Try again" : {
 
     },
+    "Turn On Live View" : {
+
+    },
     "Turn off features you don’t use in Firmware Settings, such as RGB animations, then build again." : {
 
     },
@@ -3316,6 +3413,9 @@
     "Waiting for the keyboard to enter flash mode…" : {
 
     },
+    "Waiting to flash %@…" : {
+
+    },
     "What changed" : {
 
     },
@@ -3332,6 +3432,9 @@
 
     },
     "Writing" : {
+
+    },
+    "Writing %@ to the keyboard" : {
 
     },
     "Writing firmware, %lld percent" : {

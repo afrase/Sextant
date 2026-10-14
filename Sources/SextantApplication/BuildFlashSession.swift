@@ -390,7 +390,10 @@ public final class BuildFlashSession {
         guard live?.claimFlashMode(for: session.id, owner: self) ?? true else { return fail(.flashingElsewhere) }
         defer { live?.releaseFlashMode(owner: self) }
         // `write` raises it; it stays up through verifying, until the flash is recorded or fails.
-        defer { live?.isWritingFirmware = false }
+        defer {
+            live?.isWritingFirmware = false
+            live?.flashProgress = nil
+        }
         show(.waitingForFlashMode(stillWaiting: false))
         let (inputs, feed) = AsyncStream.makeStream(of: Input.self)
         let forward = Task { for await event in watcher.events(for: board) { feed.yield(.device(event)) } }
@@ -448,6 +451,7 @@ public final class BuildFlashSession {
     /// here until `flashAndVerify` returns, so a quit never cuts off the write or the record of what was flashed.
     private func write(_ artifact: BuildArtifact, to device: BootloaderDevice) async -> Bool {
         live?.isWritingFirmware = true
+        live?.flashProgress = 0
         show(.validating)
         let image = FirmwareImage(data: artifact.image)
         do {
@@ -465,6 +469,7 @@ public final class BuildFlashSession {
                 case .writing: phase = .writing(done: p.done, total: p.total)
                 case .leaving: break
                 }
+                if let overall = p.overall, overall != live?.flashProgress { live?.flashProgress = overall }
             }
         }
         var failure: FlashError?
@@ -534,4 +539,19 @@ public final class BuildFlashSession {
     }
 
     private func fail(_ error: BuildFlashError) { show(.failed(error)) }
+}
+
+extension FlashProgress {
+    /// The whole write as ``LiveSession/flashProgress`` gives it: erasing fills the first half and writing the second, in
+    /// 5% steps; nil for leaving, which changes nothing.
+    var overall: Double? {
+        let half: Double
+        switch phase {
+        case .erasing: half = 0
+        case .writing: half = 0.5
+        case .leaving: return nil
+        }
+        let fraction = total > 0 ? min(max(Double(done) / Double(total), 0), 1) : 0
+        return ((half + fraction / 2) * 20).rounded(.down) / 20
+    }
 }

@@ -19,10 +19,14 @@ struct SextantMain: App {
     /// One toolchain, so every window shares its setup (only one runs at a time).
     private let toolchain = NativeToolchain(installer: ToolchainInstaller())
     private let hotKeys = KeyboardShortcutsHotKeys()
+    /// Window requests from the menu bar extra, and the Dock icon's presence (ADR 0049): built once, outliving windows.
+    private let windows: WindowRouter
 
     init() {
         let services = Self.makeServices(toolchain: toolchain, hotKeys: hotKeys)
         _services = State(initialValue: services)
+        windows = WindowRouter(
+            library: services.library, onKeyboard: services.onKeyboard, live: services.live, presence: AppPresence())
         appDelegate.library = services.library
         appDelegate.live = services.live
         services.live.start()
@@ -45,7 +49,7 @@ struct SextantMain: App {
 
     var body: some Scene {
         SextantScenes(
-            services: services, buildToolsStatus: { [toolchain] in await toolchain.status() },
+            services: services, windows: windows, buildToolsStatus: { [toolchain] in await toolchain.status() },
             firmwareSource: (ToolchainPins.firmwareCommit, ToolchainPins.modulesCommit),
             layerShortcutRecorder: hotKeys.recorder(for: services.layerShortcuts))
     }

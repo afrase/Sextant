@@ -142,7 +142,7 @@ The main complaints about Instrument can all be fixed without changing its struc
 | Overlay HUD | AppKit `NSPanel`: nonactivating, borderless, click-through, hosting SwiftUI | §8.4 | v1 |
 | Welcome | The layout window's empty state (not a separate window) | §12.1 | MVP |
 
-**Activation policy.** The app is `.regular`, with a Dock icon. In v1, the Settings option "Keep Sextant in the menu bar when its windows are closed" switches the policy to `.accessory` once the last layout window closes.
+**Activation policy.** The app is `.regular`, with a Dock icon. In v1, the Settings option "Keep Sextant in the menu bar when its windows are closed" switches the policy to `.accessory` once the last layout window closes, and only while "Show in menu bar" is on too. It switches back to `.regular` before the menu bar extra (or Window ▸ Main Window) opens any window, when a window opens by another path, and as soon as either option is turned off (ADR 0049).
 
 ### 2.2 Navigation model
 
@@ -1110,21 +1110,23 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
 ### 8.3 Menu bar extra (v1)
 
 **Label**
-- A template image of the sextant mark, followed by the active layer index in SF Pro Rounded 11 bold, e.g. "◠ 2".
+- A template image of the sextant mark, followed by the active layer index in SF Pro Rounded 11 bold, e.g. "◠ 2". A menu bar extra's label draws only an Image and a Text, so the number is drawn into the image (ADR 0049). The number shows only while Live View reports a layer.
 - Disconnected: the glyph at 50%, with no number.
-- Flashing: the arc fills with progress.
-- Optional, off by default: a small layer-colour dot.
+- Flashing: the arc fills with progress, in 5% steps (erasing fills the first half, writing the second).
+- Optional, off by default: a small layer-colour dot (Settings › General). The image is then not a template.
 
 **Panel** (360 pt, `.window` style)
-1. **Header:** sextant mark, "ZSA Voyager", "Connected · KlgM7/40xJ7M", the status-LED pips, and a gear button that opens Settings.
+1. **Header:** sextant mark, "ZSA Voyager", "Connected · Live View on", what the keyboard runs as it was flashed ("My MacOS Layout, revision 3", or its serial when Sextant doesn't have that layout), the status-LED pips, and a gear button that opens Settings.
 2. **"Layer on the keyboard"** (held by Space).
    - With 4 or fewer layers: one tile per layer, each with its index (L0), name and colour chip. The active tile is lit in its layer colour.
    - With more layers: list rows with ⌃⌥ hints.
-   - Clicking moves the keyboard to that layer. Caption: "Switching here moves the keyboard to that layer."
+   - Clicking moves the keyboard to that layer (Move Keyboard to Layer, ADR 0048). Caption: "Switching here moves the keyboard to that layer." While it can't (still connecting), the tiles or rows are disabled and the caption gives the reason. A layout Sextant doesn't have offers layer 0 alone.
+   - Rows scroll after five, which keeps the panel under 520 pt with all 32 reachable layers.
+   - Instead of this section: "Connect your keyboard with a USB cable." (no keyboard); the write's progress or a note (flash mode); Keymapp's note (held); and, with Live View off, a line saying what it shows and a **Turn On Live View** button, the same path as the toolbar's live button. Nothing starts when the panel opens.
 3. **Mini map** of the active layer, with pressed keys lit (paused during secure input).
 4. **App-aware layers:** "Xcode → Sym+Num", with a switch.
 5. **"Show overlay while holding a layer"** switch.
-6. **Native menu-style rows:** Build & Flash… (⌘R; shows progress while flashing), Open Sextant (⌘0), Settings… (⌘,), Quit Sextant (⌘Q).
+6. **Native menu-style rows:** Build & Flash… (⌘R; shows progress while flashing), Open Sextant (⌘0), Settings… (⌘,), Quit Sextant (⌘Q). Build & Flash… and Open Sextant open or bring forward the window of the layout a flash is writing, else the keyboard's, else an open one, else the most recently modified; Build & Flash… then starts in that window as ⌘R does (ADR 0049).
 
 Typing statistics (WPM, today's count) appear only when heatmap recording is on, and then only as one line under the mini map.
 
@@ -1247,7 +1249,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 
 | Pane | Contents | Phase |
 |---|---|---|
-| General | Open at login. Show in menu bar. When the keyboard connects: Open Sextant / Do nothing. Show grid behind the keyboard. Notify when a flash finishes (opt-in) | MVP (menu bar options v1) |
+| General | Open at login. Show in menu bar (on), show the layer's color in the menu bar (off), keep Sextant in the menu bar when its windows are closed (off). When the keyboard connects: Open Sextant / Do nothing. Show grid behind the keyboard. Notify when a flash finishes (opt-in) | MVP (menu bar options v1) |
 | Keyboard | Show key presses on the board (on). Follow the keyboard by default (on). Overlay: on/off (on), delay (0–500 ms in 10 ms steps, 150), position (bottom or top center), size (S/M/L, M), tint with layer color (off), toggled-layer behavior (full overlay, reminder or nothing; reminder). Layer shortcuts: global shortcuts to move the keyboard to a layer (⌃⌥0–9, off by default; a recorder per layer while on) | v1 |
 | Build | Build tools: Apple container (recommended) or managed toolchain, with status, disk use, [Update] and [Remove]. Firmware source pinned to ZSA fork commit `93b2b9e` and modules `13890cd`. "Use Oryx's build when the layout is unchanged since import" | MVP |
 | Privacy | Heatmap recording (off by default), retention, [Clear Heatmap Data…]. Explanatory text about raw HID and secure input | MVP |
@@ -1356,7 +1358,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 | Device Info… | — (opens the Device popover) |
 | Flash Oryx's Build of This Revision… | — |
 
-**Window:** standard items, plus Main Window ⌘0.
+**Window:** standard items, plus Main Window ⌘0 (v1): the window of the keyboard's layout, as the menu bar extra's Open Sextant.
 
 **Help:** Sextant Help · Keyboard Shortcuts ⌘/ · Flashing Help · Privacy.
 
