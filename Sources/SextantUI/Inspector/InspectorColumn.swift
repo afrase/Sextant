@@ -14,7 +14,7 @@ struct InspectorColumn: View {
                     case .combos: ComboInspector(model: model, session: session)
                     case .macros: MacroStepInspector(model: model, session: session)
                     case .history: HistoryInspector(model: model)
-                    case .appLayers: EmptyView()
+                    case .appLayers: AppLayersInspector(model: model, session: session)
                     case .layer:
                         if model.lens == .lighting {
                             LightingInspector(model: model, session: session)

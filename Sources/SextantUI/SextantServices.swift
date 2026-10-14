@@ -18,6 +18,8 @@ public struct SextantServices {
     public let overlay: OverlayHUD
     /// Heatmap recording, app-wide (ADR 0053).
     public let heatmap: HeatmapRecorder
+    /// App Layers, app-wide (ADR 0054).
+    public let appLayers: AppLayerSwitcher
     /// A fresh Import from Oryx flow (one per sheet).
     public let makeImport: @MainActor () -> ImportFromOryx
     /// The Build & Flash state machine for one open layout.
@@ -25,7 +27,7 @@ public struct SextantServices {
 
     public init(
         library: Library, live: LiveSession, trace: RawHIDTrace, onKeyboard: OnKeyboard, layerShortcuts: LayerShortcuts,
-        lightingPreview: LightingPreview, overlay: OverlayHUD, heatmap: HeatmapRecorder,
+        lightingPreview: LightingPreview, overlay: OverlayHUD, heatmap: HeatmapRecorder, appLayers: AppLayerSwitcher,
         makeImport: @escaping @MainActor () -> ImportFromOryx,
         makeBuildFlash: @escaping @MainActor (EditSession) -> BuildFlashSession
     ) {
@@ -37,6 +39,7 @@ public struct SextantServices {
         self.lightingPreview = lightingPreview
         self.overlay = overlay
         self.heatmap = heatmap
+        self.appLayers = appLayers
         self.makeImport = makeImport
         self.makeBuildFlash = makeBuildFlash
     }

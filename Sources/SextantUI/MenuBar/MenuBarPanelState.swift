@@ -35,6 +35,21 @@ public struct MenuBarPanelState: Equatable {
         }
     }
 
+    /// App Layers for the keyboard's layout (spec §8.3): what its rules do now, and their switch.
+    public struct AppLayers: Equatable, Sendable {
+        /// "Xcode → Sym+Num", "On", "Paused" or "Off".
+        var detail: String
+        var isOn: Bool
+        /// False while the last change to these rules hasn't saved: the next launch would read the ones from before.
+        var isSaved: Bool
+
+        public init(detail: String, isOn: Bool, isSaved: Bool = true) {
+            self.detail = detail
+            self.isOn = isOn
+            self.isSaved = isSaved
+        }
+    }
+
     /// Tiles up to this many layers, rows with their shortcuts beyond (spec §8.3).
     static let maxTiles = 4
 
@@ -59,6 +74,8 @@ public struct MenuBarPanelState: Equatable {
     /// The layout Build & Flash… builds and writes, named on the row so the click consents to that layout (ADR 0056);
     /// nil with an empty library.
     var buildTarget: String?
+    /// Shown while the keyboard runs a library layout that has App Layers rules.
+    var appLayers: AppLayers?
 
     /// A panel from given values, for snapshots. Layers come from `layout`, or only layer 0 without one, while the
     /// keyboard is live or connecting; `shortcuts` gives each one's global shortcut.
@@ -66,7 +83,7 @@ public struct MenuBarPanelState: Equatable {
         keyboard: Keyboard, boardName: String = BoardDefinition.voyager.displayName, running: String? = nil,
         layout: KeyboardLayout? = nil, layer: Int? = nil, shortcuts: [Int: String] = [:], layerNote: String? = nil,
         canMove: Bool = true, pressed: Set<Int> = [], isSecureInputOn: Bool = false, flash: Flash? = nil,
-        buildTarget: String? = nil
+        buildTarget: String? = nil, appLayers: AppLayers? = nil
     ) {
         self.boardName = boardName
         self.keyboard = keyboard
@@ -79,6 +96,7 @@ public struct MenuBarPanelState: Equatable {
         self.isSecureInputOn = isSecureInputOn
         self.flash = flash
         self.buildTarget = buildTarget
+        self.appLayers = appLayers
         if keyboard == .live || keyboard == .connecting { layers = Self.items(layout) { shortcuts[$0] } }
         if let layout, let layer, layer > 0 { activator = KeyText.activator(layout: layout, layer: layer)?.text }
     }
@@ -116,11 +134,13 @@ public struct MenuBarPanelState: Equatable {
 
 extension MenuBarPanelState {
     /// The panel for the keyboard as it is now.
-    /// - Parameter buildTarget: the layout Build & Flash… acts on (``WindowRouter/target``).
+    /// - Parameters:
+    ///   - buildTarget: the layout Build & Flash… acts on (``WindowRouter/target``).
+    ///   - switcher: App Layers, whose row shows for the keyboard's layout.
     @MainActor
     init(
         live: LiveSession, onKeyboard: OnKeyboard, shortcuts: LayerShortcuts?, library: Library, buildTarget: UUID?,
-        board: BoardDefinition = .voyager
+        appLayers switcher: AppLayerSwitcher? = nil, board: BoardDefinition = .voyager
     ) {
         boardName = board.displayName
         switch live.connection {
@@ -147,11 +167,28 @@ extension MenuBarPanelState {
             flash = Flash(title: library.entries.first { $0.id == id }?.title ?? "", progress: live.flashProgress)
         }
         self.buildTarget = buildTarget.flatMap { id in library.entries.first { $0.id == id }?.title }
+        if let switcher, let id = running?.entry.id { appLayers = Self.appLayers(switcher, layout: id) }
         guard keyboard == .live || keyboard == .connecting else { return }
         layers = Self.items(layout) { shortcuts?.menuShortcut(forLayer: $0)?.text }
         let heading = MoveKeyboardToLayerMenu.heading(onKeyboard)
         layerNote = heading?.text
         canMove = heading?.enabled ?? true
         if let layout, let layer, layer > 0 { activator = KeyText.activator(layout: layout, layer: layer)?.text }
+    }
+}
+
+extension MenuBarPanelState {
+    /// The keyboard layout's App Layers row; nil when that layout has no rules.
+    @MainActor
+    static func appLayers(_ switcher: AppLayerSwitcher, layout id: UUID) -> AppLayers? {
+        let rules = switcher.rules(for: id)
+        guard !rules.rules.isEmpty else { return nil }
+        let detail =
+            switch switcher.state(for: id) {
+            case .off: String(localized: "Off")
+            case .paused: String(localized: "Paused")
+            case .on: switcher.applied(for: id).map { "\($0.app) → \($0.layerName)" } ?? String(localized: "On")
+            }
+        return AppLayers(detail: detail, isOn: rules.isOn, isSaved: switcher.saveError(for: id) == nil)
     }
 }

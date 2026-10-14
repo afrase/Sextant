@@ -51,6 +51,9 @@
     "%@ bytes over" : {
 
     },
+    "%@ enabled" : {
+
+    },
     "%@ is below %@, so %@'s own keys still win while both are on." : {
       "localizations" : {
         "en" : {
@@ -60,6 +63,19 @@
           }
         }
       }
+    },
+    "%@ is frontmost → keyboard on %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ is frontmost → keyboard on %2$@"
+          }
+        }
+      }
+    },
+    "%@ isn’t on the keyboard yet. Build & Flash to use this rule." : {
+
     },
     "%@ key %lld" : {
       "localizations" : {
@@ -150,6 +166,12 @@
       }
     },
     "%@ times" : {
+
+    },
+    "%@ was deleted from this layout, but the keyboard keeps it until the next Build & Flash, so this rule still moves the keyboard there. Choose another layer for it." : {
+
+    },
+    "%@ when leaving" : {
 
     },
     "%@ · %@" : {
@@ -613,6 +635,9 @@
     "Action can't run in a tap dance" : {
 
     },
+    "Add App…" : {
+
+    },
     "Add Layer" : {
 
     },
@@ -623,6 +648,9 @@
 
     },
     "Add a Reset key (QK_BOOT) to a layer to enter flash mode from the keyboard." : {
+
+    },
+    "Add an app to make its first rule." : {
 
     },
     "Add as Revision of ‘%@’" : {
@@ -674,6 +702,18 @@
 
     },
     "Another window is flashing the keyboard. Try again when it finishes." : {
+
+    },
+    "App" : {
+
+    },
+    "App Layers" : {
+
+    },
+    "App names only, kept in memory until Sextant quits." : {
+
+    },
+    "App rules" : {
 
     },
     "Assign Macro to %lld Keys" : {
@@ -816,6 +856,9 @@
     "Built without flashing. Flash it now, or any time with Build & Flash (⌘R)." : {
 
     },
+    "Bundle ID" : {
+
+    },
     "Busiest keys" : {
 
     },
@@ -901,6 +944,9 @@
 
     },
     "Choose what to compare with above" : {
+
+    },
+    "Choose…" : {
 
     },
     "Chord" : {
@@ -1206,6 +1252,9 @@
     "Delete this layer?" : {
 
     },
+    "Deleted layer" : {
+
+    },
     "Developer raw-HID log (positions only)" : {
 
     },
@@ -1337,6 +1386,9 @@
     "Empty combo" : {
 
     },
+    "Enabled" : {
+
+    },
     "End with Return" : {
 
     },
@@ -1371,6 +1423,9 @@
 
     },
     "Every layout’s counts" : {
+
+    },
+    "Every rule is turned off, so the keyboard stays where it is." : {
 
     },
     "Every setting has its default value." : {
@@ -1764,6 +1819,9 @@
     "It reconnected and reported %@ ✓." : {
 
     },
+    "Its layer was deleted, so this rule does nothing. Choose another layer for it." : {
+
+    },
     "Keep Sextant in the menu bar when its windows are closed" : {
 
     },
@@ -1954,6 +2012,9 @@
     "Large" : {
 
     },
+    "Last switch: %@" : {
+
+    },
     "Latest" : {
 
     },
@@ -2079,6 +2140,16 @@
     },
     "Left %@" : {
 
+    },
+    "Left %@ → %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Left %1$@ → %2$@"
+          }
+        }
+      }
     },
     "Left %@, right %@" : {
       "localizations" : {
@@ -2298,6 +2369,9 @@
     "Move “%@” to the Trash?" : {
 
     },
+    "Moves the keyboard to the layer, as a Go to (TO) key does: it also turns off layers turned on by a toggle, a one-shot or the Navigator’s mouse layer. Holding a layer key still works on top." : {
+
+    },
     "Name" : {
 
     },
@@ -2355,6 +2429,9 @@
     "No Revisions" : {
 
     },
+    "No app rules yet" : {
+
+    },
     "No changes" : {
 
     },
@@ -2403,6 +2480,9 @@
     "None" : {
 
     },
+    "None since Sextant opened." : {
+
+    },
     "None — shows the keycode" : {
 
     },
@@ -2418,6 +2498,9 @@
     "Not saved in History" : {
 
     },
+    "Not saved: the next launch uses the rules from before." : {
+
+    },
     "Not started" : {
 
     },
@@ -2431,6 +2514,9 @@
 
     },
     "Notify when a flash finishes" : {
+
+    },
+    "Now" : {
 
     },
     "Now %@" : {
@@ -2457,6 +2543,9 @@
     "Off unless you turn it on. Presses are counted only while Live View is on. Only hourly counts per key position are saved, on this Mac and apart from your layouts, so they never go with a layout you export or share." : {
 
     },
+    "On" : {
+
+    },
     "On keyboard" : {
 
     },
@@ -2464,6 +2553,9 @@
 
     },
     "On the keyboard" : {
+
+    },
+    "On. The keyboard moves when an app with a rule comes forward." : {
 
     },
     "One layer, authored by Sextant, ready to build on." : {
@@ -2581,10 +2673,25 @@
     "Paused while you type in a password field" : {
 
     },
+    "Paused: %@" : {
+
+    },
     "Paused: Keymapp is using the keyboard" : {
 
     },
     "Paused: Live View is off" : {
+
+    },
+    "Paused: Live View is off. App Layers moves the keyboard only while Live View is on." : {
+
+    },
+    "Paused: Live View is still connecting to the keyboard." : {
+
+    },
+    "Paused: another app (Keymapp) is using the keyboard." : {
+
+    },
+    "Paused: connect your keyboard." : {
 
     },
     "Paused: no keyboard connected" : {
@@ -2599,7 +2706,19 @@
     "Paused: the keyboard is in flash mode" : {
 
     },
+    "Paused: the keyboard is in flash mode." : {
+
+    },
     "Paused: the keyboard runs a layout that isn’t in your library" : {
+
+    },
+    "Paused: the keyboard runs a layout that isn’t in your library." : {
+
+    },
+    "Paused: the keyboard runs “%@”, which has no App Layers turned on." : {
+
+    },
+    "Paused: the keyboard runs “%@”, whose own rules apply." : {
 
     },
     "Position" : {
@@ -2693,6 +2812,9 @@
     "Reads the layout ID from the keyboard and downloads it from Oryx, read-only." : {
 
     },
+    "Recent Switches" : {
+
+    },
     "Recent commands" : {
 
     },
@@ -2741,10 +2863,16 @@
     "Remove Macro from Key" : {
 
     },
+    "Remove Rule" : {
+
+    },
     "Remove from Key" : {
 
     },
     "Remove from Selection" : {
+
+    },
+    "Remove the rule for %@?" : {
 
     },
     "Removed" : {
@@ -2844,6 +2972,9 @@
     "Results" : {
 
     },
+    "Return to %@" : {
+
+    },
     "Revision" : {
 
     },
@@ -2899,6 +3030,12 @@
     "Right thumb, outer key" : {
 
     },
+    "Rules…" : {
+
+    },
+    "Running Apps" : {
+
+    },
     "Runs %@ · not in your library" : {
 
     },
@@ -2948,6 +3085,9 @@
 
     },
     "Select a macro" : {
+
+    },
+    "Select a rule to see its details." : {
 
     },
     "Select a step" : {
@@ -3109,10 +3249,16 @@
     "Sextant couldn’t export the layout" : {
 
     },
+    "Sextant couldn’t read this layout’s App Layers" : {
+
+    },
     "Sextant couldn’t record this flash in History. %@" : {
 
     },
     "Sextant couldn’t save or read the heatmap. Check that the disk has space and try again." : {
+
+    },
+    "Sextant couldn’t save these rules. They apply until Sextant quits; the next launch uses the ones from before." : {
 
     },
     "Sextant couldn’t save your latest edits" : {
@@ -3268,6 +3414,9 @@
     "Status lights show layer %lld" : {
 
     },
+    "Stay" : {
+
+    },
     "Step %lld of %lld" : {
       "localizations" : {
         "en" : {
@@ -3329,6 +3478,12 @@
 
     },
     "Swap Keys" : {
+
+    },
+    "Switch layers when you change apps" : {
+
+    },
+    "Switch the keyboard’s layer automatically when you change apps." : {
 
     },
     "Switching here moves the keyboard to that layer." : {
@@ -3478,6 +3633,9 @@
     "The keyboard isn’t connected live yet." : {
 
     },
+    "The keyboard moves to a layer when an app comes forward" : {
+
+    },
     "The keyboard reconnected as %@, not the new firmware. Put it in flash mode to try again." : {
 
     },
@@ -3565,6 +3723,9 @@
 
     },
     "This revision couldn’t be read" : {
+
+    },
+    "This rule’s layer was deleted." : {
 
     },
     "Timeline" : {
@@ -3664,6 +3825,9 @@
     "Turn on Live View to preview lighting on the keyboard." : {
 
     },
+    "Turn on “Switch layers when you change apps” to use these rules." : {
+
+    },
     "Turning it on or off does the same to Exclude thumbs." : {
 
     },
@@ -3730,10 +3894,32 @@
     "What changed" : {
 
     },
+    "When %@ comes forward, the keyboard moves to %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "When %1$@ comes forward, the keyboard moves to %2$@."
+          }
+        }
+      }
+    },
+    "When Leaving" : {
+
+    },
     "When a layer is locked" : {
 
     },
+    "When leaving" : {
+
+    },
     "When the keyboard connects" : {
+
+    },
+    "When you leave it for an app without a rule, it returns to %@." : {
+
+    },
+    "When you leave it for an app without a rule, it stays there." : {
 
     },
     "While Live View is on, shows the layer you’re holding over other apps once the delay passes, for a layout in your library. A locked layer can show a small reminder until the keyboard is back on its base layer. Turn on Live View from Sextant in the menu bar or a layout window’s toolbar." : {
@@ -3764,6 +3950,9 @@
 
     },
     "You can undo this." : {
+
+    },
+    "You can’t undo this." : {
 
     },
     "Your %@ is running ‘%@’, revision %lld." : {
@@ -3917,6 +4106,9 @@
 
     },
     "layer %lld" : {
+
+    },
+    "layer 0" : {
 
     },
     "layers" : {

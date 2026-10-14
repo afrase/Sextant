@@ -248,6 +248,8 @@ private actor RevisionLibrary: LayoutLibrary {
     func saveRecovery(_ layout: KeyboardLayout, for id: UUID) {}
     func recovery(of id: UUID) -> KeyboardLayout? { nil }
     func discardRecovery(of id: UUID) {}
+    func appLayerRules(of id: UUID) -> AppLayerRules { AppLayerRules() }
+    func saveAppLayerRules(_ rules: AppLayerRules, for id: UUID) {}
 }
 
 /// A Voyager plugged in with live access off: its serial comes from enumeration, and nothing is read or sent.

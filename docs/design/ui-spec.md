@@ -172,7 +172,7 @@ The main complaints about Instrument can all be fixed without changing its struc
 
 **Library (decided, §14 item 7)**
 - Sextant manages a library at `~/Library/Application Support/Sextant/Library/`.
-- Each layout is a `.sextant` package: a folder of plain, git-friendly JSON. It holds `layout.json`, `revisions/<n>-<id>.json` (append-only), `firmware/<rev>.bin` and `.md5`, and `meta.json` (UUID, content hash, origin).
+- Each layout is a `.sextant` package: a folder of plain, git-friendly JSON. It holds `layout.json`, `revisions/<n>-<id>.json` (append-only), `firmware/<rev>.bin` and `.md5`, `meta.json` (UUID, content hash, origin), and `app-layers.json` once it has App Layers rules (kept out of the content hash, ADR 0054).
 - The document model is a lossless superset of Oryx's revision JSON (research §2.3). It has stable UUIDs and content hashes from day one, so sync can be added later (Future).
 
 **Sidebar "Layouts" section**
@@ -380,7 +380,7 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
 | Board pick (v1) | `hand.point.up.left` "Click a key to play ‘Open Keymap’ on tap · esc cancels" | [Cancel] (esc, ⌘.) |
 | Select by press (v1) | `keyboard` "Press a key on the keyboard to select it"; `eye.slash` "Paused: secure input is on · esc cancels" | [Cancel] |
 | Live (Follow on) | green dot "LIVE · Brd+Sys held by Space · 2 keys down" | [Stop Following] |
-| App rule (v1) | "Xcode is frontmost → keyboard on Sym+Num" | [Rules…] |
+| App rule (v1) | "Xcode is frontmost → keyboard on Sym+Num", while the keyboard runs this layout and is on that rule's layer | [Rules…] (the App Layers page) |
 
 **Board area.** See §4.
 
@@ -1134,7 +1134,7 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
    - Past five rows the list scrolls, cut half a row short so it reads as one that scrolls; this keeps the panel under 520 pt with all 32 reachable layers.
    - Instead of this section: "Connect your keyboard with a USB cable." (no keyboard); the write's progress or a note (flash mode); Keymapp's note (held); and, with Live View off, a line saying what it shows and a **Turn On Live View** button, the same path as the toolbar's live button. Nothing starts when the panel opens.
 3. **Mini map** of the active layer, with pressed keys lit (paused during secure input).
-4. **App-aware layers:** "Xcode → Sym+Num", with a switch.
+4. **App Layers:** "Xcode → Sym+Num" while the frontmost app's rule holds, else On, Paused or Off, with the switch of the keyboard layout's rules. Shown only when that layout has rules; the layer list then shows one row fewer before it scrolls, so the panel stays under 520 pt (ADR 0054).
 5. **"Show overlay while holding a layer"** switch.
 6. **Native menu-style rows:** Build & Flash “My MacOS Layout”… (⌘R; names the layout it writes; shows progress while flashing), Open Sextant (⌘0), Settings… (⌘,), Quit Sextant (⌘Q). Build & Flash… and Open Sextant open or bring forward the window of the layout a flash is writing, else the keyboard's, else an open one, else the most recently modified; Build & Flash… then starts in that window as ⌘R does (ADR 0049).
 
@@ -1201,13 +1201,20 @@ The HUD is hidden during secure input (a layer reached meanwhile shows nothing u
   - [Clear Heatmap Data…] for this layout, which asks first;
   - the note "Counted on this Mac only. Nothing is uploaded."
 
-### 8.6 App-aware layers page (v1)
+### 8.6 App Layers page (v1)
 
-- **Header.** Title, and a master toggle "Switch layers when you change apps".
-- **Now card:** "Xcode is frontmost → keyboard on Sym+Num", with a mini board of that layer.
-- **Rules table.** Columns: app icon and name, bundle id (secondary), layer chip pop-up, "When leaving" (Return to Main / Stay), and Enabled. [Add App…] offers running apps plus Choose….
-- **Inspector:** rule details, and recent switches (app names only).
-- **Mechanism:** `NSWorkspace.didActivateApplicationNotification` drives a raw HID `layer_move`. Footnote: "Moves the keyboard to the layer, like Go to (TO). Holding a layer key still works on top."
+Never called "Smart Layers". The rules belong to the layout, in `app-layers.json` beside it (ADR 0054).
+
+- **Header.** Title, "The keyboard moves to a layer when an app comes forward", the switch "Switch layers when you change apps" (off by default; disabled with no rules), and [Add App…]. When a rule change can't be saved, a red-flagged line under it says the rules apply until Sextant quits and the next launch uses the ones from before, with [Try Again]; it stays until a save lands. The menu bar row shows the same failure as a warning mark.
+- **Now card:**
+  - On: "Xcode is frontmost → keyboard on Sym+Num" with a mini board (`LayerMap`) of the keyboard's layer, else the last switch, else that it waits for an app with a rule.
+  - Paused, with the reason: no keyboard, flash mode, Live View off (with [Turn On Live View]), Keymapp, still connecting, a layout not in the library, or another layout on the keyboard ("whose own rules apply", or "which has no App Layers turned on").
+  - Off: the switch is off, or every rule is.
+- **Rules table.** Columns: app icon and name, bundle id (secondary, cut at its head so "…apple.dt.Xcode" keeps the part that tells apps apart), layer pop-up ("1 · Sym+Num"; a deleted layer shows as "Deleted layer" with an orange warning mark), "When Leaving" (Return to <layer 0's name> / Stay), and Enabled. A new rule takes layer 1, Return to Main, enabled. [Add App…] offers the running apps with a Dock icon, kept current as apps launch and quit, plus Choose… (an app bundle); an app that has a rule is greyed, and Sextant itself isn't offered. Remove Rule from the context menu, ⌫ or the inspector asks first ("Remove the rule for Xcode?"), since rule edits can't be undone.
+- **Inspector:** the selected rule (icon, name, bundle id, layer, When leaving, Enabled), a sentence saying what it does, an orange warning when its layer was deleted (saying, when the keyboard still runs a build with that layer, that the rule keeps moving the keyboard there until the next Build & Flash) or isn't on the keyboard yet ("Build & Flash to use this rule"), [Remove Rule]; then Recent Switches ("Xcode → Sym+Num", "Left Xcode → Main", with the time), app names only, the last 20, kept in memory until quit.
+- **Empty state:** §12.4.
+- **Mechanism:** `NSWorkspace.didActivateApplicationNotification` (no TCC). An app that stays frontmost for 150 ms moves the keyboard with Move Keyboard to Layer (`04 01 n`, layer_move; never `04 00 n`): to its rule's layer, or to layer 0 when leaving a Return to Main app for one without a rule. Only the rules of the layout the keyboard runs apply, with each layer checked against that layout as it was flashed; a rule whose layer it lacks counts as no rule. A move waits until no key on the keyboard is held, since layer_move under a held layer key turns that layer off and the key's release would drop to the base layer. It is sent even when the keyboard reports that layer already: the report is the highest active layer, which may be a held key's or a stale one. Nothing is sent at launch, when Live View starts or when a rule changes: only on the next app switch. Sextant itself coming forward isn't an app switch, so reading the rules or opening the menu bar panel leaves the keyboard alone. While paused, switches aren't replayed later. Rule edits save at once and aren't on the window's undo stack.
+- **Footnote:** "Moves the keyboard to the layer, as a Go to (TO) key does: it also turns off layers turned on by a toggle, a one-shot or the Navigator's mouse layer. Holding a layer key still works on top."
 
 ### 8.7 History and diff (v1)
 

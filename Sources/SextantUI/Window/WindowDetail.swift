@@ -38,7 +38,7 @@ struct WindowDetail: View {
                 case .combos: CombosCanvas(model: model, session: session)
                 case .macros: MacrosPage(model: model, session: session)
                 case .history: HistoryCanvas(model: model, session: session)
-                case .appLayers: EmptyView()
+                case .appLayers: AppLayersPage(model: model, session: session)
                 case .layer, nil:
                     CanvasColumn(model: model, session: session)
                         .navigationTitle(session.layout.title)

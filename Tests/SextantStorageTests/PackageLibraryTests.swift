@@ -268,4 +268,71 @@ struct PackageLibraryTests {
         #expect(first == second)
         #expect(try first != PackageLibrary.contentHash(other))
     }
+
+    // MARK: App Layers (ADR 0054)
+
+    /// The rules live in `app-layers.json` beside the layout: a package without one reads as no rules, and saving them
+    /// moves nothing the layout's identity rests on (its content hash, modification date, revisions, Edited state and sx-
+    /// fingerprint).
+    @Test func appLayersLiveBesideTheLayout() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await library.create(layout, origin: .local, firstRevision: RevisionDraft(source: .save, layout: layout))
+        #expect(try await library.appLayerRules(of: entry.id) == AppLayerRules(), "a missing file reads as empty")
+        let before = try await library.load(entry.id)
+        let folder = try #require(await library.location(of: entry.id))
+        let metaBefore = try Data(contentsOf: folder.appending(path: "meta.json"))
+        let layoutBefore = try Data(contentsOf: folder.appending(path: "layout.json"))
+
+        let rules = AppLayerRules(
+            isOn: true,
+            rules: [
+                AppLayerRule(bundleID: "com.apple.dt.Xcode", name: "Xcode", layerID: layout.layers[1].id),
+                AppLayerRule(
+                    bundleID: "com.apple.Safari", name: "Safari", layerID: layout.layers[2].id, leaving: .stay, isEnabled: false),
+            ])
+        try await library.saveAppLayerRules(rules, for: entry.id)
+        #expect(try await library.appLayerRules(of: entry.id) == rules)
+        #expect(FileManager.default.fileExists(atPath: folder.appending(path: "app-layers.json").path))
+
+        let after = try await library.load(entry.id)
+        #expect(after.contentHash == before.contentHash && after.entry == before.entry && after.revisions == before.revisions)
+        #expect(!after.hasEditsSinceLastRevision, "not Edited")
+        #expect(try Data(contentsOf: folder.appending(path: "meta.json")) == metaBefore, "the modification date stays")
+        #expect(try Data(contentsOf: folder.appending(path: "layout.json")) == layoutBefore)
+        let identity = { (stored: StoredLayout) in FirmwareIdentity(layout: stored.layout, libraryID: entry.id, importedLayout: nil) }
+        #expect(identity(after).serial == identity(before).serial, "the sx- fingerprint stays")
+    }
+
+    @Test func duplicateCopiesAppLayersAndTrashTakesThem() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await library.create(layout, origin: .local, firstRevision: nil)
+        let rules = AppLayerRules(
+            isOn: true, rules: [AppLayerRule(bundleID: "com.apple.Terminal", name: "Terminal", layerID: layout.layers[2].id)])
+        try await library.saveAppLayerRules(rules, for: entry.id)
+        let copy = try await library.duplicate(entry.id)
+        #expect(try await library.appLayerRules(of: copy.id) == rules)
+        // Each package has its own from then on.
+        try await library.saveAppLayerRules(AppLayerRules(), for: copy.id)
+        #expect(try await library.appLayerRules(of: entry.id) == rules)
+        // A copy of a layout without rules gets no file.
+        let plain = try await library.create(layout, origin: .local, firstRevision: nil)
+        let plainCopy = try await library.duplicate(plain.id)
+        let copyFolder = try #require(await library.location(of: plainCopy.id))
+        #expect(!FileManager.default.fileExists(atPath: copyFolder.appending(path: "app-layers.json").path))
+        try await library.trash(entry.id)
+        await #expect(throws: LibraryError.notFound(entry.id)) { try await library.appLayerRules(of: entry.id) }
+    }
+
+    @Test func refusesNewerAppLayersAndDamagedOnes() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await library.create(layout, origin: .local, firstRevision: nil)
+        let file = try #require(await library.location(of: entry.id)).appending(path: "app-layers.json")
+        try Data(#"{"formatVersion": 2, "isOn": true, "rules": []}"#.utf8).write(to: file)
+        await #expect(throws: LibraryError.newerFormat(2)) { try await library.appLayerRules(of: entry.id) }
+        // Duplicating still works; the copy has no rules rather than a newer Sextant's.
+        let copy = try await library.duplicate(entry.id)
+        #expect(try await library.appLayerRules(of: copy.id) == AppLayerRules())
+        try Data("{".utf8).write(to: file)
+        await #expect(throws: LibraryError.self) { try await library.appLayerRules(of: entry.id) }
+    }
 }

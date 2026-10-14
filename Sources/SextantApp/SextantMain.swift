@@ -38,6 +38,7 @@ struct SextantMain: App {
         services.lightingPreview.start()
         services.overlay.start()
         services.heatmap.start()
+        services.appLayers.start()
         // `--import <oryx.json>`: add an Oryx layout file to the library at launch.
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--import"), args.indices.contains(i + 1) {
@@ -92,6 +93,9 @@ struct SextantMain: App {
         return SextantServices(
             library: library, live: live, trace: trace, onKeyboard: onKeyboard, layerShortcuts: layerShortcuts,
             lightingPreview: LightingPreview(live: live), overlay: OverlayHUD(live: live, onKeyboard: onKeyboard), heatmap: heatmap,
+            appLayers: AppLayerSwitcher(
+                watcher: WorkspaceAppWatcher(), onKeyboard: onKeyboard, live: live, store: store,
+                ownBundleID: Bundle.main.bundleIdentifier),
             makeImport: { ImportFromOryx(oryx: oryx, library: library) },
             makeBuildFlash: { session in
                 // ADR 0033: the native toolchain, every build sandboxed.

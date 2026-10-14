@@ -131,6 +131,8 @@ public final class LayoutWindowModel {
     let combos = CombosModel()
     /// The Heatmap lens's range and counts (spec §8.5).
     public let heatmap: HeatmapModel
+    /// The App Layers page's state (spec §8.6).
+    public let appLayers: AppLayersModel
     /// Keycodes assigned from the picker and commands run from the palette, newest first (Suggested, Recent).
     var recentKeycodes: [KeyAction] = []
     var recentCommands: [String] = []
@@ -188,10 +190,11 @@ public final class LayoutWindowModel {
     public init(
         library: Library, live: LiveSession? = nil, makeImport: (@MainActor () -> ImportFromOryx)? = nil,
         makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)? = nil, onKeyboard: OnKeyboard? = nil,
-        lightingPreview: LightingPreview? = nil, heatmap: HeatmapRecorder? = nil
+        lightingPreview: LightingPreview? = nil, heatmap: HeatmapRecorder? = nil, appLayers: AppLayerSwitcher? = nil
     ) {
         self.library = library
         self.heatmap = HeatmapModel(recorder: heatmap)
+        self.appLayers = AppLayersModel(switcher: appLayers)
         self.live = live
         self.makeImport = makeImport
         self.makeBuildFlash = makeBuildFlash
@@ -203,7 +206,8 @@ public final class LayoutWindowModel {
     public convenience init(services: SextantServices) {
         self.init(
             library: services.library, live: services.live, makeImport: services.makeImport, makeBuildFlash: services.makeBuildFlash,
-            onKeyboard: services.onKeyboard, lightingPreview: services.lightingPreview, heatmap: services.heatmap)
+            onKeyboard: services.onKeyboard, lightingPreview: services.lightingPreview, heatmap: services.heatmap,
+            appLayers: services.appLayers)
     }
 
     /// Opens `id`, or the most recently modified layout no other window has open when `id` is nil, no longer in the

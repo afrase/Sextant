@@ -70,4 +70,7 @@ actor MemoryLibrary: LayoutLibrary {
     func saveRecovery(_ layout: KeyboardLayout, for id: UUID) { recoveries[id] = layout }
     func recovery(of id: UUID) -> KeyboardLayout? { recoveries[id] }
     func discardRecovery(of id: UUID) { recoveries[id] = nil }
+    var appLayers: [UUID: AppLayerRules] = [:]
+    func appLayerRules(of id: UUID) -> AppLayerRules { appLayers[id] ?? AppLayerRules() }
+    func saveAppLayerRules(_ rules: AppLayerRules, for id: UUID) { appLayers[id] = rules }
 }
