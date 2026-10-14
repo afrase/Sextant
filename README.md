@@ -58,6 +58,8 @@ While the live view is on, the Lighting inspector's Preview on Keyboard switch (
 
 While the live view is on, holding a layer key brings up an overlay with that layer's map, whichever app you're in; letting go hides it. A layer you lock (a toggle, say) shows a small reminder instead until the keyboard is back on its base layer. The overlay never takes focus or clicks, hides while you type in a password field, and can be turned off or adjusted in Settings › Keyboard, the Keyboard menu or the Device popover.
 
+The Heatmap lens (View ▸ Lens ▸ Heatmap, ⌃⌘3) colors each key by how often you press it, with layer share, hand balance, a finger histogram and your busiest keys, over 24 hours, 7 days, 30 days or everything kept. Recording is off until you turn it on in Settings › Privacy or the lens, and then counts only while the live view is on and the keyboard runs a layout in your library. It keeps hourly counts per key position, never characters or the order you typed in, pauses in password fields, and stays on your Mac; Clear Heatmap Data… deletes it.
+
 ## Safety
 
 - **The flasher writes only the application region,** `[0x08002000, 0x08042000)`, and can't express a mass erase, so the bootloader is never touched.
@@ -66,12 +68,12 @@ While the live view is on, holding a layer key brings up an overlay with that la
 - **Generated firmware keeps the Navigator modules,** so the trackpad keeps working.
 - **Builds run in a sandbox** with no network, no access to your files, and writes only to the build folder.
 - **A layer move is sent only when you ask:** one choice or shortcut press moves the keyboard once, only while the live view is on, and only to a layer its layout has (just layer 0 when Sextant doesn't have that layout), since a layer past the build's layers drops the keyboard to its base layer.
-- **The live view is private:** it sees key positions, never characters, keeps events in memory only, and pauses while secure input (a password field) is on.
+- **The live view is private:** it sees key positions, never characters, keeps events in memory only, and pauses while secure input (a password field) is on. The Heatmap, once you turn it on, writes only hourly counts per key position.
 - **Recovery:** if a flash goes wrong, the Voyager's reset button puts it in its bootloader, and you can flash again.
 
 ## Privacy
 
-Sextant has no accounts, analytics or telemetry. It goes online only to import from Oryx and to download the build tools the first time you build. An Oryx request tells ZSA your IP address and the layout id you asked for. Layouts live in `~/Library/Application Support/Sextant/Library/`.
+Sextant has no accounts, analytics or telemetry. It goes online only to import from Oryx and to download the build tools the first time you build. An Oryx request tells ZSA your IP address and the layout id you asked for. Layouts live in `~/Library/Application Support/Sextant/Library/`; the Heatmap's hourly counts, when you turn recording on, live beside them in `Heatmap/`, outside the layouts, so exports never include them, and are deleted after 30 days unless you choose to keep them longer.
 
 ## Architecture
 

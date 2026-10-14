@@ -26,6 +26,9 @@
     "%@ Copy" : {
 
     },
+    "%@ Heatmap" : {
+
+    },
     "%@ QMK Source" : {
 
     },
@@ -133,12 +136,28 @@
         }
       }
     },
+    "%@ presses" : {
+
+    },
     "%@ sends %@." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ sends %2$@."
+          }
+        }
+      }
+    },
+    "%@ times" : {
+
+    },
+    "%@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
           }
         }
       }
@@ -534,6 +553,9 @@
     "1 other change" : {
 
     },
+    "1 press" : {
+
+    },
     "1 revision" : {
 
     },
@@ -543,10 +565,22 @@
     "1 step" : {
 
     },
+    "1 time" : {
+
+    },
     "1 year" : {
 
     },
+    "24 h" : {
+
+    },
+    "24 hours" : {
+
+    },
     "30 days" : {
+
+    },
+    "7 days" : {
 
     },
     "90 days" : {
@@ -616,6 +650,9 @@
 
     },
     "Advanced" : {
+
+    },
+    "All" : {
 
     },
     "All Layers" : {
@@ -779,6 +816,9 @@
     "Built without flashing. Flash it now, or any time with Build & Flash (⌘R)." : {
 
     },
+    "Busiest keys" : {
+
+    },
     "Cancel" : {
 
     },
@@ -888,6 +928,9 @@
     "Clear Color on %lld Keys" : {
 
     },
+    "Clear Heatmap Data…" : {
+
+    },
     "Clear Key Color" : {
 
     },
@@ -910,6 +953,12 @@
 
     },
     "Clear Search" : {
+
+    },
+    "Clear all heatmap data?" : {
+
+    },
+    "Clear the heatmap of “%@”?" : {
 
     },
     "Clear the key colors on %@?" : {
@@ -1084,6 +1133,12 @@
     "Couldn’t set up the build tools" : {
 
     },
+    "Counted on this Mac only. Nothing is uploaded." : {
+
+    },
+    "Counts older than %@ are deleted now, for every layout. This can’t be undone." : {
+
+    },
     "Current" : {
 
     },
@@ -1137,6 +1192,9 @@
 
     },
     "Delete Macro" : {
+
+    },
+    "Delete Older Counts" : {
 
     },
     "Delete Step" : {
@@ -1312,10 +1370,19 @@
     "Every layout is open in another window" : {
 
     },
+    "Every layout’s counts" : {
+
+    },
     "Every setting has its default value." : {
 
     },
     "Export" : {
+
+    },
+    "Export CSV…" : {
+
+    },
+    "Export JSON…" : {
 
     },
     "Export Source Zip…" : {
@@ -1340,6 +1407,9 @@
 
     },
     "Find a key by name" : {
+
+    },
+    "Fingers" : {
 
     },
     "Finish choosing keys on the board first." : {
@@ -1520,7 +1590,16 @@
     "Go to" : {
 
     },
+    "Hands" : {
+
+    },
     "Heatmap" : {
+
+    },
+    "Heatmap recording is off" : {
+
+    },
+    "Heatmap · %@" : {
 
     },
     "Hidden, for another Navigator, or waiting on a setting that's off. Kept in the layout; builds don't use them." : {
@@ -1603,6 +1682,9 @@
     },
     "Hyper" : {
 
+    },
+    "I" : {
+      "comment" : "Index finger, under its bar in the finger histogram"
     },
     "Identity" : {
 
@@ -1691,6 +1773,9 @@
     "Keep presses for" : {
 
     },
+    "Keep presses for %@?" : {
+
+    },
     "Keep the keyboard connected until this finishes." : {
 
     },
@@ -1723,6 +1808,9 @@
 
     },
     "Key events stay in memory on this Mac and are never written to disk. Live display pauses while you type in a password field." : {
+
+    },
+    "Key events stay in memory on this Mac; the heatmap saves only hourly counts per key position. Live display and the heatmap pause while you type in a password field." : {
 
     },
     "Key kinds" : {
@@ -1974,6 +2062,9 @@
     "Layers" : {
 
     },
+    "Layers reached" : {
+
+    },
     "Layout" : {
 
     },
@@ -1986,7 +2077,35 @@
     "Left" : {
 
     },
+    "Left %@" : {
+
+    },
+    "Left %@, right %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Left %1$@, right %2$@"
+          }
+        }
+      }
+    },
     "Left hand" : {
+
+    },
+    "Left index finger" : {
+
+    },
+    "Left middle finger" : {
+
+    },
+    "Left pinky" : {
+
+    },
+    "Left ring finger" : {
+
+    },
+    "Left thumb" : {
 
     },
     "Left thumb, inner key" : {
@@ -2054,6 +2173,9 @@
     },
     "Loading revisions…" : {
 
+    },
+    "M" : {
+      "comment" : "Middle finger, under its bar in the finger histogram"
     },
     "Macro" : {
 
@@ -2260,6 +2382,15 @@
     "No macros yet" : {
 
     },
+    "No presses" : {
+
+    },
+    "No presses recorded in this range yet" : {
+
+    },
+    "No presses recorded in this range yet." : {
+
+    },
     "No reports yet." : {
 
     },
@@ -2323,7 +2454,7 @@
     "Off" : {
 
     },
-    "Off unless you turn it on. Counts presses per key position on this Mac, to show which keys you use most." : {
+    "Off unless you turn it on. Presses are counted only while Live View is on. Only hourly counts per key position are saved, on this Mac and apart from your layouts, so they never go with a layout you export or share." : {
 
     },
     "On keyboard" : {
@@ -2411,6 +2542,9 @@
     "Own color %@" : {
 
     },
+    "P" : {
+      "comment" : "Pinky, under its bar in the finger histogram"
+    },
     "Paint %lld Keys" : {
 
     },
@@ -2441,10 +2575,31 @@
     "Paste onto %lld Keys" : {
 
     },
+    "Paused" : {
+
+    },
+    "Paused while you type in a password field" : {
+
+    },
+    "Paused: Keymapp is using the keyboard" : {
+
+    },
+    "Paused: Live View is off" : {
+
+    },
+    "Paused: no keyboard connected" : {
+
+    },
     "Paused: secure input is on" : {
 
     },
     "Paused: secure input is on · esc cancels" : {
+
+    },
+    "Paused: the keyboard is in flash mode" : {
+
+    },
+    "Paused: the keyboard runs a layout that isn’t in your library" : {
 
     },
     "Position" : {
@@ -2524,6 +2679,9 @@
 
     },
     "R" : {
+      "comment" : "Ring finger, under its bar in the finger histogram"
+    },
+    "Range" : {
 
     },
     "Raw-HID log" : {
@@ -2553,7 +2711,19 @@
     "Record a heatmap of key presses" : {
 
     },
+    "Record a heatmap of key presses?" : {
+
+    },
     "Record the time between keys as each step’s wait, rounded to 10 ms." : {
+
+    },
+    "Recording is off" : {
+
+    },
+    "Recording key presses" : {
+
+    },
+    "Recording the layout on the keyboard, not this one" : {
 
     },
     "Redo" : {
@@ -2702,7 +2872,25 @@
     "Right" : {
 
     },
+    "Right %@" : {
+
+    },
     "Right hand" : {
+
+    },
+    "Right index finger" : {
+
+    },
+    "Right middle finger" : {
+
+    },
+    "Right pinky" : {
+
+    },
+    "Right ring finger" : {
+
+    },
+    "Right thumb" : {
 
     },
     "Right thumb, inner key" : {
@@ -2876,6 +3064,9 @@
     "Sextant builds the firmware on this Mac, then writes it once you put the keyboard in flash mode." : {
 
     },
+    "Sextant can count key presses on this Mac to show which keys you use most." : {
+
+    },
     "Sextant can't build firmware for %@ yet." : {
 
     },
@@ -2921,22 +3112,31 @@
     "Sextant couldn’t record this flash in History. %@" : {
 
     },
+    "Sextant couldn’t save or read the heatmap. Check that the disk has space and try again." : {
+
+    },
     "Sextant couldn’t save your latest edits" : {
 
     },
     "Sextant couldn’t save: %@" : {
 
     },
+    "Sextant counts presses per key position, by the hour, while Live View is on and the keyboard runs a layout in your library. It never records the characters you type or the order of keys, and pauses while a password field has focus. The counts stay on this Mac." : {
+
+    },
     "Sextant doesn’t have the keyboard’s layout, so it can move it only to layer 0." : {
 
     },
-    "Sextant reads the active layer and which key positions are down over the keyboard's raw HID interface. It sees positions, never the characters you type. Key events stay in memory on this Mac and are never written to disk, and the live display pauses while you type in a password field." : {
+    "Sextant reads the active layer and which key positions are down over the keyboard's raw HID interface. It sees positions, never the characters you type. Key events stay in memory on this Mac, and the live display and the heatmap pause while you type in a password field." : {
 
     },
     "Sextant reads the keys at these spots on %@. The combo fires whenever keys typing the same keycodes go down together, on any layer." : {
 
     },
     "Sextant shows the keyboard’s layer and the keys you hold as they happen. Nothing is recorded." : {
+
+    },
+    "Sextant shows the keyboard’s layer and the keys you hold as they happen. The heatmap keeps only hourly counts per key." : {
 
     },
     "Sextant won't flash this image: %@" : {
@@ -3041,6 +3241,9 @@
     "Shows the combos that read their keys from a layer. A combo fires on any layer where its keys type the same keycodes." : {
 
     },
+    "Shows the key" : {
+
+    },
     "Shows this layer’s colors on the keyboard as you paint. Nothing is saved to it until you flash, and the preview ends when you leave Lighting. It stays dark while the keyboard’s lights are off: turned off with its own key, or by Lights off when idle in Firmware Settings." : {
 
     },
@@ -3134,6 +3337,9 @@
     "Symbols" : {
 
     },
+    "T" : {
+      "comment" : "Thumb, under its bar in the finger histogram"
+    },
     "Tap" : {
 
     },
@@ -3217,6 +3423,9 @@
 
     },
     "The half of the keyboard it's attached to." : {
+
+    },
+    "The heatmap couldn’t be written as JSON." : {
 
     },
     "The image is %lld bytes; this keyboard takes at most %lld." : {
@@ -3305,6 +3514,12 @@
     "This Revision’s QMK Source (.zip)…" : {
 
     },
+    "This deletes every key press Sextant has counted, for every layout. It can’t be undone." : {
+
+    },
+    "This deletes every key press counted for this layout. It can’t be undone." : {
+
+    },
     "This happens once. The build starts as soon as the tools are ready." : {
 
     },
@@ -3357,6 +3572,19 @@
     },
     "Tint with the layer color" : {
 
+    },
+    "Today: %@" : {
+
+    },
+    "Today: %@ · %lld wpm" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Today: %1$@ · %2$lld wpm"
+          }
+        }
+      }
     },
     "Toggle" : {
 
@@ -3415,7 +3643,13 @@
     "Try again" : {
 
     },
+    "Turn On" : {
+
+    },
     "Turn On Live View" : {
+
+    },
+    "Turn On…" : {
 
     },
     "Turn off features you don’t use in Firmware Settings, such as RGB animations, then build again." : {
@@ -3502,7 +3736,7 @@
     "When the keyboard connects" : {
 
     },
-    "While Live View is on, shows the layer you’re holding over other apps once the delay passes, for a layout in your library. A locked layer can show a small reminder until the keyboard is back on its base layer. Turn on Live View from a layout window’s toolbar or the Keyboard menu." : {
+    "While Live View is on, shows the layer you’re holding over other apps once the delay passes, for a layout in your library. A locked layer can show a small reminder until the keyboard is back on its base layer. Turn on Live View from Sextant in the menu bar or a layout window’s toolbar." : {
 
     },
     "Window" : {
@@ -3564,6 +3798,9 @@
           }
         }
       }
+    },
+    "all time" : {
+
     },
     "and %lld more" : {
 
@@ -3766,6 +4003,12 @@
           }
         }
       }
+    },
+    "press" : {
+
+    },
+    "presses" : {
+
     },
     "protocol %u" : {
 

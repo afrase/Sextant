@@ -85,6 +85,9 @@ actor InMemoryLibrary: LayoutLibrary {
         guard items.removeValue(forKey: id) != nil else { throw .notFound(id) }
     }
 
+    /// Leaves a layout out of ``entries()`` without trashing it, as a package whose metadata fails to read does.
+    func hide(_ id: UUID) { items[id] = nil }
+
     func location(of id: UUID) -> URL? { nil }
 
     func storeFirmware(_ data: Data, md5: String, revisionID: String, to id: UUID) throws(LibraryError) {

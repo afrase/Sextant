@@ -1104,7 +1104,7 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
   - Show key presses on the board;
   - Show overlay while a layer is held (v1);
   - Move keyboard to layer ▸ (v1).
-- **Footer note:** "Key events stay in memory on this Mac and are never written to disk. Live display pauses while you type in a password field."
+- **Footer note:** "Key events stay in memory on this Mac and are never written to disk. Live display pauses while you type in a password field." While heatmap recording is on (§8.5), it and the first-connect note say instead that the heatmap saves only hourly counts per key position, and that it pauses too (ADR 0053).
 
 **Live behaviour**
 - **Pressed keys** light in every lens (§4.7). The default is on (Settings › Keyboard).
@@ -1138,7 +1138,7 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
 5. **"Show overlay while holding a layer"** switch.
 6. **Native menu-style rows:** Build & Flash “My MacOS Layout”… (⌘R; names the layout it writes; shows progress while flashing), Open Sextant (⌘0), Settings… (⌘,), Quit Sextant (⌘Q). Build & Flash… and Open Sextant open or bring forward the window of the layout a flash is writing, else the keyboard's, else an open one, else the most recently modified; Build & Flash… then starts in that window as ⌘R does (ADR 0049).
 
-Typing statistics (WPM, today's count) appear only when heatmap recording is on, and then only as one line under the mini map.
+Typing statistics appear only when heatmap recording is on, and then only as one line under the mini map: "Today: 12,408 presses · 64 wpm", or why recording is paused (a long reason wraps to a second line). Today's count is read when recording starts, before any press, and starts again from zero at midnight. Words per minute count the last minute's key presses, five to a word, kept in memory only (ADR 0053).
 
 ### 8.4 Overlay HUD (v1)
 
@@ -1176,25 +1176,29 @@ The HUD is hidden during secure input (a layer reached meanwhile shows nothing u
 
 ### 8.5 Heatmap lens (v1)
 
-- **Data.**
-  - Press counts per position, per layer, in hourly buckets. Stored locally.
-  - **Off until the user opts in** (Settings › Privacy).
-  - Retention defaults to 30 days.
+- **Data** (ADR 0053).
+  - Key-down counts per position, by layer (its id, so reordering keeps them), and the keyboard's moves onto each layer, in hourly buckets. Never key order, timing finer than the hour, or characters.
+  - **Off until the user opts in** (Settings › Privacy, or the lens's [Turn On…], which asks first).
+  - Counted only over a paired Live View session, only while the keyboard runs a layout in the library (as flashed, ADR 0039), and never during secure input.
+  - Stored on this Mac beside the library, outside the `.sextant` packages, so exports and duplicates never carry it. Written every minute and at quit.
+  - Retention defaults to 30 days (or 90 days, or a year). Choosing a shorter one asks first, since it deletes the older counts at once.
 - **Board.**
-  - Cap faces use the single-hue ramp (§10.1), normalised on a log scale over the range.
-  - Counts in mono are shown under the legends: "22k".
+  - Cap faces use the single-hue ramp (§10.1), normalised on a log scale against the layer's busiest key in the range. A layer with no presses in the range shows plain caps.
+  - Counts in mono are shown under the legends: "22k"; VoiceOver reads "22,044 presses".
   - Legend ink is chosen by luminance.
-- **Lens lane:** "175,044 presses · 7 days · Main 87%".
+- **Lens lane:** "175,044 presses · 7 days · Main 87%", shortened beside the live capsule ("175,044 presses · Main 87%", then "175,044 presses"), and why nothing is counted: with no presses in the range the whole reason ("Heatmap recording is off" [Turn On…], "Paused: Live View is off" [Turn On Live View], "Paused: the keyboard runs a layout that isn't in your library"…); with presses, "Off" or "Paused" after the summary, the reason in its help tag, with the same buttons.
+- **Context strip:** each layer's share ("88% · 150,980 presses"); with a key selected, that key's presses on each layer.
 - **Inspector:**
   - a range picker: 24 h / 7 days / 30 days / All;
+  - whether presses are being counted, or why not, always (with [Turn On…] when recording is off and [Turn On Live View] when Live View is), and a save or read that failed;
   - total presses;
   - a layer share bar;
   - hand balance;
-  - a per-finger histogram;
-  - the busiest keys (top 8);
-  - layer holds;
-  - [Export CSV…] and [Export JSON…];
-  - [Clear Heatmap Data…];
+  - a per-finger histogram (left pinky to thumb, right thumb to pinky; fingers from the board data, by touch typing's columns);
+  - the busiest keys of every layer (top 8); a click shows and selects one;
+  - layers reached: how often the keyboard moved onto each layer above the base (the keyboard doesn't say whether a layer was held or locked, so this replaces "layer holds");
+  - [Export CSV…] and [Export JSON…] (CSV cells that a spreadsheet would run as a formula start with an apostrophe);
+  - [Clear Heatmap Data…] for this layout, which asks first;
   - the note "Counted on this Mac only. Nothing is uploaded."
 
 ### 8.6 App-aware layers page (v1)
@@ -1268,7 +1272,7 @@ The HUD is hidden during secure input (a layer reached meanwhile shows nothing u
 | General | Open at login. Show in menu bar (on), show the layer's color in the menu bar (off), keep Sextant in the menu bar when its windows are closed (off). When the keyboard connects: Open Sextant / Do nothing. Show grid behind the keyboard. Notify when a flash finishes (opt-in) | MVP (menu bar options v1) |
 | Keyboard | Show key presses on the board (on). Follow the keyboard by default (on). Overlay: on/off (on), delay (0–500 ms in 10 ms steps, 150), position (bottom or top center), size (S/M/L, M), tint with layer color (off), toggled-layer behavior (full overlay, reminder or nothing; reminder). Layer shortcuts: global shortcuts to move the keyboard to a layer (⌃⌥0–9, off by default; a recorder per layer while on) | v1 |
 | Build | Build tools: Apple container (recommended) or managed toolchain, with status, disk use, [Update] and [Remove]. Firmware source pinned to ZSA fork commit `93b2b9e` and modules `13890cd`. "Use Oryx's build when the layout is unchanged since import" | MVP |
-| Privacy | Heatmap recording (off by default), retention, [Clear Heatmap Data…]. Explanatory text about raw HID and secure input | MVP |
+| Privacy | Heatmap recording (off by default), retention (30 days, 90 days, 1 year; a shorter one asks first), [Clear Heatmap Data…] for every layout, which asks first, and a save or read that failed. Explanatory text about raw HID and secure input, and that the heatmap counts only while Live View is on | MVP (Clear v1) |
 | Advanced | Developer raw-HID log (positions only): the last 500 reports, in memory only, off at each launch, cleared when turned off, paused during secure input, shown in the Device popover (ADR 0045). Reset all warnings | v1 |
 | Sync | Server URL, device pairing, end-to-end encryption (hidden until built) | Future |
 

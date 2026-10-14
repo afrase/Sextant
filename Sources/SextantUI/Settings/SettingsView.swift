@@ -15,6 +15,7 @@ struct SettingsView: View {
     var trace: RawHIDTrace
     var layerShortcuts: LayerShortcuts
     var layerShortcutRecorder: LayerShortcutRecorder?
+    var heatmap: HeatmapRecorder
 
     var body: some View {
         TabView {
@@ -23,7 +24,7 @@ struct SettingsView: View {
                 KeyboardSettings(layerShortcuts: layerShortcuts, recorder: layerShortcutRecorder)
             }
             Tab("Build", systemImage: "hammer") { BuildSettings(status: buildToolsStatus, source: firmwareSource) }
-            Tab("Privacy", systemImage: "hand.raised") { PrivacySettings() }
+            Tab("Privacy", systemImage: "hand.raised") { PrivacySettings(heatmap: heatmap) }
             Tab("Advanced", systemImage: "gearshape.2") { AdvancedSettings(trace: trace) }
         }
         .frame(width: 520)
@@ -138,10 +139,63 @@ struct StatusLabelStyle: LabelStyle {
 }
 
 public struct PrivacySettings: View {
-    @AppStorage(SettingsKey.recordsHeatmap) private var recordsHeatmap = false
-    @AppStorage(SettingsKey.heatmapRetentionDays) private var retentionDays = 30
+    @Bindable var heatmap: HeatmapRecorder
+    @State private var confirmsClear = false
+    /// A shorter retention, asked about first: it deletes the older counts at once.
+    @State private var shorterRetention: Int?
 
-    public init() {}
+    public init(heatmap: HeatmapRecorder) { self.heatmap = heatmap }
+
+    /// Whether heatmap recording is on; off by default (ADR 0053).
+    public static func recordsHeatmap() -> Bool { UserDefaults.standard.bool(forKey: SettingsKey.recordsHeatmap) }
+
+    /// How many days of heatmap counts are kept; 30 by default.
+    public static func heatmapRetentionDays() -> Int {
+        UserDefaults.standard.object(forKey: SettingsKey.heatmapRetentionDays) as? Int ?? 30
+    }
+
+    public static func saveHeatmap(isOn: Bool, retentionDays: Int) {
+        UserDefaults.standard.set(isOn, forKey: SettingsKey.recordsHeatmap)
+        UserDefaults.standard.set(retentionDays, forKey: SettingsKey.heatmapRetentionDays)
+    }
+
+    static let retentions = [
+        (days: 30, title: String(localized: "30 days")), (days: 90, title: String(localized: "90 days")),
+        (days: 365, title: String(localized: "1 year")),
+    ]
+
+    static func title(_ days: Int?) -> String { retentions.first { $0.days == days }?.title ?? "" }
+
+    /// Keeping counts longer applies at once; keeping them for less asks first.
+    private var retention: Binding<Int> {
+        Binding(
+            get: { heatmap.retentionDays },
+            set: { days in
+                if days < heatmap.retentionDays { shorterRetention = days } else { heatmap.retentionDays = days }
+            })
+    }
+
+    /// A save or read of the heatmap that failed, while that lasts.
+    @ViewBuilder private var failure: some View {
+        if let error = heatmap.lastError?.errorDescription {
+            Label {
+                Text(error).fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tokens.danger.color)
+            }
+        }
+    }
+
+    private var heatmapNote: some View {
+        Text(
+            """
+            Off unless you turn it on. Presses are counted only while Live View is on. Only hourly counts per key \
+            position are saved, on this Mac and apart from your layouts, so they never go with a layout you export or \
+            share.
+            """
+        )
+        .foregroundStyle(.secondary)
+    }
 
     public var body: some View {
         Form {
@@ -149,28 +203,47 @@ public struct PrivacySettings: View {
                 Text(
                     """
                     Sextant reads the active layer and which key positions are down over the keyboard's raw HID interface. \
-                    It sees positions, never the characters you type. Key events stay in memory on this Mac and are never \
-                    written to disk, and the live display pauses while you type in a password field.
+                    It sees positions, never the characters you type. Key events stay in memory on this Mac, and the live \
+                    display and the heatmap pause while you type in a password field.
                     """
                 )
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             }
             Section {
-                Toggle("Record a heatmap of key presses", isOn: $recordsHeatmap)
-                Picker("Keep presses for", selection: $retentionDays) {
-                    Text("30 days").tag(30)
-                    Text("90 days").tag(90)
-                    Text("1 year").tag(365)
+                Toggle("Record a heatmap of key presses", isOn: $heatmap.isOn)
+                Picker("Keep presses for", selection: retention) {
+                    ForEach(Self.retentions, id: \.days) { Text($0.title).tag($0.days) }
                 }
-                .disabled(!recordsHeatmap)
+                .disabled(!heatmap.isOn)
+                LabeledContent {
+                    Button("Clear Heatmap Data…") { confirmsClear = true }
+                } label: {
+                    Text("Every layout’s counts")
+                }
+                failure
             } header: {
                 Text("Heatmap")
             } footer: {
-                Text("Off unless you turn it on. Counts presses per key position on this Mac, to show which keys you use most.")
-                    .foregroundStyle(.secondary)
+                heatmapNote
             }
         }
         .formStyle(.grouped)
+        .alert(
+            Text("Keep presses for \(Self.title(shorterRetention))?"),
+            isPresented: Binding(get: { shorterRetention != nil }, set: { if !$0 { shorterRetention = nil } }),
+            presenting: shorterRetention
+        ) { days in
+            Button("Delete Older Counts", role: .destructive) { heatmap.retentionDays = days }
+            Button("Cancel", role: .cancel) {}
+        } message: { days in
+            Text("Counts older than \(Self.title(days)) are deleted now, for every layout. This can’t be undone.")
+        }
+        .alert(Text("Clear all heatmap data?"), isPresented: $confirmsClear) {
+            Button("Clear", role: .destructive) { Task { await heatmap.clear(nil) } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This deletes every key press Sextant has counted, for every layout. It can’t be undone.")
+        }
     }
 }

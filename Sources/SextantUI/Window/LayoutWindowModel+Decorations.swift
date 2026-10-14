@@ -5,6 +5,7 @@ extension LayoutWindowModel {
         switch page {
         case .history: history?.decoration(layer: layer, index: index) ?? CapDecoration()
         case .combos: comboDecoration(index: index)
+        case nil where lens == .heatmap: heatDecoration(layer: layer, index: index)
         default: CapDecoration()
         }
     }

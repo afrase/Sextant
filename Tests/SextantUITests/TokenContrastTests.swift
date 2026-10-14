@@ -60,6 +60,27 @@ struct TokenContrastTests {
     }
 }
 
+/// The heat ramp (spec §8.5, §10.1): one blue hue at every step, the legend's ink (black or white by luminance, as
+/// KeyCap picks it) at least 4.5:1 on each step, and the hottest step at least 3:1 against the cap, in light and dark.
+struct HeatRampContrastTests {
+    @Test(arguments: TokenContrastTests.Mode.allCases)
+    func everyStepReads(mode: TokenContrastTests.Mode) {
+        #expect(Tokens.heatSteps.count == 21)
+        let fills = Tokens.heatSteps.map { mode == .dark ? $0.dark : $0.light }
+        for fill in fills {
+            let ink: HexColor = fill.luminance > 0.179 ? .black : .white
+            #expect(ink.contrast(with: fill) >= 4.5, "ink on \(fill.hex)")
+            #expect(abs(fill.hsb.hue - 0.6) < 0.05, "\(fill.hex) is the ramp's blue")
+        }
+        let cap = mode == .dark ? Tokens.capTop.dark : Tokens.capTop.light
+        #expect((fills.last?.contrast(with: cap) ?? 0) >= 3)
+        // Light mode runs light to dark, dark mode dark to light, so heat always moves away from the cap.
+        let luminance = fills.map(\.luminance)
+        #expect(mode == .dark ? luminance == luminance.sorted() : luminance == luminance.sorted(by: >))
+        #expect(Tokens.heat(-1) == Tokens.heat(0) && Tokens.heat(2) == Tokens.heat(1) && Tokens.heat(.nan) == Tokens.heat(0))
+    }
+}
+
 /// A token builds its colour once (a fresh dynamic colour on every read made each cap slower to redraw); it still
 /// resolves per drawing appearance.
 struct TokenColourTests {

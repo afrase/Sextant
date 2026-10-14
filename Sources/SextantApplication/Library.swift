@@ -13,6 +13,9 @@ public final class Library {
     public var lastError: LibraryError?
     /// The library has been read once, so empty ``entries`` mean an empty library (the Welcome) rather than loading.
     public private(set) var hasLoaded = false
+    /// Layouts moved to the Trash since launch, so their heatmap counts go too (ADR 0053). A layout that only leaves
+    /// ``entries`` (a package that fails to read for now) isn't here.
+    public private(set) var trashed: Set<UUID> = []
 
     @ObservationIgnored private let store: any LayoutLibrary
     /// Open documents, one per layout: an import lands in the open one instead of behind it, and no second copy's
@@ -166,7 +169,10 @@ public final class Library {
     /// Moves a layout to the Trash, unless a window has it open: its autosave would write into a package that is gone.
     public func trash(_ id: UUID) async {
         guard !isOpen(id) else { return }
-        await run { () throws(LibraryError) in try await self.store.trash(id) }
+        await run { () throws(LibraryError) in
+            try await self.store.trash(id)
+            self.trashed.insert(id)
+        }
     }
 
     public func location(of id: UUID) async -> URL? { await store.location(of: id) }
