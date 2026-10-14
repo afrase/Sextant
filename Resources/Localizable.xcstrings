@@ -29,6 +29,16 @@
     "%@ QMK Source" : {
 
     },
+    "%@ Revision %lld QMK Source" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ Revision %2$lld QMK Source"
+          }
+        }
+      }
+    },
     "%@ Sextant sets them up the first time you build, after you agree to the download." : {
 
     },
@@ -182,6 +192,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@, hold for %2$@"
+          }
+        }
+      }
+    },
+    "%@, revision %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, revision %2$lld"
           }
         }
       }
@@ -583,6 +603,9 @@
     "Building firmware" : {
 
     },
+    "Builds this revision as it was saved and flashes it. The layout you’re editing stays as it is." : {
+
+    },
     "Built" : {
 
     },
@@ -734,6 +757,9 @@
 
     },
     "Commands" : {
+
+    },
+    "Compare Revision With" : {
 
     },
     "Compare with: %@" : {
@@ -1003,6 +1029,9 @@
     "Export" : {
 
     },
+    "Export Source Zip…" : {
+
+    },
     "Failed" : {
 
     },
@@ -1020,6 +1049,49 @@
     },
     "Firmware" : {
 
+    },
+    "Firmware %@" : {
+
+    },
+    "Firmware %@ · %@ since revision %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Firmware %1$@ · %2$@ since revision %3$lld"
+          }
+        }
+      }
+    },
+    "Firmware %@ · same size as revision %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Firmware %1$@ · same size as revision %2$lld"
+          }
+        }
+      }
+    },
+    "Firmware %@, %lld bytes larger than revision %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Firmware %1$@, %2$lld bytes larger than revision %3$lld"
+          }
+        }
+      }
+    },
+    "Firmware %@, %lld bytes smaller than revision %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Firmware %1$@, %2$lld bytes smaller than revision %3$lld"
+          }
+        }
+      }
     },
     "Firmware (.bin)…" : {
 
@@ -1057,6 +1129,9 @@
     "Flash Oryx’s Build of This Revision…" : {
 
     },
+    "Flash This Revision…" : {
+
+    },
     "Flash mode" : {
 
     },
@@ -1070,6 +1145,9 @@
 
     },
     "Flashed from Sextant" : {
+
+    },
+    "Flashed revision %lld" : {
 
     },
     "Flashed, but not saved in History" : {
@@ -2076,6 +2154,9 @@
     "Restore This Revision" : {
 
     },
+    "Restore and Flash wait until the keyboard is flashed." : {
+
+    },
     "Restored edits that hadn’t been saved" : {
 
     },
@@ -2089,6 +2170,19 @@
 
     },
     "Revision %lld" : {
+
+    },
+    "Revision %lld has %lld issues" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Revision %1$lld has %2$lld issues"
+          }
+        }
+      }
+    },
+    "Revision %lld has 1 issue" : {
 
     },
     "Revisions" : {
@@ -2230,6 +2324,9 @@
 
     },
     "Sextant can’t map that key. Try another." : {
+
+    },
+    "Sextant checks the layout before every build, and a revision can’t be changed. Restore it, fix these keys, then build and flash it." : {
 
     },
     "Sextant checks the layout before every build. These keys need fixing first." : {
@@ -2569,6 +2666,9 @@
 
     },
     "These keys go back to the layer color. You can undo this." : {
+
+    },
+    "This Revision’s QMK Source (.zip)…" : {
 
     },
     "This happens once. The build starts as soon as the tools are ready." : {

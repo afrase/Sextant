@@ -11,6 +11,8 @@ enum ExportKind {
     case layoutJSON
     /// The QMK source a build compiles, zipped.
     case qmkSource
+    /// The QMK source a build of a recorded revision compiles, zipped (History's Export Source Zip…).
+    case revisionSource(RevisionLayout)
     /// The last build's image, DFU suffix included.
     case firmware
     /// The shown layer as a PNG.
@@ -109,7 +111,7 @@ extension LayoutWindowModel {
         // The open panel writes whatever file is pending, so a second export would land under the first one's name.
         guard session != nil, pendingExport?.file == nil else { return false }
         switch kind {
-        case .qmkSource: return buildFlash != nil
+        case .qmkSource, .revisionSource: return buildFlash != nil
         case .firmware: return buildFlash?.currentArtifact != nil
         case .layoutJSON, .image, .pdf: return true
         }
@@ -126,11 +128,10 @@ extension LayoutWindowModel {
             case .layoutJSON:
                 pendingExport = .saving(ExportFile(data: try LayoutExport.json(layout), contentType: .json, filename: name))
             case .qmkSource:
-                // Another export's panel may have opened while the source was made; it keeps its file.
-                guard let source = try await buildFlash?.source(), pendingExport?.file == nil else { return }
-                let folder = String(localized: "\(name) QMK Source")
-                pendingExport = .saving(
-                    ExportFile(data: try LayoutExport.zip(source.files, folder: folder), contentType: .zip, filename: folder))
+                try await exportSource(of: nil, folder: String(localized: "\(name) QMK Source"))
+            case let .revisionSource(target):
+                try await exportSource(
+                    of: target.layout, folder: String(localized: "\(name) Revision \(target.revision.number) QMK Source"))
             case .firmware:
                 guard let image = buildFlash?.currentArtifact?.image else { return }
                 // The system's .bin type is MacBinary's; only its extension matters here.
@@ -147,6 +148,13 @@ extension LayoutWindowModel {
         } catch {
             pendingExport = .failed(error.localizedDescription)
         }
+    }
+
+    /// Zips the source a build of `layout` (the working copy when nil) compiles, in a folder named `folder`.
+    private func exportSource(of layout: KeyboardLayout?, folder: String) async throws {
+        // Another export's panel may have opened while the source was made; it keeps its file.
+        guard let source = try await buildFlash?.source(of: layout), pendingExport?.file == nil else { return }
+        pendingExport = .saving(ExportFile(data: try LayoutExport.zip(source.files, folder: folder), contentType: .zip, filename: folder))
     }
 }
 

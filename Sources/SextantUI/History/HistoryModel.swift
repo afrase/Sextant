@@ -46,6 +46,8 @@ final class HistoryModel {
     private(set) var layouts: [String: KeyboardLayout] = [:]
     /// Each revision's change count against its parent, for the timeline.
     private(set) var counts: [String: Int] = [:]
+    /// The firmware size last read, for the revision it was read for: nil size when Sextant kept no image of it.
+    var firmware: (revision: String, size: FirmwareSize?)?
     @ObservationIgnored private let onKeyboard: OnKeyboard?
     /// The board asks for every cap's mark, so the diff is worked out once per input.
     @ObservationIgnored private var memo: (key: MemoKey, shown: Shown?)?
@@ -285,6 +287,7 @@ extension LayoutWindowModel {
         history?.selectedID = id
         destination = .history
         await history?.load()
+        await loadFirmwareSize()
     }
 
     /// The palette's Documents rows for revisions (spec §5.7): "Revision 3 · Edited 5 keys on Brd+Sys".

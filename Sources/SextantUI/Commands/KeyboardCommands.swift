@@ -9,6 +9,8 @@ struct KeyboardMenu: View {
         Button("Stop") { window?.build(.stop) }.keyboardShortcut(".").disabled(window?.canStop != true)
         Button("Show Build Log") { window?.build(.showLog) }
             .keyboardShortcut("b", modifiers: [.command, .shift]).disabled(window?.buildFlash == nil)
+        Button("Flash This Revision…") { if let revision = window?.shownRevision { window?.flash(revision) } }
+            .disabled(window?.shownRevision.map { window?.canFlash($0) != true } ?? true)
         Divider()
         Button("Next Issue") {}.keyboardShortcut("'").disabled(true)
         Button("Previous Issue") {}.keyboardShortcut("'", modifiers: [.command, .shift]).disabled(true)

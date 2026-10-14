@@ -28,12 +28,17 @@ struct FileSaveItems: View {
         let id = window?.session?.id
         Button("Save Revision…") { Task { await window?.beginSaveRevision() } }
             .keyboardShortcut("s").disabled(window?.canSaveRevision != true)
+        let revision = window?.shownRevision
+        Button("Restore This Revision") { if let revision { Task { await window?.restore(revision) } } }
+            .disabled(revision.map { window?.canRestore($0) != true } ?? true)
         Button("Duplicate Layout") { if let id { Task { await window?.library.duplicate(id) } } }.disabled(id == nil)
         Button("Rename Layout…") { window?.layoutPendingRename = id }.disabled(id == nil)
         Button("Move Layout to Trash…") { window?.layoutPendingTrash = id }.disabled(id.map { window?.canTrash($0) != true } ?? true)
         Menu("Export") {
             Button("Layout JSON…") { Task { await window?.export(.layoutJSON) } }.disabled(window?.canExport(.layoutJSON) != true)
             Button("QMK Source (.zip)…") { Task { await window?.export(.qmkSource) } }.disabled(window?.canExport(.qmkSource) != true)
+            Button("This Revision’s QMK Source (.zip)…") { if let revision { Task { await window?.exportSource(of: revision) } } }
+                .disabled(revision.map { window?.canExportSource(of: $0) != true } ?? true)
             Button("Firmware (.bin)…") { Task { await window?.export(.firmware) } }.disabled(window?.canExport(.firmware) != true)
             Divider()
             Button("Image (PNG)…") { Task { await window?.export(.image) } }.disabled(window?.canExport(.image) != true)

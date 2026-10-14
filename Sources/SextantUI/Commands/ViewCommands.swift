@@ -1,7 +1,7 @@
 import SextantDomain
 import SwiftUI
 
-/// View ▸ Lens, Legends and the bench grid.
+/// View ▸ Lens, Legends, History's comparison and the bench grid.
 struct ViewMenuItems: View {
     var window: LayoutWindowModel?
     @Binding var showsGrid: Bool
@@ -21,6 +21,8 @@ struct ViewMenuItems: View {
             legend(.index, "n")
         }
         .disabled(window?.session == nil)
+        Menu("Compare Revision With") { if let history = window?.history { CompareItems(history: history) } }
+            .disabled(window?.shownRevision == nil)
         Toggle("Show Grid Behind Keyboard", isOn: $showsGrid)
         Divider()
     }

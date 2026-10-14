@@ -57,14 +57,7 @@ struct CompareMenu: View {
 
     var body: some View {
         Menu {
-            ForEach([HistoryModel.Comparison.parent, .current, .onKeyboard], id: \.self) { comparison in
-                toggle(comparison, title: history.title(comparison))
-            }
-            Menu("Another Revision") {
-                ForEach(history.session.revisions.reversed().filter { $0.id != history.selected?.id }) { revision in
-                    toggle(.revision(revision.id), title: "\(history.title(.revision(revision.id))) · \(HistoryModel.line(revision))")
-                }
-            }
+            CompareItems(history: history)
         } label: {
             Text("Compare with: \(history.title(history.comparison))")
         }
@@ -72,6 +65,22 @@ struct CompareMenu: View {
         .controlSize(.small)
         .fixedSize()
         .disabled(history.selected == nil)
+    }
+}
+
+/// The comparisons, for the header's menu and View ▸ Compare Revision With.
+struct CompareItems: View {
+    var history: HistoryModel
+
+    var body: some View {
+        ForEach([HistoryModel.Comparison.parent, .current, .onKeyboard], id: \.self) { comparison in
+            toggle(comparison, title: history.title(comparison))
+        }
+        Menu("Another Revision") {
+            ForEach(history.session.revisions.reversed().filter { $0.id != history.selected?.id }) { revision in
+                toggle(.revision(revision.id), title: "\(history.title(.revision(revision.id))) · \(HistoryModel.line(revision))")
+            }
+        }
     }
 
     private func toggle(_ comparison: HistoryModel.Comparison, title: String) -> some View {

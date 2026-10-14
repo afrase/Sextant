@@ -19,11 +19,23 @@ struct BuildFlashBody: View {
             Text("Sextant builds the firmware on this Mac, then writes it once you put the keyboard in flash mode.")
             log
         case let .blocked(issues):
-            Text("Sextant checks the layout before every build. These keys need fixing first.")
+            if build.revision == nil {
+                Text("Sextant checks the layout before every build. These keys need fixing first.")
+            } else {
+                Text(
+                    """
+                    Sextant checks the layout before every build, and a revision can’t be changed. \
+                    Restore it, fix these keys, then build and flash it.
+                    """
+                )
+                .fixedSize(horizontal: false, vertical: true)
+            }
             capped {
                 ForEach(issues) { issue in
+                    // A revision's key isn't the document's, so Show Key is only for the working copy.
                     issueRow(
-                        message: model.session.map { KeyText.issueText(issue, layout: $0.layout) } ?? "", location: nil, key: issue.key)
+                        message: KeyText.issueText(issue, layout: build.layout), location: nil,
+                        key: build.revision == nil ? issue.key : nil)
                 }
             }
         case let .confirmingReplace(serial, title):
