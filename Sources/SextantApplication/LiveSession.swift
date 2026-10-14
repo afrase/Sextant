@@ -43,7 +43,8 @@ public final class LiveSession {
     public private(set) var flashingLayoutID: UUID?
     /// The Build & Flash run holding flash mode: a reopened window's run for the same layout is another one.
     public private(set) var flashingOwner: ObjectIdentifier?
-    /// A Build & Flash is validating, erasing or writing the keyboard, which can't be interrupted: quitting waits.
+    /// A Build & Flash is validating, erasing or writing the keyboard, or verifying it to record what it flashed, none of
+    /// which can be interrupted: quitting waits. Verifying ends within 10 s.
     public internal(set) var isWritingFirmware = false
     private var pressed: Set<Int> = []
     /// The command feed of the link session that is paired now; nil otherwise.

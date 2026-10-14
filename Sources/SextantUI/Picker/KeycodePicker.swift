@@ -267,7 +267,10 @@ extension LayoutWindowModel {
     /// says where they are, and goes there.
     private func localeHints(_ query: String, category: KeycodeCategory?) -> [PaletteItem] {
         guard !query.isEmpty, category != .macros, let layout = session?.layout else { return [] }
-        let hidden = KeycodeCatalog.search(query, category: category).map(\.code).filter { !layout.offersKeycode($0) }
+        // Only codes the target could take once shown: a macro step never takes a locale's codes, so it gets no hint.
+        let hidden = KeycodeCatalog.search(query, category: category).map(\.code).filter {
+            !layout.offersKeycode($0) && accepts(KeyAction(code: $0))
+        }
         return SettingsCatalog.localeCodePrefixes.sorted { $0.key < $1.key }.compactMap { id, prefix in
             let count = hidden.count { $0.hasPrefix(prefix) }
             guard count > 0, let setting = SettingsCatalog.voyager.setting(id: id) else { return nil }
@@ -467,9 +470,10 @@ extension LayoutWindowModel {
             }
     }
 
-    /// "Change Hold · Left Option · ⌥⌘2": one per slot of the selected key; choosing one opens the picker on it.
+    /// "Change Hold · Left Option · ⌥⌘2": one per slot of the selected key; choosing one opens the picker on it. Only
+    /// where the key is shown: on a page the assign scope would find no target.
     private var slotSuggestions: [PaletteItem] {
-        guard let session, let index = session.selection.keyIndex, let key = session.selectedKey else { return [] }
+        guard hasSelectedKey, let session, let index = session.selection.keyIndex, let key = session.selectedKey else { return [] }
         return KeySlot.allCases.enumerated().map { n, slot in
             PaletteItem(
                 id: "slot-\(slot.rawValue)", group: .suggested, title: String(localized: "Change \(slot.title)"), detail: "⌥⌘\(n + 1)",

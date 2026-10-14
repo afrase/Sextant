@@ -323,6 +323,22 @@ struct PaletteTests {
         #expect(model.destination == .layer(0) && model.hasSelectedKey)
     }
 
+    /// "Change Tap…" rows suggest only for a key the board shows: on a page the assign scope would have no target.
+    @Test func slotSuggestionsOnlyWhereTheKeyIsShown() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.select(key: 19)
+        model.openPalette()
+        #expect(model.paletteItems.contains { $0.id == "slot-hold" })
+        for page in [Destination.combos, .history, .macros, .firmwareSettings] {
+            model.destination = page
+            model.openPalette()
+            #expect(!model.paletteItems.contains { $0.id.hasPrefix("slot-") }, "\(page)")
+            model.palette?.query = "change hold"
+            #expect(!model.paletteItems.contains { $0.id.hasPrefix("slot-") }, "\(page), searched")
+        }
+    }
+
     @Test func paletteSearchRanksExactPrefixWordSubstring() {
         #expect(PaletteSearch.score("main", ["Main"]) > PaletteSearch.score("main", ["Mainly"]))
         #expect(PaletteSearch.score("lay", ["Layer 1"]) > PaletteSearch.score("lay", ["New Layer"]))

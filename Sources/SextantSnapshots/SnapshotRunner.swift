@@ -93,11 +93,15 @@ public enum SnapshotRunner {
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
         var urls: [URL] = []
         for scene in scenes {
-            let image = try render(scene, scale: scale)
-            let url = outputDirectory.appendingPathComponent("\(scene.name).png")
-            try writePNG(image, to: url, scale: scale)
-            urls.append(url)
-            if log { print("snapshot: \(url.path) (\(image.width)×\(image.height) px)") }
+            // Each scene's windows and views go with it: kept to the end of the run, AttributeGraph outgrew its table
+            // (a SIGABRT after about 180 scenes).
+            try autoreleasepool {
+                let image = try render(scene, scale: scale)
+                let url = outputDirectory.appendingPathComponent("\(scene.name).png")
+                try writePNG(image, to: url, scale: scale)
+                urls.append(url)
+                if log { print("snapshot: \(url.path) (\(image.width)×\(image.height) px)") }
+            }
         }
         return urls
     }

@@ -22,6 +22,9 @@ public struct LayoutIssue: Hashable, Sendable, Identifiable {
         case comboKeyDisabled(Int)
         /// The combo key at this board index is a tap dance, which Oryx refuses in combos (ADR 0046).
         case comboKeyTapDance(Int)
+        /// The combo key at this board index types the keycode an earlier key of the combo types: QMK gives both presses
+        /// one place in the combo, so it never fires.
+        case comboKeyRepeated(Int)
         /// Two combo keys (board indices) sit side by side, so fast typing may roll across them (a warning).
         case rollingNeighbors(Int, Int)
         /// A tap dance slot whose action can't run inside a dance.

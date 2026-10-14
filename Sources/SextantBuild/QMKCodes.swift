@@ -36,7 +36,8 @@ enum QMKCodes {
     /// `MT(MOD_LALT, KC_Z)`, `LT(1, KC_ENTER)` or `MEH_T(KC_ENTER)` when QMK can express the pair in one keycode:
     /// a plain basic tap and a single-modifier, `*_T` or momentary-layer (0–15) hold. Nil means a dual-function key.
     static func modTapOrLayerTap(tap: KeyAction, hold: KeyAction) -> String? {
-        guard tap.modifiers.isEmpty, tap.macro == nil, isBasic(tap.code), hold.macro == nil, hold.modifiers.isEmpty else { return nil }
+        // The domain's rule, which combo triggers share (ADR 0046).
+        guard Key.isModTapOrLayerTap(tap: tap, hold: hold) else { return nil }
         if hold.code.hasSuffix("_T") { return "\(hold.code)(\(tap.code))" }
         if let m = KeycodeCatalog.modifier(forCode: hold.code), m.rawValue.nonzeroBitCount == 1 { return "MT(\(mask(m)), \(tap.code))" }
         if hold.canonicalCode == "MO", let layer = hold.layer, (0...15).contains(layer) { return "LT(\(layer), \(tap.code))" }
@@ -87,20 +88,6 @@ enum QMKCodes {
     static func isKeycode(_ action: KeyAction) -> Bool {
         action.macro == nil && (action.isHIDCode || locale[action.code] != nil)
     }
-
-    /// QMK's basic keycodes (`KC_A`…`KC_EXSEL`), the only taps `MT()` and `LT()` can carry.
-    static func isBasic(_ code: String) -> Bool {
-        let c = KeycodeCatalog.canonicalCode(code)
-        return basic.contains(c) || c.wholeMatch(of: /KC_([A-Z0-9]|F[0-9]+|KP_\w+|INTERNATIONAL_[1-9]|LANGUAGE_[1-9])/) != nil
-    }
-
-    private static let basic: Set<String> = [
-        "KC_ENTER", "KC_ESCAPE", "KC_BSPC", "KC_TAB", "KC_SPACE", "KC_MINUS", "KC_EQUAL", "KC_LBRC", "KC_RBRC", "KC_BSLS",
-        "KC_NONUS_HASH", "KC_SCLN", "KC_QUOTE", "KC_GRAVE", "KC_COMMA", "KC_DOT", "KC_SLASH", "KC_CAPS", "KC_PSCR", "KC_SCRL",
-        "KC_PAUSE", "KC_INSERT", "KC_HOME", "KC_PAGE_UP", "KC_DELETE", "KC_END", "KC_PGDN", "KC_RIGHT", "KC_LEFT", "KC_DOWN",
-        "KC_UP", "KC_NUM_LOCK", "KC_NONUS_BACKSLASH", "KC_APPLICATION", "KC_FIND", "KC_UNDO", "KC_AGAIN", "KC_CUT", "KC_COPY",
-        "KC_PASTE",
-    ]
 
     private static let keycodeNesting: [(Modifiers, String)] = [
         (.leftOption, "LALT"), (.leftCommand, "LGUI"), (.leftControl, "LCTL"), (.rightOption, "RALT"), (.rightCommand, "RGUI"),

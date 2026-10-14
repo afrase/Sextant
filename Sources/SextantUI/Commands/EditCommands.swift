@@ -9,7 +9,7 @@ struct EditItems: View {
         MakeTransparentItem(window: window)
         // On the Firmware Settings page, ⌘F searches the settings (spec §9.1).
         if window?.page == .firmwareSettings {
-            Button("Find Setting…") { window?.firmwareSettings.searchFocusRequests += 1 }.keyboardShortcut("f")
+            Button("Find Setting…") { window?.findSetting() }.keyboardShortcut("f")
         } else {
             Button("Find Key…") { window?.openPalette(.keys) }.keyboardShortcut("f").disabled(window?.session == nil)
         }

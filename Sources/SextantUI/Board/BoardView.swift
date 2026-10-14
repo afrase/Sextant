@@ -43,6 +43,8 @@ public struct BoardView: View {
     private var brush: Brush? { hasBoardPick || display != nil ? nil : lensBrush }
     private var layout: KeyboardLayout { display?.layout ?? session.layout }
     private var canCopy: Bool { display == nil && window?.hasSelectedKey == true }
+    /// Paste needs the plain board, though not a selected key: with none it beeps (ADR 0047).
+    private var canPaste: Bool { display == nil && !hasBoardPick && window.map { $0.page == nil } == true }
     /// The keys selected with the anchor, ringed in the Keys lens on the plain board (the session's selected keys are
     /// the anchor alone elsewhere).
     private var others: [Int] {
@@ -112,7 +114,7 @@ public struct BoardView: View {
             // ⌃⇥ / ⌃⇧⇥ leave the board, as they leave a text view.
             press.modifiers.contains(.control) ? .ignored : cycleSlot(back: press.key == Self.backTab || press.modifiers.contains(.shift))
         }
-        .onKeyPress(.delete) {
+        .onKeyPress(keys: Self.deleteKeys, phases: .down) { _ in
             // Not under a pick's prompt, which says what the keys do now, nor on a page: Combos' ⌫ deletes its combo.
             guard session.selection.keyIndex != nil, !hasBoardPick, display == nil, window?.page == nil else { return .ignored }
             session.makeTransparent()
@@ -122,8 +124,9 @@ public struct BoardView: View {
         // On the board's focus only, so text fields keep the standard commands. A display is read-only.
         .onCopyCommand(perform: canCopy ? { window?.copyKeys() ?? [] } : nil)
         .onCutCommand(perform: canCopy && !hasBoardPick ? { window?.cutKeys() ?? [] } : nil)
-        .onPasteCommand(of: [KeyPasteboard.utType]) { _ in
-            guard !hasBoardPick, display == nil, window?.pasteKeys(from: .general) == false else { return }
+        // Off, not a beep, on a page and on History's board (ADR 0047): the validator grays Edit ▸ Paste out there.
+        .onPasteCommand(of: [KeyPasteboard.utType], validator: { _ in canPaste ? () : nil }) {
+            guard window?.pasteKeys(from: .general) == false else { return }
             NSSound.beep()
         }
         .onExitCommand { if let window { window.escapeBoard() } else { session.select(key: nil) } }
@@ -333,6 +336,8 @@ public struct BoardView: View {
     // MARK: Keyboard
 
     private static let backTab = KeyEquivalent("\u{19}")
+    /// The Mac's ⌫ arrives as U+007F (NSDeleteCharacter), not `KeyEquivalent.delete` (U+0008), so the board matches both.
+    static let deleteKeys: Set<KeyEquivalent> = [.delete, KeyEquivalent("\u{7F}")]
 
     private func select(_ index: Int, _ kind: KeyClick = .select) {
         if let window { window.click(key: index, kind) } else { session.select(key: index) }
@@ -345,13 +350,15 @@ public struct BoardView: View {
     }
 
     private func move(_ direction: MoveCommandDirection) {
+        let toward: BoardGeometry.Direction
         switch direction {
-        case .left: session.moveSelection(.left)
-        case .right: session.moveSelection(.right)
-        case .up: session.moveSelection(.up)
-        case .down: session.moveSelection(.down)
-        @unknown default: break
+        case .left: toward = .left
+        case .right: toward = .right
+        case .up: toward = .up
+        case .down: toward = .down
+        @unknown default: return
         }
+        if let window { window.moveSelection(toward) } else { session.moveSelection(toward) }
     }
 
     private func cycleSlot(back: Bool) -> KeyPress.Result {

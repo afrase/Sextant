@@ -176,7 +176,8 @@ extension LayoutWindowModel {
 
     // MARK: Choosing keys
 
-    /// New Combo (N, the strip's last card, ⌘K): clicks on the board choose 2–6 keys, then Choose Output makes the combo.
+    /// New Combo (N, or a New Combo button on the page): clicks on the board choose 2–6 keys, then Choose Output makes
+    /// the combo.
     public func startNewCombo() {
         guard let session else { return }
         if page != .combos { destination = .combos }
@@ -296,6 +297,8 @@ extension LayoutWindowModel {
             ) { [weak self] in
                 self?.palette = nil
                 self?.destination = .combos
+                // As a card click does: a New Combo or Edit Keys draft would hide the combo and read its layer.
+                self?.cancelComboDraft()
                 self?.selectCombo(combo.id)
             }
             return (score, row)

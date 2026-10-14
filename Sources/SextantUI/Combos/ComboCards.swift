@@ -2,8 +2,9 @@ import SextantApplication
 import SextantDomain
 import SwiftUI
 
-/// The Combos destination's centre (spec §2.2, §6.4): the canvas in its Combos mode. A click on a key selects a combo the
-/// key is in; N starts a new combo and ⌫ deletes the selected one. The board only reads keys here: painting is off.
+/// The Combos destination's centre (spec §2.2, §6.4): the canvas in its Combos mode. A click on a key, or an arrow key
+/// moving to it, selects a combo the key is in (`click(key:)`, `moveSelection(_:)`); N starts a new combo and ⌫ deletes
+/// the selected one. The board only reads keys here: painting is off.
 struct CombosCanvas: View {
     var model: LayoutWindowModel
     var session: EditSession
@@ -13,10 +14,6 @@ struct CombosCanvas: View {
             .environment(\.brush, nil)
             .navigationTitle(session.layout.title)
             .navigationSubtitle(session.isEditedSinceRevision ? String(localized: "Combos · Edited") : String(localized: "Combos"))
-            // Clicks select combos in click(key:); the arrow keys move the selected key, and a combo follows it.
-            .onChange(of: session.selection.keyIndex) {
-                if model.boardPick == nil, let index = session.selection.keyIndex { model.selectCombo(containing: index) }
-            }
             .onChange(of: session.layout.combos.map(\.id)) { model.endDraftOfRemovedCombo() }
             // The board passes on keys it doesn't use (spec §9.2).
             .onKeyPress(characters: ["n", "N"], phases: .down) { press in
@@ -24,7 +21,7 @@ struct CombosCanvas: View {
                 model.startNewCombo()
                 return .handled
             }
-            .onKeyPress(.delete) {
+            .onKeyPress(keys: BoardView.deleteKeys, phases: .down) { _ in
                 guard model.boardPick == nil, let id = model.selectedPageCombo?.id else { return .ignored }
                 session.deleteCombo(id)
                 return .handled

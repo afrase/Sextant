@@ -132,4 +132,27 @@ struct FirmwareSettingsPageTests {
         #expect(model.palette == nil && model.destination == .firmwareSettings && model.settingsScrollTarget == "international")
         #expect(!model.firmwareSettings.modifiedOnly)
     }
+
+    /// The hint counts only codes the picker's target could take: a macro step types no locale's codes, so turning the
+    /// toggle on would show it nothing.
+    @Test func noHintForCodesTheTargetRefuses() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        session.newMacro()
+        let draft = try #require(session.selection.macro)
+        model.destination = .macros
+        model.openStepPicker(step: nil, in: draft)
+        model.palette?.query = "pound"
+        #expect(model.paletteItems.contains { $0.keycode?.code == "KC_HASH" })
+        #expect(!model.paletteItems.contains { $0.id == "locale-uk" })
+    }
+
+    /// ⌘F on the page focuses its search and closes an open ⌘K, which would float over the field.
+    @Test func findSettingClosesThePalette() async throws {
+        let model = try await openUserLayout()
+        model.destination = .firmwareSettings
+        model.openPalette()
+        model.findSetting()
+        #expect(model.palette == nil && model.firmwareSettings.searchFocusRequests == 1)
+    }
 }

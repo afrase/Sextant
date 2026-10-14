@@ -419,6 +419,21 @@ public final class LayoutWindowModel {
         }
     }
 
+    /// An arrow key on the board moves the selected key; on the Combos page a combo follows it as it follows a click
+    /// (spec §6.4). Only these moves run the rule, so undo restoring a key brings back the combo saved with it.
+    func moveSelection(_ direction: BoardGeometry.Direction) {
+        guard let session else { return }
+        session.moveSelection(direction)
+        if page == .combos, boardPick == nil, let index = session.selection.keyIndex { selectCombo(containing: index) }
+    }
+
+    /// Edit ▸ Find Setting… (⌘F on the Firmware Settings page) focuses the page's search. The palette closes, as Find
+    /// Key replaces it on other pages: left open, it would float over the field while typing filters the settings.
+    func findSetting() {
+        closePalette()
+        firmwareSettings.searchFocusRequests += 1
+    }
+
     /// Ends the pick without finishing it (esc, its Cancel button).
     func cancelBoardPick() {
         let pick = boardPick

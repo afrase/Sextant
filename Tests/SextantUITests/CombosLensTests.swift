@@ -230,6 +230,32 @@ struct CombosLensTests {
         #expect(model.combos.draft == nil && model.boardPick == nil)
     }
 
+    /// An arrow key moving the selected key selects a combo it is in, as a click does; undo restoring a key outside the
+    /// combo it saved brings that combo back, not the click rule's choice.
+    @Test func arrowsFollowCombosAndUndoKeepsTheComboItSaved() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        model.destination = .combos
+        let id = session.newCombo(keys: [j, k], layer: 0, output: .code("KC_ESCAPE"))
+        let undo = UndoManager()
+        undo.groupsByEvent = false
+        session.undoManager = undo
+        session.selectCombo(nil)
+        model.click(key: l)
+        #expect(session.selection.combo == nil)
+        model.moveSelection(.left)
+        #expect(session.selection.keyIndex == k && session.selection.combo == id, "the arrow lands on a member")
+
+        model.click(key: 5)
+        model.selectCombo(id)
+        undo.beginUndoGrouping()
+        session.setComboOutput(.code("KC_TAB"), in: id)
+        undo.endUndoGrouping()
+        model.click(key: j)
+        undo.undo()
+        #expect(session.selection.combo == id && session.selection.keyIndex == 5 && model.selectedPageCombo?.id == id)
+    }
+
     /// Among several combos, a line passing under another cap is left out; drawn alone, a combo keeps it.
     @Test func overviewTracesNeverRunUnderOtherCaps() async throws {
         let model = try await openUserLayout()
@@ -273,6 +299,13 @@ struct CombosLensTests {
         #expect(row.title == "Escape" && row.detail == "J + K → Esc" && row.note == "Keys from Main")
         row.perform()
         #expect(model.page == .combos && session.selection.combo == id && model.palette == nil)
+
+        // On the page, a row ends a New Combo draft as a card click does, so the inspector shows the combo it chose.
+        model.startNewCombo()
+        model.click(key: l)
+        model.openPalette(query: "escape")
+        model.run(try #require(model.paletteItems.first { $0.id == "document-combo-\(id)" }))
+        #expect(model.combos.draft == nil && model.boardPick == nil && model.selectedPageCombo?.id == id)
     }
 
     // MARK: Pills

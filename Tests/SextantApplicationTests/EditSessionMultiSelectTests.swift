@@ -137,6 +137,10 @@ struct EditSessionMultiSelectTests {
         #expect(undo.undoActionName == "Paste 2 Keys")
         #expect(session.layout.key(layer: 2, index: 13) == main[13] && session.layout.key(layer: 2, index: 19) == main[19])
         #expect(session.selection.keyIndices == [13, 19])
+        undo.undo()
+        #expect(session.selection.keyIndices == [0], "undo selects what was selected before")
+        undo.redo()
+        #expect(session.selection.keyIndices == [13, 19], "redo selects where the paste went")
 
         // One key goes onto every selected key.
         let one = try #require(CopiedKeys(layout: session.layout, layer: 0, indices: [24]))

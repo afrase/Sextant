@@ -225,6 +225,7 @@ enum KeyText {
             case let .comboKeyTransparent(i): String(localized: "Combo key \(member(i)) is transparent")
             case let .comboKeyDisabled(i): String(localized: "Combo key \(member(i)) is disabled")
             case let .comboKeyTapDance(i): String(localized: "Combo key \(member(i)) is a tap dance")
+            case let .comboKeyRepeated(i): String(localized: "Combo key \(member(i)) types the same keycode as another")
             case let .rollingNeighbors(a, b): String(localized: "Keys \(member(a)) and \(member(b)) are rolling neighbors")
             // A flagged tap may run, but the dance also types it on three or more taps.
             case .notInTapDance where issue.key?.slot == .tap: String(localized: "A tap dance's tap must be a key")

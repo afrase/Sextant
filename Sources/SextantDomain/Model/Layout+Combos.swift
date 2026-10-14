@@ -60,12 +60,13 @@ extension KeyboardLayout {
 extension LayoutIssues {
     /// The combo checks the generator can't express, or that won't fire as meant (spec §7.5): more than 6 keys, keycodes
     /// another combo listens for too (QMK matches keycodes, so only one of the two can fire), a key a combo can't use on
-    /// the combo's layer (``Key/comboRefusal``), and keys side by side in a row, which fast typing rolls across (a
-    /// warning). Fewer than 2 keys is the empty-combo check's.
+    /// the combo's layer (``Key/comboRefusal``), two keys typing one keycode (``KeyboardLayout/comboRepeatedKey(_:)``),
+    /// and keys side by side in a row, which fast typing rolls across (a warning). Fewer than 2 keys is the empty-combo
+    /// check's.
     static func comboIssues(_ layout: KeyboardLayout) -> [LayoutIssue] {
         let geometry = layout.board?.geometry()
         var issues: [LayoutIssue] = []
-        let triggers = layout.combos.map { trigger($0, in: layout) }
+        let triggers = layout.combos.map { layout.comboTrigger($0) }
         for (ci, combo) in layout.combos.enumerated() where combo.keyIndices.count >= 2 {
             func add(_ kind: LayoutIssue.Kind, _ severity: LayoutIssue.Severity = .error) {
                 issues.append(LayoutIssue(kind: kind, severity: severity, key: nil, combo: combo.id))
@@ -80,34 +81,62 @@ extension LayoutIssues {
                 case nil: break
                 }
             }
+            if let index = layout.comboRepeatedKey(combo) { add(.comboKeyRepeated(index)) }
             if let pair = geometry?.rollingPair(combo.keyIndices) { add(.rollingNeighbors(pair.0, pair.1), .warning) }
         }
         return issues
     }
+}
 
-    /// What a combo's key listens for: the key's one action when the generator writes it as a keycode any key with that
-    /// action shares, else the key itself (a dual-function key or a macro, which the generator numbers per key).
-    private enum Listens: Hashable {
-        case action(KeyAction)
-        case key(layer: Int, index: Int)
+/// What a combo's key listens for: the keycode the generator writes for it, which every key written the same way shares,
+/// else the key itself (a dual-function key QMK can't write as one keycode, or a macro, which the generator numbers per
+/// key). Aliases count as their canonical code: QMK defines them as the same keycode.
+private enum ComboListens: Hashable {
+    case action(KeyAction)
+    case modTapOrLayerTap(tap: KeyAction, hold: KeyAction)
+    case key(layer: Int, index: Int)
+}
+
+extension KeyboardLayout {
+    /// The first key of the combo that types the keycode an earlier key of it types: QMK finds both presses at one
+    /// place in the combo, so the combo never sees all its keys down. Keys a combo can't use (``Key/comboRefusal``)
+    /// have their own issue and don't count. Nil when every key listens for its own. The live issue and the generator
+    /// both use it (ADR 0046).
+    public func comboRepeatedKey(_ combo: Combo) -> Int? {
+        var seen = Set<ComboListens>()
+        return combo.keyIndices.first { index in
+            guard key(layer: combo.keysLayer, index: index)?.comboRefusal == nil else { return false }
+            return !seen.insert(comboListens(layer: combo.keysLayer, index: index)).inserted
+        }
     }
 
     /// The combo's keycodes, as a count of each, so two combos that listen for the same ones compare equal whichever
     /// layer or spots they read them from.
-    private static func trigger(_ combo: Combo, in layout: KeyboardLayout) -> [Listens: Int] {
-        var counts: [Listens: Int] = [:]
-        for index in combo.keyIndices {
-            let key = layout.key(layer: combo.keysLayer, index: index)
-            let only = key.flatMap { $0.tap == nil || $0.hold == nil ? $0.tap ?? $0.hold : nil }
-            let listens: Listens =
-                if let only, only.macro == nil, key?.isTapDance == false {
-                    .action(only)
-                } else {
-                    .key(layer: combo.keysLayer, index: index)
-                }
-            counts[listens, default: 0] += 1
-        }
+    fileprivate func comboTrigger(_ combo: Combo) -> [ComboListens: Int] {
+        var counts: [ComboListens: Int] = [:]
+        for index in combo.keyIndices { counts[comboListens(layer: combo.keysLayer, index: index), default: 0] += 1 }
         return counts
+    }
+
+    private func comboListens(layer: Int, index: Int) -> ComboListens {
+        guard let key = key(layer: layer, index: index), !key.isTapDance else { return .key(layer: layer, index: index) }
+        switch (key.tap, key.hold) {
+        case let (tap?, hold?) where Key.isModTapOrLayerTap(tap: tap, hold: hold):
+            return .modTapOrLayerTap(tap: tap.canonical, hold: hold.canonical)
+        case let (only?, nil) where only.macro == nil, let (nil, only?) where only.macro == nil: return .action(only.canonical)
+        default: return .key(layer: layer, index: index)
+        }
+    }
+}
+
+extension KeyAction {
+    /// The action as a keycode: its catalog code, so aliases (`KC_ENT`, `KC_ENTER`) compare equal, and no description,
+    /// which the firmware never sees.
+    fileprivate var canonical: KeyAction {
+        var action = self
+        action.code = canonicalCode
+        action.description = nil
+        return action
     }
 }
 
@@ -134,6 +163,17 @@ extension Key {
 
     /// A tap dance: a double tap or tap-then-hold makes the generator build the key as one (spec §6.5).
     var isTapDance: Bool { doubleTap != nil || tapHold != nil }
+
+    /// True when QMK writes a tap and hold as one keycode, `MT()`, `LT()` or a `*_T()`, which every key with the pair
+    /// shares: a plain basic tap and a single-modifier, `*_T` or momentary-layer (0–15) hold. Any other dual-function
+    /// key the generator numbers per key. The generator builds the keycode exactly when this holds.
+    public static func isModTapOrLayerTap(tap: KeyAction, hold: KeyAction) -> Bool {
+        guard tap.modifiers.isEmpty, tap.macro == nil, KeycodeCatalog.isBasic(tap.code), hold.macro == nil, hold.modifiers.isEmpty
+        else { return false }
+        if hold.code.hasSuffix("_T") { return true }
+        if let m = KeycodeCatalog.modifier(forCode: hold.code), m.rawValue.nonzeroBitCount == 1 { return true }
+        return hold.canonicalCode == "MO" && hold.layer.map((0...15).contains) == true
+    }
 }
 
 extension BoardGeometry {

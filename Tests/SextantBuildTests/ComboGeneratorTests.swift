@@ -48,6 +48,11 @@ struct ComboGeneratorTests {
         #expect(throws: GeneratorError.unsupported("a combo key that is disabled", KeyRef(layer: 0, index: 13))) {
             try QMKGenerator().generate(layout, identity: identity)
         }
+        // Sym+Num types * at 15 and 42.
+        layout.combos = [Combo(keyIndices: [15, 42], layer: 1, output: .code("KC_ESCAPE"))]
+        #expect(throws: GeneratorError.unsupported("a combo with two keys that type the same keycode", KeyRef(layer: 1, index: 42))) {
+            try QMKGenerator().generate(layout, identity: identity)
+        }
     }
 
     /// A build fails on a combo key only when the live issues flag it, so the build gate catches it first.
@@ -61,6 +66,9 @@ struct ComboGeneratorTests {
             ("mod-tap", Key(tap: .code("KC_A"), hold: .code("KC_LEFT_SHIFT")), false),
             ("labelled key", Key(tap: .code("KC_A"), customLabel: "x"), false),
             ("macro", Key(tap: KeyAction(code: "KC_TRANSPARENT", macro: Macro(steps: [MacroStep(code: "KC_A")]))), false),
+            // Key 39 is J: QMK would find both presses at one place in the list.
+            ("J again", Key(tap: .code("KC_J")), true),
+            ("J again, labelled", Key(tap: .code("KC_J"), customLabel: "x"), true),
         ]
         for (name, key, refused) in shapes {
             var layout = try layout()
