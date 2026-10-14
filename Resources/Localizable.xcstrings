@@ -1868,7 +1868,7 @@
     "Key events stay in memory on this Mac and are never written to disk. Live display pauses while you type in a password field." : {
 
     },
-    "Key events stay in memory on this Mac; the heatmap saves only hourly counts per key position. Live display and the heatmap pause while you type in a password field." : {
+    "Key events stay in memory on this Mac; the heatmap saves only hourly counts of presses per key position and of layer changes. Live display and the heatmap pause while you type in a password field." : {
 
     },
     "Key kinds" : {
@@ -2540,7 +2540,7 @@
     "Off" : {
 
     },
-    "Off unless you turn it on. Presses are counted only while Live View is on. Only hourly counts per key position are saved, on this Mac and apart from your layouts, so they never go with a layout you export or share." : {
+    "Off unless you turn it on. Presses are counted only while Live View is on. Only hourly counts of presses per key position and of layer changes are saved, on this Mac and apart from your layouts, so they never go with a layout you export or share." : {
 
     },
     "On" : {
@@ -3267,7 +3267,7 @@
     "Sextant couldn’t save: %@" : {
 
     },
-    "Sextant counts presses per key position, by the hour, while Live View is on and the keyboard runs a layout in your library. It never records the characters you type or the order of keys, and pauses while a password field has focus. The counts stay on this Mac." : {
+    "Sextant counts presses per key position and layer changes, by the hour, while Live View is on and the keyboard runs a layout in your library. It never records the characters you type or the order of keys, and pauses while a password field has focus. The counts stay on this Mac." : {
 
     },
     "Sextant doesn’t have the keyboard’s layout, so it can move it only to layer 0." : {
@@ -3282,7 +3282,7 @@
     "Sextant shows the keyboard’s layer and the keys you hold as they happen. Nothing is recorded." : {
 
     },
-    "Sextant shows the keyboard’s layer and the keys you hold as they happen. The heatmap keeps only hourly counts per key." : {
+    "Sextant shows the keyboard’s layer and the keys you hold as they happen. The heatmap keeps only hourly counts of presses per key and of layer changes." : {
 
     },
     "Sextant won't flash this image: %@" : {

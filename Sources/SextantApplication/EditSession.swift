@@ -298,7 +298,7 @@ public final class EditSession {
         guard layout.layers.indices.contains(index) else { return nil }
         edit(String(localized: "Duplicate Layer"), select: { $0.layer = index + 1 }) { doc in
             var copy = doc.layers[index]
-            copy.id = UUID().uuidString
+            (copy.id, copy.oryxID, copy.oryxPreviousID) = (UUID().uuidString, nil, nil)
             copy.title = String(localized: "\(copy.title) Copy")
             doc.layers.append(copy)
             doc.moveLayer(from: doc.layers.count - 1, to: index + 1)
@@ -380,11 +380,12 @@ public final class EditSession {
     // MARK: Import
 
     /// Records a layout imported from Oryx in History, then makes it the document as one undoable edit that keeps
-    /// the title (spec §8.1). Edits since the last revision are checkpointed first; a failure leaves the document as
-    /// it was.
+    /// the title (spec §8.1), and the ids of the layers Oryx says it came from, so App Layers rules, Heatmap counts and
+    /// History's comparisons follow them (ADR 0054). Edits since the last revision are checkpointed first; a failure
+    /// leaves the document as it was.
     public func applyImport(_ imported: KeyboardLayout) async throws(LibraryError) {
         try await checkpoint(String(localized: "Before importing from Oryx"))
-        var next = imported
+        var next = imported.keepingLayerIDs(of: layout)
         next.title = layout.title
         // Oryx has no drafts, so an import would drop the macros on no key yet (ADR 0047).
         next.macroDrafts = layout.macroDrafts

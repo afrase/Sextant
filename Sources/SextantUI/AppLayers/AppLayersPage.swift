@@ -200,7 +200,7 @@ private struct NowCard: View {
         case .on:
             if let applied = switcher?.applied(for: session.id) {
                 Text(verbatim: AppLayersText.applied(applied)).font(.headline)
-            } else if let last = switcher?.history.first {
+            } else if let last = switcher?.history(for: session.id).first {
                 Text("Last switch: \(AppLayersText.entry(last))")
             } else {
                 Text("On. The keyboard moves when an app with a rule comes forward.")

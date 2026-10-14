@@ -11,15 +11,15 @@ struct SelectByPress {
     var tasks: [Task<Void, Never>]
     /// This run, for the endings that wait a moment: a later run must not take them.
     let id = UUID()
-    /// When it started: a press the keyboard reports within the tail is ⇧⌘L itself, typed on the keyboard.
-    let start = ContinuousClock.now
+    /// Since it started: a press the keyboard reports within the tail is ⇧⌘L itself, typed on the keyboard.
+    let sinceStart: Stopwatch
     /// Keys held when it started, such as the ⇧ and ⌘ of ⇧⌘L typed on the keyboard: until they are up, a press is still
     /// part of the shortcut.
     var heldAtStart: Set<Int>
     /// The key a press selected. The mode lasts until its key-up, so the Mac's copy of the same press is swallowed.
     var selected: Int?
-    /// When the press was selected: the Mac's copy of it arrives within the tail, later Mac escs are the user's.
-    var selectedAt: ContinuousClock.Instant?
+    /// Since the press was selected: the Mac's copy of it arrives within the tail, later Mac escs are the user's.
+    var sinceSelected: Stopwatch?
     /// How long the Mac's copy can come after the selected key's key-up: a tap dance sends it a tapping term later.
     var releaseTail: Duration
     /// Esc came from the Mac while armed. It cancels unless the keyboard reports a press within the tail: then it was
@@ -28,6 +28,19 @@ struct SelectByPress {
 
     /// Waiting for a press: the lens lane shows the capsule.
     var isArmed: Bool { selected == nil }
+}
+
+/// The time since it was started, on the window's clock (a test clock in tests).
+struct Stopwatch {
+    let elapsed: () -> Duration
+}
+
+extension Clock where Duration == Swift.Duration {
+    /// A stopwatch started now. A method so it can be called on an `any Clock`.
+    func stopwatch() -> Stopwatch {
+        let start = now
+        return Stopwatch { start.duration(to: now) }
+    }
 }
 
 extension LayoutWindowModel {
@@ -69,7 +82,7 @@ extension LayoutWindowModel {
                 Task { [weak self] in await self?.listen(to: presses) }, Task { [weak self] in await self?.watchForEnd() },
                 Task { [weak self] in await self?.pruneHeldAtStart() },
             ],
-            heldAtStart: live.pressedKeys, releaseTail: selectByPressTail)
+            sinceStart: clock.stopwatch(), heldAtStart: live.pressedKeys, releaseTail: selectByPressTail)
         AccessibilityNotification.Announcement(selectByPressPrompt).post()
     }
 
@@ -91,7 +104,7 @@ extension LayoutWindowModel {
             mode.escapePending = true
             selectByPress = mode
             endSelectByPressSoon(after: selectByPressTail, onlyOnEscape: true)
-        } else if let at = mode.selectedAt, ContinuousClock.now - at > selectByPressTail {
+        } else if let since = mode.sinceSelected, since.elapsed() > selectByPressTail {
             // Not the selected key's own copy, which comes within the tail (the monitor drops its repeats): the user's
             // esc, so a lost key-up can't leave the window deaf.
             endSelectByPress()
@@ -124,7 +137,7 @@ extension LayoutWindowModel {
     /// frame has passed. Only then: later the held keys can run ahead of the presses still on their way, and the presses'
     /// own key-ups take the rest out.
     private func pruneHeldAtStart() async {
-        try? await Task.sleep(for: selectByPressTail)
+        try? await clock.sleep(for: selectByPressTail)
         guard !Task.isCancelled, var mode = selectByPress, let live else { return }
         mode.heldAtStart.formIntersection(live.pressedKeys)
         selectByPress = mode
@@ -137,11 +150,11 @@ extension LayoutWindowModel {
             // No press arrives during secure input: the feed asks at every event, unlike the once-a-second flag the
             // capsule reads.
             guard selectByPressRefusal == nil, let session, index < session.layout.keyCount else { return }
-            guard mode.heldAtStart.isEmpty, ContinuousClock.now - mode.start >= selectByPressTail else {
+            guard mode.heldAtStart.isEmpty, mode.sinceStart.elapsed() >= selectByPressTail else {
                 selectByPress = mode
                 return
             }
-            (mode.selected, mode.selectedAt, mode.escapePending) = (index, .now, false)
+            (mode.selected, mode.sinceSelected, mode.escapePending) = (index, clock.stopwatch(), false)
             mode.releaseTail = selectByPressReleaseTail(index: index, layer: layer)
             selectByPress = mode
             click(key: index)
@@ -178,8 +191,9 @@ extension LayoutWindowModel {
     /// Ends this run after `tail`: an esc only if no press came meanwhile.
     private func endSelectByPressSoon(after tail: Duration, onlyOnEscape: Bool) {
         guard let id = selectByPress?.id else { return }
+        let clock = clock
         Task { [weak self] in
-            try? await Task.sleep(for: tail)
+            try? await clock.sleep(for: tail)
             guard let self, let mode = selectByPress, mode.id == id, !onlyOnEscape || (mode.isArmed && mode.escapePending) else { return }
             endSelectByPress()
         }

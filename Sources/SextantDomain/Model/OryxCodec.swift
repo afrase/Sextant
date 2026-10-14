@@ -131,7 +131,9 @@ private struct PositionedLayer: Codable {
     /// Oryx's automouse flag (``KeyboardLayout/automouseLayer``).
     var automouse = false
 
-    private enum Keys: String, CodingKey { case hashId, title, color, position, keys, automouse }
+    /// `oryxHashId` is Sextant's own: Oryx's hash id when `hashId` keeps an earlier one (``Layer/oryxID``). `prevHashId`
+    /// is read, never written: an import uses it at once, and a fixture's content hash mustn't move with it.
+    private enum Keys: String, CodingKey { case hashId, oryxHashId, prevHashId, title, color, position, keys, automouse }
 
     init(position: Int, layer: Layer, automouse: Bool) {
         self.position = position
@@ -149,11 +151,14 @@ private struct PositionedLayer: Codable {
             title: try c.decodeIfPresent(String.self, forKey: .title) ?? "Layer",
             color: try c.decodeIfPresent(LenientColor.self, forKey: .color)?.color,
             keys: keys.map { $0 ?? .transparent })
+        layer.oryxID = try c.decodeIfPresent(String.self, forKey: .oryxHashId)
+        layer.oryxPreviousID = try c.decodeIfPresent(String.self, forKey: .prevHashId)
     }
 
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: Keys.self)
         try c.encode(layer.id, forKey: .hashId)
+        try c.encodeIfPresent(layer.oryxID, forKey: .oryxHashId)
         try c.encode(layer.title, forKey: .title)
         try c.encodeIfPresent(layer.color, forKey: .color)
         try c.encode(position, forKey: .position)

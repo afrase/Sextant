@@ -193,6 +193,31 @@ struct ImportFromOryxTests {
         #expect(library.entries.count == 1)
     }
 
+    /// Oryx gives every layer a new hash id in each revision, naming the one before as `prevHashId`: the revision keeps
+    /// the layers' ids, so App Layers rules and Heatmap counts (keyed by layer id) still find their layers.
+    @Test func aRevisionKeepsTheLayersIDs() async throws {
+        let entry = try await library.add(imported: layout)
+        let rules = AppLayerRules(
+            isOn: true, rules: [AppLayerRule(bundleID: "com.apple.dt.Xcode", name: "Xcode", layerID: layout.layers[1].id)])
+        try await store.saveAppLayerRules(rules, for: entry.id)
+        let counts = KeyHeatmap([HeatmapHour(start: Date(), presses: [layout.layers[0].id: [10: 100], layout.layers[1].id: [3: 40]])])
+        var newer = layout
+        newer.oryx?.revisionId = "N3wRev"
+        for index in newer.layers.indices {
+            newer.layers[index].oryxPreviousID = newer.layers[index].id
+            newer.layers[index].id = "new\(index)"
+        }
+
+        let model = model(FakeOryx(layout: .success(newer)), input: "KlgM7")
+        await model.fetch()
+        _ = try #require(try await model.importLayout(asRevision: true))
+        let after = try #require(await store.layout(entry.id))
+        #expect(after.layers.map(\.id) == layout.layers.map(\.id))
+        #expect(after.layers.map(\.oryxCurrentID) == ["new0", "new1", "new2"])
+        #expect(try await store.appLayerRules(of: entry.id).target(activated: "com.apple.dt.Xcode", previous: nil, in: after) == 1)
+        #expect(HeatmapStats(counts, layout: after).total == 140)
+    }
+
     @Test func aNewerRevisionWithoutLocalEditsAddsOnlyTheImport() async throws {
         let entry = try await library.add(imported: layout)
         var newer = layout

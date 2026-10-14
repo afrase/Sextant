@@ -260,8 +260,9 @@ public final class LiveSession {
     /// Everything the keyboard reports from now on, as it reports it: before the 60 Hz coalescing, so a tap shorter
     /// than a frame still arrives. No press, release or layer arrives while secure input is on; the keyboard's replies
     /// (``LiveActivity/lighting(_:)``, ``LiveActivity/refused(_:)``) always do. Every key-down gets its key-up: when
-    /// secure input hides an event, or the session ends, a key-up arrives for each key still down, and after secure input
-    /// the next layer report arrives even if it repeats the last one. Ends when the consumer stops.
+    /// secure input hides an event, or the session ends, a key-up arrives for each key still down, and the next layer
+    /// report then arrives even if it repeats the last one (a new session's is where its pairing found the keyboard, not
+    /// a move). Ends when the consumer stops.
     public func activity() -> AsyncStream<LiveActivity> {
         let (stream, continuation) = AsyncStream.makeStream(of: LiveActivity.self)
         let id = UUID()
@@ -408,7 +409,7 @@ public final class LiveSession {
                 }
                 switch event {
                 case let .layer(layer):
-                    // Every pairing reports the layer again (each reconnect, and the resync after a layer move).
+                    // A session reports the layer again (the resync after a layer move); only a change is activity.
                     guard layer != deliveredLayer else { continue }
                     deliveredLayer = layer
                 case let .keyDown(index, _): down.insert(index)
@@ -418,8 +419,9 @@ public final class LiveSession {
             }
             subscribers.values.forEach { $0.yield(event) }
         }
-        // The session ended: its keys' key-ups will never come.
-        if keyboard == device { releaseKeys(&down) }
+        // The session ended: its keys' key-ups will never come, and the next session's pairing reports the layer it finds,
+        // which subscribers get even if it repeats the last one.
+        if keyboard == device { hide(&down) }
     }
 
     /// Subscribers can't follow what is hidden: their keys may come up unseen, and their layer may change.

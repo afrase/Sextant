@@ -145,9 +145,9 @@ enum HeatmapNote {
     static var consent: String {
         String(
             localized: """
-                Sextant counts presses per key position, by the hour, while Live View is on and the keyboard runs a layout \
-                in your library. It never records the characters you type or the order of keys, and pauses while a password \
-                field has focus. The counts stay on this Mac.
+                Sextant counts presses per key position and layer changes, by the hour, while Live View is on and the \
+                keyboard runs a layout in your library. It never records the characters you type or the order of keys, \
+                and pauses while a password field has focus. The counts stay on this Mac.
                 """)
     }
 }

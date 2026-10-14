@@ -53,6 +53,10 @@ public actor HeatmapFiles: HeatmapStore {
                     try write(read(url).filter { $0.start >= date }, to: url)
                 }
             }
+            // A folder left empty would still say recording ran for that layout.
+            if try io({ try FileManager.default.contentsOfDirectory(atPath: layout.path).isEmpty }) {
+                try io { try FileManager.default.removeItem(at: layout) }
+            }
         }
     }
 
@@ -105,11 +109,16 @@ public actor HeatmapFiles: HeatmapStore {
             log.error("Skipping unreadable heatmap file \(url.lastPathComponent, privacy: .public)")
             return []
         }
+        // Damage or an edit: a count below 1 is left out, like a key that isn't a number, and one no hour could reach
+        // is held to the limit, so sums stay far from overflowing.
+        let count = { (n: Int) in n >= 1 ? min(n, HeatmapHour.countLimit) : nil }
         return file.hours.map { hour in
             let presses = hour.presses.mapValues { keys in
-                Dictionary(keys.compactMap { key, count in Int(key).map { ($0, count) } }, uniquingKeysWith: +)
+                Dictionary(
+                    keys.compactMap { key, n in Int(key).flatMap { index in count(n).map { (index, $0) } } },
+                    uniquingKeysWith: HeatmapHour.sum)
             }
-            return HeatmapHour(start: hour.start, presses: presses, layerEntries: hour.layers ?? [:])
+            return HeatmapHour(start: hour.start, presses: presses, layerEntries: (hour.layers ?? [:]).compactMapValues(count))
         }
     }
 

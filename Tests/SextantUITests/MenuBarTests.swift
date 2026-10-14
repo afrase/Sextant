@@ -157,10 +157,15 @@ struct MenuBarTests {
             MenuBarPanelState(keyboard: .liveOff, running: "My MacOS Layout, revision 12", layout: layout),
             MenuBarPanelState(keyboard: .flashMode, flash: MenuBarPanelState.Flash(title: "My MacOS Layout", progress: 0.4)),
         ]
+        // With heatmap recording on, the typing line too: secure input pauses it, which it says for the mini map as well.
+        let paused = HeatmapRecorder.Status.waiting(.secureInput).text(recordsThisLayout: nil)
         for state in states {
-            let size = NSHostingView(rootView: MenuBarPanelContent(state: state)).fittingSize
-            #expect(size.width == 360)
-            #expect(size.height < 520 && size.height > 150, "\(state.keyboard): \(size.height) pt")
+            let typing = TypingStats(today: 12_408, wordsPerMinute: 0, pause: state.isSecureInputOn ? paused : nil)
+            for typing in [nil, typing] {
+                let size = NSHostingView(rootView: MenuBarPanelContent(state: state, typingStats: typing)).fittingSize
+                #expect(size.width == 360)
+                #expect(size.height < 520 && size.height > 150, "\(state.keyboard), \(typing != nil): \(size.height) pt")
+            }
         }
         // A move reaches the first 32 layers only (ADR 0038).
         #expect(MenuBarPanelState(keyboard: .live, layout: Self.layout(layout, layers: 40), layer: 0).layers.count == 32)

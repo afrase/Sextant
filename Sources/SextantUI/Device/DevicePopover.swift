@@ -92,7 +92,7 @@ public struct DevicePopover: View {
                     recordsHeatmap
                         ? """
                         Sextant shows the keyboard’s layer and the keys you hold as they happen. The heatmap keeps only \
-                        hourly counts per key.
+                        hourly counts of presses per key and of layer changes.
                         """
                         : "Sextant shows the keyboard’s layer and the keys you hold as they happen. Nothing is recorded."
                 )
@@ -106,7 +106,8 @@ public struct DevicePopover: View {
         Text(
             recordsHeatmap
                 ? """
-                Key events stay in memory on this Mac; the heatmap saves only hourly counts per key position. \
+                Key events stay in memory on this Mac; the heatmap saves only hourly counts of presses per key position \
+                and of layer changes. \
                 Live display and the heatmap pause while you type in a password field.
                 """
                 : """

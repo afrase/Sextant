@@ -18,6 +18,9 @@ struct LightingCapsule: View {
         .padding(.horizontal, 12)
         .frame(height: 28)
         .surface(Capsule(), interactive: true)
+        // The status capsule beside it says what a press does now, or which app's rule holds; "Painting …" gives way
+        // first (the board shows its layer).
+        .layoutPriority(-1)
     }
 }
 

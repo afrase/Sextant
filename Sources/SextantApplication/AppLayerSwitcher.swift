@@ -10,13 +10,16 @@ import os
 /// only to a layer of the flashed layout, and only while that layout's switch is on with a rule enabled: the user's
 /// consent to a write without a click each time. It acts on app switches alone, never at launch, when Live View starts or
 /// when a rule changes. Nothing is queued while it can't send. The switches it made are kept in memory, app names only.
-/// Sextant coming forward isn't a switch: looking at its rules, or opening its menu bar panel, leaves the keyboard alone.
+/// Sextant coming forward isn't a switch, and neither is going back from it to the app it came from: looking at its rules,
+/// opening its menu bar panel or moving the keyboard from it leaves the keyboard alone.
 @MainActor
 @Observable
 public final class AppLayerSwitcher {
     /// One move App Layers made.
     public struct Switch: Identifiable, Hashable, Sendable {
         public let id: Int
+        /// The library layout whose rule made the move: the one the keyboard ran.
+        public let layoutID: UUID
         /// The app that came forward.
         public let app: String
         /// The app left behind, when its Return to Main rule made the move.
@@ -41,6 +44,9 @@ public final class AppLayerSwitcher {
     public private(set) var frontmost: MacApp?
     /// The switches made since launch, newest first; never stored.
     public private(set) var history: [Switch] = []
+
+    /// The switches the layout's own rules made, newest first. Another layout's switches name that layout's layers, and were made while the keyboard ran it.
+    public func history(for id: UUID) -> [Switch] { history.filter { $0.layoutID == id } }
     /// Each layout's last App Layers save that failed, until one for it lands.
     private var saveErrors: [UUID: LibraryError] = [:]
     private var rulesByLayout: [UUID: AppLayerRules] = [:]
@@ -90,7 +96,10 @@ public final class AppLayerSwitcher {
                     if isFirst {
                         isFirst = false
                         if !isOwn { frontmost = app }
-                    } else if !isOwn {
+                    } else if isOwn {
+                        // Not a switch, but it ends a burst: an app still settling never ended up in front.
+                        cancelPending()
+                    } else {
                         activated(app)
                     }
                 }
@@ -205,9 +214,12 @@ public final class AppLayerSwitcher {
 
     // MARK: Switching
 
-    /// Only the last of a burst of activations is acted on, once it has stayed in front for ``settle``.
+    /// Only the last of a burst of activations is acted on, once it has stayed in front for ``settle``. Coming back to the
+    /// app that last settled (from Sextant, or at the end of a burst) isn't a switch and sends nothing, so a layer chosen
+    /// in Sextant meanwhile, or a rule changed there, holds until the user really changes apps.
     private func activated(_ app: MacApp) {
-        pending?.cancel()
+        cancelPending()
+        guard app != frontmost else { return }
         let clock = clock
         pending = Task { [weak self] in
             do { try await clock.sleep(for: Self.settle) } catch { return }
@@ -218,6 +230,12 @@ public final class AppLayerSwitcher {
             frontmost = app
             move(for: app, leaving: previous)
         }
+    }
+
+    /// Drops the move of an app that hasn't settled, or is waiting for the keys to come up.
+    private func cancelPending() {
+        pending?.cancel()
+        pending = nil
     }
 
     /// Waits until no key is held. A move under a held layer key turns its layer off (layer_move), so the key's release
@@ -244,7 +262,7 @@ public final class AppLayerSwitcher {
         let byOwnRule = rules(for: running.entry.id).target(activated: app.bundleID, previous: nil, in: running.layout) == layer
         nextSwitchID += 1
         let entry = Switch(
-            id: nextSwitchID, app: app.name, left: byOwnRule ? nil : previous?.name,
+            id: nextSwitchID, layoutID: running.entry.id, app: app.name, left: byOwnRule ? nil : previous?.name,
             layerName: running.layout.layers[layer].title, date: now())
         history = Array(([entry] + history).prefix(Self.historyLimit))
     }

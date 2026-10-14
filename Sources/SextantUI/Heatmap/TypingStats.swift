@@ -44,6 +44,23 @@ enum TypingStatsSource {
         case let .fixed(stats): stats
         }
     }
+
+    /// Whether the line shows, read without the counts: the panel lays out around the line, which redraws itself.
+    @MainActor var isShown: Bool {
+        switch self {
+        case let .recorder(recorder): recorder.status != .off
+        case .fixed: true
+        }
+    }
+
+    /// The line says recording waits for a password field, which then says secure input is on for the mini map too.
+    @MainActor var isPausedForSecureInput: Bool {
+        let pause = HeatmapRecorder.Status.waiting(.secureInput)
+        return switch self {
+        case let .recorder(recorder): recorder.status == pause
+        case let .fixed(stats): stats.pause == pause.text(recordsThisLayout: nil)
+        }
+    }
 }
 
 /// One line under the mini map, or nothing while recording is off. It redraws itself every few seconds, so words per

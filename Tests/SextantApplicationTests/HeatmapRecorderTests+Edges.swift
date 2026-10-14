@@ -136,6 +136,51 @@ extension HeatmapRecorderTests {
         #expect(await heat.stored(id)[layout.layers[1].id] == [16: 1])
     }
 
+    /// A link session that ends with the keyboard still connected (a failed write) keeps the status at recording; the next
+    /// session's pairing reports the layer it finds, which isn't a move. A move from there is.
+    @Test func theFirstLayerAfterASessionReopensIsNotAMove() async throws {
+        let id = try await knownKeyboard()
+        let recorder = recorder(on: true)
+        #expect(await goLive())
+        type(13)
+        #expect(await eventually { recorder.counted == 1 })
+        link.send(.ended(.io("write failed")))
+        #expect(await eventually { !live.canSend })
+        #expect(recorder.status == .recording(id), "the keyboard is still connected")
+        await clock.advance(by: .seconds(2))
+        #expect(await eventually { link.sessionCount == 2 })
+        link.send(.layer(2))
+        #expect(
+            await eventually {
+                await clock.advance(by: .milliseconds(17))
+                return live.canSend && live.activeLayer == 2
+            })
+        type(16)
+        #expect(await eventually { recorder.counted == 2 })
+        await recorder.flush()
+        #expect(await heat.entries(id).isEmpty, "where the pairing found the keyboard")
+
+        // The same again, pairing on the layer it was on: that report still comes, so the move after it counts.
+        link.send(.ended(.io("write failed")))
+        #expect(await eventually { !live.canSend })
+        await clock.advance(by: .seconds(2))
+        #expect(await eventually { link.sessionCount == 3 })
+        link.send(.layer(2))
+        #expect(
+            await eventually {
+                await clock.advance(by: .milliseconds(17))
+                return live.canSend
+            })
+        link.send(.layer(1))
+        #expect(
+            await eventually {
+                await clock.advance(by: .milliseconds(17))
+                return live.activeLayer == 1
+            })
+        await recorder.flush()
+        #expect(await heat.entries(id) == [layout.layers[1].id: 1])
+    }
+
     /// Only Sextant's Move to Trash drops counts: a package that fails to read for now leaves the library but keeps them.
     @Test func aLayoutThatOnlyFailsToReadKeepsItsCounts() async throws {
         let id = try await knownKeyboard()

@@ -78,6 +78,14 @@ extension Scenes {
         let board = await window(entry.id, live, onKeyboard, switcher)
         board.destination = .layer(1)
         scenes.append(SnapshotScene("app-layers-lane-light", size: full) { LayoutWindow(model: board, layoutID: .constant(entry.id)) })
+        // Beside the Lighting lens's tools in the narrowest window: the rule keeps its layer's name.
+        let painting = await window(entry.id, live, onKeyboard, switcher)
+        painting.destination = .layer(1)
+        painting.lens = .lighting
+        scenes.append(
+            SnapshotScene("app-layers-lane-lighting-min-light", size: CGSize(width: 1120, height: 640)) {
+                LayoutWindow(model: painting, layoutID: .constant(entry.id))
+            })
 
         // The same rules with the keyboard plugged in and Live View off.
         let plugged = PluggedInKeyboard(serial: "KlgM7/40xJ7M")
@@ -91,12 +99,19 @@ extension Scenes {
         let paused = await window(entry.id, liveOff, offKeyboard, offSwitcher)
         scenes += SnapshotScene.pair("app-layers-paused", size: full) { LayoutWindow(model: paused, layoutID: .constant(entry.id)) }
 
-        // The menu bar panel's App Layers row.
+        scenes += menuBarPanels(layout)
+        return scenes + (await troubles(root: fixtures.appending(path: "app-layers-troubles"), data: data, live: live))
+    }
+
+    /// The menu bar panel's App Layers row: with tiles, with rows (one fewer under the row), and with the Heatmap's typing
+    /// line too.
+    private static func menuBarPanels(_ layout: KeyboardLayout) -> [SnapshotScene] {
+        // With tiles.
         let state = MenuBarPanelState(
             keyboard: .live, running: "\(layout.title), revision 1", layout: layout, layer: 1, buildTarget: layout.title,
             appLayers: MenuBarPanelState.AppLayers(detail: "Xcode → Sym+Num", isOn: true))
         let size = NSHostingView(rootView: MenuBarPanelContent(state: state)).fittingSize
-        scenes += SnapshotScene.pair("menubar-panel-app-layers", size: size, chrome: .content) { MenuBarPanelContent(state: state) }
+        var scenes = SnapshotScene.pair("menubar-panel-app-layers", size: size, chrome: .content) { MenuBarPanelContent(state: state) }
         // With rows, which show one fewer under the row; paused, as while Live View pairs again.
         let twelve = twelveLayers(layout)
         let list = MenuBarPanelState(
@@ -106,7 +121,18 @@ extension Scenes {
         let listSize = NSHostingView(rootView: MenuBarPanelContent(state: list)).fittingSize
         scenes.append(
             SnapshotScene("menubar-panel-app-layers-list-light", size: listSize, chrome: .content) { MenuBarPanelContent(state: list) })
-        return scenes + (await troubles(root: fixtures.appending(path: "app-layers-troubles"), data: data, live: live))
+        // And with heatmap recording's typing line, one row fewer again; during secure input, which the line then says
+        // for the mini map too. The tallest the panel gets.
+        let secure = MenuBarPanelState(
+            keyboard: .live, running: "Twelve layers, revision 4", layout: twelve, layer: 5,
+            shortcuts: Dictionary(uniqueKeysWithValues: (0..<10).map { ($0, "⌃⌥\($0)") }), isSecureInputOn: true,
+            buildTarget: twelve.title, appLayers: MenuBarPanelState.AppLayers(detail: "Xcode → Sym+Num", isOn: true))
+        let typing = TypingStats(today: 12_408, wordsPerMinute: 0, pause: "Paused while you type in a password field")
+        let typingSize = NSHostingView(rootView: MenuBarPanelContent(state: secure, typingStats: typing)).fittingSize
+        scenes += SnapshotScene.pair("menubar-panel-app-layers-typing", size: typingSize, chrome: .content) {
+            MenuBarPanelContent(state: secure, typingStats: typing)
+        }
+        return scenes
     }
 
     /// The page when a rule change didn't save, then when a rule's layer was deleted from the working copy though the
