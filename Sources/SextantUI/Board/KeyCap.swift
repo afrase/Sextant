@@ -172,11 +172,12 @@ struct KeyCap: View, Equatable {
             content
                 .opacity(model.isGhost && !model.isActivator ? 0.4 : 1)
                 .padding(.horizontal, 0.06 * u)
-            corners
         }
         .foregroundStyle(ink.primary, ink.secondary)
         .background { halo }
         .overlay { rings }
+        // Above the rings: the corner badges sit across the cap's corner, where a ring's arc would cross their glyphs.
+        .overlay { corners.foregroundStyle(ink.primary, ink.secondary) }
         .scaleEffect(isPressed && !reduceMotion ? 0.96 : 1)
         .animation(isPressed ? nil : SextantMotion.keyRelease, value: isPressed)
         .opacity(min(model.isDimmed ? 0.35 : 1, model.decoration.opacity))

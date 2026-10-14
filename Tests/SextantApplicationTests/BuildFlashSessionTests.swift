@@ -466,6 +466,38 @@ struct BuildFlashSessionTests {
     }
 }
 
+extension BuildFlashSessionTests {
+    /// Quitting waits while the keyboard is written and verified: a quit while verifying would lose the flash's revision,
+    /// and with it which layout the keyboard runs.
+    @Test func quittingWaitsThroughTheWriteAndTheVerify() async throws {
+        let live = LiveSession(watcher: watcher, link: FakeKeyboardLink(), clock: TestClock()) { false }
+        let library = Library(store: store)
+        let entry = try await library.importOryxJSON(Fixtures.userLayoutData)
+        let document = try await library.open(entry.id, autosaveDelay: .milliseconds(1))
+        let flasher = FakeFlasher(holds: true)
+        let session = BuildFlashSession(
+            session: document, library: store, generator: FakeGenerator(), toolchain: FakeToolchain(), watcher: watcher,
+            flasher: flasher, md5: { _ in "d41d8cd9" }, clock: clock, issues: { _ in [] }, live: live)
+        session.buildAndFlash(connectedKeyboard: .voyager(serial: "KlgM7/40xJ7M"))
+        #expect(await eventually { session.phase == .waitingForFlashMode(stillWaiting: false) && watcher.subscriberCount == 1 })
+        #expect(!live.isWritingFirmware, "waiting for flash mode doesn't hold a quit")
+        watcher.attach(.bootloader(.stm32()))
+        #expect(
+            await eventually {
+                await clock.advance(by: .milliseconds(100))
+                return session.phase == .erasing(done: 1, total: 2)
+            })
+        #expect(live.isWritingFirmware)
+        flasher.release()
+        #expect(await eventually { session.phase == .verifying })
+        #expect(live.isWritingFirmware, "verifying holds it too")
+        watcher.detach(9)
+        watcher.attach(.keyboard(.voyager(id: 2, serial: "KlgM7/40xJ7M")))
+        #expect(await eventually { isDone(session) })
+        #expect(!live.isWritingFirmware && document.revisions.last?.source == .flash)
+    }
+}
+
 extension BuildFlashSession.Phase {
     var error: BuildFlashError? { if case let .failed(e) = self { e } else { nil } }
 }

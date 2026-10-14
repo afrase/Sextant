@@ -330,7 +330,12 @@ struct QMKGeneratorTests {
         }
         layout.settings["enableSpaceCadet"] = .bool(true)
         let files = try QMKGenerator().generate(layout, identity: identity).files
-        #expect(files["rules.mk"]?.contains("SPACE_CADET_ENABLE = yes") == true && files["keymap.c"]?.contains("    KC_LSPO,") == true)
+        // The pinned QMK declares only SC_LSPO, not the legacy KC_LSPO, so the keymap uses that.
+        #expect(files["rules.mk"]?.contains("SPACE_CADET_ENABLE = yes") == true && files["keymap.c"]?.contains("    SC_LSPO,") == true)
+        #expect(files["keymap.c"]?.contains("KC_LSPO") == false)
+        layout.settings["autoshift"] = .bool(true)
+        layout.updateKey(layer: 1, index: 3) { $0 = Key("KC_ASTG") }
+        #expect(try QMKGenerator().generate(layout, identity: identity).files["keymap.c"]?.contains("    AS_TOGG,") == true)
     }
 
     /// Imported layouts are untrusted: their text is pasted into C, and their numbers feed arithmetic.

@@ -128,11 +128,11 @@ extension EditSession {
         guard copied.fitsPositions(of: layout), layout.layers.indices.contains(l), !entries.isEmpty else { return false }
         let indices = entries.map(\.index)
         let name = entries.count == 1 ? String(localized: "Paste Key") : String(localized: "Paste \(entries.count) Keys")
-        edit(name) { doc in
+        // Selected in `edit` too, so redo selects them again; undo keeps the selection from before, as for any edit.
+        edit(name, select: { $0.select(keys: indices, anchor: indices.first) }) { doc in
             for entry in entries { doc.updateKey(layer: l, index: entry.index) { $0 = entry.key } }
         }
-        // Outside `edit`, which stops at an edit that changes nothing: the keys show where the paste went either way.
-        // The undo snapshot keeps the selection from before, as for any edit.
+        // And outside `edit`, which stops at an edit that changes nothing: the keys show where the paste went either way.
         select(keys: indices, anchor: indices.first)
         return true
     }

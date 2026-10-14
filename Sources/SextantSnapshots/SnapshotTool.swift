@@ -2,6 +2,8 @@
 //
 //   swift run SextantSnapshots <output-dir> [--only window-light,board-main-dark] [--scale 2] [--list]
 //
+// More than `batchSize` scenes render in batches, each in a process of its own.
+//
 // Scenes use the real adapters: the user's Oryx layout is imported into a throwaway library.
 
 import ArgumentParser
@@ -42,7 +44,29 @@ struct SnapshotTool: AsyncParsableCommand {
             let names = Set(only.split(separator: ",").map(String.init))
             scenes = scenes.filter { names.contains($0.name) }
         }
+        guard scenes.count <= Self.batchSize else { return try renderInBatches(scenes.map(\.name)) }
         try SnapshotRunner.run(scenes: scenes, outputDirectory: URL(fileURLWithPath: output, isDirectory: true), scale: scale)
+    }
+
+    /// Most scenes one process renders. SwiftUI and AppKit keep state per process: one process rendering the whole
+    /// list aborted after about 180 scenes, in AttributeGraph or in a window's layout, while each scene renders alone.
+    static let batchSize = 60
+
+    /// Renders the scenes in batches, each in a process of its own (this tool again, with `--only`).
+    private func renderInBatches(_ names: [String]) throws {
+        guard let tool = Bundle.main.executableURL else { throw ValidationError("Can't find this tool's executable") }
+        for start in stride(from: 0, to: names.count, by: Self.batchSize) {
+            let batch = names[start..<min(start + Self.batchSize, names.count)]
+            let process = Process()
+            process.executableURL = tool
+            process.arguments = [output, "--only", batch.joined(separator: ","), "--scale", "\(scale)"]
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else {
+                FileHandle.standardError.write(Data("snapshot: the batch from \(batch.first ?? "") failed\n".utf8))
+                throw ExitCode(process.terminationStatus)
+            }
+        }
     }
 }
 

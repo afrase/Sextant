@@ -69,6 +69,49 @@ struct ComboTests {
         #expect(others.allSatisfy { $0.severity == .error }, "only rolling neighbors is a warning")
     }
 
+    /// Two keys of one combo typing one keycode share a place in QMK's combo, which then never fires: Sym+Num types *
+    /// at 15 and 42. Aliases are the same keycode; keys a combo can't use have their own issue.
+    @Test func twoKeysTypingOneKeycodeAreAnError() throws {
+        var layout = try self.layout(
+            Combo(id: "stars", keyIndices: [15, 42, 13], layer: 1, output: .code("KC_ESCAPE")),
+            Combo(id: "see-through", keyIndices: [12, 24], layer: 1, output: .code("KC_B")))
+        #expect(layout.key(layer: 1, index: 15) == layout.key(layer: 1, index: 42))
+        #expect(kinds(layout, "stars") == [.comboKeyRepeated(42)])
+        #expect(!kinds(layout, "see-through").contains(.comboKeyRepeated(24)), "both transparent: that issue says it")
+        layout.updateKey(layer: 0, index: 20) { $0 = Key(tap: .code("KC_ENTER")) }
+        layout.updateKey(layer: 0, index: 21) { $0 = Key(tap: .code("KC_ENT")) }
+        layout.addCombo(Combo(id: "enters", keyIndices: [20, 21], layer: 0, output: .code("KC_A")))
+        #expect(kinds(layout, "enters").contains(.comboKeyRepeated(21)))
+        // A mod-tap is one keycode wherever it sits; any other dual-function key the generator numbers per key.
+        let modTap = Key(tap: .code("KC_A"), hold: .code("KC_LEFT_SHIFT"))
+        let dual = Key(tap: .code("KC_A"), hold: KeyAction(code: "KC_LEFT_SHIFT", modifiers: .leftControl))
+        layout.updateKey(layer: 0, index: 20) { $0 = modTap }
+        layout.updateKey(layer: 0, index: 21) { $0 = modTap }
+        #expect(kinds(layout, "enters").contains(.comboKeyRepeated(21)))
+        layout.updateKey(layer: 0, index: 20) { $0 = dual }
+        layout.updateKey(layer: 0, index: 21) { $0 = dual }
+        #expect(!kinds(layout, "enters").contains(.comboKeyRepeated(21)))
+    }
+
+    /// Mod-taps and layer-taps compile to the same keycode at any spot, so two combos on them listen for the same keys;
+    /// dual-function keys QMK can't write as one keycode are numbered per key, so theirs differ.
+    @Test func modTapsAndLayerTapsAreSharedKeycodes() throws {
+        var layout = try self.layout(
+            Combo(id: "a", keyIndices: [20, 13], layer: 0, output: .code("KC_ESCAPE")),
+            Combo(id: "b", keyIndices: [21, 13], layer: 0, output: .code("KC_TAB")),
+            Combo(id: "c", keyIndices: [22, 23], layer: 0, output: .code("KC_B")),
+            Combo(id: "d", keyIndices: [22, 23], layer: 1, output: .code("KC_C")))
+        for index in [20, 21] { layout.updateKey(layer: 0, index: index) { $0 = Key(tap: .code("KC_Q"), hold: .code("KC_LEFT_SHIFT")) } }
+        for layer in [0, 1] {
+            layout.updateKey(layer: layer, index: 22) { $0 = Key(tap: .code("KC_BSPC")) }
+            layout.updateKey(layer: layer, index: 23) { $0 = Key(tap: .code("KC_SPACE"), hold: .momentary(2)) }
+        }
+        for id in ["a", "b", "c", "d"] { #expect(kinds(layout, id).contains(.duplicateComboTrigger), "\(id)") }
+        let dual = Key(tap: .code("KC_Q"), hold: KeyAction(code: "KC_LEFT_SHIFT", modifiers: .leftControl))
+        for index in [20, 21] { layout.updateKey(layer: 0, index: index) { $0 = dual } }
+        #expect(!kinds(layout, "a").contains(.duplicateComboTrigger) && !kinds(layout, "b").contains(.duplicateComboTrigger))
+    }
+
     @Test func keysSideBySideInARowAreRollingNeighbors() throws {
         let layout = try self.layout(
             Combo(id: "jk", keyIndices: [40, 39], output: .code("KC_ESCAPE")),

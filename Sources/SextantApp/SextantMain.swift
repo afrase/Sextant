@@ -86,8 +86,8 @@ struct SextantMain: App {
     }
 }
 
-/// Quitting waits for a firmware write (spec §7.4: it can't be stopped) and for open documents' pending autosaves (each
-/// lands up to a second after the last edit), and asks first when an edit couldn't be saved.
+/// Quitting waits for a firmware write and its verify (spec §7.4: neither can be stopped) and for open documents' pending
+/// autosaves (each lands up to a second after the last edit), and asks first when an edit couldn't be saved.
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var library: Library?
     var live: LiveSession?
@@ -99,12 +99,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             // SwiftUI reports the focus change on a later run-loop turn; let one pass first.
             await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
-            // A cut-off write leaves the keyboard in flash mode. The flasher's capped polling and timeouts bound the wait.
-            while live?.isWritingFirmware == true { try? await Task.sleep(for: .milliseconds(200)) }
+            await waitForFirmwareWrite()
             let saved = await library.flushOpenSessions()
-            sender.reply(toApplicationShouldTerminate: saved || Self.quitAnyway())
+            let quits = saved || Self.quitAnyway()
+            // A run waiting for flash mode may have started writing while the flush awaited the disk. No await follows
+            // this wait, so nothing can start between it and the reply.
+            if quits { await waitForFirmwareWrite() }
+            sender.reply(toApplicationShouldTerminate: quits)
         }
         return .terminateLater
+    }
+
+    /// A cut-off write leaves the keyboard in flash mode, and a cut-off verify loses the record of what was flashed. The
+    /// flasher's capped polling and timeouts, and the 10 s verify timeout, bound the wait.
+    @MainActor private func waitForFirmwareWrite() async {
+        while live?.isWritingFirmware == true { try? await Task.sleep(for: .milliseconds(200)) }
     }
 
     @MainActor private static func quitAnyway() -> Bool {

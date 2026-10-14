@@ -152,6 +152,20 @@ public enum KeycodeCatalog {
         }
     }
 
+    /// QMK's basic keycodes (`KC_A`…`KC_EXSEL`), the only taps `MT()` and `LT()` can carry.
+    public static func isBasic(_ code: String) -> Bool {
+        let c = canonicalCode(code)
+        return basicCodes.contains(c) || c.wholeMatch(of: /KC_([A-Z0-9]|F[0-9]+|KP_\w+|INTERNATIONAL_[1-9]|LANGUAGE_[1-9])/) != nil
+    }
+
+    private static let basicCodes: Set<String> = [
+        "KC_ENTER", "KC_ESCAPE", "KC_BSPC", "KC_TAB", "KC_SPACE", "KC_MINUS", "KC_EQUAL", "KC_LBRC", "KC_RBRC", "KC_BSLS",
+        "KC_NONUS_HASH", "KC_SCLN", "KC_QUOTE", "KC_GRAVE", "KC_COMMA", "KC_DOT", "KC_SLASH", "KC_CAPS", "KC_PSCR", "KC_SCRL",
+        "KC_PAUSE", "KC_INSERT", "KC_HOME", "KC_PAGE_UP", "KC_DELETE", "KC_END", "KC_PGDN", "KC_RIGHT", "KC_LEFT", "KC_DOWN",
+        "KC_UP", "KC_NUM_LOCK", "KC_NONUS_BACKSLASH", "KC_APPLICATION", "KC_FIND", "KC_UNDO", "KC_AGAIN", "KC_CUT", "KC_COPY",
+        "KC_PASTE",
+    ]
+
     // MARK: Search
 
     /// A ranked search result.

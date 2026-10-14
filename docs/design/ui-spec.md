@@ -897,7 +897,7 @@ The picker is the command palette component in **assign scope**.
 - Combo window: "50 ms, every combo · Firmware Settings ›".
 - Warnings:
   - "Keys J and K are rolling neighbors" (keys side by side on one row of one half): "Fast typing may set this combo off by accident."
-  - Another combo listening for the same keycodes (from any layer: QMK matches keycodes), more than 6 keys, and a transparent, disabled or tap-dance key.
+  - Another combo listening for the same keycodes (from any layer: QMK matches keycodes), more than 6 keys, a transparent, disabled or tap-dance key, and two keys typing the same keycode (QMK finds both presses at one place, so the combo never fires).
 - [Edit Keys…] and [Delete Combo].
 
 **Combo colours** are Sextant's own categorical palette (§10.1).
@@ -917,7 +917,7 @@ The picker is the command palette component in **assign scope**.
 
 - **Build & Flash** (⌘R) is the toolbar button and the Keyboard menu item. It is also in the menu bar extra (v1).
 - **Build** (⌘B) compiles and measures without flashing. The capsule then reads "Built · 65,786 B". Clicking the capsule offers [Flash…].
-- **Stop** (⌘.) works while building or waiting for flash mode. It is disabled during erase, write and verify.
+- **Stop** (⌘.) works while building or waiting for flash mode. It is disabled during erase, write and verify, and quitting waits for them, so a quit never cuts off the write or the record of what was flashed.
 - **Flash Oryx's Build of This Revision…** is available when the document's content hash equals an imported revision. It needs no toolchain. Oryx's build is md5-verified at download.
 
 ### 7.2 Sheet anatomy
@@ -1294,7 +1294,7 @@ The HUD is hidden during secure input, in full-screen video (when the screen is 
 | Undo *Action* / Redo *Action* | ⌘Z / ⇧⌘Z | System group, not replaced. Text fields keep their own undo |
 | Cut / Copy / Paste | ⌘X ⌘C ⌘V | With board focus these act on keys (v1). Otherwise standard |
 | Make Transparent | ⌘⌫ | Also ⌫ with board focus |
-| Find Key… | ⌘F | Palette, keys scope. On the Firmware Settings page it reads Find Setting… and focuses its search |
+| Find Key… | ⌘F | Palette, keys scope. On the Firmware Settings page it reads Find Setting…, closes the palette and focuses its search |
 | Command Palette | ⌘K (alias ⇧⌘O) | |
 
 **View**

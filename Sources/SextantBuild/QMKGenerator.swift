@@ -115,6 +115,11 @@ struct KeymapPlan {
                 case nil: keys.append(tokens[layer][index])
                 }
             }
+            // QMK finds both presses of one keycode at one place in the list, so the combo would never fire.
+            if let index = layout.comboRepeatedKey(combo) {
+                throw .unsupported(
+                    String(localized: "a combo with two keys that type the same keycode"), KeyRef(layer: layer, index: index))
+            }
             try note(combo.output, at: nil)
             combos.append(ComboKeys(keys: keys, output: try expression(combo.output, at: nil)))
         }
@@ -185,6 +190,9 @@ struct KeymapPlan {
         case "ALL_T": return QMKCodes.wrap("KC_HYPR", action.modifiers)
         case "MEH_T": return QMKCodes.wrap("KC_MEH", action.modifiers)
         case "OSM": return "OSM(\(QMKCodes.mask(action.modifiers)))"
+        // The setting-gated families go by their QMK names: the pinned QMK defines no legacy alias for them, so a
+        // stored KC_LSPO or KC_ASTG would not compile.
+        case let code where code.hasPrefix("SC_") || code.hasPrefix("AS_"): return QMKCodes.wrap(code, action.modifiers)
         case "RGB":
             guard let color = action.color else { throw .unsupported(String(localized: "a color key without a color"), ref) }
             let hsv = QMKCodes.HSV(color)

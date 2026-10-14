@@ -389,6 +389,8 @@ public final class BuildFlashSession {
         guard let artifact, let identity, let builtLayout else { return }
         guard live?.claimFlashMode(for: session.id, owner: self) ?? true else { return fail(.flashingElsewhere) }
         defer { live?.releaseFlashMode(owner: self) }
+        // `write` raises it; it stays up through verifying, until the flash is recorded or fails.
+        defer { live?.isWritingFirmware = false }
         show(.waitingForFlashMode(stillWaiting: false))
         let (inputs, feed) = AsyncStream.makeStream(of: Input.self)
         let forward = Task { for await event in watcher.events(for: board) { feed.yield(.device(event)) } }
@@ -442,10 +444,10 @@ public final class BuildFlashSession {
         }
     }
 
-    /// Validates the image for this bootloader, then writes it. Progress reaches the phase in order.
+    /// Validates the image for this bootloader, then writes it. Progress reaches the phase in order. Quitting waits from
+    /// here until `flashAndVerify` returns, so a quit never cuts off the write or the record of what was flashed.
     private func write(_ artifact: BuildArtifact, to device: BootloaderDevice) async -> Bool {
         live?.isWritingFirmware = true
-        defer { live?.isWritingFirmware = false }
         show(.validating)
         let image = FirmwareImage(data: artifact.image)
         do {
