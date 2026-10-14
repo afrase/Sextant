@@ -169,7 +169,9 @@ public final class LiveSession {
     }
 
     /// Everything the keyboard reports from now on, as it reports it: before the 60 Hz coalescing, so a tap shorter
-    /// than a frame still arrives. Nothing arrives while secure input is on. Ends when the consumer stops.
+    /// than a frame still arrives. Nothing arrives while secure input is on. Every key-down gets its key-up: when secure
+    /// input hides an event, or the session ends, a key-up arrives for each key still down, and after secure input the
+    /// next layer report arrives even if it repeats the last one. Ends when the consumer stops.
     public func activity() -> AsyncStream<LiveActivity> {
         let (stream, continuation) = AsyncStream.makeStream(of: LiveActivity.self)
         let id = UUID()
@@ -247,7 +249,7 @@ public final class LiveSession {
         while !Task.isCancelled {
             // Each session gets its own command feed, so a command never reaches a later session.
             let (commands, feed) = AsyncStream.makeStream(of: KeyboardCommand.self)
-            let (activity, tap) = AsyncStream.makeStream(of: LiveActivity.self)
+            let (activity, tap) = AsyncStream.makeStream(of: LiveActivity?.self)
             async let delivered: Void = deliver(activity, from: device)
             let events = link.session(with: device, board: board, commands: commands)
             let final = await clock.publish(events, board: board, tap: tap, secureInput: secureInputProbe) { state in
@@ -281,16 +283,36 @@ public final class LiveSession {
     }
 
     /// Hands one session's activity to every ``activity()`` stream, except during secure input: asked per event,
-    /// because the once-a-second poll would let the first keys typed into a password field through.
-    private func deliver(_ activity: AsyncStream<LiveActivity>, from device: KeyboardDevice) async {
-        for await event in activity where keyboard == device && !secureInputProbe() {
-            // Every pairing reports the layer again (each reconnect, and the resync after a layer move).
-            if case let .layer(layer) = event {
+    /// because the once-a-second poll would let the first keys typed into a password field through. A nil event is one
+    /// the session hid for secure input as it arrived.
+    private func deliver(_ activity: AsyncStream<LiveActivity?>, from device: KeyboardDevice) async {
+        // The keys subscribers saw go down and not yet up.
+        var down: Set<Int> = []
+        for await event in activity where keyboard == device {
+            guard let event, !secureInputProbe() else {
+                // Subscribers can't follow what is hidden: their keys may come up unseen, and their layer may change.
+                releaseKeys(&down)
+                deliveredLayer = nil
+                continue
+            }
+            switch event {
+            case let .layer(layer):
+                // Every pairing reports the layer again (each reconnect, and the resync after a layer move).
                 guard layer != deliveredLayer else { continue }
                 deliveredLayer = layer
+            case let .keyDown(index, _): down.insert(index)
+            case let .keyUp(index): down.remove(index)
+            case .lighting, .refused: break
             }
             subscribers.values.forEach { $0.yield(event) }
         }
+        // The session ended: its keys' key-ups will never come.
+        if keyboard == device { releaseKeys(&down) }
+    }
+
+    private func releaseKeys(_ down: inout Set<Int>) {
+        for index in down.sorted() { subscribers.values.forEach { $0.yield(.keyUp(index: index)) } }
+        down = []
     }
 }
 
@@ -311,19 +333,20 @@ public enum LiveActivity: Hashable, Sendable {
 extension Clock where Duration == Swift.Duration {
     /// Folds a link session's events into state and calls `body` with it debounced by 1/60 s on this clock: a
     /// burst collapses into one update, updates come at most 60 times a second, and nothing runs while the
-    /// keyboard is idle. `tap` gets each event's ``LiveActivity`` as it is folded in, undebounced. Returns the final
-    /// state. A method so it can be called on an `any Clock` (passing one to a generic parameter doesn't compile in
-    /// this module).
+    /// keyboard is idle. `tap` gets each event's ``LiveActivity`` as it is folded in, undebounced, or nil when secure
+    /// input hides it. Returns the final state. A method so it can be called on an `any Clock` (passing one to a generic
+    /// parameter doesn't compile in this module).
     /// shortcut: during a burst with gaps under 1/60 s the update waits for the pause; move to a leading-and-trailing
     /// throttle if that lag ever shows.
     fileprivate func publish(
-        _ events: AsyncStream<LiveEvent>, board: BoardDefinition, tap: AsyncStream<LiveActivity>.Continuation,
+        _ events: AsyncStream<LiveEvent>, board: BoardDefinition, tap: AsyncStream<LiveActivity?>.Continuation,
         secureInput: @escaping @Sendable () -> Bool, to body: @MainActor (LinkState) -> Void
     ) async -> LinkState {
         var last = LinkState()
         let states = events.reductions(into: LinkState()) { state, event in
             // Asked as the event arrives, so a press made during secure input never waits for the main actor.
-            if let activity = state.apply(event, board: board), !secureInput() { tap.yield(activity) }
+            // Hidden as nil, so the subscribers learn that something happened without what.
+            if let activity = state.apply(event, board: board) { tap.yield(secureInput() ? nil : activity) }
         }
         for await state in states.debounce(for: .seconds(1) / 60, clock: self) {
             last = state

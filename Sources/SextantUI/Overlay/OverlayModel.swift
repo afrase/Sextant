@@ -68,14 +68,9 @@ final class OverlayModel {
             update()
         }
     }
-    /// Secure input is on: nothing shows, and the keys held are forgotten, since their key-ups won't arrive.
-    var isSecureInputOn = false {
-        didSet {
-            guard isSecureInputOn != oldValue else { return }
-            if isSecureInputOn { held = [:] }
-            update()
-        }
-    }
+    /// Secure input is on: nothing shows. The keys held stay as they are: the activity releases them itself once it
+    /// hides an event (``LiveSession/activity()``).
+    private(set) var isSecureInputOn = false
     /// Keys held down, for the map: none while secure input is on.
     var pressedKeys: Set<Int> { isSecureInputOn ? [] : Set(held.keys) }
 
@@ -108,6 +103,16 @@ final class OverlayModel {
         case let .layer(layer): (self.layer, released) = (layer, nil)
         case .lighting, .refused: return
         }
+        update()
+    }
+
+    /// Secure input turned on or off, with the keyboard's layer as the session last saw it. Layer changes don't arrive
+    /// during secure input, so when it ends the model takes the session's layer; a layer reached meanwhile is
+    /// unexplained (the keys pressed then were hidden), so it counts as gone, not as locked, until the next report.
+    func secureInput(_ on: Bool, layer keyboardLayer: Int?) {
+        guard on != isSecureInputOn else { return }
+        isSecureInputOn = on
+        if !on, let keyboardLayer, keyboardLayer != layer { (layer, released) = (keyboardLayer, keyboardLayer) }
         update()
     }
 
@@ -153,8 +158,8 @@ final class OverlayModel {
         }
     }
 
-    /// Shows or hides now, or after the delay: a held layer waits for `delay`, unless the HUD already shows; a lock waits
-    /// for `delay` and at least ``lockSettle``. Hiding never waits.
+    /// Shows or hides now, or after the delay: a held layer waits for `delay`, unless the HUD already shows a held
+    /// layer; a lock waits for `delay` and at least ``lockSettle``. Hiding never waits.
     private func update() {
         let target = wanted
         guard target != presentation else { return cancelPending() }
@@ -163,8 +168,12 @@ final class OverlayModel {
             presentation = nil
             return
         }
+        // From a lock's reminder or overlay a quick tap of a layer key would flash the full overlay: only a held layer
+        // replaces a held one at once.
         let wait: Duration =
-            if case .full(_, heldBy: _?) = target { presentation == nil ? settings.delay : .zero } else {
+            if case .full(_, heldBy: _?) = target {
+                if case .full(_, heldBy: _?) = presentation { .zero } else { settings.delay }
+            } else {
                 max(settings.delay, Self.lockSettle)
             }
         guard wait > .zero else {

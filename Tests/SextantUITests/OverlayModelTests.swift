@@ -168,20 +168,65 @@ struct OverlayModelTests {
         model.handle(.keyDown(index: 24, layer: 0))
         model.handle(.layer(1))
         await advance(150)
-        model.isSecureInputOn = true
+        model.secureInput(true, layer: 1)
         #expect(model.presentation == nil)
         #expect(model.pressedKeys.isEmpty)
-        // The HUD catches up with the layer the session saw meanwhile (OverlayHUD): ⏎ was let go during secure input.
-        model.isSecureInputOn = false
-        model.handle(.layer(0))
-        await advance(500)
-        #expect(model.presentation == nil)
+        // Nothing was hidden meanwhile, so ⏎ is still held: the overlay comes back after the delay.
+        model.secureInput(false, layer: 1)
+        await advance(150)
+        #expect(model.presentation == .full(layer: 1, heldBy: KeyRef(layer: 0, index: 24)))
 
         model.isLive = false
         #expect(model.presentation == nil)
         model.isLive = true
         await advance(500)
         #expect(model.presentation == nil, "Live View off forgets the layer until the keyboard reports it again")
+    }
+
+    /// A layer reached while secure input hid the keys is unexplained: it isn't taken for a lock, and the next report
+    /// counts. (The session releases the keys it hid and lets that report through: ``LiveSession/activity()``.)
+    @Test func aLayerReachedDuringSecureInputIsntTakenForALock() async throws {
+        let model = try model()
+        model.secureInput(true, layer: 0)
+        model.secureInput(false, layer: 1)
+        await advance(500)
+        #expect(model.presentation == nil, "the key that moved it may still be held")
+        model.handle(.layer(0))
+        model.handle(.layer(1))
+        await advance(150)
+        #expect(model.presentation == .pill(layer: 1))
+
+        // Held across secure input, with keys typed meanwhile: the session releases ⏎ for the model.
+        model.handle(.layer(0))
+        model.handle(.keyDown(index: 24, layer: 0))
+        model.handle(.layer(1))
+        await advance(150)
+        model.secureInput(true, layer: 1)
+        model.handle(.keyUp(index: 24))
+        model.secureInput(false, layer: 1)
+        await advance(500)
+        #expect(model.presentation == nil, "no reminder for a layer the model saw held")
+    }
+
+    /// From a lock's reminder, a layer key's tap shorter than the delay doesn't flash the full overlay.
+    @Test func aQuickTapFromTheReminderWaitsForTheDelay() async throws {
+        var layout = synthetic()
+        layout.layers[0].keys[1] = Key(tap: .toggle(1))
+        layout.layers[1].keys[0] = Key(tap: .momentary(2))
+        let model = try model(layout)
+        model.handle(.keyDown(index: 1, layer: 0))
+        model.handle(.layer(1))
+        model.handle(.keyUp(index: 1))
+        await advance(150)
+        #expect(model.presentation == .pill(layer: 1))
+        model.handle(.keyDown(index: 0, layer: 1))
+        model.handle(.layer(2))
+        #expect(model.presentation == .pill(layer: 1))
+        await advance(40)
+        model.handle(.keyUp(index: 0))
+        model.handle(.layer(1))
+        await advance(500)
+        #expect(model.presentation == .pill(layer: 1), "the full overlay never showed")
     }
 
     @Test func hiddenWhileAKeyWindowShowsTheSameLayer() async throws {
@@ -237,7 +282,9 @@ struct OverlayModelTests {
     }
 
     @Test func settingsAreReadWithThePanesDefaults() throws {
-        let defaults = try #require(UserDefaults(suiteName: "OverlayModelTests-\(UUID())"))
+        let suiteName = "OverlayModelTests-\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
         #expect(OverlaySettings(defaults) == OverlaySettings())
         defaults.set(false, forKey: SettingsKey.showsOverlay)
         defaults.set(990, forKey: SettingsKey.overlayDelay)

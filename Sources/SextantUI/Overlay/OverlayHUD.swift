@@ -29,26 +29,19 @@ public final class OverlayHUD {
     /// Follows the keyboard for the app's lifetime.
     public func start() {
         guard tasks.isEmpty else { return }
-        let (model, live, onKeyboard, defaults) = (model, live, onKeyboard, defaults)
+        let (model, onKeyboard) = (model, onKeyboard)
         model.settings = OverlaySettings(defaults)
-        let activity = live.activity()
-        tasks = [
-            Task { for await event in activity { model.handle(event) } },
-            Task {
-                for await now in Observations({ OverlayInputs(live: live, onKeyboard: onKeyboard) }) {
-                    // Nothing arrives during secure input, layer changes included: catch up from the session's state.
-                    if model.isSecureInputOn, !now.isSecureInputOn, let layer = live.activeLayer { model.handle(.layer(layer)) }
-                    model.keyboard = now.keyboard
-                    model.isLive = now.isLive
-                    model.isSecureInputOn = now.isSecureInputOn
+        let keyboard: @MainActor @Sendable () -> OverlayLayout? = {
+            onKeyboard.running.map { OverlayLayout(id: $0.entry.id, layout: $0.layout) }
+        }
+        tasks =
+            Self.feed(model, from: live, keyboard: keyboard) + [
+                Task { [weak self] in
+                    for await (presentation, settings) in Observations({ (model.presentation, model.settings) }) {
+                        self?.present(presentation, settings: settings)
+                    }
                 }
-            },
-            Task { [weak self] in
-                for await (presentation, settings) in Observations({ (model.presentation, model.settings) }) {
-                    self?.present(presentation, settings: settings)
-                }
-            },
-        ]
+            ]
         let center = NotificationCenter.default
         observers = [
             center.addObserver(forName: UserDefaults.didChangeNotification, object: defaults, queue: .main) { [weak self] _ in
@@ -56,6 +49,23 @@ public final class OverlayHUD {
             },
             center.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self.map { $0.present($0.model.presentation, settings: $0.model.settings) } }
+            },
+        ]
+    }
+
+    /// Feeds `model` from the live session and the keyboard's layout until the tasks are cancelled.
+    static func feed(
+        _ model: OverlayModel, from live: LiveSession, keyboard: @escaping @MainActor @Sendable () -> OverlayLayout?
+    ) -> [Task<Void, Never>] {
+        let activity = live.activity()
+        return [
+            Task { for await event in activity { model.handle(event) } },
+            Task {
+                for await now in Observations({ OverlayInputs(live: live, keyboard: keyboard()) }) {
+                    model.keyboard = now.keyboard
+                    model.isLive = now.isLive
+                    model.secureInput(now.isSecureInputOn, layer: live.activeLayer)
+                }
             },
         ]
     }
@@ -68,11 +78,13 @@ public final class OverlayHUD {
         }
         let panel = panel ?? OverlayPanel()
         self.panel = panel
-        // Under Reduce Transparency the view draws its own opaque panel; otherwise AppKit's glass sits behind it.
-        let opaque = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+        // Under Reduce Transparency or Increase Contrast the view draws its own opaque panel (HUDSurface); otherwise
+        // AppKit's glass sits behind it.
+        let workspace = NSWorkspace.shared
+        let opaque = workspace.accessibilityDisplayShouldReduceTransparency || workspace.accessibilityDisplayShouldIncreaseContrast
         let content = OverlayContent(
             model: model, presentation: presentation, layout: layout,
-            width: HUDView.width(size: settings.size, screenWidth: screen.visibleFrame.width), tints: settings.tints, onGlass: !opaque)
+            width: HUDView.width(size: settings.size, screenWidth: screen.visibleFrame.width), tints: settings.tints)
         let hosting = NSHostingView(rootView: content)
         let size = hosting.fittingSize
         if opaque {
@@ -96,10 +108,10 @@ private struct OverlayInputs: Sendable {
     var keyboard: OverlayLayout?
 
     @MainActor
-    init(live: LiveSession, onKeyboard: OnKeyboard) {
+    init(live: LiveSession, keyboard: OverlayLayout?) {
         if case .connected = live.connection { isLive = true } else { isLive = false }
         isSecureInputOn = live.isSecureInputOn
-        keyboard = onKeyboard.running.map { OverlayLayout(id: $0.entry.id, layout: $0.layout) }
+        self.keyboard = keyboard
     }
 }
 
@@ -111,15 +123,13 @@ private struct OverlayContent: View {
     var layout: KeyboardLayout
     var width: CGFloat
     var tints: Bool
-    var onGlass: Bool
 
     var body: some View {
         switch presentation {
         case let .full(layer, holder):
-            HUDView(
-                layout: layout, layer: layer, holder: holder, pressed: model.pressedKeys, width: width, tints: tints, onGlass: onGlass)
+            HUDView(layout: layout, layer: layer, holder: holder, pressed: model.pressedKeys, width: width, tints: tints)
         case let .pill(layer):
-            HUDPill(layout: layout, layer: layer, tints: tints, onGlass: onGlass)
+            HUDPill(layout: layout, layer: layer, tints: tints)
         }
     }
 }

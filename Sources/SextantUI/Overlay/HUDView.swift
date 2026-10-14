@@ -3,8 +3,8 @@ import SextantDomain
 import SwiftUI
 
 /// The overlay HUD (spec §8.4): a header with the layer's index tile, name, what holds it and the status lights, over
-/// the layer's map with the keys held down lit. Neutral glass, optionally tinted with the layer color at 20%; an opaque
-/// dark panel under Reduce Transparency.
+/// the layer's map with the keys held down lit. The panel's glass sits behind it, optionally tinted with the layer color
+/// at 20%; an opaque dark panel under Reduce Transparency and Increase Contrast.
 public struct HUDView: View {
     var layout: KeyboardLayout
     var layer: Int
@@ -13,25 +13,20 @@ public struct HUDView: View {
     var pressed: Set<Int>
     var width: CGFloat
     var tints: Bool
-    /// The panel's `NSGlassEffectView` draws the glass behind this view.
-    var onGlass: Bool
 
     public init(layout: KeyboardLayout, layer: Int, holder: KeyRef?, pressed: Set<Int>, width: CGFloat, tints: Bool = false) {
-        self.init(layout: layout, layer: layer, holder: holder, pressed: pressed, width: width, tints: tints, onGlass: false)
-    }
-
-    init(layout: KeyboardLayout, layer: Int, holder: KeyRef?, pressed: Set<Int>, width: CGFloat, tints: Bool, onGlass: Bool) {
         self.layout = layout
         self.layer = layer
         self.holder = holder
         self.pressed = pressed
         self.width = width
         self.tints = tints
-        self.onGlass = onGlass
     }
 
     static let cornerRadius: CGFloat = 24
     static let padding: CGFloat = 20
+    static let headerHeight: CGFloat = 24
+    static let spacing: CGFloat = 14
 
     /// The HUD's width on a screen `screenWidth` wide: the smaller of 720 pt and 46% of the screen at Medium, three
     /// quarters of that at Small and five quarters at Large, never closer than 16 pt to the screen's edges.
@@ -45,21 +40,26 @@ public struct HUDView: View {
         return min((min(720, screenWidth * 0.46) * scale).rounded(), screenWidth - 32)
     }
 
+    /// The HUD's height at `width` for `layout`: the map's height follows from its width, so the panel can size itself
+    /// from this view.
+    public static func height(layout: KeyboardLayout, width: CGFloat) -> CGFloat {
+        padding + headerHeight + spacing + mapHeight(layout: layout, width: width) + padding
+    }
+
+    private static func mapHeight(layout: KeyboardLayout, width: CGFloat) -> CGFloat {
+        let bounds = EditSession.geometry(of: layout).bounds
+        return ((width - 2 * padding) * bounds.height / bounds.width).rounded()
+    }
+
     public var body: some View {
-        // The map's height follows from its width, so the panel can size itself from this view.
-        let geometry = EditSession.geometry(of: layout).bounds
-        let mapWidth = width - 2 * Self.padding
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: Self.spacing) {
             header
             LayerMap(layout: layout, layer: layer, pressed: pressed)
-                .frame(width: mapWidth, height: (mapWidth * geometry.height / geometry.width).rounded())
+                .frame(width: width - 2 * Self.padding, height: Self.mapHeight(layout: layout, width: width))
         }
         .padding(Self.padding)
         .frame(width: width)
-        .modifier(
-            HUDSurface(
-                shape: RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous), tint: tint, onGlass: onGlass)
-        )
+        .modifier(HUDSurface(shape: RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous), tint: tint))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
     }
@@ -68,28 +68,36 @@ public struct HUDView: View {
     private var tint: Color? { tints ? layout.layers[safe: layer]?.color?.color : nil }
 
     private var header: some View {
+        // On a narrow screen at Small the name keeps its width first, then the state; the hint goes before either
+        // truncates.
         HStack(spacing: 10) {
             HUDIndexTile(layer: layer, color: layout.layers[safe: layer]?.color)
-            Text(verbatim: title).font(.headline).lineLimit(1)
-            Text(state).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            Text(verbatim: title).font(.headline).lineLimit(1).layoutPriority(2)
+            Text(state).font(.callout).foregroundStyle(.secondary).lineLimit(1).layoutPriority(1)
             Spacer(minLength: 12)
             LayerPips(layer: layer)
             if holder != nil {
-                Text("release to hide").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                ViewThatFits(in: .horizontal) {
+                    Text("release to hide").font(.caption).foregroundStyle(.secondary).lineLimit(1).fixedSize()
+                    Color.clear.frame(width: 0)
+                }
             }
         }
-        .frame(height: 24)
+        .frame(height: Self.headerHeight)
     }
 
-    /// "held with ⏎", or "locked".
+    /// "held with ⏎", "held" for a key whose cap names the layer, or "locked".
     private var state: String {
         guard let holder else { return String(localized: "locked") }
-        return String(localized: "held with \(Self.keyName(layout: layout, key: holder))")
+        guard let name = Self.keyName(layout: layout, key: holder) else { return String(localized: "held") }
+        return String(localized: "held with \(name)")
     }
 
-    /// What a key shows on the layer it went down on, as its cap draws it: "⏎".
-    static func keyName(layout: KeyboardLayout, key: KeyRef) -> String {
+    /// What a key shows on the layer it went down on, as its cap draws it: "⏎". Nil for a plain layer key (MO, TT,
+    /// OSL), whose cap shows the layer's name, already in the header.
+    static func keyName(layout: KeyboardLayout, key: KeyRef) -> String? {
         let resolved = layout.resolvedKey(layer: key.layer, index: key.index).effective
+        if resolved.customLabel == nil, resolved.tap?.isLayerAction == true { return nil }
         return Legends.legend(for: resolved, layerNames: layout.layerNames).primary.map(CapLegendView.capText) ?? "k\(key.index)"
     }
 
@@ -105,19 +113,13 @@ public struct HUDPill: View {
     var layout: KeyboardLayout
     var layer: Int
     var tints: Bool
-    var onGlass: Bool
 
     static let height: CGFloat = 32
 
     public init(layout: KeyboardLayout, layer: Int, tints: Bool = false) {
-        self.init(layout: layout, layer: layer, tints: tints, onGlass: false)
-    }
-
-    init(layout: KeyboardLayout, layer: Int, tints: Bool, onGlass: Bool) {
         self.layout = layout
         self.layer = layer
         self.tints = tints
-        self.onGlass = onGlass
     }
 
     public var body: some View {
@@ -130,7 +132,7 @@ public struct HUDPill: View {
         .padding(.trailing, 14)
         .frame(height: Self.height)
         .fixedSize()
-        .modifier(HUDSurface(shape: Capsule(), tint: tints ? layout.layers[safe: layer]?.color?.color : nil, onGlass: onGlass))
+        .modifier(HUDSurface(shape: Capsule(), tint: tints ? layout.layers[safe: layer]?.color?.color : nil))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(localized: "Overlay: \(title) layer locked"))
     }
@@ -156,31 +158,32 @@ private struct HUDIndexTile: View {
     }
 }
 
-/// The HUD's material (spec §10.4, §11). Glass with the optional tint, unless the panel's glass view draws it; an
-/// opaque dark panel under Reduce Transparency; in snapshots, where glass can't be captured, an opaque surface with the
-/// tint laid over it.
+/// The HUD's material (spec §8.4, §10.4, §11). The panel's `NSGlassEffectView` draws the glass and its tint, so the
+/// view draws nothing over it. Not ``SurfaceStyle``: where every other surface goes opaque in its own colors, the HUD
+/// floats over other apps' windows and turns into an opaque dark panel, untinted, under Reduce Transparency and Increase
+/// Contrast (with a stronger edge). In snapshots, where glass can't be captured, an opaque surface stands in, with the
+/// tint over it.
 private struct HUDSurface<S: InsettableShape>: ViewModifier {
     var shape: S
     var tint: Color?
-    var onGlass: Bool
     @Environment(\.isSnapshot) private var isSnapshot
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
 
     func body(content: Content) -> some View {
-        if reduceTransparency {
+        if reduceTransparency || contrast == .increased {
             content
                 .environment(\.colorScheme, .dark)
                 .background(shape.fill(Color(white: 0.12)))
-                .overlay(shape.strokeBorder(.white.opacity(0.12), lineWidth: 0.5))
+                .overlay(
+                    shape.strokeBorder(.white.opacity(contrast == .increased ? 0.6 : 0.12), lineWidth: contrast == .increased ? 1 : 0.5))
         } else if isSnapshot {
             content
                 .background(shape.fill(tint?.opacity(0.2) ?? .clear))
                 .background(shape.fill(Tokens.surface.color))
                 .overlay(shape.strokeBorder(Tokens.capEdge.color, lineWidth: 0.5))
-        } else if onGlass {
-            content
         } else {
-            content.glassEffect(tint.map { .regular.tint($0.opacity(0.2)) } ?? .regular, in: shape)
+            content
         }
     }
 }
