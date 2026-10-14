@@ -368,6 +368,45 @@ struct LiveSessionTests {
         link.send(.layer(0), .layer(2), .lighting(true), .error(0x04))
         #expect(await eventually { seen.values == [.layer(0), .layer(2), .lighting(true), .refused(0x04)] })
     }
+
+    /// What secure input hides, subscribers can't follow: the keys they saw go down come up, and the next layer report
+    /// arrives even when it repeats the last one they got.
+    @Test func secureInputReleasesTheKeysDownAndLetsTheNextLayerThrough() async {
+        let live = start()
+        let seen = Recorded<LiveActivity>()
+        let stream = live.activity()
+        let reader = Task { for await activity in stream { seen.append(activity) } }
+        defer { reader.cancel() }
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { link.sessionCount == 1 })
+        link.send(.layer(0), .keyDown(row: 5, column: 0))
+        #expect(await eventually { seen.values == [.layer(0), .keyDown(index: 24, layer: 0)] })
+        secureInput.isOn = true
+        link.send(.layer(1), .keyUp(row: 5, column: 0), .layer(0))
+        #expect(await eventually { seen.values.count == 3 })
+        #expect(seen.values.last == .keyUp(index: 24))
+        secureInput.isOn = false
+        link.send(.layer(0))
+        #expect(await eventually { seen.values == [.layer(0), .keyDown(index: 24, layer: 0), .keyUp(index: 24), .layer(0)] })
+    }
+
+    /// A key-up that will never come arrives anyway when the session ends.
+    @Test func aSessionThatEndsReleasesItsKeys() async {
+        let live = start()
+        let seen = Recorded<LiveActivity>()
+        let stream = live.activity()
+        let reader = Task { for await activity in stream { seen.append(activity) } }
+        defer { reader.cancel() }
+        watcher.attach(.keyboard(.voyager(serial: nil)))
+        #expect(await eventually { link.sessionCount == 1 })
+        link.send(.layer(0), .keyDown(row: 5, column: 0), .keyDown(row: 2, column: 2), .keyUp(row: 2, column: 2), .ended(nil))
+        #expect(
+            await eventually {
+                seen.values == [
+                    .layer(0), .keyDown(index: 24, layer: 0), .keyDown(index: 13, layer: 0), .keyUp(index: 13), .keyUp(index: 24),
+                ]
+            })
+    }
 }
 
 /// Values a reading task collects for the test.

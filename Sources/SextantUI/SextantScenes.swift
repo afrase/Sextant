@@ -22,9 +22,10 @@ public struct SextantScenes: Scene {
 
     public var body: some Scene {
         WindowGroup(id: "layout", for: UUID.self) { $layoutID in
-            // The Device popover shows the raw-HID log; Record Key pauses the layer shortcuts.
+            // The Device popover shows the raw-HID log; Record Key pauses the layer shortcuts; the overlay HUD stays out
+            // of the way of a key window that shows the same layer.
             LayoutWindow(services: services, layoutID: $layoutID).environment(services.trace)
-                .environment(services.layerShortcuts)
+                .environment(services.layerShortcuts).environment(services.overlay.model)
         }
         // 1440×900, or 1600×1000 on displays at least 1728 pt wide, clamped to the screen (spec §3.2).
         .defaultWindowPlacement { _, context in

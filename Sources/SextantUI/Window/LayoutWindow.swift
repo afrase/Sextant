@@ -37,6 +37,7 @@ public struct LayoutWindow: View {
         .frame(minWidth: model.minimumWidth, minHeight: 640 - 52)
         .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { windowWidth = $0 })
         .focusedSceneValue(model)
+        .reportsShownLayer(model)
         .windowPresentations(model)
         .modifier(TrashLayoutDialog(model: model, layoutID: $layoutID))
         .task(id: layoutID) {

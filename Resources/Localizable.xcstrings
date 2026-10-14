@@ -87,6 +87,9 @@
     "%@ layer, no keys down" : {
 
     },
+    "%@ locked" : {
+
+    },
     "%@ ms" : {
 
     },
@@ -2277,9 +2280,6 @@
     "On the keyboard" : {
 
     },
-    "Once the delay passes, shows the layer you’re holding over other apps. A locked layer can show a small reminder until the keyboard is back on its base layer." : {
-
-    },
     "One layer, authored by Sextant, ready to build on." : {
 
     },
@@ -2327,6 +2327,19 @@
     },
     "Overlay" : {
 
+    },
+    "Overlay: %@ layer locked" : {
+
+    },
+    "Overlay: %@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Overlay: %1$@, %2$@"
+          }
+        }
+      }
     },
     "Override %lld Keys" : {
 
@@ -3386,6 +3399,9 @@
     "When the keyboard connects" : {
 
     },
+    "While Live View is on, shows the layer you’re holding over other apps once the delay passes, for a layout in your library. A locked layer can show a small reminder until the keyboard is back on its base layer. Turn on Live View from a layout window’s toolbar or the Keyboard menu." : {
+
+    },
     "Window" : {
 
     },
@@ -3485,6 +3501,9 @@
     "go to" : {
 
     },
+    "held" : {
+
+    },
     "held by %@ (key %lld)" : {
       "localizations" : {
         "en" : {
@@ -3494,6 +3513,9 @@
           }
         }
       }
+    },
+    "held with %@" : {
+
     },
     "hold" : {
 
@@ -3558,6 +3580,9 @@
 
     },
     "left half" : {
+
+    },
+    "locked" : {
 
     },
     "macros" : {
@@ -3648,6 +3673,9 @@
           }
         }
       }
+    },
+    "release to hide" : {
+
     },
     "revision %lld" : {
 

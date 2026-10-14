@@ -122,8 +122,9 @@ public struct KeyboardSettings: View {
         } footer: {
             Text(
                 """
-                Once the delay passes, shows the layer you’re holding over other apps. A locked layer can show a small \
-                reminder until the keyboard is back on its base layer.
+                While Live View is on, shows the layer you’re holding over other apps once the delay passes, for a \
+                layout in your library. A locked layer can show a small reminder until the keyboard is back on its base \
+                layer. Turn on Live View from a layout window’s toolbar or the Keyboard menu.
                 """
             )
             .foregroundStyle(.secondary)
