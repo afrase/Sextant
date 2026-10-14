@@ -119,14 +119,19 @@ extension LayoutWindowModel {
 
     /// The selected key's release as the session's held keys show it, which change even when the per-event secure
     /// input check drops its key-up, and empty while secure input is on.
-    private func watchRelease(of index: Int) async {
+    private func watchRelease(of index: Int, since selectedAt: ContinuousClock.Instant) async {
         var held = false
         for await keys in Observations({ [weak self] in self?.live?.pressedKeys ?? [] }) {
             if keys.contains(index) {
                 held = true
-            } else if held {
-                break
+                continue
             }
+            if held { break }
+            // This task can start after the key-up, or after secure input hid the key, and then never sees it held; the
+            // held keys update a frame late, so an absence counts once that frame has passed.
+            try? await Task.sleep(until: selectedAt + .milliseconds(100), clock: .continuous)
+            guard live?.pressedKeys.contains(index) == true else { break }
+            held = true
         }
         guard !Task.isCancelled, let tail = selectByPress?.releaseTail else { return }
         endSelectByPressSoon(after: tail, onlyOnEscape: false)
@@ -145,9 +150,10 @@ extension LayoutWindowModel {
                 selectByPress = mode
                 return
             }
-            (mode.selected, mode.selectedAt, mode.escapePending) = (index, .now, false)
+            let selectedAt = ContinuousClock.now
+            (mode.selected, mode.selectedAt, mode.escapePending) = (index, selectedAt, false)
             mode.releaseTail = selectByPressReleaseTail(index: index, layer: layer)
-            mode.tasks.append(Task { [weak self] in await self?.watchRelease(of: index) })
+            mode.tasks.append(Task { [weak self] in await self?.watchRelease(of: index, since: selectedAt) })
             selectByPress = mode
             click(key: index)
             AccessibilityNotification.Announcement(selectByPressAnnouncement(index: index)).post()
