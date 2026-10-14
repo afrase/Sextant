@@ -7,6 +7,10 @@ import SwiftUI
 struct MenuBarLayers: View {
     var state: MenuBarPanelState
     var moveToLayer: @MainActor (Int) -> Void
+    /// The typing line shows under the mini map: the list gives up a row for it.
+    var hasTypingLine = false
+    /// The typing line already says secure input pauses it, so the mini map doesn't say so again.
+    var typingLineNotesSecureInput = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -25,8 +29,8 @@ struct MenuBarLayers: View {
                         if state.layers.count == 1 { Color.clear.frame(maxWidth: .infinity, maxHeight: 0) }
                     }
                 } else {
-                    // Opens on the keyboard's layer, which may be past the rows that fit: two rows above it at the top,
-                    // so the cut falls through the half row at an edge, never through the row it's on.
+                    // Opens on the keyboard's layer, which may be past the rows that fit: rows above it at the top, so
+                    // the cut falls through the half row at an edge, never through the row it's on.
                     ScrollViewReader { proxy in
                         ScrollView {
                             VStack(spacing: 0) { ForEach(state.layers) { row($0).id($0.index) } }
@@ -34,8 +38,8 @@ struct MenuBarLayers: View {
                         .scrollBounceBehavior(.basedOnSize)
                         // Overlay scrollers stay hidden until a scroll: show them once, beside the half row.
                         .scrollIndicatorsFlash(onAppear: true)
-                        .onAppear { if let layer = state.layer { proxy.scrollTo(max(layer - 2, 0), anchor: .top) } }
-                        .onChange(of: state.layer) { _, layer in if let layer { proxy.scrollTo(max(layer - 2, 0), anchor: .top) } }
+                        .onAppear { reveal(state.layer, proxy) }
+                        .onChange(of: state.layer) { _, layer in reveal(layer, proxy) }
                     }
                     .frame(height: listHeight)
                     .padding(.horizontal, -6)
@@ -47,18 +51,29 @@ struct MenuBarLayers: View {
             if let layout = state.layout, let layer = state.layer {
                 LayerMap(layout: layout, layer: layer, pressed: state.isSecureInputOn ? [] : state.pressed)
                     .frame(maxWidth: .infinity).frame(height: 100)
-                if state.isSecureInputOn {
+                if state.isSecureInputOn, !typingLineNotesSecureInput {
                     Label("Paused: secure input is on", systemImage: "eye.slash").font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
     }
 
-    /// Every row up to ``MenuBarPanelContent/visibleRows``, one fewer under the App Layers row. A longer list is cut
-    /// through a row, half a row short, so it reads as one that scrolls; half a row more would take the panel past 520 pt.
+    /// Every row up to ``MenuBarPanelContent/visibleRows``, one fewer for each of the typing line and the App Layers row.
+    /// A longer list is cut through a row, half a row short, so it reads as one that scrolls; half a row more would take
+    /// the panel past 520 pt.
     private var listHeight: CGFloat {
-        let count = state.layers.count, visible = MenuBarPanelContent.visibleRows - (state.appLayers == nil ? 0 : 1)
+        let count = state.layers.count, visible = visibleRows
         return (count > visible ? CGFloat(visible) - 0.5 : CGFloat(count)) * MenuBarPanelContent.rowHeight
+    }
+
+    private var visibleRows: Int {
+        MenuBarPanelContent.visibleRows - (state.appLayers == nil ? 0 : 1) - (hasTypingLine ? 1 : 0)
+    }
+
+    /// Scrolls the keyboard's layer into the whole rows: up to two rows above it at the top, fewer when fewer show.
+    private func reveal(_ layer: Int?, _ proxy: ScrollViewProxy) {
+        guard let layer else { return }
+        proxy.scrollTo(max(layer - min(2, visibleRows - 2), 0), anchor: .top)
     }
 
     private func isActive(_ item: MenuBarPanelState.LayerItem) -> Bool { state.layer == item.index }

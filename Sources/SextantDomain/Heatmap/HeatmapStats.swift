@@ -48,17 +48,19 @@ public struct HeatmapStats: Hashable, Sendable {
     public init(_ heatmap: KeyHeatmap, layout: KeyboardLayout, board: BoardDefinition = .voyager, top: Int = 8) {
         let ids = layout.layers.map(\.id)
         let totals = ids.map { heatmap.total(layer: $0) }
-        let total = totals.reduce(0, +)
+        let total = totals.reduce(0, HeatmapHour.sum)
         self.total = total
         layers = totals.enumerated().map {
             LayerShare(layer: $0.offset, presses: $0.element, share: total > 0 ? Double($0.element) / Double(total) : 0)
         }
         var byKey: [Int: Int] = [:]
-        for id in ids { byKey.merge(heatmap.presses[id] ?? [:], uniquingKeysWith: +) }
+        for id in ids { byKey.merge(heatmap.presses[id] ?? [:], uniquingKeysWith: HeatmapHour.sum) }
         var byFinger: [BoardDefinition.Hand: [BoardDefinition.Finger: Int]] = [:]
-        for key in board.keys { byFinger[key.hand, default: [:]][key.finger, default: 0] += byKey[key.index] ?? 0 }
-        left = byFinger[.left]?.values.reduce(0, +) ?? 0
-        right = byFinger[.right]?.values.reduce(0, +) ?? 0
+        for key in board.keys {
+            byFinger[key.hand, default: [:]][key.finger] = HeatmapHour.sum(byFinger[key.hand]?[key.finger] ?? 0, byKey[key.index] ?? 0)
+        }
+        left = byFinger[.left]?.values.reduce(0, HeatmapHour.sum) ?? 0
+        right = byFinger[.right]?.values.reduce(0, HeatmapHour.sum) ?? 0
         let order = BoardDefinition.Finger.allCases
         fingers =
             order.map { FingerCount(hand: .left, finger: $0, presses: byFinger[.left]?[$0] ?? 0) }

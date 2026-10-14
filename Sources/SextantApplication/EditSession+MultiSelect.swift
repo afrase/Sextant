@@ -156,7 +156,7 @@ extension EditSession {
         let newIndex = layout.layers.count
         edit(String(localized: "Copy Layer to New Layer"), select: { $0.layer = newIndex }) { doc in
             var copy = doc.layers[source]
-            copy.id = UUID().uuidString
+            (copy.id, copy.oryxID, copy.oryxPreviousID) = (UUID().uuidString, nil, nil)
             copy.title = String(localized: "\(copy.title) Copy")
             doc.layers.append(copy)
         }

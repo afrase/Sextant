@@ -30,9 +30,11 @@ struct LensLane: View {
                 } else if let status = model.laneStatus {
                     capsule(status)
                         .glassEffectTransition(.materialize)
-                } else if let id = model.session?.id, let text = model.appLayers.laneText(id) {
+                } else if let id = model.session?.id, let text = model.appLayers.laneText(id),
+                    let short = model.appLayers.shortLaneText(id)
+                {
                     // Last in priority (spec §3.7).
-                    AppRuleCapsule(model: model, text: text).glassEffectTransition(.materialize)
+                    AppRuleCapsule(model: model, text: text, shortText: short).glassEffectTransition(.materialize)
                 }
             }
         }
@@ -94,15 +96,20 @@ private struct PickCapsule: View {
     }
 }
 
-/// The frontmost app's rule as it holds (spec §3.7, §8.6), with [Rules…] for the App Layers page.
+/// The frontmost app's rule as it holds (spec §3.7, §8.6), with [Rules…] for the App Layers page. Beside a lens's tools
+/// in a narrow lane it says "Xcode → Sym+Num", so the layer's name, the one fact it shows, isn't cut off.
 private struct AppRuleCapsule: View {
     var model: LayoutWindowModel
     var text: String
+    var shortText: String
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "macwindow.on.rectangle").foregroundStyle(.secondary).accessibilityHidden(true)
-            Text(verbatim: text).lineLimit(1)
+            ViewThatFits(in: .horizontal) {
+                Text(verbatim: text).lineLimit(1)
+                Text(verbatim: shortText).lineLimit(1).accessibilityLabel(Text(verbatim: text))
+            }
             Button("Rules…") { model.destination = .appLayers }.buttonStyle(.borderless)
         }
         .font(.callout.weight(.medium))

@@ -189,9 +189,9 @@ public struct PrivacySettings: View {
     private var heatmapNote: some View {
         Text(
             """
-            Off unless you turn it on. Presses are counted only while Live View is on. Only hourly counts per key \
-            position are saved, on this Mac and apart from your layouts, so they never go with a layout you export or \
-            share.
+            Off unless you turn it on. Presses are counted only while Live View is on. Only hourly counts of presses per \
+            key position and of layer changes are saved, on this Mac and apart from your layouts, so they never go with \
+            a layout you export or share.
             """
         )
         .foregroundStyle(.secondary)

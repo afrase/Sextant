@@ -178,7 +178,10 @@ public struct MenuBarPanelContent: View {
                     Button("Turn On Live View", action: actions.turnOnLiveView).controlSize(.small)
                 }
             }
-        case .connecting, .live: MenuBarLayers(state: state, moveToLayer: actions.moveToLayer)
+        case .connecting, .live:
+            MenuBarLayers(
+                state: state, moveToLayer: actions.moveToLayer, hasTypingLine: typingStats?.isShown == true,
+                typingLineNotesSecureInput: typingStats?.isPausedForSecureInput == true)
         }
     }
 

@@ -26,12 +26,23 @@ public struct HeatmapHour: Hashable, Sendable {
 
     public var isEmpty: Bool { presses.values.allSatisfy(\.isEmpty) && layerEntries.isEmpty }
 
+    /// The most one count is read as: no hour of typing comes near it, so a larger one is from a damaged or edited file
+    /// and is held to it when read (one below 1 is left out).
+    public static let countLimit = 1 << 32
+
+    /// `a + b`, stopping at `Int.max` instead of trapping: counts read from files are summed over many hours and layers,
+    /// and a damaged file must not crash Sextant.
+    public static func sum(_ a: Int, _ b: Int) -> Int {
+        let (value, overflow) = a.addingReportingOverflow(b)
+        return overflow ? (b < 0 ? .min : .max) : value
+    }
+
     /// Adds another hour's counts to this one's.
     public mutating func add(_ other: Self) {
         for (layer, keys) in other.presses {
-            presses[layer, default: [:]].merge(keys, uniquingKeysWith: +)
+            presses[layer, default: [:]].merge(keys, uniquingKeysWith: Self.sum)
         }
-        layerEntries.merge(other.layerEntries, uniquingKeysWith: +)
+        layerEntries.merge(other.layerEntries, uniquingKeysWith: Self.sum)
     }
 }
 

@@ -102,6 +102,17 @@ struct HeatmapTests {
         #expect(stats.reached == [HeatmapStats.LayerReach(layer: 2, times: 7)])
     }
 
+    /// Sums stop at `Int.max` rather than trap, so counts from a damaged file can't crash the lens or the inspector.
+    @Test func sumsDontOverflow() {
+        var hour = HeatmapHour(start: noon, presses: [main: [13: .max]], layerEntries: [main: .max])
+        hour.add(HeatmapHour(start: noon, presses: [main: [13: 1]], layerEntries: [main: 1]))
+        #expect(hour.presses[main]?[13] == .max && hour.layerEntries[main] == .max)
+        let heat = KeyHeatmap([hour, HeatmapHour(start: noon.addingTimeInterval(3600), presses: [main: [13: 5, 51: .max]])])
+        #expect(heat.count(layer: main, index: 13) == .max && heat.total() == .max && heat.total(layer: main) == .max)
+        let stats = HeatmapStats(heat, layout: layout)
+        #expect(stats.total == .max && stats.left == .max && stats.right == .max)
+    }
+
     @Test func layersSinceDeletedAreLeftOut() {
         let heat = KeyHeatmap([HeatmapHour(start: noon, presses: [main: [13: 4], "deleted": [13: 99]], layerEntries: ["deleted": 2])])
         let stats = HeatmapStats(heat, layout: layout)

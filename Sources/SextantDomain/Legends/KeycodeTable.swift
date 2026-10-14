@@ -597,11 +597,11 @@ enum KeycodeTable {
                 code: "WEBUSB_PAIR", label: "Pair", name: "Pair with Web Configurator", symbol: "link.circle",
                 keywords: ["webusb", "live", "pairing"], category: s),
             Entry(
-                code: "ORYX_SL_TOGG", label: "App Layers", name: "Toggle App-Aware Layers", symbol: "app.badge",
-                keywords: ["smart layer", "app"], category: s),
+                code: "ORYX_SL_TOGG", label: "Smart Layers", name: "Toggle Keymapp Smart Layers", symbol: "app.badge",
+                keywords: ["smart layer", "keymapp", "app"], category: s),
             Entry(
-                code: "ORYX_SL_TRIGG", label: "App Layer", name: "Trigger App-Aware Layer", symbol: "app.badge.checkmark",
-                keywords: ["smart layer", "app"], category: s),
+                code: "ORYX_SL_TRIGG", label: "Smart Layer", name: "Trigger Keymapp Smart Layer", symbol: "app.badge.checkmark",
+                keywords: ["smart layer", "keymapp", "app"], category: s),
         ]
     }
 

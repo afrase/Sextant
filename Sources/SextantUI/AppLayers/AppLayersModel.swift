@@ -77,6 +77,11 @@ public final class AppLayersModel {
     func laneText(_ id: UUID) -> String? {
         switcher?.applied(for: id).map { AppLayersText.applied($0) }
     }
+
+    /// The lane's capsule in a narrow lane: "Xcode → Sym+Num", as the menu bar says it.
+    func shortLaneText(_ id: UUID) -> String? {
+        switcher?.applied(for: id).map { "\($0.app) → \($0.layerName)" }
+    }
 }
 
 /// Words for App Layers (spec §8.6), Sextant's own.

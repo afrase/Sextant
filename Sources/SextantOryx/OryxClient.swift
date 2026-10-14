@@ -16,7 +16,7 @@ public struct OryxClient: OryxReader {
             revision {
               hashId qmkVersion title createdAt md5 config navigators swatch
               combos { keyIndices layerIdx name trigger }
-              layers { automouse hashId title position color keys }
+              layers { automouse hashId prevHashId title position color keys }
             }
           }
         }

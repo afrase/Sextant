@@ -380,7 +380,7 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
 | Board pick (v1) | `hand.point.up.left` "Click a key to play ‘Open Keymap’ on tap · esc cancels" | [Cancel] (esc, ⌘.) |
 | Select by press (v1) | `keyboard` "Press a key on the keyboard to select it"; `eye.slash` "Paused: secure input is on · esc cancels" | [Cancel] |
 | Live (Follow on) | green dot "LIVE · Brd+Sys held by Space · 2 keys down" | [Stop Following] |
-| App rule (v1) | "Xcode is frontmost → keyboard on Sym+Num", while the keyboard runs this layout and is on that rule's layer | [Rules…] (the App Layers page) |
+| App rule (v1) | "Xcode is frontmost → keyboard on Sym+Num" ("Xcode → Sym+Num" in a narrow lane), while the keyboard runs this layout and is on that rule's layer | [Rules…] (the App Layers page) |
 
 **Board area.** See §4.
 
@@ -1071,7 +1071,7 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
 - **Footer.**
   - [Cancel].
   - Primary: [Import as New Layout].
-  - If the library already has a layout with this Oryx hashId: [Add as Revision of ‘My MacOS Layout’]. It is undoable and appears in History.
+  - If the library already has a layout with this Oryx hashId: [Add as Revision of ‘My MacOS Layout’]. It is undoable and appears in History. Each layer Oryx says came from one of the layout's layers (its `prevHashId`) keeps that layer's identity, so App Layers rules and Heatmap counts follow it (ADR 0054).
   - Checkbox: "Open after importing".
 
 **Errors**
@@ -1104,7 +1104,7 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
   - Show key presses on the board;
   - Show overlay while a layer is held (v1);
   - Move keyboard to layer ▸ (v1).
-- **Footer note:** "Key events stay in memory on this Mac and are never written to disk. Live display pauses while you type in a password field." While heatmap recording is on (§8.5), it and the first-connect note say instead that the heatmap saves only hourly counts per key position, and that it pauses too (ADR 0053).
+- **Footer note:** "Key events stay in memory on this Mac and are never written to disk. Live display pauses while you type in a password field." While heatmap recording is on (§8.5), it and the first-connect note say instead that the heatmap saves only hourly counts of presses per key position and of layer changes, and that it pauses too (ADR 0053).
 
 **Live behaviour**
 - **Pressed keys** light in every lens (§4.7). The default is on (Settings › Keyboard).
@@ -1138,7 +1138,7 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
 5. **"Show overlay while holding a layer"** switch.
 6. **Native menu-style rows:** Build & Flash “My MacOS Layout”… (⌘R; names the layout it writes; shows progress while flashing), Open Sextant (⌘0), Settings… (⌘,), Quit Sextant (⌘Q). Build & Flash… and Open Sextant open or bring forward the window of the layout a flash is writing, else the keyboard's, else an open one, else the most recently modified; Build & Flash… then starts in that window as ⌘R does (ADR 0049).
 
-Typing statistics appear only when heatmap recording is on, and then only as one line under the mini map: "Today: 12,408 presses · 64 wpm", or why recording is paused (a long reason wraps to a second line). Today's count is read when recording starts, before any press, and starts again from zero at midnight. Words per minute count the last minute's key presses, five to a word, kept in memory only (ADR 0053).
+Typing statistics appear only when heatmap recording is on, and then only as one line under the mini map: "Today: 12,408 presses · 64 wpm", or why recording is paused (a long reason wraps to a second line). Today's count is read when recording starts, before any press, and starts again from zero at midnight. Words per minute count the last minute's key presses, five to a word, kept in memory only (ADR 0053). The line costs the layer list a row before it scrolls, as the App Layers row does, so with both the panel stays under 520 pt; while it says secure input pauses recording, the mini map doesn’t say so again.
 
 ### 8.4 Overlay HUD (v1)
 
@@ -1211,9 +1211,9 @@ Never called "Smart Layers". The rules belong to the layout, in `app-layers.json
   - Paused, with the reason: no keyboard, flash mode, Live View off (with [Turn On Live View]), Keymapp, still connecting, a layout not in the library, or another layout on the keyboard ("whose own rules apply", or "which has no App Layers turned on").
   - Off: the switch is off, or every rule is.
 - **Rules table.** Columns: app icon and name, bundle id (secondary, cut at its head so "…apple.dt.Xcode" keeps the part that tells apps apart), layer pop-up ("1 · Sym+Num"; a deleted layer shows as "Deleted layer" with an orange warning mark), "When Leaving" (Return to <layer 0's name> / Stay), and Enabled. A new rule takes layer 1, Return to Main, enabled. [Add App…] offers the running apps with a Dock icon, kept current as apps launch and quit, plus Choose… (an app bundle); an app that has a rule is greyed, and Sextant itself isn't offered. Remove Rule from the context menu, ⌫ or the inspector asks first ("Remove the rule for Xcode?"), since rule edits can't be undone.
-- **Inspector:** the selected rule (icon, name, bundle id, layer, When leaving, Enabled), a sentence saying what it does, an orange warning when its layer was deleted (saying, when the keyboard still runs a build with that layer, that the rule keeps moving the keyboard there until the next Build & Flash) or isn't on the keyboard yet ("Build & Flash to use this rule"), [Remove Rule]; then Recent Switches ("Xcode → Sym+Num", "Left Xcode → Main", with the time), app names only, the last 20, kept in memory until quit.
+- **Inspector:** the selected rule (icon, name, bundle id, layer, When leaving, Enabled), a sentence saying what it does, an orange warning when its layer was deleted (saying, when the keyboard still runs a build with that layer, that the rule keeps moving the keyboard there until the next Build & Flash) or isn't on the keyboard yet ("Build & Flash to use this rule"), [Remove Rule]; then Recent Switches ("Xcode → Sym+Num", "Left Xcode → Main", with the time), app names only, the last 20 made by this layout's own rules, kept in memory until quit.
 - **Empty state:** §12.4.
-- **Mechanism:** `NSWorkspace.didActivateApplicationNotification` (no TCC). An app that stays frontmost for 150 ms moves the keyboard with Move Keyboard to Layer (`04 01 n`, layer_move; never `04 00 n`): to its rule's layer, or to layer 0 when leaving a Return to Main app for one without a rule. Only the rules of the layout the keyboard runs apply, with each layer checked against that layout as it was flashed; a rule whose layer it lacks counts as no rule. A move waits until no key on the keyboard is held, since layer_move under a held layer key turns that layer off and the key's release would drop to the base layer. It is sent even when the keyboard reports that layer already: the report is the highest active layer, which may be a held key's or a stale one. Nothing is sent at launch, when Live View starts or when a rule changes: only on the next app switch. Sextant itself coming forward isn't an app switch, so reading the rules or opening the menu bar panel leaves the keyboard alone. While paused, switches aren't replayed later. Rule edits save at once and aren't on the window's undo stack.
+- **Mechanism:** `NSWorkspace.didActivateApplicationNotification` (no TCC). An app that stays frontmost for 150 ms moves the keyboard with Move Keyboard to Layer (`04 01 n`, layer_move; never `04 00 n`): to its rule's layer, or to layer 0 when leaving a Return to Main app for one without a rule. Only the rules of the layout the keyboard runs apply, with each layer checked against that layout as it was flashed; a rule whose layer it lacks counts as no rule. A move waits until no key on the keyboard is held, since layer_move under a held layer key turns that layer off and the key's release would drop to the base layer. It is sent even when the keyboard reports that layer already: the report is the highest active layer, which may be a held key's or a stale one. Nothing is sent at launch, when Live View starts or when a rule changes: only on the next app switch. Sextant itself coming forward isn't an app switch, and neither is going back from it to the app before, so reading the rules, opening the menu bar panel or moving the keyboard from Sextant leaves the keyboard where it is; Sextant coming forward also drops a move still waiting. While paused, switches aren't replayed later. Rule edits save at once and aren't on the window's undo stack.
 - **Footnote:** "Moves the keyboard to the layer, as a Go to (TO) key does: it also turns off layers turned on by a toggle, a one-shot or the Navigator's mouse layer. Holding a layer key still works on top."
 
 ### 8.7 History and diff (v1)

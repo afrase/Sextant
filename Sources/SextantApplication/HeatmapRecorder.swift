@@ -152,6 +152,12 @@ public final class HeatmapRecorder {
             Task { [weak self] in
                 for await status in Observations({ [weak self] in self?.status }) { self?.follow(status) }
             },
+            Task { [weak self, live] in
+                // A link session can end with the keyboard still connected (a failed write), the status unchanged: the
+                // next session reopens a second or more later, and its pairing reports a layer that may have been
+                // reached meanwhile.
+                for await canSend in Observations({ live.canSend }) where !canSend { self?.lastLayer = nil }
+            },
             Task { [weak self] in
                 while (try? await clock.sleep(for: Self.flushInterval)) != nil {
                     await self?.flush()
@@ -304,7 +310,7 @@ public final class HeatmapRecorder {
             counted += 1
             changes += 1
             recentPresses = recentPresses.filter { date.timeIntervalSince($0) < 60 } + [date]
-            if calendar.startOfDay(for: date) != todayStart { loadToday() } else { today = (today ?? 0) + 1 }
+            if calendar.startOfDay(for: date) != todayStart { loadToday() } else { today = HeatmapHour.sum(today ?? 0, 1) }
         case let .layer(layer):
             // A pairing reports the layer it finds the keyboard on, which isn't a move.
             defer { lastLayer = layer }
@@ -324,7 +330,7 @@ public final class HeatmapRecorder {
             let snapshot = await snapshot(of: id, from: start)
             guard todayLayout == id, todayStart == start else { return }
             let hours = snapshot.hours + unwritten(of: id, from: start, after: snapshot.version)
-            today = hours.reduce(0) { $0 + $1.presses.values.reduce(0) { $0 + $1.values.reduce(0, +) } }
+            today = KeyHeatmap(hours).total()
         }
     }
 

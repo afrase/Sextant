@@ -89,6 +89,8 @@ public final class LayoutWindowModel {
     @ObservationIgnored let onKeyboard: OnKeyboard?
     /// The keyboard lighting preview, app-wide (ADR 0051); nil in tests and snapshots without a keyboard.
     @ObservationIgnored let lightingPreview: LightingPreview?
+    /// Times Select Key by Pressing It's waits (``selectByPressTail``); tests pass a test clock.
+    @ObservationIgnored let clock: any Clock<Duration>
     // MARK: inspector
     /// A key inspector text field (the label or the tapping term) has focus, so ⌘⌫ and ⇧⌘⌫ edit its text rather than
     /// make the key transparent or disable it.
@@ -120,8 +122,8 @@ public final class LayoutWindowModel {
     var selectByPress: SelectByPress?
     /// The Mac's copy of a keyboard press can reach the window just before or just after the keyboard reports it over raw
     /// HID, so Select Key by Pressing It waits this long before an esc cancels it, and keeps swallowing this long after
-    /// the key-up. Tests widen it, as a loaded machine can stretch that gap.
-    @ObservationIgnored var selectByPressTail = Duration.milliseconds(50)
+    /// the key-up, on ``clock``.
+    @ObservationIgnored let selectByPressTail = Duration.milliseconds(50)
     /// A gesture that takes the board's key clicks instead of selection (choosing combo members, Assign to Key); nil
     /// when off.
     var boardPick: BoardPick?
@@ -190,9 +192,11 @@ public final class LayoutWindowModel {
     public init(
         library: Library, live: LiveSession? = nil, makeImport: (@MainActor () -> ImportFromOryx)? = nil,
         makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)? = nil, onKeyboard: OnKeyboard? = nil,
-        lightingPreview: LightingPreview? = nil, heatmap: HeatmapRecorder? = nil, appLayers: AppLayerSwitcher? = nil
+        lightingPreview: LightingPreview? = nil, heatmap: HeatmapRecorder? = nil, appLayers: AppLayerSwitcher? = nil,
+        clock: any Clock<Duration> = ContinuousClock()
     ) {
         self.library = library
+        self.clock = clock
         self.heatmap = HeatmapModel(recorder: heatmap)
         self.appLayers = AppLayersModel(switcher: appLayers)
         self.live = live

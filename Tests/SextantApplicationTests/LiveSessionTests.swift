@@ -349,8 +349,9 @@ struct LiveSessionTests {
         #expect(seen.values.isEmpty)
     }
 
-    /// Pairing reports the layer again after every reconnect; only a change is activity. Lighting replies and refusals
-    /// pass through.
+    /// Within a session only a change is activity. A new session's pairing reports the layer it finds, even when it repeats
+    /// the last one: the keyboard may have changed layers between the two, unseen (ADR 0053). Lighting replies and
+    /// refusals pass through.
     @Test func activityReportsALayerOnlyWhenItChanges() async {
         let live = start()
         let seen = Recorded<LiveActivity>()
@@ -366,7 +367,7 @@ struct LiveSessionTests {
                 return link.sessionCount == 2
             })
         link.send(.layer(0), .layer(2), .lighting(true), .error(0x04))
-        #expect(await eventually { seen.values == [.layer(0), .layer(2), .lighting(true), .refused(0x04)] })
+        #expect(await eventually { seen.values == [.layer(0), .layer(0), .layer(2), .lighting(true), .refused(0x04)] })
     }
 
     /// What secure input hides, subscribers can't follow: the keys they saw go down come up, and the next layer report

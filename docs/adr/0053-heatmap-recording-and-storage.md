@@ -2,7 +2,7 @@
 
 Status: accepted, 2026-10-15. v1 plan slice 4.1. Builds on ADRs 0038 (the activity feed), 0039 (OnKeyboard), 0045 (the
 retention default), 0050 (the feed's paired keys and secure-input markers) and 0057 (Live View starts by hand). Amends
-ADR 0023's "nothing stored", and spec §8.3, §8.5 and §8.9.
+ADR 0023's "nothing stored", ADR 0038's layer dedupe (below), and spec §8.3, §8.5 and §8.9.
 
 ## Context
 Spec §8.5 adds a Heatmap lens: each cap filled by how often it is pressed, with statistics, over 24 hours, 7 days, 30
@@ -27,7 +27,13 @@ which the user starts by hand (ADR 0057), and `activity()` is silent during secu
   the flashed revision, so reordering layers keeps their counts. Nothing is counted during secure input: the feed
   delivers no press or layer then. `status` says why nothing is counted (off, no keyboard, flash mode, Live View off,
   Keymapp, another layout, secure input), and whenever it leaves recording the recorder forgets the last layer, so the
-  first layer reported after a pause (secure input, Live View off and on, a reconnect) isn't counted as a move.
+  first layer reported after a pause (secure input, Live View off and on, a reconnect) isn't counted as a move. A link
+  session can also end with the keyboard still connected (a failed write), leaving the status at recording while the
+  next session reopens a second or more later: the recorder forgets the last layer whenever `LiveSession.canSend` turns
+  false too. For that, `activity()` now lets the next session's first layer report through even when it repeats the
+  last one delivered, as it already did after secure input (amends ADR 0038's "a layer is reported only when it differs
+  from the last one reported for that keyboard"): otherwise a pairing on the same layer would leave the recorder
+  without a last layer, and the next real move wouldn't count.
 - **What is stored: hourly counts, nothing finer.** Per layout and hour: presses by layer id and key index, and moves
   onto each layer. Never the order of keys, a time finer than the hour, or characters. The menu bar's words per minute
   comes from the last minute's press times, kept in memory only and never written.
@@ -35,12 +41,17 @@ which the user starts by hand (ADR 0057), and `activity()` is silent during secu
   (`HeatmapFiles` in SextantStorage, behind the `HeatmapStore` port). Outside the `.sextant` packages, so layout exports,
   Duplicate, revisions, the content hash and the `sx-` fingerprint never carry typing data. Each write replaces a whole
   file atomically; a damaged file, or one from a newer Sextant, reads as empty and the next write for its day replaces it.
+  A count no typing can make (damage, or a hand edit) can't crash Sextant: one below 1 is left out when read, one past
+  `HeatmapHour.countLimit` (2³²) is held to it, and every sum of counts (merging an hour, a window's range, the
+  statistics, today's total) stops at `Int.max` instead of trapping.
 - **When.** Every 60 seconds on the injected clock, when recording is turned off, and at quit, once quitting is decided
   and after the keyboard's lights are given back. The store adds one hour at a time, whole or not at all (an hour lies
   in one day file), so a write that fails keeps exactly the hours it didn't save for the next one, and none is counted
   twice.
 - **Retention.** 30 days by default (ADR 0045), or 90 days or a year. Older hours are pruned at launch, when the setting
-  changes, and at the first write of each day. Choosing a shorter retention asks first, since it deletes at once.
+  changes, and at the first write of each day. Choosing a shorter retention asks first, since it deletes at once. A
+  layout folder the prune leaves empty is removed with its last file, so nothing says recording ever ran for a layout
+  whose counts have all expired (or one deleted outside Sextant).
 - **Clearing.** Clear Heatmap Data… in Settings › Privacy clears every layout's counts; the inspector's clears the open
   layout's. Both ask first. A layout Sextant moves to the Trash loses its counts (`Library.trashed`); one that only
   leaves the library, such as a package whose metadata fails to read for now, keeps them.
@@ -72,7 +83,11 @@ which the user starts by hand (ADR 0057), and `activity()` is silent during secu
   Today's count is read when recording starts and reads zero from midnight until the day's first press; the line
   redraws itself every 5 seconds, so the panel around it doesn't.
 - **Amends ADR 0023:** key events still stay in memory, except that, once the user turns the heatmap on, hourly counts of
-  key-downs per position are written as above. Settings › Privacy and the Device popover say so while recording is on.
+  key-downs per position and of layer changes are written as above. Settings › Privacy, the Device popover and Turn On…
+  name both while recording is on, or before it starts.
+- **Layer ids survive Oryx revisions.** Oryx gives every layer a new hash id in each revision, so Add as Revision from
+  Oryx would have moved every count to layers that no longer exist; the import keeps the ids of the layers Oryx says it
+  came from (ADR 0054).
 
 ## Consequences
 - Nothing new is sent to the keyboard: recording only reads what a Live View session already reports. Agents test it on

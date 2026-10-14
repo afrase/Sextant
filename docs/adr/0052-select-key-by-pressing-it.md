@@ -72,5 +72,8 @@ only during Record Key and Record Steps.
 - A press within 50 ms of ⇧⌘L, or while a key held at ⇧⌘L is still down, isn't selected.
 - The tapping-term tail reads the open layout, which may not be what the keyboard runs; a keyboard on another layout
   gets the plain 50 ms tail when the reported layer doesn't exist here.
+- Its waits (the 50 ms after ⇧⌘L, after a press and after an esc, and the tapping-term tail) run on the window's
+  injected clock (`LayoutWindowModel.clock`), as the HUD's and the Heatmap's do: `SelectByPressTests` drive a test
+  clock, so a loaded machine or CI can't stretch a gap past a tail and flake them.
 - Tests run on a fake keyboard link and device watcher; the design-QA scenes `select-by-press` (light and dark) and
   `select-by-press-paused-min` (1120×640) use a stand-in keyboard paired on Sym+Num. No snapshot reference changed.

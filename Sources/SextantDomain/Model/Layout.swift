@@ -8,6 +8,25 @@ public struct Layer: Identifiable, Hashable, Sendable {
     /// Layer colour (Oryx shows it as a glow on keys of non-base layers; firmware uses it as the layer LED map).
     public var color: HexColor?
     public var keys: [Key]
+    /// Oryx's `hashId` for this layer in the revision last imported, when ``id`` keeps an earlier one: Oryx gives every
+    /// layer a new one in each revision (ADR 0054).
+    public var oryxID: String?
+    /// Oryx's `prevHashId`: the layer's hash id in the Oryx revision before. Read from Oryx's JSON for the import that
+    /// applies it (``KeyboardLayout/keepingLayerIDs(of:)``, which clears it), never written, and not part of the layer:
+    /// equality and hashing leave it out, so a layout read from Oryx equals itself written and read back.
+    public var oryxPreviousID: String?
+
+    public static func == (a: Self, b: Self) -> Bool {
+        a.id == b.id && a.title == b.title && a.color == b.color && a.keys == b.keys && a.oryxID == b.oryxID
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(title)
+        hasher.combine(color)
+        hasher.combine(keys)
+        hasher.combine(oryxID)
+    }
 
     public init(id: String = UUID().uuidString, title: String, color: HexColor? = nil, keys: [Key]) {
         self.id = id
@@ -15,6 +34,9 @@ public struct Layer: Identifiable, Hashable, Sendable {
         self.color = color
         self.keys = keys
     }
+
+    /// The id Oryx knows this layer by now, in the revision last imported.
+    public var oryxCurrentID: String { oryxID ?? id }
 
     /// A layer whose keys are all transparent.
     public static func transparent(title: String, color: HexColor? = nil, keyCount: Int = BoardDefinition.voyager.keyCount) -> Self {

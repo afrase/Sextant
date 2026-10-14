@@ -23,17 +23,17 @@ public struct KeyHeatmap: Hashable, Sendable {
 
     public mutating func add(_ hour: HeatmapHour) {
         for (layer, keys) in hour.presses where !keys.isEmpty {
-            presses[layer, default: [:]].merge(keys, uniquingKeysWith: +)
+            presses[layer, default: [:]].merge(keys, uniquingKeysWith: HeatmapHour.sum)
         }
-        layerEntries.merge(hour.layerEntries, uniquingKeysWith: +)
+        layerEntries.merge(hour.layerEntries, uniquingKeysWith: HeatmapHour.sum)
     }
 
     public func count(layer: String, index: Int) -> Int { presses[layer]?[index] ?? 0 }
 
     /// Presses on one layer, or on every layer when `layer` is nil.
     public func total(layer: String? = nil) -> Int {
-        guard let layer else { return presses.values.reduce(0) { $0 + $1.values.reduce(0, +) } }
-        return presses[layer]?.values.reduce(0, +) ?? 0
+        guard let layer else { return presses.values.reduce(0) { HeatmapHour.sum($0, $1.values.reduce(0, HeatmapHour.sum)) } }
+        return presses[layer]?.values.reduce(0, HeatmapHour.sum) ?? 0
     }
 
     /// The busiest key's presses on a layer.

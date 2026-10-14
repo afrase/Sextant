@@ -175,6 +175,58 @@ struct AppLayerSwitcherTests {
         #expect(await eventually { link.commands == [[.moveToLayer(1), .moveToLayer(0)]] }, "leaving Xcode for Safari does")
     }
 
+    /// Going back from Sextant to the app it came from isn't a switch either: a layer chosen in Sextant (a menu bar tile,
+    /// Move Keyboard to Layer) holds, and so does a rule turned on there, until the user changes apps.
+    @Test func goingBackFromSextantToTheSameAppSendsNothing() async throws {
+        let (entry, layout) = try await knownKeyboard()
+        #expect(await goLive())
+        #expect(await bring(.xcode))
+        #expect(await report(layer: 1))
+        apps.bring(.sextant)
+        await clock.advance(by: .seconds(1))
+        try onKeyboard.moveKeyboard(toLayer: 2)
+        #expect(await report(layer: 2))
+        var rules = Self.rules(layout)
+        rules.rules.append(AppLayerRule(bundleID: MacApp.safari.bundleID, name: "Safari", layerID: layout.layers[2].id))
+        switcher.setRules(rules, for: entry.id)
+        apps.bring(.xcode)
+        await clock.advance(by: .seconds(1))
+        #expect(await sent() == [.moveToLayer(1), .moveToLayer(2)], "Xcode's rule isn't sent again")
+        #expect(switcher.history.map(\.app) == ["Xcode"])
+        #expect(switcher.frontmost == .xcode)
+        #expect(await bring(.figma))
+        #expect(await eventually { link.commands == [[.moveToLayer(1), .moveToLayer(2), .moveToLayer(2)]] }, "the next real switch acts")
+    }
+
+    /// A burst that ends on the app it started from moves nothing.
+    @Test func aBurstBackToTheSameAppSendsNothing() async throws {
+        try await knownKeyboard()
+        #expect(await goLive())
+        #expect(await bring(.xcode))
+        #expect(await report(layer: 1))
+        apps.bring(.safari)
+        await clock.advance(by: .milliseconds(50))
+        apps.bring(.xcode)
+        await clock.advance(by: .seconds(1))
+        #expect(await sent() == [.moveToLayer(1)])
+    }
+
+    /// Sextant coming forward ends a burst: the app before it was in front too briefly to have moved the keyboard.
+    @Test func sextantComingForwardDropsAMoveStillSettling() async throws {
+        let (entry, _) = try await knownKeyboard()
+        #expect(await goLive())
+        #expect(await bring(.xcode))
+        #expect(await report(layer: 1))
+        apps.bring(.safari)
+        await clock.advance(by: .milliseconds(50))
+        apps.bring(.sextant)
+        await clock.advance(by: .seconds(1))
+        #expect(await sent() == [.moveToLayer(1)], "Safari never ended up in front")
+        #expect(switcher.frontmost == .xcode)
+        #expect(switcher.history.map(\.app) == ["Xcode"])
+        #expect(switcher.applied(for: entry.id) == AppLayerSwitcher.Applied(app: "Xcode", layerName: "Sym+Num"))
+    }
+
     /// Sextant in front at launch (opened from the Dock, Xcode or a relaunch) still counts as the launch app, so the first
     /// switch away from it acts.
     @Test func sextantInFrontAtLaunchLetsTheFirstSwitchAct() async throws {
@@ -286,6 +338,8 @@ struct AppLayerSwitcherTests {
         #expect(await sent().isEmpty, "Xcode's rule belongs to the layout the keyboard doesn't run")
         #expect(await bring(.safari))
         #expect(await eventually { link.commands.last == [.moveToLayer(2)] })
+        #expect(switcher.history(for: otherEntry.id).map(\.app) == ["Safari"])
+        #expect(switcher.history(for: entry.id).isEmpty, "each layout's page lists only its own rules' switches")
         // With the keyboard layout's own rules off, none apply: the paused text mustn't say they do.
         var off = switcher.rules(for: otherEntry.id)
         off.isOn = false

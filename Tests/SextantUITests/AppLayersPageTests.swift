@@ -99,15 +99,21 @@ struct AppLayersPageTests {
         #expect(await eventually { keyboard.commands == [.moveToLayer(1)] }, "sent although the keyboard reports Sym+Num")
     }
 
-    /// Spec §13.3: the panel stays under 520 pt with the App Layers row and every layer a move can reach.
-    @Test func thePanelWithTheAppLayersRowStaysUnder520Points() throws {
+    /// Spec §13.3: the panel stays under 520 pt with the App Layers row, the typing line and every layer a move can
+    /// reach, with secure input on or off.
+    @Test(arguments: [false, true])
+    func thePanelWithTheAppLayersRowStaysUnder520Points(secureInput: Bool) throws {
         let layout = try KeyboardLayout(oryxJSON: #require(userLayoutData))
         let state = MenuBarPanelState(
             keyboard: .live, running: "Thirty-two layers, revision 3", layout: MenuBarTests.layout(layout, layers: 40), layer: 31,
-            shortcuts: Dictionary(uniqueKeysWithValues: (0..<10).map { ($0, "⌃⌥\($0)") }), isSecureInputOn: true,
+            shortcuts: Dictionary(uniqueKeysWithValues: (0..<10).map { ($0, "⌃⌥\($0)") }), isSecureInputOn: secureInput,
             buildTarget: "Thirty-two layers", appLayers: .init(detail: "Xcode → Sym+Num", isOn: true))
-        let size = NSHostingView(rootView: MenuBarPanelContent(state: state)).fittingSize
-        #expect(size.height < 520, "\(size.height) pt")
+        // Secure input pauses recording, and the typing line says so.
+        let paused = HeatmapRecorder.Status.waiting(.secureInput).text(recordsThisLayout: nil)
+        for typing in [nil, TypingStats(today: 12_408, wordsPerMinute: secureInput ? 0 : 64, pause: secureInput ? paused : nil)] {
+            let size = NSHostingView(rootView: MenuBarPanelContent(state: state, typingStats: typing)).fittingSize
+            #expect(size.height < 520, "\(String(describing: typing)): \(size.height) pt")
+        }
     }
 }
 

@@ -17,7 +17,7 @@ struct AppLayersInspector: View {
                 .foregroundStyle(.secondary)
         }
         Divider()
-        recentSwitches(appLayers.switcher?.history ?? [])
+        recentSwitches(appLayers.switcher?.history(for: session.id) ?? [])
     }
 
     private func editor(_ rule: AppLayerRule) -> some View {
