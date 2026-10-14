@@ -147,7 +147,8 @@ public struct HIDTraceEntry: Hashable, Sendable {
 public protocol KeyboardLink: Sendable {
     /// Opens the raw-HID interface (never seized), identifies and pairs, then streams events until the
     /// consuming task is cancelled or the device goes away. Ends with `.ended`. Writes `commands` only once paired,
-    /// and only those ``KeyboardCommand/isAllowed(on:)`` accepts; it drops the rest.
+    /// and only those ``KeyboardCommand/isAllowed(on:)`` accepts; it drops the rest. Layers and presses come only once
+    /// paired, so a command sent after one is written.
     func session(
         with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>
     ) -> AsyncStream<LiveEvent>

@@ -25,8 +25,13 @@ extension LayoutWindowModel {
         return lightingPreview.refusal(for: self)
     }
 
-    /// The preview is on here, but no paired session takes it yet (connecting, or the keyboard was unplugged).
-    var lightingPreviewWaits: Bool { previewsLighting && live?.canSend != true }
+    /// Why the preview that is on here shows nothing on the keyboard: the keyboard's state (unplugged, flash mode, held by
+    /// another app), or Live View still connecting. Nil while it shows or is off.
+    var lightingPreviewPause: String? {
+        guard previewsLighting, live?.canSend != true else { return nil }
+        return lightingPreview?.keyboardRefusal?.localizedDescription
+            ?? String(localized: "Waiting for Live View to connect to the keyboard.")
+    }
 
     /// The shown layer's LED colors while this window previews them on the Lighting lens's board; nil otherwise.
     var keyboardLightingFrame: [HexColor?]? {

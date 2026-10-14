@@ -2906,7 +2906,7 @@
     "Shows the combos that read their keys from a layer. A combo fires on any layer where its keys type the same keycodes." : {
 
     },
-    "Shows this layer’s colors on the keyboard as you paint. Nothing is saved to it until you flash, and the preview ends when you leave Lighting. It stays dark while the keyboard’s lights are off, from its own key or Lights off when idle." : {
+    "Shows this layer’s colors on the keyboard as you paint. Nothing is saved to it until you flash, and the preview ends when you leave Lighting. It stays dark while the keyboard’s lights are off: turned off with its own key, or by Lights off when idle in Firmware Settings." : {
 
     },
     "Side" : {

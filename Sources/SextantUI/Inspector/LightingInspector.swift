@@ -64,6 +64,7 @@ private struct KeyboardLightingSection: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .controlSize(.small)
+                .accessibilityHint(refusal?.localizedDescription ?? "")
         }
         .disabled(refusal != nil)
         if let refusal {
@@ -71,13 +72,13 @@ private struct KeyboardLightingSection: View {
             if refusal == .liveOff {
                 Button("Turn On Live View") { model.isLive = true }.controlSize(.small).disabled(!model.canGoLive)
             }
-        } else if model.lightingPreviewWaits {
-            Text("Waiting for Live View to connect to the keyboard.").font(.callout).foregroundStyle(.secondary)
+        } else if let pause = model.lightingPreviewPause {
+            Text(pause).font(.callout).foregroundStyle(.secondary)
         }
         let brightness = model.lightingPreview?.brightness ?? 1
         let percent = Text(brightness, format: .percent.precision(.fractionLength(0)))
         HStack(spacing: 8) {
-            Text("Brightness")
+            Text("Brightness").accessibilityHidden(true)
             Slider(
                 value: Binding(get: { brightness }, set: { model.lightingPreview?.setBrightness($0) }),
                 in: LightingPreview.brightnessRange
@@ -93,8 +94,8 @@ private struct KeyboardLightingSection: View {
         Text(
             """
             Shows this layer’s colors on the keyboard as you paint. Nothing is saved to it until you flash, and the \
-            preview ends when you leave Lighting. It stays dark while the keyboard’s lights are off, from its own key or \
-            Lights off when idle.
+            preview ends when you leave Lighting. It stays dark while the keyboard’s lights are off: turned off with its \
+            own key, or by Lights off when idle in Firmware Settings.
             """
         )
         .font(.callout).foregroundStyle(.secondary)

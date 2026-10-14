@@ -10,10 +10,9 @@ import Testing
 struct LightingPreviewTests {
     let watcher = FakeDeviceWatcher()
     let link = FakeKeyboardLink()
-    /// The live session's debounce and reconnect backoff.
+    /// The live session's debounce, reconnect backoff, write estimate (12 ms a write) and release wait.
     let liveClock = TestClock()
-    /// The preview's pacing and its quit wait, apart so advancing one never runs the other.
-    let paceClock = TestClock()
+    let secureInput = Flag()
     let live: LiveSession
     let preview: LightingPreview
     let window = Owner()
@@ -26,8 +25,9 @@ struct LightingPreviewTests {
     static let green = HexColor(red: 0, green: 1, blue: 0)
 
     init() {
-        live = LiveSession(watcher: watcher, link: link, clock: liveClock) { false }
-        preview = LightingPreview(live: live, clock: paceClock)
+        let secureInput = secureInput
+        live = LiveSession(watcher: watcher, link: link, clock: liveClock) { secureInput.isOn }
+        preview = LightingPreview(live: live)
         live.start()
         preview.start()
     }
@@ -66,7 +66,7 @@ struct LightingPreviewTests {
         try preview.claim(for: window, title: "My MacOS Layout")
         preview.show(frame, for: window, title: "My MacOS Layout")
         let first = await sent(5)
-        await paceClock.advance(by: .seconds(1))
+        await liveClock.advance(by: .seconds(1))
         return first
     }
 
@@ -93,7 +93,7 @@ struct LightingPreviewTests {
         preview.show(frame, for: window, title: "My MacOS Layout")
         #expect(await sent(6).dropFirst(5) == [Self.led(20, Self.green)])
         preview.show(frame, for: window, title: "My MacOS Layout")
-        await paceClock.advance(by: .seconds(1))
+        await liveClock.advance(by: .seconds(1))
         #expect(link.commands[0].count == 6, "an unchanged frame sends nothing")
     }
 
@@ -109,9 +109,10 @@ struct LightingPreviewTests {
         b[5] = Self.red
         b[6] = Self.green
         preview.show(b, for: window, title: "Layout")
+        await liveClock.advance(by: .milliseconds(50))
         try await Task.sleep(for: .milliseconds(20))
-        #expect(link.commands[0].count == 5, "five writes take 25 ms; the next frame waits for them")
-        await paceClock.advance(by: .milliseconds(25))
+        #expect(link.commands[0].count == 5, "five writes may take 60 ms; the next frame waits for them")
+        await liveClock.advance(by: .milliseconds(10))
         #expect(await sent(7).dropFirst(5) == [Self.led(5, Self.red), Self.led(6, Self.green)])
     }
 
@@ -133,7 +134,7 @@ struct LightingPreviewTests {
         try preview.claim(for: window, title: "Layout")
         preview.show(Array(repeating: orange, count: 52), for: window, title: "Layout")
         #expect(await sent(2) == [.lighting(true), .setAllLEDs(red: 128, green: 64, blue: 0)])
-        await paceClock.advance(by: .seconds(1))
+        await liveClock.advance(by: .seconds(1))
         preview.setBrightness(1)
         #expect(await sent(3).last == .setAllLEDs(red: 255, green: 128, blue: 0), "a new brightness fills again, without 05 01")
         preview.setBrightness(0)
@@ -168,7 +169,7 @@ struct LightingPreviewTests {
         #expect(preview.refusal(for: window) == nil)
         preview.show(Array(repeating: Self.green, count: 52), for: other, title: "Other")
         preview.release(for: other)
-        await paceClock.advance(by: .seconds(1))
+        await liveClock.advance(by: .seconds(1))
         #expect(link.commands[0].count == 5, "another window's frames and releases do nothing")
         #expect(preview.isHeld(by: window))
     }
@@ -180,7 +181,7 @@ struct LightingPreviewTests {
         #expect(throws: LightingPreviewRefusal.liveOff) { try preview.claim(for: window, title: "Layout") }
         preview.show(Self.frame, for: window, title: "Layout")
         preview.releaseAll()
-        await preview.releaseAndWait()
+        await live.releaseLightsAndWait()
         #expect(link.sessionCount == 0 && !preview.isHeld(by: window))
     }
 
@@ -199,113 +200,6 @@ struct LightingPreviewTests {
             return live.canSend
         }
         #expect(await sent(5).first == .lighting(true))
-    }
-
-    // MARK: Releasing
-
-    @Test(arguments: ["toggle off", "sleep", "quit", "Live View off"])
-    func everyReleaseSendsLightingOffLast(_ path: String) async throws {
-        _ = try await previewing()
-        switch path {
-        case "toggle off": preview.release(for: window)
-        case "sleep": preview.releaseAll()
-        case "quit": Task { await preview.releaseAndWait() }
-        default: preview.stopLive()
-        }
-        let commands = await sent(6)
-        #expect(commands.count == 6 && commands.last == .lighting(false))
-        #expect(!preview.isHeld(by: window), "the switch turns off")
-        if path == "Live View off" { #expect(live.isLive, "Live View waits for the keyboard's reply") }
-        // The keyboard's reply ends the quit's and Live View's waits.
-        link.send(.lighting(false))
-        if path == "Live View off" { #expect(await eventually { !live.isLive }) }
-        preview.release(for: window)
-        preview.releaseAll()
-        try await Task.sleep(for: .milliseconds(10))
-        #expect(link.commands[0].count == 6, "released once")
-    }
-
-    @Test func aReleaseBehindQueuedFramesStillComesLast() async throws {
-        try #require(await paired())
-        try preview.claim(for: window, title: "Layout")
-        preview.show(Self.frame, for: window, title: "Layout")
-        var changed = Self.frame
-        changed[7] = Self.green
-        preview.show(changed, for: window, title: "Layout")
-        preview.release(for: window)
-        await paceClock.advance(by: .seconds(1))
-        try await Task.sleep(for: .milliseconds(10))
-        #expect(await sent(6).last == .lighting(false))
-        #expect(link.commands[0].count == 6, "the waiting frame is dropped, not sent after the release")
-    }
-
-    @Test func theQuitWaitEndsOnTheReplyOrAfterHalfASecond() async throws {
-        _ = try await previewing()
-        var done = false
-        Task {
-            await preview.releaseAndWait()
-            done = true
-        }
-        _ = await sent(6)
-        try await Task.sleep(for: .milliseconds(10))
-        #expect(!done)
-        link.send(.lighting(false))
-        #expect(await eventually { done }, "the keyboard's 08 00")
-
-        try preview.claim(for: window, title: "Layout")
-        preview.show(Self.frame, for: window, title: "Layout")
-        _ = await sent(11)
-        done = false
-        Task {
-            await preview.releaseAndWait()
-            done = true
-        }
-        _ = await sent(12)
-        try await Task.sleep(for: .milliseconds(10))
-        #expect(!done)
-        #expect(
-            await eventually {
-                await paceClock.advance(by: .milliseconds(100))
-                return done
-            }, "no reply: the wait is bounded")
-    }
-
-    @Test func aDisconnectSendsNothingAndAReconnectResendsTheWholeFrame() async throws {
-        let first = try await previewing()
-        link.send(.ended(.io("unplugged")))
-        #expect(await eventually { !live.canSend })
-        #expect(preview.isHeld(by: window), "the switch stays on")
-        #expect(
-            await eventually {
-                await liveClock.advance(by: .milliseconds(100))
-                return link.sessionCount == 2
-            }, "reconnected after the backoff")
-        link.send(.layer(0))
-        _ = await eventually {
-            await liveClock.advance(by: .milliseconds(17))
-            return live.canSend
-        }
-        #expect(await sent(5, session: 1) == first)
-        #expect(link.commands[0].count == 5, "no 05 00 to a session that ended")
-    }
-
-    @Test func liveViewTurnedOffElsewhereEndsThePreviewWithoutWriting() async throws {
-        _ = try await previewing()
-        live.stopLive()
-        #expect(await eventually { !preview.isHeld(by: window) })
-        #expect(link.commands[0].count == 5)
-    }
-
-    @Test func anotherHostsReleaseMakesTheNextFrameTakeTheLightsAgain() async throws {
-        _ = try await previewing()
-        link.send(.lighting(false))
-        try await Task.sleep(for: .milliseconds(20))
-        var frame = Self.frame
-        frame[20] = Self.green
-        preview.show(frame, for: window, title: "Layout")
-        let commands = await sent(11)
-        #expect(commands.count == 11, "05 01, 09 and four others")
-        #expect(commands.dropFirst(5).prefix(2) == [.lighting(true), .setAllLEDs(red: 0, green: 0, blue: 255)])
     }
 
     // MARK: LED colors

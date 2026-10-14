@@ -103,6 +103,17 @@ struct RawHIDLinkTests {
         #expect(hid.sent.value.map { $0[0] } == [0xFE, 0xFE, 0x00, 0x01])
     }
 
+    /// A board another host paired already reports layers and presses during the handshake: none comes out before this
+    /// session's own pairing, since each tells LiveSession commands will be written.
+    @Test func reportsNoLayerOrPressBeforePairing() async {
+        let hid = FakeHID(script: [
+            [report(0x05, 0x02, 0xFE)], [report(0xFE, 0x05, 0xFE)], [report(0x06, 0x01, 0x00, 0xFE)],
+            [report(0x07, 0x01, 0x00, 0xFE), report(0x04, 0xFE), report(0x05, 0x02, 0xFE), nil],
+        ])
+        #expect(await events(hid) == [.protocolVersion(5), .layer(2), .ended(nil)])
+        #expect(hid.sent.value.map { $0[0] } == [0xFE, 0xFE, 0x00, 0x01])
+    }
+
     @Test func givesUpWithoutAVersionAndNeverPairs() async {
         let hid = FakeHID()
         let events = await events(hid)

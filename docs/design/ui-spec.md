@@ -843,9 +843,9 @@ The picker is the command palette component in **assign scope**.
 - **On the keyboard (v1, ADR 0051):**
   - "Preview on Keyboard" switch, off at every launch, plus a Brightness slider (10–100%, applied on the Mac; app-wide). Keyboard ▸ Preview Lighting on Keyboard is the same switch, and turning it on shows the Lighting lens on the board.
   - It shows the shown layer's LED colors (a key's own color, else the layer's, else off) on the keyboard, and follows edits, layer changes and brightness.
-  - When it can't start, the switch is disabled with the reason under it: no keyboard, flash mode, Keymapp, "Turn on Live View to preview lighting on the keyboard." with a [Turn On Live View] button, or "Previewing in <layout>" when another window holds it. While Live View connects or the keyboard is unplugged, it says it is waiting.
-  - Footnote: "Shows this layer's colors on the keyboard as you paint. Nothing is saved to it until you flash, and the preview ends when you leave Lighting. It stays dark while the keyboard's lights are off, from its own key or Lights off when idle."
-  - Release RGB takeover (`05 00`) on switch off, leaving the Lighting lens or its board, opening another layout, window close, Live View off, sleep and quit (a bounded wait). A disconnect sends nothing; when the session pairs again, the frame is sent again.
+  - When it can't start, the switch is disabled with the reason under it: no keyboard, flash mode, Keymapp, "Turn on Live View to preview lighting on the keyboard." with a [Turn On Live View] button, or "Previewing in <layout>" when another window holds it. While the switch is on and nothing shows, it says why: the keyboard unplugged, in flash mode or held by Keymapp, or Live View still connecting.
+  - Footnote: "Shows this layer's colors on the keyboard as you paint. Nothing is saved to it until you flash, and the preview ends when you leave Lighting. It stays dark while the keyboard's lights are off: turned off with its own key, or by Lights off when idle in Firmware Settings."
+  - Release RGB takeover (`05 00`) on switch off, leaving the Lighting lens or its board, opening another layout, window close, Live View off (from anywhere: it reads as off at once and the session ends once the keyboard has its lights back), sleep and quit (a bounded wait). A disconnect sends nothing; when the session pairs again, the frame is sent again.
 
 ### 6.3 Macros page (v1)
 

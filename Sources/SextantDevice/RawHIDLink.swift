@@ -253,24 +253,28 @@ private struct OryxSession: Sendable {
             case let .report(bytes):
                 if case .draining = phase { continue }
                 guard let event = OryxReport.parse(bytes, board: board) else { continue }
-                out.yield(event)
                 switch (phase, event) {
-                case let (.version, .protocolVersion(version)):
-                    guard version >= Self.minimumVersion else {
-                        return .io(String(localized: "This keyboard's firmware is too old for the live view (protocol \(version))."))
-                    }
-                    try await send(OryxReport.getFirmwareVersion)
-                    try await send(OryxReport.pairingInit)
-                    phase = .pairing
-                    deadline.arm(Self.pairingTimeout, clock: clock, feed: feed)
                 case (.pairing, .layer):
                     // shortcut: an app that seizes the interface after this goes unnoticed (reports just stop) until a
                     // command's write fails; watch kIOMessageServiceIsRequestingClose if LiveSession must say so sooner.
                     phase = .live
                     deadline.cancel()
-                default:
+                case (.live, _), (_, .protocolVersion), (_, .firmwareSerial), (_, .lighting), (_, .error), (_, .ended):
                     break
+                case (_, .layer), (_, .keyDown), (_, .keyUp):
+                    // A board another host paired already reports these during the handshake. Each tells LiveSession the
+                    // session is paired and takes commands, so they wait for this session's own pairing (ADR 0051).
+                    continue
                 }
+                out.yield(event)
+                guard case .version = phase, case let .protocolVersion(version) = event else { continue }
+                guard version >= Self.minimumVersion else {
+                    return .io(String(localized: "This keyboard's firmware is too old for the live view (protocol \(version))."))
+                }
+                try await send(OryxReport.getFirmwareVersion)
+                try await send(OryxReport.pairingInit)
+                phase = .pairing
+                deadline.arm(Self.pairingTimeout, clock: clock, feed: feed)
             }
         }
         return nil

@@ -48,18 +48,10 @@ public final class LayoutWindowModel {
     public var columnVisibility: NavigationSplitViewVisibility = .all
     public var showsInspector = true
     /// The live view is on (ADR 0057): Sextant pairs with the keyboard and shows its layer and presses. App-wide, and only
-    /// ever turned on by the user. Turning it off gives the keyboard its own lighting back first (ADR 0051).
+    /// ever turned on by the user.
     public var isLive: Bool {
         get { live?.isLive ?? false }
-        set {
-            if newValue {
-                live?.startLive()
-            } else if let lightingPreview {
-                lightingPreview.stopLive()
-            } else {
-                live?.stopLive()
-            }
-        }
+        set { if newValue { live?.startLive() } else { live?.stopLive() } }
     }
     /// The displayed layer tracks the keyboard's (spec §8.2): the live session's Follow, shared by every window, or a
     /// stand-in where there is no live session (tests, snapshots). Only while a layer arrives: a keyboard held by

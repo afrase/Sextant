@@ -117,7 +117,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
             let quits = await Quitting(library: library, live: live).run(quitAnyway: Self.quitAnyway)
             // Bounded: the write has no timeout. If it runs out, the colors stay until the keyboard is unplugged.
-            if quits { await lightingPreview?.releaseAndWait() }
+            if quits {
+                lightingPreview?.releaseAll()
+                await live?.releaseLightsAndWait()
+            }
             sender.reply(toApplicationShouldTerminate: quits)
         }
         return .terminateLater

@@ -8,8 +8,9 @@ import SextantDomain
 /// It writes only while Live View is paired and a window holds the preview, which only the user's toggle claims. The first
 /// frame of a session takes the lights (`05 01`), fills them with the frame's most common color (`09`) and sets the rest
 /// one by one (`06`); later frames send only the lights that changed. Every way the preview ends gives the keyboard its own
-/// lighting back (`05 00`), except a session that already ended: there is no board to write to, and a session paired again
-/// gets the whole frame again.
+/// lighting back (`05 00`, through ``LiveSession/releaseLights()``, which also does it before Live View ends a session),
+/// except a session that already ended: there is no board to write to, and a session paired again gets the whole frame
+/// again.
 @MainActor
 @Observable
 public final class LightingPreview {
@@ -28,24 +29,18 @@ public final class LightingPreview {
 
     /// The holder's latest frame, one color per LED (nil is off).
     @ObservationIgnored private var frame: [HexColor?]?
-    /// What this paired session was sent; nil when nothing was, so the next frame takes the lights first.
+    /// What the keyboard shows from this paired session, to send only what changes; nil when unknown, so the next frame
+    /// takes the lights first. Whether a release is due is the live session's to know: a reply can clear this.
     @ObservationIgnored private var shown: [LEDColor]?
     /// A batch was just queued: later frames wait for the link to write it, and the latest one then wins.
     @ObservationIgnored private var pacing: Task<Void, Never>?
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
     @ObservationIgnored private let live: LiveSession
     @ObservationIgnored private let board: BoardDefinition
-    @ObservationIgnored private let clock: any Clock<Duration>
 
-    /// The link writes one report per 5 ms (ADR 0022).
-    static let writeSpacing = Duration.milliseconds(5)
-    /// How long quitting or turning Live View off waits for the keyboard to say it has its lighting back.
-    static let releaseWait = Duration.milliseconds(500)
-
-    public init(live: LiveSession, board: BoardDefinition = .voyager, clock: any Clock<Duration> = ContinuousClock()) {
+    public init(live: LiveSession, board: BoardDefinition = .voyager) {
         self.live = live
         self.board = board
-        self.clock = clock
     }
 
     /// Follows the live session for the app's lifetime: a session that ends forgets what the keyboard was sent, one that
@@ -64,7 +59,7 @@ public final class LightingPreview {
             },
             Task {
                 // Another host's `05 00` (Keymapp, Oryx in Chrome) gives the lights back too: the next frame takes them
-                // again in full. Sextant's own release reply only forgets what is already forgotten, or costs a resend.
+                // again in full. A late reply to Sextant's own release costs one such resend.
                 for await event in live.activity() where event == .lighting(false) { shown = nil }
             },
         ]
@@ -73,6 +68,11 @@ public final class LightingPreview {
     /// Why `owner` can't preview now; nil when it can, or already does.
     public func refusal(for owner: AnyObject) -> LightingPreviewRefusal? {
         if let holder { return holder.id == ObjectIdentifier(owner) ? nil : .previewingElsewhere(holder.title) }
+        return keyboardRefusal
+    }
+
+    /// Why the keyboard can't show a preview now, whichever window holds it; nil while Live View is connected.
+    public var keyboardRefusal: LightingPreviewRefusal? {
         switch live.connection {
         case .noKeyboard: return .noKeyboard
         case .bootloader: return .flashMode
@@ -116,85 +116,39 @@ public final class LightingPreview {
     /// Ends the preview, whichever window holds it (the Mac going to sleep).
     public func releaseAll() { end() }
 
-    /// Ends the preview and waits until the keyboard says it has its own lighting back (`08 00`), at most half a second:
-    /// quitting and turning Live View off end the session next, and a write still queued then would never go out.
-    public func releaseAndWait() async {
-        guard shown != nil else {
-            end()
-            return
-        }
-        // Subscribed before the write, so the reply can't come first.
-        let replies = live.activity()
-        guard end() else { return }
-        let wait = Self.releaseWait
-        await withTaskGroup { [clock] group in
-            group.addTask { for await event in replies where event == .lighting(false) { return } }
-            group.addTask { try? await clock.sleep(for: wait) }
-            await group.next()
-            group.cancelAll()
-        }
-    }
-
-    /// Turns Live View off, giving the keyboard its lighting back first when the preview shows on it.
-    public func stopLive() {
-        guard shown != nil else {
-            end()
-            return live.stopLive()
-        }
-        Task {
-            await releaseAndWait()
-            live.stopLive()
-        }
-    }
-
     // MARK: Sending
 
-    /// Sends `05 00` when this session was sent anything; true when it was.
-    @discardableResult
-    private func end() -> Bool {
-        (holder, frame) = (nil, nil)
-        defer { shown = nil }
-        guard shown != nil else { return false }
-        do throws(DeviceError) {
-            try live.send(.lighting(false))
-            return true
-        } catch {
-            return false
-        }
+    /// Ends the preview and gives the keyboard its own lighting back, if this session took it.
+    private func end() {
+        (holder, frame, shown) = (nil, nil, nil)
+        live.releaseLights()
     }
 
     /// Queues the frame's changes now, unless a batch is still being written: then the pacing task sends the latest
     /// frame once it is.
     private func send() {
-        guard pacing == nil, let batch = nextBatch() else { return }
-        pacing = Task { await pace(after: batch) }
-    }
-
-    private func pace(after first: [KeyboardCommand]) async {
-        var batch = first
-        while true {
-            // Waiting until the link has written the batch keeps at most one batch queued, however fast frames come.
-            try? await clock.sleep(for: Self.writeSpacing * batch.count)
-            guard let next = nextBatch() else { break }
-            batch = next
+        guard pacing == nil, sendChanges() else { return }
+        pacing = Task {
+            // Waiting until the link has likely written each batch keeps at most one queued, however fast frames come.
+            repeat { await live.waitForQueuedWrites() } while sendChanges()
+            pacing = nil
         }
-        pacing = nil
     }
 
-    /// Writes the commands that bring the keyboard from what it was sent to the latest frame; nil when there are none.
-    private func nextBatch() -> [KeyboardCommand]? {
-        guard holder != nil, let frame, live.canSend else { return nil }
+    /// Queues the commands that bring the keyboard from what it shows to the latest frame; false when there are none.
+    private func sendChanges() -> Bool {
+        guard holder != nil, let frame, live.canSend else { return false }
         let target = frame.map { $0.map { LEDColor($0, brightness: brightness) } ?? .off }
         let batch = Self.commands(showing: target, over: shown).filter { $0.isAllowed(on: board) }
-        guard !batch.isEmpty else { return nil }
+        guard !batch.isEmpty else { return false }
         do throws(DeviceError) {
             for command in batch { try live.send(command) }
             shown = target
-            return batch
+            return true
         } catch {
             // The session ended under it: the watcher resends the whole frame when one pairs again.
             shown = nil
-            return nil
+            return false
         }
     }
 

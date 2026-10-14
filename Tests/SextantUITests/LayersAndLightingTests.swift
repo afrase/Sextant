@@ -197,12 +197,25 @@ struct KeyboardLightingPreviewTests {
             let other = try await model.library.importOryxJSON(try #require(userLayoutData))
             await model.open(other.id)
         case "window closed": await model.close()
-        default: model.isLive = false
+        default:
+            model.isLive = false
+            #expect(!model.isLive, "off at once, while the keyboard gets its lights back")
         }
         #expect(await eventually { link.commands.last == .lighting(false) })
-        #expect(!model.previewsLighting)
+        #expect(await eventually { !model.previewsLighting })
         #expect(link.commands.filter { $0 == .lighting(false) }.count == 1)
-        if path == "Live View off" { #expect(await eventually { !live.isLive }, "after the keyboard's reply") }
+    }
+
+    /// The last click wins: Live View turned on again while the lights go back pairs again once they have.
+    @Test func liveViewOffThenOnStaysOn() async throws {
+        let model = try await previewing()
+        model.isLive = false
+        model.isLive = true
+        #expect(model.isLive)
+        #expect(await eventually { link.sessions == 2 && live.canSend })
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(model.isLive && live.isLive)
+        #expect(link.commands.filter { $0 == .lighting(false) }.count == 1)
     }
 
     @Test func aSecondWindowSaysWhereThePreviewIs() async throws {

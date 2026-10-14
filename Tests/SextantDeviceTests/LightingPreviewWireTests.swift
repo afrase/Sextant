@@ -31,7 +31,7 @@ struct LightingPreviewWireTests {
             ])
         let live = LiveSession(
             watcher: OneKeyboard(), link: RawHIDLink(clock: ImmediateClock(), makeTransport: { _, _ in hid }), secureInputProbe: { false })
-        let preview = LightingPreview(live: live, clock: ImmediateClock())
+        let preview = LightingPreview(live: live)
         let window = Window()
         live.start()
         preview.start()
@@ -58,5 +58,33 @@ struct LightingPreviewWireTests {
                     [0x05, 0x00],
                 ].map(padded))
         #expect(hid.sent.value.allSatisfy { ![0x07, 0x08, 0x0A].contains($0[0]) }, "never status LEDs or brightness steps")
+    }
+
+    /// Another host paired the board already, so it reports its layer before this session pairs. The first frame still
+    /// waits for the pairing: a command sent before it would be dropped.
+    @Test func aBoardPairedElsewhereGetsTheWholeFirstFrame() async throws {
+        // The first version query is answered only by a layer report; the retry, 400 ms on, by the version.
+        let hid = FakeHID(
+            script: [
+                [report(0x05, 0x02, 0xFE)], [report(0xFE, 0x05, 0xFE)], [], [report(0x04, 0xFE), report(0x05, 0x02, 0xFE)],
+            ])
+        let live = LiveSession(
+            watcher: OneKeyboard(), link: RawHIDLink(clock: ContinuousClock(), makeTransport: { _, _ in hid }),
+            secureInputProbe: { false })
+        let preview = LightingPreview(live: live)
+        let window = Window()
+        live.start()
+        preview.start()
+        defer { live.stop() }
+        try await settled { live.connection != .noKeyboard }
+        live.startLive()
+        try await settled { live.canSend }
+        try preview.claim(for: window, title: "Layout")
+        preview.show(Array(repeating: HexColor(red: 0, green: 0, blue: 1), count: 52), for: window, title: "Layout")
+        try await settled { hid.sent.value.count == 6 }
+        #expect(
+            hid.sent.value.map { Array($0.prefix(4)) } == [
+                [0xFE, 0, 0, 0], [0xFE, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [5, 1, 0, 0], [9, 0, 0, 0xFF],
+            ])
     }
 }
