@@ -1,0 +1,83 @@
+name: Release
+
+# Publishing a GitHub release (Draft a new release, pick or create a tag vX.Y.Z, Publish) builds that tag, attaches
+# Sextant-X.Y.Z.zip and its SHA-256 to the release, and updates the cask in afrase/homebrew-tap (ADR 0058). A draft
+# triggers nothing until it is published. Run it by hand to rebuild an existing release's assets.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of an existing release to build (vX.Y.Z)
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || inputs.tag }}
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      PRERELEASE: ${{ github.event.release.prerelease || false }}
+    steps:
+      - name: Check the tag
+        run: |
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "::error::Release tags look like v1.2.3 or v1.2.3-beta.1"; exit 1
+          fi
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+
+      # Full history: scripts/bundle numbers the build by its commit count.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Select Xcode 26.6
+        run: sudo xcode-select -s /Applications/Xcode_26.6.app
+
+      - name: Check
+        run: scripts/check
+
+      - name: Build Sextant.app
+        run: SEXTANT_VERSION="$VERSION" scripts/bundle
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          ditto -c -k --keepParent .build/Sextant.app "dist/Sextant-$VERSION.zip"
+          (cd dist && shasum -a 256 "Sextant-$VERSION.zip" > "Sextant-$VERSION.zip.sha256")
+          cat "dist/Sextant-$VERSION.zip.sha256"
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+
+      # Needs the HOMEBREW_TAP_TOKEN secret: a fine-grained token with Contents read and write on afrase/homebrew-tap
+      # only. Without it, or for a pre-release, the cask is left alone.
+      - name: Update the Homebrew cask
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$TAP_TOKEN" ]; then echo "::warning::No HOMEBREW_TAP_TOKEN secret; the cask isn't updated."; exit 0; fi
+          if [ "$PRERELEASE" = "true" ]; then echo "A pre-release; the cask isn't updated."; exit 0; fi
+          sha=$(cut -d ' ' -f 1 "dist/Sextant-$VERSION.zip.sha256")
+          git clone --depth 1 "https://x-access-token:${TAP_TOKEN}@github.com/afrase/homebrew-tap.git" tap
+          mkdir -p tap/Casks
+          sed -e "s/@VERSION@/$VERSION/" -e "s/@SHA256@/$sha/" packaging/homebrew/sextant.rb > tap/Casks/sextant.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/sextant.rb
+          if git diff --cached --quiet; then echo "The cask is already at $VERSION."; exit 0; fi
+          git commit -m "sextant $VERSION"
+          git push

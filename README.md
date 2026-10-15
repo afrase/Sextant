@@ -33,6 +33,16 @@ A native macOS app for configuring the ZSA Voyager: edit layouts on your Mac, im
 - Xcode 26 with Swift 6.2 or later.
 - A ZSA Voyager, to build for and flash. Editing works without one.
 
+## Install
+
+With [Homebrew](https://brew.sh):
+
+```sh
+brew install --cask afrase/tap/sextant
+```
+
+Or download `Sextant-X.Y.Z.zip` from [Releases](https://github.com/afrase/Sextant/releases). Release builds are signed ad hoc, not notarized: the Homebrew cask clears macOS's quarantine flag for you; a zip you download yourself needs System Settings › Privacy & Security › Open Anyway on first launch.
+
 ## Build and run
 
 ```sh
@@ -123,6 +133,7 @@ Sextant is released under the [MIT License](LICENSE).
   | [swift-system](https://github.com/apple/swift-system) | Apache-2.0 | The app (via swift-subprocess) |
   | [swift-collections](https://github.com/apple/swift-collections) | Apache-2.0 | The app (via swift-async-algorithms) |
   | [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) | MIT | The app (global layer shortcuts) |
+  | [MenuBarExtraAccess](https://github.com/orchetect/MenuBarExtraAccess) | MIT | The app (closing the menu bar panel) |
   | [swift-argument-parser](https://github.com/apple/swift-argument-parser) | Apache-2.0 | The snapshot tool |
   | [swift-clocks](https://github.com/pointfreeco/swift-clocks) | MIT | Tests |
   | [swift-snapshot-testing](https://github.com/pointfreeco/swift-snapshot-testing) | MIT | Tests |
