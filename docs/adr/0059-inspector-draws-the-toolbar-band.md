@@ -1,6 +1,6 @@
 # 59. The inspector draws the toolbar band over its own top
 
-Status: accepted, 2026-10-15. Closes the "toolbar band" known gap (progress.md).
+Status: superseded by ADR 0060, 2026-10-16. The painted band came out darker than the canvas's over the glass.
 
 ## Context
 The detail column shows a band under the toolbar: the window's content background (above the canvas, which stays in the

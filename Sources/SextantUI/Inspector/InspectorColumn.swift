@@ -36,42 +36,63 @@ struct InspectorColumn: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
         }
-        .overlay(alignment: .top) { ToolbarBand() }
+        .background(ToolbarBandReveal())
     }
 }
 
-/// The toolbar's band and hairline across the inspector. On macOS 26 the inspector first lays out full height, a glass
-/// panel running up behind the toolbar, so the band the detail column shows there stopped at the inspector's edge
-/// (only a drag of its divider laid it out under the band). This draws the same band over the panel's top: the window's
-/// own content background and the titlebar's hairline. Nothing when the inspector already starts below the toolbar.
-private struct ToolbarBand: View {
-    @Environment(\.displayScale) private var displayScale
+/// Shows the toolbar's band and hairline across the inspector (ADR 0060). On macOS 26 the inspector first lays out as a
+/// full-height glass panel over AppKit's band for its column (the same scroll pocket and hairline the canvas shows), which
+/// the glass tints darker. This masks the panel's glass to below the toolbar and its hairline so AppKit's band shows.
+private struct ToolbarBandReveal: NSViewRepresentable {
+    func makeNSView(context: Context) -> RevealView { RevealView() }
+    func updateNSView(_ view: RevealView, context: Context) { view.needsLayout = true }
 
-    var body: some View {
-        GeometryReader { proxy in
-            let top = proxy.safeAreaInsets.top
-            if top > 0 {
-                VStack(spacing: 0) {
-                    WindowContentBackground().frame(height: top)
-                    Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1 / displayScale)
-                }
-                .ignoresSafeArea(edges: .top)
-            }
+    final class RevealView: NSView {
+        private let mask = CALayer()
+        private weak var maskedGlass: NSView?
+        private var toolbarObservation: NSKeyValueObservation?
+
+        // Takes the mask off as it leaves, so a view that replaces it doesn't find a mask it can't tell is its own.
+        override func viewWillMove(toWindow newWindow: NSWindow?) {
+            super.viewWillMove(toWindow: newWindow)
+            if let layer = maskedGlass?.layer, layer.mask === mask { layer.mask = nil }
         }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-}
 
-/// The material behind a window's content (what the detail column shows under the toolbar).
-private struct WindowContentBackground: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = .contentBackground
-        view.blendingMode = .withinWindow
-        view.state = .active
-        return view
-    }
+        // The hairline's pixel is half a point on a Retina display and a whole point on others.
+        override func viewDidChangeBackingProperties() {
+            super.viewDidChangeBackingProperties()
+            needsLayout = true
+        }
 
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            // Showing or hiding the toolbar moves its bottom edge without resizing the inspector.
+            toolbarObservation = window?.observe(\.contentLayoutRect) { [weak self] _, _ in
+                MainActor.assumeIsolated { self?.needsLayout = true }
+            }
+            needsLayout = true
+        }
+
+        // Runs whenever the inspector's size changes, which is when the panel's does.
+        override func layout() {
+            super.layout()
+            guard let window, let glass = sequence(first: self as NSView, next: \.superview).first(where: { $0 is NSGlassEffectView }),
+                let layer = glass.layer, layer.mask == nil || layer.mask === mask
+            else { return }
+            // From the panel's top down to the toolbar's bottom edge and the hairline's pixel under it.
+            let panel = glass.convert(glass.bounds, to: nil)
+            let cut = panel.maxY - window.contentLayoutRect.maxY + 1 / window.backingScaleFactor
+            guard cut > 1, cut < panel.height else {
+                layer.mask = nil
+                return
+            }
+            maskedGlass = glass
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            mask.backgroundColor = NSColor.black.cgColor
+            mask.frame = CGRect(x: 0, y: glass.isFlipped ? cut : 0, width: glass.bounds.width, height: glass.bounds.height - cut)
+            layer.mask = mask
+            CATransaction.commit()
+        }
+    }
 }

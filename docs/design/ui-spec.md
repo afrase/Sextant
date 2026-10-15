@@ -296,7 +296,7 @@ The centre column is a fixed vertical stack. The board's frame is a pure functio
 
 There is no layer menu in the toolbar.
 
-**The band under the toolbar** runs across the window: the window's content background and a hairline over the canvas and over the inspector. The inspector draws its part itself while macOS lays it out full height behind the toolbar (ADR 0059).
+**The band under the toolbar** runs across the window: the window's content background and a hairline over the canvas and over the inspector. While macOS lays the inspector out as a full-height glass panel, the inspector clips its glass below the toolbar so AppKit's own band shows where the glass is clipped (ADR 0060).
 
 ### 3.5 Activity capsule
 
