@@ -46,6 +46,18 @@ struct OryxLayerIdentityTests {
         #expect(next.layers.map(\.id) == ["x", "y"] && next.layers.allSatisfy { $0.oryxID == nil })
     }
 
+    /// An Oryx revision skipped between imports leaves `prevHashId` naming a layer Sextant never saw: a unique title on
+    /// both sides still finds it; a shared or changed title, or a layer Oryx gave no previous id, doesn't.
+    @Test func aSkippedRevisionMatchesByUniqueTitle() {
+        let before = layout([layer("a", "Main"), layer("b", "Sym"), layer("c", "Nav"), layer("d", "Nav"), layer("e", "Fn")])
+        let next = layout([
+            layer("x", previous: "gone1", "Sym"), layer("y", previous: "a", "Main"), layer("z", previous: "gone2", "Nav"),
+            layer("w", previous: "gone3", "Function"), layer("v", "Fn"),
+        ]).keepingLayerIDs(of: before)
+        #expect(next.layers.map(\.id) == ["b", "a", "z", "w", "v"])
+        #expect(next.layers.map(\.oryxCurrentID) == ["x", "y", "z", "w", "v"])
+    }
+
     /// Each earlier layer is taken once, and ids stay unique.
     @Test func idsStayUnique() {
         let before = layout([layer("a", "Main"), layer("b", "Sym")])

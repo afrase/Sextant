@@ -56,7 +56,9 @@ private enough that recording it needs care: which apps the user switches to, an
   Revision (`EditSession.applyImport`) keeps the document's id for each imported layer whose `hashId` or `prevHashId`
   is what Oryx last called one of its layers (`KeyboardLayout.keepingLayerIDs(of:)`, pure domain), and keeps Oryx's
   current id beside it (`Layer.oryxID`, written as `oryxHashId`; `prevHashId` is read and used at once, never written, so a fresh import's content hash doesn't move). The Oryx query asks for
-  `prevHashId`, which Oryx's own `LayoutData` fragment reads. Nothing is matched by position: a layer added or moved in
+  `prevHashId`, which Oryx's own `LayoutData` fragment reads. When an Oryx revision was skipped between imports, a
+  layer's `prevHashId` names one Sextant never saw; it then takes the one unmatched earlier layer with the same title,
+  when the title is unique on both sides (amended 2026-10-15). Nothing is matched by position: a layer added or moved in
   Oryx would take another layer's rules. Rules, Heatmap counts (ADR 0053) and History's comparisons follow their layers
   through every later revision. A layout without these fields is written as before, so existing content hashes and
   `sx-` fingerprints don't change.
