@@ -112,11 +112,19 @@ struct FirmwareSettingsPage: View {
     var model: LayoutWindowModel
     var session: EditSession
     @FocusState private var isSearchFocused: Bool
+    @Environment(\.isSnapshot) private var isSnapshot
+    /// How many sections the Form has built. A grouped Form builds every row at once, and all hundred took about 0.4 s,
+    /// so the page opens with the first screen’s sections and builds the rest one per frame (about 20 ms each).
+    @State private var builtSections = Self.firstSections
+
+    private static let firstSections = 2
+    private static let allSections = SettingsCatalog.voyager.sections.count
 
     var body: some View {
         let filter = model.firmwareSettings
         let query = filter.trimmedQuery
         let sections = FirmwareSettings.sections(for: session.layout, query: query, modifiedOnly: filter.modifiedOnly)
+        let built = isSnapshot ? sections.count : builtSections
         VStack(spacing: 0) {
             header(sections)
             Divider()
@@ -127,7 +135,7 @@ struct FirmwareSettingsPage: View {
                         empty(query: query).frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
                         Form {
-                            ForEach(sections) { self.section($0, query: query).id($0.id) }
+                            ForEach(sections.prefix(built)) { self.section($0, query: query).id($0.id) }
                         }
                         .formStyle(.grouped)
                     }
@@ -136,9 +144,13 @@ struct FirmwareSettingsPage: View {
                 .onChange(of: model.settingsScrollTarget, initial: true) {
                     guard let target = model.settingsScrollTarget else { return }
                     model.settingsScrollTarget = nil
-                    guard sections.contains(where: { $0.id == target }) else {
-                        // A section the filter hides: show everything, then scroll once the Form has it.
-                        filter.clearFilters()
+                    guard let index = sections.firstIndex(where: { $0.id == target }), index < built else {
+                        // A section the filter hides or the Form hasn't built yet: show it (the task builds the rest),
+                        // then scroll once the Form has it.
+                        if !sections.contains(where: { $0.id == target }) { filter.clearFilters() }
+                        let unfiltered = FirmwareSettings.sections(for: session.layout)
+                        let needed = (unfiltered.firstIndex { $0.id == target } ?? Self.allSections - 1) + 1
+                        builtSections = max(builtSections, needed)
                         Task { withAnimation { proxy.scrollTo(target, anchor: .top) } }
                         return
                     }
@@ -147,6 +159,13 @@ struct FirmwareSettingsPage: View {
             }
         }
         .onChange(of: filter.searchFocusRequests) { isSearchFocused = true }
+        .task {
+            // A timer between steps, so each step's rows are drawn before the next are built.
+            while builtSections < Self.allSections {
+                guard (try? await Task.sleep(for: .milliseconds(1))) != nil else { return }
+                builtSections += 1
+            }
+        }
     }
 
     private func header(_ sections: [SettingsSection]) -> some View {

@@ -34,6 +34,14 @@ struct SettingsTests {
         #expect(await eventually { !window.pressedKeys.state(13).isDown }, "and off hides them at once")
     }
 
+    /// The heatmap notes name how long counts are kept, also for a saved value the picker doesn't offer.
+    @Test func retentionTitlesNameEverySavedValue() {
+        #expect(PrivacySettings.title(30) == String(localized: "30 days"))
+        #expect(PrivacySettings.title(365) == String(localized: "1 year"))
+        #expect(!PrivacySettings.title(45).isEmpty)
+        #expect(PrivacySettings.title(nil).isEmpty)
+    }
+
     @Test func resetAllWarningsShowsTheLiveDataNoteAgain() throws {
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }

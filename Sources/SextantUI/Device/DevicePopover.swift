@@ -86,13 +86,14 @@ public struct DevicePopover: View {
     @ViewBuilder private func privacy(_ live: LiveSession) -> some View {
         // The heatmap, once the user turns it on, saves hourly counts (ADR 0053).
         let recordsHeatmap = model.heatmap.isOn
+        let kept = PrivacySettings.title(model.heatmap.recorder?.retentionDays ?? PrivacySettings.heatmapRetentionDays())
         if !seenLiveDataNote, case .connected = live.connection {
             VStack(alignment: .leading, spacing: 8) {
                 Text(
                     recordsHeatmap
                         ? """
-                        Sextant shows the keyboard’s layer and the keys you hold as they happen. The heatmap keeps only \
-                        hourly counts of presses per key and of layer changes.
+                        Sextant shows the keyboard’s layer and the keys you hold as they happen. The heatmap saves \
+                        counts of presses per key and of layer changes, by the hour, and keeps them for \(kept).
                         """
                         : "Sextant shows the keyboard’s layer and the keys you hold as they happen. Nothing is recorded."
                 )
@@ -106,8 +107,7 @@ public struct DevicePopover: View {
         Text(
             recordsHeatmap
                 ? """
-                Key events stay in memory on this Mac; the heatmap saves only hourly counts of presses per key position \
-                and of layer changes. \
+                Key events stay in memory on this Mac. Heatmap counts are kept for \(kept) (Settings › Privacy). \
                 Live display and the heatmap pause while you type in a password field.
                 """
                 : """

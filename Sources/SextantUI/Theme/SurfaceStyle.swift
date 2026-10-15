@@ -24,7 +24,7 @@ struct SurfaceStyle<S: InsettableShape>: ViewModifier {
 }
 
 extension View {
-    /// Draws this view on an app glass surface (lens-lane capsules, the legend switch, floating panels).
+    /// Draws this view on an app glass surface (lens-lane capsules, floating panels).
     func surface<S: InsettableShape>(_ shape: S, interactive: Bool = false) -> some View {
         modifier(SurfaceStyle(shape: shape, interactive: interactive))
     }

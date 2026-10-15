@@ -296,6 +296,8 @@ The centre column is a fixed vertical stack. The board's frame is a pure functio
 
 There is no layer menu in the toolbar.
 
+**The band under the toolbar** runs across the window: the window's content background and a hairline over the canvas and over the inspector. The inspector draws its part itself while macOS lays it out full height behind the toolbar (ADR 0059).
+
 ### 3.5 Activity capsule
 
 Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, with a 2 pt progress hairline along the bottom edge. A trailing slot is reserved for a Future sync glyph.
@@ -399,7 +401,7 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
 
 **Board footer (32 pt)**
 - **Leading: the kind key.** It lists only the kinds present on the displayed layer, each with a mini cap swatch and a name. Hovering or pressing a kind dims every other key to 35%.
-- **Trailing: the legend mode switch** "Aa · KC · #". A small glass segmented control (`Picker(.segmented)` inside a glass capsule).
+- **Trailing: the legend mode switch** "Aa · KC · #". A small segmented control (`Picker(.segmented)`), bare like the lens switch (§10.4).
 
 ### 3.8 Inspector routing
 
@@ -1541,17 +1543,16 @@ The only uppercase label is the "LIVE" badge and the "REC" badge. SF Mono is nev
 **Where glass goes**
 - The toolbar. The system draws it, including the platters for the capsule, undo and redo, and search.
 - Lens-lane capsules.
-- The board-footer legend switch.
 - The command palette and the keycode picker.
 - The HUD.
 - Popovers (system).
 - Sheets (system).
 
-**Where it never goes:** the bench, caps, the sidebar list content, the inspector body, document pages, Form rows, the build log, and sheet bodies. These are flat and dense.
+**Where it never goes:** the bench, segmented controls (the lens and legend switches draw their own rounded track, which a capsule around them doesn't follow), caps, the sidebar list content, the inspector body, document pages, Form rows, the build log, and sheet bodies. These are flat and dense.
 
 **Implementation**
 - `SurfaceStyle` is a single modifier. It applies `.glassEffect(.regular, in: shape)` (or `.regular.interactive()` for controls). Under `accessibilityReduceTransparency`, or in snapshots, it draws an opaque `#FBFBFD / #26262B` surface at 96% with a hairline and a shadow.
-- Adjacent floating glass is wrapped in `GlassEffectContainer(spacing: 8)`: the lens-lane capsules, and the legend switch with its segments.
+- Adjacent floating glass is wrapped in `GlassEffectContainer(spacing: 8)`: the lens-lane capsules.
 - **Morphing.**
   - The palette becoming the picker uses `glassEffectID(_:in:)`.
   - Lens-lane capsules appear and disappear with `glassEffectTransition(.materialize)`.

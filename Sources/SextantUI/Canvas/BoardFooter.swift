@@ -26,20 +26,17 @@ struct BoardFooter: View {
             .scrollIndicators(.never)
             // A kind can vanish under the pointer (another layer has none) without a hover exit.
             .onChange(of: model.kindsOnLayer) { model.highlightedKind = nil }
-            GlassEffectContainer(spacing: 8) {
-                Picker("Legends", selection: $model.legendMode) {
-                    Text(verbatim: "Aa").tag(LegendMode.symbols).accessibilityLabel(LegendMode.symbols.title)
-                    Text(verbatim: "KC").tag(LegendMode.qmk).accessibilityLabel(LegendMode.qmk.title)
-                    Text(verbatim: "#").tag(LegendMode.index).accessibilityLabel(LegendMode.index.title)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .controlSize(.small)
-                .fixedSize()
-                .padding(2)
-                .surface(Capsule(), interactive: true)
-                .help(Text("Legends: symbols, QMK codes (⌥⌘C) or key numbers (⌥⌘N)"))
+            // Bare, like the lens switch: a glass capsule around the control's own rounded track wasn't concentric.
+            Picker("Legends", selection: $model.legendMode) {
+                Text(verbatim: "Aa").tag(LegendMode.symbols).accessibilityLabel(LegendMode.symbols.title)
+                Text(verbatim: "KC").tag(LegendMode.qmk).accessibilityLabel(LegendMode.qmk.title)
+                Text(verbatim: "#").tag(LegendMode.index).accessibilityLabel(LegendMode.index.title)
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .controlSize(.small)
+            .fixedSize()
+            .help(Text("Legends: symbols, QMK codes (⌥⌘C) or key numbers (⌥⌘N)"))
         }
         .padding(.horizontal, 20)
     }

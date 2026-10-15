@@ -1868,7 +1868,7 @@
     "Key events stay in memory on this Mac and are never written to disk. Live display pauses while you type in a password field." : {
 
     },
-    "Key events stay in memory on this Mac; the heatmap saves only hourly counts of presses per key position and of layer changes. Live display and the heatmap pause while you type in a password field." : {
+    "Key events stay in memory on this Mac. Heatmap counts are kept for %@ (Settings › Privacy). Live display and the heatmap pause while you type in a password field." : {
 
     },
     "Key kinds" : {
@@ -2543,7 +2543,7 @@
     "Off" : {
 
     },
-    "Off unless you turn it on. Presses are counted only while Live View is on. Only hourly counts of presses per key position and of layer changes are saved, on this Mac and apart from your layouts, so they never go with a layout you export or share." : {
+    "Off unless you turn it on. Presses are counted only while Live View is on. Sextant saves counts of presses per key position and of layer changes, by the hour, never the keys’ order or exact times. They’re kept on this Mac, apart from your layouts, so they never go with a layout you export or share." : {
 
     },
     "On" : {
@@ -3282,7 +3282,7 @@
     "Sextant shows the keyboard’s layer and the keys you hold as they happen. Nothing is recorded." : {
 
     },
-    "Sextant shows the keyboard’s layer and the keys you hold as they happen. The heatmap keeps only hourly counts of presses per key and of layer changes." : {
+    "Sextant shows the keyboard’s layer and the keys you hold as they happen. The heatmap saves counts of presses per key and of layer changes, by the hour, and keeps them for %@." : {
 
     },
     "Sextant won't flash this image: %@" : {

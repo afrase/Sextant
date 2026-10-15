@@ -164,7 +164,17 @@ public struct PrivacySettings: View {
         (days: 365, title: String(localized: "1 year")),
     ]
 
-    static func title(_ days: Int?) -> String { retentions.first { $0.days == days }?.title ?? "" }
+    /// "45 days" (or "1 day") for a saved retention the picker doesn't offer.
+    private static var dayCount: DateComponentsFormatter {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = .day
+        formatter.unitsStyle = .full
+        return formatter
+    }
+
+    static func title(_ days: Int?) -> String {
+        retentions.first { $0.days == days }?.title ?? days.flatMap { dayCount.string(from: DateComponents(day: $0)) } ?? ""
+    }
 
     /// Keeping counts longer applies at once; keeping them for less asks first.
     private var retention: Binding<Int> {
@@ -189,9 +199,9 @@ public struct PrivacySettings: View {
     private var heatmapNote: some View {
         Text(
             """
-            Off unless you turn it on. Presses are counted only while Live View is on. Only hourly counts of presses per \
-            key position and of layer changes are saved, on this Mac and apart from your layouts, so they never go with \
-            a layout you export or share.
+            Off unless you turn it on. Presses are counted only while Live View is on. Sextant saves counts of presses \
+            per key position and of layer changes, by the hour, never the keys’ order or exact times. They’re kept on this \
+            Mac, apart from your layouts, so they never go with a layout you export or share.
             """
         )
         .foregroundStyle(.secondary)
