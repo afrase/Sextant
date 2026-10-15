@@ -51,17 +51,53 @@ struct MenuBarPanel: View {
     var appLayers: AppLayerSwitcher?
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
+    /// The panel's own window: SwiftUI has no call that closes a menu bar extra.
+    @State private var panel = PanelWindow()
 
     var body: some View {
         let state = MenuBarPanelState(
             live: live, onKeyboard: onKeyboard, shortcuts: shortcuts, library: library, buildTarget: windows.target,
             appLayers: appLayers)
-        MenuBarPanelContent(
-            state: state,
-            actions: MenuBarActions(
-                live: live, onKeyboard: onKeyboard, windows: windows, openWindow: { openWindow.layout($0) }, appLayers: appLayers,
-                openSettings: { openSettings() }),
-            typingStats: heatmap.map { .recorder($0) })
+        var actions = MenuBarActions(
+            live: live, onKeyboard: onKeyboard, windows: windows, openWindow: { openWindow.layout($0) }, appLayers: appLayers,
+            openSettings: { openSettings() })
+        // The rows that take the user to a window close the panel, as a menu would; tiles and switches leave it open.
+        let panel = panel
+        for keyPath in [\MenuBarActions.buildAndFlash, \.openSextant, \.openSettings] {
+            let action = actions[keyPath: keyPath]
+            actions[keyPath: keyPath] = {
+                panel.window?.orderOut(nil)
+                action()
+            }
+        }
+        return MenuBarPanelContent(state: state, actions: actions, typingStats: heatmap.map { .recorder($0) })
+            .background(PanelWindowReader(panel: panel))
+    }
+}
+
+/// Holds the menu bar extra's window once its content is in it.
+@MainActor
+final class PanelWindow {
+    weak var window: NSWindow?
+}
+
+private struct PanelWindowReader: NSViewRepresentable {
+    var panel: PanelWindow
+
+    func makeNSView(context: Context) -> NSView { Reader(panel: panel) }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private final class Reader: NSView {
+        let panel: PanelWindow
+        init(panel: PanelWindow) {
+            self.panel = panel
+            super.init(frame: .zero)
+        }
+        @available(*, unavailable) required init?(coder: NSCoder) { nil }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window { panel.window = window }
+        }
     }
 }
 
