@@ -82,3 +82,10 @@ and no menu bar item.
 - The pending Build & Flash is UI state, not a use case: it lives only until a window takes it or 10 s pass.
 - Not done: checking that the status item can be seen before going `.accessory`. SwiftUI doesn't expose the item, and
   the hidden cases need the real menu bar to verify; reopening covers them.
+
+## Amendment, 2026-10-15: the panel closes itself
+The rows' windows didn't close the panel on the user's Mac, and hiding the panel's window left the status item drawn
+pressed, since SwiftUI never learned the panel had closed. SwiftUI has no call that opens or closes a menu bar extra, so
+Sextant uses orchetect/MenuBarExtraAccess (MIT, 1.3.1, pinned exactly; the user approved it): `SextantScenes` binds the
+panel's `isPresented`, and Build & Flash…, Open Sextant and Settings… set it false before they act. The layer tiles, Turn
+On Live View and the switches leave the panel open. The library uses no private API.

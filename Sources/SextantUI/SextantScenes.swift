@@ -1,3 +1,4 @@
+import MenuBarExtraAccess
 import SextantApplication
 import SwiftUI
 
@@ -10,6 +11,8 @@ public struct SextantScenes: Scene {
     private let windows: WindowRouter
     /// Settings › General's "Show in menu bar"; removing the extra from the menu bar turns it off.
     @AppStorage(SettingsKey.showsInMenuBar) private var showsInMenuBar = true
+    /// Whether the menu bar extra's panel is open; its rows that open a window set it false.
+    @State private var isPanelPresented = false
 
     /// `buildToolsStatus` fills Settings › Build's status line, `firmwareSource` its pinned commits, and
     /// `layerShortcutRecorder` Settings › Keyboard's layer shortcuts. `windows` opens windows for the menu bar extra and
@@ -54,10 +57,11 @@ public struct SextantScenes: Scene {
         // The label is an image the panel's state draws, since a menu bar extra's label shows only an Image and a Text
         // (spec §8.3, ADR 0049).
         MenuBarExtra(isInserted: $showsInMenuBar) {
-            MenuBarPanel(services: services, windows: windows)
+            MenuBarPanel(services: services, windows: windows) { isPanelPresented = false }
         } label: {
             MenuBarLabel(live: services.live, onKeyboard: services.onKeyboard)
         }
+        .menuBarExtraAccess(isPresented: $isPanelPresented)
         .menuBarExtraStyle(.window)
     }
 }

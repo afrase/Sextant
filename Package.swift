@@ -22,6 +22,7 @@ let package = Package(
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", exact: "1.19.6"),
         .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", exact: "0.65.1"),
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", exact: "3.1.0"),
+        .package(url: "https://github.com/orchetect/MenuBarExtraAccess", exact: "1.3.1"),
     ],
     targets: [
         // Domain: pure Swift + Foundation.
@@ -45,7 +46,14 @@ let package = Package(
         .target(name: "SextantDevice", dependencies: ["SextantApplication", "SextantDomain"]),
 
         // Driving adapter (UI).
-        .target(name: "SextantUI", dependencies: ["SextantApplication", "SextantDomain"]),
+        .target(
+            name: "SextantUI",
+            dependencies: [
+                "SextantApplication", "SextantDomain",
+                // Opens and closes the menu bar extra's panel, which SwiftUI can't (ADR 0049).
+                .product(name: "MenuBarExtraAccess", package: "MenuBarExtraAccess"),
+            ]
+        ),
 
         // Composition root.
         .executableTarget(
