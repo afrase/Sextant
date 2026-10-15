@@ -1,6 +1,6 @@
 # 54. App Layers: rules beside the layout, and when SET_LAYER may be sent without a click
 
-Status: accepted, 2026-10-15, except the consent model, which awaits the user's confirmation (below). v1 plan slice 4.2.
+Status: accepted, 2026-10-15; the user confirmed the consent model the same day. v1 plan slice 4.2.
 Builds on ADRs 0038 (keyboard commands), 0039 (the keyboard's layout is the flashed revision), 0048 (Move Keyboard to
 Layer), 0049 (the menu bar panel) and 0057 (Live View starts by hand); amends spec §8.1, §8.3 and §8.6, and ADR
 0007's codec (two layer fields).
@@ -16,7 +16,7 @@ change the `sx-` fingerprint, so the keyboard would seem to run another build af
 private enough that recording it needs care: which apps the user switches to, and when, is a log of their work.
 
 ## Decision
-- **The consent model (awaiting the user's confirmation).** The plan's recommendation, built as it stands:
+- **The consent model (the user confirmed it, 2026-10-15).** The plan's recommendation, built as it stands:
   - a layout's switch, "Switch layers when you change apps", together with at least one enabled rule, is the consent. The
     switch is off by default and adding a rule doesn't turn it on;
   - nothing is sent at launch (the app in front then only sets where switching starts from), when Live View starts, or
@@ -105,7 +105,7 @@ private enough that recording it needs care: which apps the user switches to, an
 ## Consequences
 - Agents never send SET_LAYER to the user's Voyager. `AppLayerSwitcherTests` run on `FakeFrontmostAppWatcher`,
   `FakeKeyboardLink`, `FakeDeviceWatcher` and a `TestClock`; snapshots use a stand-in keyboard and frontmost app. The real
-  adapter is never started in tests. Trying App Layers on the keyboard needs the user's OK in chat for SET_LAYER.
+  adapter is never started in tests. The user approved SET_LAYER on 2026-10-15, and a layer move and back passed on their Voyager (`RealKeyboardTests`).
 - A layer the user toggles is dropped by the move when they switch apps, as the footnote says; a held one isn't, since the
   move waits for its release.
 - Sextant itself coming forward isn't an app switch (`ownBundleID`, from the composition root), and neither is going

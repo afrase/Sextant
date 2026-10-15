@@ -64,7 +64,7 @@ Carbon adapter with only a modifier-set picker.
 ## Consequences
 - Agents never send SET_LAYER to the user's Voyager. `LayerShortcutsTests` runs on `FakeHotKeys`, `FakeKeyboardLink` and
   `FakeDeviceWatcher`; the real adapter is never built into `swift test`, so no test takes ⌃⌥ digits system-wide. Trying
-  a real move needs the user's OK in chat for SET_LAYER.
+  a real move needs the user's OK in chat for SET_LAYER. The user gave it on 2026-10-15: `SEXTANT_REAL_KEYBOARD=1 swift test --filter RealKeyboardTests` paired with their Voyager over Sextant's own path and moved it 0 → 1 → 0, each move confirmed by the keyboard's layer report.
 - The shortcuts work without a window and whichever app is frontmost, but only while Live View is on.
 - Another app that registers the same keys without holding them exclusively isn't detected; which app gets the press is
   then up to the system.

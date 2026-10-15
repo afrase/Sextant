@@ -76,7 +76,7 @@ or more. Ending a session drops whatever it still has queued, a `05 00` included
 - Agents never send these commands to the user's Voyager. `LightingPreviewTests` run on `FakeKeyboardLink` and
   `FakeDeviceWatcher` with test clocks, `LightingPreviewWireTests` check the exact 32-byte reports through `RawHIDLink`
   on `FakeHID`, and `KeyboardLightingPreviewTests` drive the window's paths on a stand-in link. Trying the takeover on
-  the keyboard needs the user's OK in chat for RGB takeover.
+  the keyboard needs the user's OK in chat for RGB takeover. The user gave it on 2026-10-15: `RealKeyboardTests` claimed the lights (`08 01`), set every LED and one key, and gave them back (`08 00`) on their Voyager. Sent without the claim, `09` and `06` get no `08 01`; the preview always claims first.
 - If Sextant crashes, or the quit wait runs out, the colors stay until the keyboard is unplugged; the next launch sends
   nothing to repair them. So does quitting between two sessions (a failed write with the keyboard still plugged in),
   and a due release waits while Live View stays off: Sextant doesn't open a session just to give the lights back. Sleep queues the release but can't wait for it: with at most one batch queued it goes out
