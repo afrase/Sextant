@@ -19,7 +19,8 @@ extension LayoutWindowModel {
             ?? (errors.isEmpty ? nil : .issues(count: errors.count, firstKey: errors.first?.key?.index))
             ?? ActivityState.Status(
                 live.connection, match: match, serial: live.firmwareSerial, edits: editsSinceImport,
-                revisionDate: session?.revisions.last?.createdAt, layoutOpen: session != nil)
+                revisionDate: session?.revisions.last?.createdAt, layoutOpen: session != nil,
+                runningTitle: onKeyboard?.running?.entry.title)
         let device = ActivityState.Device(live.connection, serial: live.firmwareSerial, match: match, layoutOpen: session != nil)
         return ActivityState(device: device, status: status)
     }
@@ -193,7 +194,7 @@ extension ActivityState.Status {
     /// with no layout open (first launch, §12.1) there is nothing to differ from.
     init(
         _ connection: LiveSession.Connection, match: FirmwareMatch?, serial: String?, edits: Int?, revisionDate: Date?,
-        layoutOpen: Bool = true
+        layoutOpen: Bool = true, runningTitle: String? = nil
     ) {
         switch connection {
         case .noKeyboard: self = .noKeyboard
@@ -204,7 +205,7 @@ extension ActivityState.Status {
             case _ where !layoutOpen: self = .keyboardConnected
             case .current: self = .onKeyboard(revisionDate: revisionDate ?? .now)
             case .thisLayout: self = .notOnKeyboard(edits: edits)
-            case .otherLayout, nil: self = .otherLayout(serial: serial ?? "")
+            case .otherLayout, nil: self = .otherLayout(name: runningTitle)
             }
         }
     }

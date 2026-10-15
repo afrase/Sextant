@@ -305,19 +305,19 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
 | No keyboard | grey dot | "No keyboard" | — | — |
 | Keyboard runs this revision, no edits since | `checkmark.circle.fill` (green) | "On keyboard" | revision date | — |
 | Edits not yet flashed | `arrow.up.circle` (orange) | "Not on keyboard" | "5 edits" | — |
-| Keyboard runs another layout | `exclamationmark.triangle.fill` (orange) | "Keyboard runs another layout" | `Q9x2/aa11` | — |
+| Keyboard runs another layout | `exclamationmark.triangle.fill` (orange) | "Keyboard runs ‘Travel’" when the library holds that layout, else "Keyboard runs another layout" | — (the serial already shows in the device segment) | — |
 | Keymapp holds the device | `lock.fill` (secondary) | "In use by Keymapp" | — | — |
 | Live issues (pre-build) | `exclamationmark.triangle.fill` | "2 issues" | "key 45" | — |
 | Building | spinner | "Compiling keymap.c" | "12 of 41" | determinate |
 | Built (⌘B only) | `checkmark.circle.fill` | "Built" | "65,786 B · 26%" | — |
-| Waiting for flash mode | `button.horizontal.top.press` (orange) | "Waiting for flash mode" | "Press the reset button" | indeterminate shimmer (Reduce Motion: static) |
+| Waiting for flash mode | `button.horizontal.top.press` (orange) | "Waiting for flash mode" | — (the Build & Flash sheet says how) | indeterminate shimmer (Reduce Motion: static) |
 | Writing / Verifying | spinner | "Writing · 64%" / "Verifying · 40%" | bytes | determinate, per phase |
 | Flashed | `checkmark.seal.fill` (green) | "Flashed" | revision id | Shown for 8 s, then "On keyboard" |
 | Build failed | `xmark.octagon.fill` (red) | "Build Failed" | "1 error · key 45" | — |
 | Flash failed | `xmark.octagon.fill` | "Flashing didn't finish" | "Try again" | — |
 
 **Rules**
-- The **device dot** is green when connected, orange in flash mode, and grey when absent. A serial that doesn't match the layout gets a trailing orange "≠" in the device segment.
+- The **device dot** is green when connected, orange in flash mode, and grey when absent. A serial that doesn't match the layout gets a trailing orange "≠" in the device segment. A serial longer than 14 characters (Sextant's `sx-…`) is cut in the middle, `sx-C57F…DE1F`, with the whole serial as its tooltip and VoiceOver text.
 - **Width.** At widths below 360 pt the serial and the detail hide.
 - **Accessibility.** The capsule is two buttons, each with its own label.
 

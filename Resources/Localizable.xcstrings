@@ -1905,6 +1905,9 @@
     "Keyboard runs another layout" : {
 
     },
+    "Keyboard runs ‘%@’" : {
+
+    },
     "Keyboard, %@ layer, %lld keys" : {
       "localizations" : {
         "en" : {
@@ -2745,9 +2748,6 @@
           }
         }
       }
-    },
-    "Press the reset button" : {
-
     },
     "Press the reset button %@." : {
 

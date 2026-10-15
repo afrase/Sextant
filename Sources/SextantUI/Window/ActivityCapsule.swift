@@ -16,7 +16,8 @@ public struct ActivityState: Hashable, Sendable {
         case onKeyboard(revisionDate: Date)
         /// An earlier build of this layout is on the keyboard; `edits` when Sextant can count them.
         case notOnKeyboard(edits: Int?)
-        case otherLayout(serial: String)
+        /// The keyboard runs another layout: its name when the library holds it (the serial already shows beside it).
+        case otherLayout(name: String?)
         case heldByAnotherApp(String)
         /// The keyboard sits in flash mode with no flash running.
         case inFlashMode
@@ -49,6 +50,12 @@ public struct ActivityState: Hashable, Sendable {
     public init(device: Device = .absent, status: Status = .noKeyboard) {
         self.device = device
         self.status = status
+    }
+
+    /// A serial short enough for the capsule: an Oryx one (`KlgM7/40xJ7M`) as it is, Sextant's longer `sx-` one cut in
+    /// the middle (`sx-C57F…DE1F`). The whole serial is the tooltip and what VoiceOver reads.
+    static func shortSerial(_ serial: String) -> String {
+        serial.count <= 14 ? serial : "\(serial.prefix(7))…\(serial.suffix(4))"
     }
 
     var isKeyboardConnected: Bool {
@@ -91,10 +98,10 @@ extension ActivityState.Status {
             ActivityLook(
                 symbol: "arrow.up.circle", tone: .warning, text: String(localized: "Not on keyboard"),
                 detail: edits.map { $0 == 1 ? String(localized: "1 edit") : String(localized: "\($0) edits") })
-        case let .otherLayout(serial):
+        case let .otherLayout(name):
             ActivityLook(
-                symbol: "exclamationmark.triangle.fill", tone: .warning, text: String(localized: "Keyboard runs another layout"),
-                detail: serial.isEmpty ? nil : serial)
+                symbol: "exclamationmark.triangle.fill", tone: .warning,
+                text: name.map { String(localized: "Keyboard runs ‘\($0)’") } ?? String(localized: "Keyboard runs another layout"))
         case let .heldByAnotherApp(app):
             ActivityLook(symbol: "lock.fill", tone: .secondary, text: String(localized: "In use by \(app)"))
         case .inFlashMode:
@@ -129,7 +136,7 @@ extension ActivityState.Status {
         case .waitingForFlashMode:
             ActivityLook(
                 symbol: "button.horizontal.top.press", tone: .warning, text: String(localized: "Waiting for flash mode"),
-                detail: String(localized: "Press the reset button"), progress: .indeterminate)
+                progress: .indeterminate)
         case let .erasing(fraction):
             ActivityLook(
                 symbol: nil, tone: .secondary, text: String(localized: "Erasing · \(Int((fraction * 100).rounded()))%"),
@@ -221,7 +228,8 @@ public struct ActivityCapsule: View {
             Circle().fill(dot).frame(width: 7, height: 7)
             Text(verbatim: boardName).font(.callout.weight(.semibold)).lineLimit(1)
             if let serial, !compact {
-                Text(verbatim: serial).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
+                Text(verbatim: ActivityState.shortSerial(serial)).font(.caption.monospaced()).foregroundStyle(.secondary)
+                    .lineLimit(1).help(serial)
             }
             if mismatch { Text(verbatim: "≠").font(.callout.weight(.bold)).foregroundStyle(Tokens.warning.color) }
         }
