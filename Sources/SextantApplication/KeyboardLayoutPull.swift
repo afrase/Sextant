@@ -103,7 +103,7 @@ public final class KeyboardLayoutPull {
     }
 
     /// How long ``read(startingLiveView:)`` waits for Live View to pair. Tests that run on real time lengthen it.
-    @ObservationIgnored var pairingWait = Duration.seconds(3)
+    @ObservationIgnored public var pairingWait = Duration.seconds(3)
 
     @ObservationIgnored private let live: LiveSession
     @ObservationIgnored private let onKeyboard: OnKeyboard
