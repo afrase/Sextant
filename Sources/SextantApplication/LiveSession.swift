@@ -10,7 +10,8 @@ import SextantDomain
 /// reopened with backoff when it ends. Live events are folded into state and published at most 60 times a
 /// second; ``activity()`` streams each press, release and layer change as it happens. They stay in memory and are never
 /// logged. ``send(_:)`` writes a command over the paired session (ADR 0038). A session that took the keyboard's lights
-/// gives them back before Live View ends it (ADR 0051).
+/// gives them back before Live View ends it (ADR 0051). ``readLayoutRecord(progress:)`` reads the layout a Sextant build
+/// stores (ADR 0061); its parts never reach ``activity()`` or the published state.
 @MainActor
 @Observable
 public final class LiveSession {
@@ -51,8 +52,10 @@ public final class LiveSession {
     /// is being written. The menu bar's arc fills with it (spec §8.3); the steps keep it from redrawing at every block.
     public internal(set) var flashProgress: Double?
     private var pressed: Set<Int> = []
-    /// The command feed of the link session that is paired now; nil otherwise.
-    private var liveCommands: AsyncStream<KeyboardCommand>.Continuation?
+    /// The command feed of the link session that is paired now; nil otherwise. A layout read ends with it.
+    private var liveCommands: AsyncStream<KeyboardCommand>.Continuation? {
+        didSet { if liveCommands == nil { layoutRead?.yield(.ended) } }
+    }
 
     /// Indices of the keys held down; empty while secure input is on.
     public var pressedKeys: Set<Int> { isSecureInputOn ? [] : pressed }
@@ -64,7 +67,7 @@ public final class LiveSession {
     @ObservationIgnored private let watcher: any DeviceWatcher
     @ObservationIgnored private let link: any KeyboardLink
     @ObservationIgnored private let board: BoardDefinition
-    @ObservationIgnored private let clock: any Clock<Duration>
+    @ObservationIgnored let clock: any Clock<Duration>
     @ObservationIgnored private let secureInputProbe: @Sendable () -> Bool
     @ObservationIgnored private let followsOnConnect: @MainActor () -> Bool
     @ObservationIgnored private var devices: [ConnectedDevice] = []
@@ -87,6 +90,8 @@ public final class LiveSession {
     @ObservationIgnored private var writesDone: (any InstantProtocol<Duration>)?
     /// Live View was turned off while the session held the lights: it ends once the keyboard has them back.
     @ObservationIgnored private var stopping: Task<Void, Never>?
+    /// The running ``readLayoutRecord(progress:)``'s feed: the paired session's record parts and refusals, and its end.
+    @ObservationIgnored var layoutRead: AsyncStream<LayoutReadInput>.Continuation?
 
     /// One queued write: the link writes a report and then waits 5 ms (ADR 0022), but its sleeps overshoot and the write
     /// takes time too (about 7.5 ms a report measured on a Mac with a free transport). A sender that waits this out never
@@ -207,7 +212,7 @@ public final class LiveSession {
         guard command.isAllowed(on: board) else { throw .outOfRange }
         liveCommands.yield(command)
         switch command {
-        case .moveToLayer: break
+        case .moveToLayer, .readLayoutRecord: break
         case .lighting(true), .setLED, .setAllLEDs: (lightsTaken, releaseDue) = (true, false)
         case .lighting(false): (lightsTaken, releaseDue, releasesInFlight) = (false, false, releasesInFlight + 1)
         }
@@ -219,10 +224,13 @@ public final class LiveSession {
     /// Waits until the link has likely written every command queued so far. A sender that can outpace it (the lighting
     /// preview) waits between batches, so at most one batch is ever queued.
     public func waitForQueuedWrites() async {
-        let left = clock.time(until: writesDone)
+        let left = queuedWritesLeft
         guard left > .zero else { return }
         try? await clock.sleep(for: left)
     }
+
+    /// How long until the link has likely written every command queued so far; zero once it has.
+    var queuedWritesLeft: Duration { clock.time(until: writesDone) }
 
     /// Gives the keyboard its own lighting back (`05 00`) if Live View took it. With no session paired it is sent when the
     /// next one pairs, unless the lights are taken again first.
@@ -347,7 +355,7 @@ public final class LiveSession {
         while !Task.isCancelled {
             // Each session gets its own command feed, so a command never reaches a later session.
             let (commands, feed) = AsyncStream.makeStream(of: KeyboardCommand.self)
-            let (activity, tap) = AsyncStream.makeStream(of: LiveActivity?.self)
+            let (activity, tap) = AsyncStream.makeStream(of: Tapped.self)
             async let delivered: Void = deliver(activity, from: device)
             let events = link.session(with: device, board: board, commands: commands)
             let final = await clock.publish(events, board: board, tap: tap, secureInput: secureInputProbe) { state in
@@ -387,12 +395,20 @@ public final class LiveSession {
 
     /// Hands one session's activity to every ``activity()`` stream. Presses and layers stop while Live View is off and
     /// during secure input, asked per event because the once-a-second poll would let the first keys typed into a password
-    /// field through. A nil event is one the session hid for secure input as it arrived.
-    private func deliver(_ activity: AsyncStream<LiveActivity?>, from device: KeyboardDevice) async {
+    /// field through. A nil event is one the session hid for secure input as it arrived. Layout record parts go to the
+    /// running read only, and refusals to it too.
+    private func deliver(_ activity: AsyncStream<Tapped>, from device: KeyboardDevice) async {
         // The keys subscribers saw go down and not yet up.
         var down: Set<Int> = []
-        for await event in activity where keyboard == device {
-            guard let event else {
+        for await tapped in activity where keyboard == device {
+            let reported: LiveActivity?
+            switch tapped {
+            case let .activity(value): reported = value
+            case let .layoutRecord(chunk):
+                layoutRead?.yield(.chunk(chunk))
+                continue
+            }
+            guard let event = reported else {
                 hide(&down)
                 continue
             }
@@ -400,6 +416,8 @@ public final class LiveSession {
             case .lighting(false): releasesInFlight = max(releasesInFlight - 1, 0)
             // RGB_MATRIX_NOT_ENABLED: this build has no lights to take or give back.
             case .refused(0x04): (lightsTaken, releaseDue, releasesInFlight) = (false, false, 0)
+            // A running layout read stops at `FF FF`, an unknown command: firmware without the read.
+            case let .refused(code): layoutRead?.yield(.refused(code))
             default: break
             }
             if event.isTyping {
@@ -462,19 +480,22 @@ extension Clock where Duration == Swift.Duration {
     /// Folds a link session's events into state and calls `body` with it debounced by 1/60 s on this clock: a
     /// burst collapses into one update, updates come at most 60 times a second, and nothing runs while the
     /// keyboard is idle. `tap` gets each event's ``LiveActivity`` as it is folded in, undebounced, or nil when secure
-    /// input hides it. Returns the final state. A method so it can be called on an `any Clock` (passing one to a generic
-    /// parameter doesn't compile in this module).
+    /// input hides it, and each layout record part. Returns the final state. A method so it can be called on an
+    /// `any Clock` (passing one to a generic parameter doesn't compile in this module).
     /// shortcut: during a burst with gaps under 1/60 s the update waits for the pause; move to a leading-and-trailing
     /// throttle if that lag ever shows.
     fileprivate func publish(
-        _ events: AsyncStream<LiveEvent>, board: BoardDefinition, tap: AsyncStream<LiveActivity?>.Continuation,
+        _ events: AsyncStream<LiveEvent>, board: BoardDefinition, tap: AsyncStream<Tapped>.Continuation,
         secureInput: @escaping @Sendable () -> Bool, to body: @MainActor (LinkState) -> Void
     ) async -> LinkState {
         var last = LinkState()
         let states = events.reductions(into: LinkState()) { state, event in
             // Asked as the event arrives, so a press made during secure input never waits for the main actor.
             // A press, release or layer is hidden as nil, so the subscribers learn that something happened without what.
-            if let activity = state.apply(event, board: board) { tap.yield(activity.isTyping && secureInput() ? nil : activity) }
+            if let activity = state.apply(event, board: board) {
+                tap.yield(.activity(activity.isTyping && secureInput() ? nil : activity))
+            }
+            if case let .layoutRecord(chunk) = event { tap.yield(.layoutRecord(chunk)) }
         }
         for await state in states.debounce(for: .seconds(1) / 60, clock: self) {
             last = state
@@ -500,6 +521,14 @@ extension Clock where Duration == Swift.Duration {
     }
 }
 
+/// What a link session hands ``LiveSession`` as each event arrives, undebounced.
+private enum Tapped: Sendable {
+    /// Activity, or nil when secure input hid it.
+    case activity(LiveActivity?)
+    /// Part of the stored layout record: for the read waiting for it, never activity (ADR 0061).
+    case layoutRecord(LayoutRecordChunk)
+}
+
 /// What one link session has reported so far.
 private struct LinkState: Sendable {
     var serial: String?
@@ -512,12 +541,14 @@ private struct LinkState: Sendable {
     var hasEnded = false
     var endReason: DeviceError?
 
-    /// Folds in one event; returns it as activity unless it identifies the keyboard or ends the session.
+    /// Folds in one event; returns it as activity unless it identifies the keyboard, ends the session or is a layout
+    /// record part, which changes nothing here.
     mutating func apply(_ event: LiveEvent, board: BoardDefinition) -> LiveActivity? {
         switch event {
         case let .ended(reason): (hasEnded, endReason) = (true, reason)
         case let .firmwareSerial(s): serial = s
         case let .protocolVersion(v): protocolVersion = v
+        case .layoutRecord: break
         case let .layer(l):
             layer = l
             isLive = true
