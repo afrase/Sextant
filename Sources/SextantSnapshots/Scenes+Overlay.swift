@@ -49,6 +49,26 @@ extension Scenes {
         scenes += SnapshotScene.pair("hud-pill-tinted", size: CGSize(width: 260, height: 72), chrome: .content) {
             HUDPill(layout: layout, layer: 2, tints: true)
         }
+        scenes += preview(layout)
+        return scenes
+    }
+
+    /// Settings › Keyboard's Preview (ADR 0062): the keyboard's layer 1, at 60% as the panel would be with that opacity
+    /// (the real panel's alpha also lets other apps' windows through), and the sample without the keyboard's layout.
+    private static func preview(_ layout: KeyboardLayout) -> [SnapshotScene] {
+        var scenes: [SnapshotScene] = []
+        let size = CGSize(width: 776, height: HUDView.height(layout: layout, width: 696) + 80)
+        scenes += SnapshotScene.pair("hud-preview", size: size, chrome: .content) {
+            HUDView(layout: layout, layer: 1, holder: nil, pressed: [], width: 696, isPreview: true)
+        }
+        scenes += SnapshotScene.pair("hud-preview-opacity-60", size: size, chrome: .content) {
+            HUDView(layout: layout, layer: 1, holder: nil, pressed: [], width: 696, isPreview: true).opacity(0.6)
+        }
+        let sample = KeyboardLayout.blankQWERTY(title: "Sample")
+        let sampleSize = CGSize(width: 776, height: HUDView.height(layout: sample, width: 696) + 80)
+        scenes += SnapshotScene.pair("hud-preview-sample", size: sampleSize, chrome: .content) {
+            HUDView(layout: sample, layer: 0, holder: nil, pressed: [], width: 696, isPreview: true)
+        }
         return scenes
     }
 }

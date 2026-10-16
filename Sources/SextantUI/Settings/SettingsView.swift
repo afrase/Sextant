@@ -16,12 +16,14 @@ struct SettingsView: View {
     var layerShortcuts: LayerShortcuts
     var layerShortcutRecorder: LayerShortcutRecorder?
     var heatmap: HeatmapRecorder
+    /// Keyboard's overlay Preview shows on it.
+    var overlayHUD: OverlayHUD
 
     var body: some View {
         TabView {
             Tab("General", systemImage: "gearshape") { GeneralSettings() }
             Tab("Keyboard", systemImage: "keyboard") {
-                KeyboardSettings(layerShortcuts: layerShortcuts, recorder: layerShortcutRecorder)
+                KeyboardSettings(layerShortcuts: layerShortcuts, recorder: layerShortcutRecorder, overlay: overlayHUD)
             }
             Tab("Build", systemImage: "hammer") { BuildSettings(status: buildToolsStatus, source: firmwareSource) }
             Tab("Privacy", systemImage: "hand.raised") { PrivacySettings(heatmap: heatmap) }

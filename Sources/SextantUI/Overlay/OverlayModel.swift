@@ -17,24 +17,44 @@ enum OverlayPresentation: Equatable {
     }
 }
 
-/// Settings › Keyboard's overlay options, with the defaults the pane declares (ADR 0045).
+/// Settings › Keyboard's overlay options, with the defaults the pane declares (ADRs 0045, 0062). Any change re-places
+/// the HUD, and the preview, at once.
 struct OverlaySettings: Equatable {
     var showsOverlay = true
     var delay = Duration.milliseconds(150)
     var position = OverlayPosition.bottom
+    /// Points from the edges of the visible frame the HUD is anchored to.
+    var margin: Double = 72
+    var display = OverlayDisplay.pointer
     var size = OverlaySize.medium
+    /// The whole panel's opacity, 0.3 to 1.
+    var opacity: Double = 1
     var tints = false
     var locked = LockedLayerOverlay.reminder
+
+    /// The delays the pane offers, in milliseconds.
+    static let delays = 0...1000
+    /// The distances from the screen's edges the pane offers, in points.
+    static let margins = 0...200
+    /// The opacities the pane offers, in percent.
+    static let opacities = 30...100
 
     init() {}
 
     init(_ defaults: UserDefaults) {
         showsOverlay = defaults.object(forKey: SettingsKey.showsOverlay) as? Bool ?? true
-        delay = .milliseconds(min(max(defaults.object(forKey: SettingsKey.overlayDelay) as? Int ?? 150, 0), 500))
+        delay = .milliseconds(Self.clamp(defaults.object(forKey: SettingsKey.overlayDelay) as? Int ?? 150, to: Self.delays))
         position = defaults.string(forKey: SettingsKey.overlayPosition).flatMap(OverlayPosition.init) ?? .bottom
+        margin = Double(Self.clamp(defaults.object(forKey: SettingsKey.overlayMargin) as? Int ?? 72, to: Self.margins))
+        display = defaults.string(forKey: SettingsKey.overlayDisplay).flatMap(OverlayDisplay.init) ?? .pointer
         size = defaults.string(forKey: SettingsKey.overlaySize).flatMap(OverlaySize.init) ?? .medium
+        opacity = Double(Self.clamp(defaults.object(forKey: SettingsKey.overlayOpacity) as? Int ?? 100, to: Self.opacities)) / 100
         tints = defaults.bool(forKey: SettingsKey.tintsOverlay)
         locked = defaults.string(forKey: SettingsKey.lockedLayerOverlay).flatMap(LockedLayerOverlay.init) ?? .reminder
+    }
+
+    private static func clamp(_ value: Int, to range: ClosedRange<Int>) -> Int {
+        min(max(value, range.lowerBound), range.upperBound)
     }
 }
 
@@ -44,18 +64,46 @@ struct OverlayLayout: Equatable {
     var layout: KeyboardLayout
 }
 
+/// What the HUD's panel shows: a presentation over the layout it draws, either the model's own or Settings › Keyboard's
+/// preview (ADR 0062).
+struct ShownOverlay: Equatable {
+    var presentation: OverlayPresentation
+    var layout: KeyboardLayout
+    /// The preview, whose header says so in place of held or locked.
+    var isPreview: Bool
+}
+
 /// When the overlay HUD shows, and what (spec §8.4, ADR 0050). It follows the keyboard's live activity: a layer a key
 /// holds on shows the full overlay once the hold lasts the delay, and hides the moment that key is let go; a locked
 /// layer shows a reminder (or the full overlay, or nothing, per Settings). It shows nothing while Live View is off,
 /// during secure input, without the keyboard's layout, or while a Sextant window that is key shows the same layer.
+/// Settings › Keyboard's preview shows apart from all that, whenever nothing else does (ADR 0062).
 @MainActor
 @Observable
 final class OverlayModel {
-    /// What shows now; nil while the HUD is hidden.
+    /// What shows now for the keyboard; nil while it shows nothing. The preview is never a presentation.
     private(set) var presentation: OverlayPresentation?
     var settings = OverlaySettings() {
-        didSet { if settings != oldValue { update() } }
+        didSet {
+            guard settings != oldValue else { return }
+            // The preview shows each change at once and lasts its full time from it; turning the overlay off ends it.
+            if !settings.showsOverlay { isPreviewing = false } else if isPreviewing { endPreviewLater() }
+            update()
+        }
     }
+    /// Settings › Keyboard's Preview (ADR 0062): the full overlay with the current settings, even with Live View off,
+    /// while ``presentation`` is nil. It ends ``previewTime`` after it starts or after the last settings change, and
+    /// can't start while the overlay is off.
+    var isPreviewing: Bool {
+        get { previewing }
+        set {
+            let on = newValue && settings.showsOverlay
+            guard on != previewing else { return }
+            previewing = on
+            endPreviewLater()
+        }
+    }
+    private var previewing = false
     /// The keyboard's layout; nil when Sextant doesn't hold it, and then the HUD can't draw the layer.
     var keyboard: OverlayLayout? {
         didSet { if keyboard != oldValue { update() } }
@@ -86,13 +134,30 @@ final class OverlayModel {
     private var keyWindows: [ObjectIdentifier: ShownLayer] = [:]
     @ObservationIgnored private let clock: any Clock<Duration>
     @ObservationIgnored private var pending: (target: OverlayPresentation, task: Task<Void, Never>)?
+    @ObservationIgnored private var previewEnd: Task<Void, Never>?
 
     /// A lock shows only once it has lasted this long, even with no delay: a held TT's key-up comes just before its
     /// layer ends.
     static let lockSettle = Duration.milliseconds(50)
+    /// How long the preview lasts after it starts or after the last settings change.
+    static let previewTime = Duration.seconds(8)
+    /// What the preview draws without the keyboard's layout.
+    static let previewSample = KeyboardLayout.blankQWERTY(title: String(localized: "Sample"))
 
     init(clock: any Clock<Duration> = ContinuousClock()) {
         self.clock = clock
+    }
+
+    /// What the panel shows: the presentation over the keyboard's layout, else the preview while it is on. The preview
+    /// draws the keyboard's layout on its layer 1 if it has one (else 0), or a sample without it.
+    var shown: ShownOverlay? {
+        if let presentation, let keyboard {
+            return ShownOverlay(presentation: presentation, layout: keyboard.layout, isPreview: false)
+        }
+        guard isPreviewing, settings.showsOverlay else { return nil }
+        let layout = keyboard?.layout ?? Self.previewSample
+        let layer = layout.layers.indices.contains(1) ? 1 : 0
+        return ShownOverlay(presentation: .full(layer: layer, heldBy: nil), layout: layout, isPreview: true)
     }
 
     /// Folds in one thing the keyboard did (``LiveSession/activity()``). A key-up without its key-down is ignored.
@@ -198,6 +263,18 @@ final class OverlayModel {
     private func cancelPending() {
         pending?.task.cancel()
         pending = nil
+    }
+
+    /// Ends the preview ``previewTime`` from now, in place of any end set before; nothing to end while it is off.
+    private func endPreviewLater() {
+        previewEnd?.cancel()
+        previewEnd = nil
+        guard previewing else { return }
+        let (clock, time) = (clock, Self.previewTime)
+        previewEnd = Task { [weak self] in
+            do { try await clock.sleep(for: time) } catch { return }
+            self?.isPreviewing = false
+        }
     }
 }
 
