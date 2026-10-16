@@ -117,25 +117,31 @@ struct AppPresenceTests {
     @Test func theLastOtherWindowClosingLeavesTheDockToo() async {
         set(shows: true, keeps: true)
         var applied: [NSApplication.ActivationPolicy] = []
-        var windows = 1
-        let presence = makePresence(windows: { windows }) { applied.append($0) }
+        let windows = OpenWindows()
+        let presence = makePresence(windows: { windows.count }) { applied.append($0) }
         presence.windowOpened()
         presence.windowClosed()
         try? await Task.sleep(for: .milliseconds(50))
         #expect(applied.isEmpty, "Settings is still open")
 
-        windows = 0
+        windows.count = 0
         windowNotifications.post(name: NSWindow.willCloseNotification, object: nil)
         #expect(await eventually { applied == [.accessory] })
 
         // A closing window can still count while it goes: Sextant looks once more after it has gone.
         presence.prepareToOpen()
-        windows = 1
+        windows.count = 1
         windowNotifications.post(name: NSWindow.willCloseNotification, object: nil)
-        windows = 0
+        windows.count = 0
         #expect(await eventually { applied == [.accessory, .regular, .accessory] })
         defaults.removePersistentDomain(forName: suite)
     }
+}
+
+/// How many windows a test says are open; a sendable closure can't read a local `var` that changes later.
+@MainActor
+private final class OpenWindows {
+    var count = 1
 }
 
 /// Polls `condition`, letting other tasks run, for up to about two seconds.
