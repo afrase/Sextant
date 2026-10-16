@@ -27,7 +27,7 @@ extension Scenes {
         on.shortcutsChanged()
         hotKeys.press(2)
         scenes += SnapshotScene.pair(
-            "settings-keyboard-shortcuts", size: CGSize(width: 520, height: 1000), chrome: .window(title: "Keyboard")
+            "settings-keyboard-shortcuts", size: CGSize(width: 520, height: 1240), chrome: .window(title: "Keyboard")
         ) {
             KeyboardSettings(layerShortcuts: on)
         }

@@ -6,8 +6,9 @@ import SwiftUI
 
 /// The overlay HUD (spec §8.4, ADR 0050): app-wide, built and started by the composition root rather than by a window,
 /// so it works with no window open. It feeds ``OverlayModel`` from the live session, the keyboard's layout and Settings
-/// › Keyboard, and shows the model's presentation in an ``OverlayPanel``. It sends nothing to the keyboard; it reads
-/// only what a Live View session already reports, so it never shows while Live View is off.
+/// › Keyboard, and shows what the model shows in an ``OverlayPanel``, where and how Settings say (ADR 0062). It sends
+/// nothing to the keyboard; it reads only what a Live View session already reports, so it never shows the keyboard's
+/// layer while Live View is off. Settings › Keyboard's preview shows either way.
 @MainActor
 public final class OverlayHUD {
     /// The model layout windows report their shown layer to.
@@ -26,6 +27,14 @@ public final class OverlayHUD {
         model = OverlayModel()
     }
 
+    /// Settings › Keyboard's Preview (ADR 0062): shows the full overlay with the current settings, even with Live View
+    /// off, until it is turned off, 8 s after it starts or after the last settings change, or when the overlay is turned
+    /// off. A held or locked layer shows in its place while it lasts.
+    var isPreviewing: Bool {
+        get { model.isPreviewing }
+        set { model.isPreviewing = newValue }
+    }
+
     /// Follows the keyboard for the app's lifetime.
     public func start() {
         guard tasks.isEmpty else { return }
@@ -37,8 +46,8 @@ public final class OverlayHUD {
         tasks =
             Self.feed(model, from: live, keyboard: keyboard) + [
                 Task { [weak self] in
-                    for await (presentation, settings) in Observations({ (model.presentation, model.settings) }) {
-                        self?.present(presentation, settings: settings)
+                    for await (shown, settings) in Observations({ (model.shown, model.settings) }) {
+                        self?.present(shown, settings: settings)
                     }
                 }
             ]
@@ -48,7 +57,7 @@ public final class OverlayHUD {
                 MainActor.assumeIsolated { self.map { $0.model.settings = OverlaySettings($0.defaults) } }
             },
             center.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self.map { $0.present($0.model.presentation, settings: $0.model.settings) } }
+                MainActor.assumeIsolated { self.map { $0.present($0.model.shown, settings: $0.model.settings) } }
             },
         ]
     }
@@ -70,9 +79,10 @@ public final class OverlayHUD {
         ]
     }
 
-    /// Shows `presentation` on the screen with the pointer, or hides the panel.
-    private func present(_ presentation: OverlayPresentation?, settings: OverlaySettings) {
-        guard let presentation, let layout = model.keyboard?.layout, let screen = OverlayPanel.pointerScreen else {
+    /// Shows `shown` where Settings place it, at their opacity, or hides the panel. A change to either while it shows
+    /// moves it and fades it to the new opacity.
+    private func present(_ shown: ShownOverlay?, settings: OverlaySettings) {
+        guard let shown, let screen = OverlayPanel.screen(for: settings.display) else {
             panel?.hide()
             return
         }
@@ -83,8 +93,8 @@ public final class OverlayHUD {
         let workspace = NSWorkspace.shared
         let opaque = workspace.accessibilityDisplayShouldReduceTransparency || workspace.accessibilityDisplayShouldIncreaseContrast
         let content = OverlayContent(
-            model: model, presentation: presentation, layout: layout,
-            width: HUDView.width(size: settings.size, screenWidth: screen.visibleFrame.width), tints: settings.tints)
+            model: model, shown: shown, width: HUDView.width(size: settings.size, screenWidth: screen.visibleFrame.width),
+            tints: settings.tints)
         let hosting = NSHostingView(rootView: content)
         let size = hosting.fittingSize
         if opaque {
@@ -92,12 +102,13 @@ public final class OverlayHUD {
         } else {
             let glass = NSGlassEffectView()
             glass.contentView = hosting
-            glass.cornerRadius = if case .pill = presentation { HUDPill.height / 2 } else { HUDView.cornerRadius }
-            let color = layout.layers[safe: presentation.layer]?.color
+            glass.cornerRadius = if case .pill = shown.presentation { HUDPill.height / 2 } else { HUDView.cornerRadius }
+            let color = shown.layout.layers[safe: shown.presentation.layer]?.color
             glass.tintColor = settings.tints ? color.map { NSColor(srgbRed: $0.red, green: $0.green, blue: $0.blue, alpha: 0.2) } : nil
             panel.contentView = glass
         }
-        panel.show(at: OverlayPanel.frame(size: size, position: settings.position, on: screen.visibleFrame))
+        let frame = OverlayPanel.frame(size: size, position: settings.position, margin: CGFloat(settings.margin), on: screen.visibleFrame)
+        panel.show(at: frame, position: settings.position, opacity: CGFloat(settings.opacity))
     }
 }
 
@@ -115,21 +126,23 @@ private struct OverlayInputs: Sendable {
     }
 }
 
-/// The panel's content: the full overlay or the reminder. The keys held down come from the model as they change; the
-/// rest stays as it was shown, so a fading panel keeps its picture.
+/// The panel's content: the full overlay, the reminder or the preview. The keys held down come from the model as they
+/// change; the rest stays as it was shown, so a fading panel keeps its picture. The preview lights no keys: they're
+/// held on the keyboard's layer, not the one it shows.
 private struct OverlayContent: View {
     var model: OverlayModel
-    var presentation: OverlayPresentation
-    var layout: KeyboardLayout
+    var shown: ShownOverlay
     var width: CGFloat
     var tints: Bool
 
     var body: some View {
-        switch presentation {
+        switch shown.presentation {
         case let .full(layer, holder):
-            HUDView(layout: layout, layer: layer, holder: holder, pressed: model.pressedKeys, width: width, tints: tints)
+            HUDView(
+                layout: shown.layout, layer: layer, holder: holder, pressed: shown.isPreview ? [] : model.pressedKeys, width: width,
+                tints: tints, isPreview: shown.isPreview)
         case let .pill(layer):
-            HUDPill(layout: layout, layer: layer, tints: tints)
+            HUDPill(layout: shown.layout, layer: layer, tints: tints)
         }
     }
 }
