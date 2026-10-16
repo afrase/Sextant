@@ -218,6 +218,8 @@ struct KeyboardLayoutPromptTests {
         let fake = RecordKeyboard(serial: running, record: try LayoutRecord(layout: keyboard, libraryIDs: [id]).encoded())
         let store = OneLayoutLibrary(mine, id: id)
         let live = LiveSession(watcher: fake, link: fake, secureInputProbe: { false })
+        // On real time, a loaded test machine can hold the main actor for seconds: no wait here is about timing out.
+        live.layoutRecordReplyWait = .seconds(30)
         let library = Library(store: store)
         let onKeyboard = OnKeyboard(library: library, store: store, live: live)
         let pull = KeyboardLayoutPull(live: live, onKeyboard: onKeyboard, library: library, store: store)
