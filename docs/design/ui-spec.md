@@ -356,6 +356,7 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
   - "Flash mode (bootloader)";
   - "In use by Keymapp";
   - "Runs KlgM7/40xJ7M · not in your library", with an [Import] button.
+  - A layout Sextant doesn't have, as the keyboard's stored layout is read (ADR 0061): "Runs sx-… · not in your library" [Get Layout] (turns Live View on and reads it); "Reading the layout from the keyboard…"; "Runs ‘My Layout’ from another Mac" [Add to Library…]; "This firmware doesn't store its layout", which says to Build & Flash once from the Mac that has it; or the error [Try Again]. An Oryx serial keeps [Import].
 
 ### 3.7 Canvas
 
@@ -1119,6 +1120,11 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
 - **Coexistence.** If Keymapp holds the device: "In use by Keymapp. Quit Keymapp or disconnect it there; Sextant connects automatically."
 - **HID protocol details** follow research §5. Release RGB takeover on quit and sleep. Never seize the device.
 
+**The keyboard's own layout (v1, ADR 0061).** Sextant builds store their layout, and Sextant reads it back over Live View when the library doesn't have the version the keyboard runs (a flash from another Mac).
+- A layout linked to the record (its ids on other Macs are kept as aliases) gets it as a revision, "From the keyboard", without asking. It also becomes the working copy when the working copy is still what was last flashed or imported; otherwise the activity capsule says "Keyboard runs revision N" [Use It], which restores it.
+- Otherwise the device card, the Device popover and the menu bar offer [Add to Library…], which opens **Layout on the Keyboard**: its title and where it came from ("Flashed from Sextant on another Mac", or the Oryx revision), its layers, a small map of layer 0, and "Add to" (New Layout, or a library layout, the same Oryx layout or name suggested; "Becomes its working copy. Your current version stays in History.") with [Cancel] [Add]. Adding links the two layouts.
+- Settings › Build › "Store the layout in the firmware" (on) turns it off for later builds.
+
 ### 8.3 Menu bar extra (v1)
 
 **Label**
@@ -1155,7 +1161,8 @@ The HUD is app-wide: the composition root owns it, not a window. It shows only w
 **Geometry**
 - Width: the smaller of 720 and 46% of the screen width at M (the default); S is three quarters of that and L five quarters, never closer than 16 pt to the screen's edges. The size is set in Settings.
 - Corner radius 24, padding 20.
-- Position: bottom centre, 72 pt above the bottom of the visible frame, on the screen that holds the pointer when it appears. Settings › Keyboard can move it to top centre, 72 pt below the top of the visible frame, which keeps it clear of the menu bar and the notch. It moves when the screens change.
+- Position (ADR 0062): one of nine anchors (corners, edge midpoints, centre; bottom centre by default), a distance from the anchored edges of the visible frame (0–200 pt, 72 by default, which keeps it clear of the Dock, the menu bar and the notch), on the screen that holds the pointer when it appears or on the main display, as Settings › Keyboard says. It always stays inside the visible frame, and moves when the screens change.
+- Opacity: the whole panel, 30–100% (100% by default).
 
 **Content**
 - Header row: a layer index tile in the layer colour, the layer name, "held with ⏎" (the holding key as its cap shows it on the layer it went down on; just "held" for a plain layer key, whose cap shows the layer's name) or "locked", the status-LED dots, and a trailing hint ("release to hide") while a key holds it. Short of room, the name keeps its width first, then the state, and the hint goes.
@@ -1170,11 +1177,13 @@ The HUD is app-wide: the composition root owns it, not a window. It shows only w
 **Momentary or locked.** The keyboard reports only its highest layer and the keys held down, so Sextant infers why it is on a layer (`LayerHold`, ADR 0050): momentary when a held key holds it on (MO, a layer-tap's hold, LM, or a TT or OSL key while it is down), each key read on the layer it went down on; locked otherwise (TG, TO, DF, a tapped TT, a tap dance's TO, a move Sextant or another app sent). The Navigator's auto-mouse layer shows nothing.
 
 **Timing**
-- A momentary layer shows the HUD after a 150 ms hold delay (configurable from 0 to 500 ms); a second held layer replaces a showing held layer at once, while from a lock's reminder or full overlay the delay still applies. It fades in over 0.12 s with an 8 pt rise (a plain fade under Reduce Motion) and out over 0.18 s.
+- A momentary layer shows the HUD after a 150 ms hold delay (configurable from 0 to 1000 ms, ADR 0062); a second held layer replaces a showing held layer at once, while from a lock's reminder or full overlay the delay still applies. It fades in over 0.12 s with an 8 pt rise (an 8 pt drop in the top row; a plain fade under Reduce Motion) and out over 0.18 s.
 - It hides the moment the holding key is let go, even when the layer change doesn't arrive (research 03 O2); a one-shot layer (OSL) hides then too.
 - A locked layer shows a compact reminder pill instead: "Sym+Num locked", 32 pt tall, in the same position, until the keyboard returns to the base layer. Settings offers: full overlay, reminder (the default), or nothing. A lock shows after the delay, and never sooner than 50 ms, since a held TT's key-up arrives just before its layer ends.
 
 The HUD is hidden during secure input (a layer reached meanwhile shows nothing until the next layer change, since the keys pressed then were hidden) and while a Sextant layout window is key and its board shows the same layer of the keyboard's layout. It is not hidden in full-screen video: the check the spec named (`CGDisplayIsCaptured`) is deprecated and the build treats warnings as errors (ADR 0050). One setting, Show overlay while a layer is held, backs Settings › Keyboard, Keyboard ▸ Show Overlay While Holding a Layer, the Device popover and the menu bar extra.
+
+**Preview.** Settings › Keyboard's Preview button shows the full overlay with the current settings, even with Live View off: the keyboard's layout on its layer 1 when Sextant has it, else a sample, with "Preview" in place of held or locked. Each change re-places it at once; it ends when clicked again, when the pane closes, or 8 s after the last change. A real presentation wins over it (ADR 0062).
 
 ### 8.5 Heatmap lens (v1)
 
