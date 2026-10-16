@@ -116,6 +116,9 @@ public final class KeyboardLayoutPull {
     /// The record behind a ``Status/found(_:)``.
     @ObservationIgnored private var pending: Pending?
     @ObservationIgnored private var isAdding = false
+    /// Reads begun since launch. A read can ask for a part twice when its reply is late, so the requests the keyboard
+    /// gets don't count reads.
+    @ObservationIgnored private(set) var readsStarted = 0
     private static let log = Logger(subsystem: "com.sextant.app", category: "application")
 
     /// - Parameter clock: times the wait for Live View to pair (injected for tests).
@@ -238,6 +241,7 @@ public final class KeyboardLayoutPull {
     /// Reads the record the firmware stores for `serial`, checks it is what the serial names, and puts it in the library
     /// layout linked to it, or offers it.
     private func pull(_ serial: String) async {
+        readsStarted += 1
         statusSerial = serial
         pending = nil
         status = .reading(0)

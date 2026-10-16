@@ -72,8 +72,9 @@ struct KeyboardLayoutPullTests {
         return condition()
     }
 
-    /// Reads begun: each asks for the record's first part.
-    var reads: Int { link.commands.joined().filter { $0 == .readLayoutRecord(offset: 0) }.count }
+    /// Reads begun. Not the requests for the record's first part: a read asks again when a reply is late, as one can be
+    /// on a loaded test machine whose main actor is busy.
+    var reads: Int { pull.readsStarted }
     var found: KeyboardLayoutPull.Found? { if case let .found(found) = pull.status { found } else { nil } }
     var added: KeyboardLayoutPull.Added? { if case let .added(added) = pull.status { added } else { nil } }
 
