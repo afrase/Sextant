@@ -131,21 +131,26 @@ public struct BuildSettings: View {
                 }
             }
             Toggle("Use Oryx's build when the layout is unchanged since import", isOn: $prefersOryxBuild)
-            Section {
-                Toggle("Store the layout in the firmware", isOn: $storesLayout)
-            } footer: {
-                Text(
-                    """
-                    Lets Sextant on your other Macs read this layout from the keyboard over Live View, so they know what it \
-                    runs. Any app on a Mac the keyboard is plugged into could read it, macros included. Applies from the next \
-                    Build & Flash.
-                    """
-                )
-                .foregroundStyle(.secondary)
-            }
+            storesLayoutSection
         }
         .formStyle(.grouped)
         .task { toolsStatus = await status?() }
+    }
+
+    /// Store the layout in the firmware (ADR 0061).
+    private var storesLayoutSection: some View {
+        Section {
+            Toggle("Store the layout in the firmware", isOn: $storesLayout)
+        } footer: {
+            Text(
+                """
+                Lets Sextant on your other Macs read this layout from the keyboard over Live View, so they know what it runs. \
+                Any app on a Mac the keyboard is plugged into could read it, macros included. Applies from the next Build & \
+                Flash.
+                """
+            )
+            .foregroundStyle(.secondary)
+        }
     }
 }
 

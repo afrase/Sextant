@@ -246,9 +246,8 @@ struct LayoutRecordHandlerTests {
 /// A real build with the record (ADR 0061), with the toolchain `RealToolchainTests` sets up: it links only if
 /// `rules.mk`'s `--wrap=raw_hid_receive` reaches the linker, since nothing else defines `__real_raw_hid_receive`.
 /// Off unless `SEXTANT_REAL_TOOLCHAIN=1` and the toolchain is installed; nothing reaches a keyboard.
-@Suite(.enabled(if: LayoutRecordRealBuildTests.canBuild, "needs SEXTANT_REAL_TOOLCHAIN=1 and the set-up toolchain"))
+@Suite(.enabled(if: canBuildWithRecord(), "needs SEXTANT_REAL_TOOLCHAIN=1 and the set-up toolchain"))
 struct LayoutRecordRealBuildTests {
-    static var canBuild: Bool { ProcessInfo.processInfo.environment["SEXTANT_REAL_TOOLCHAIN"] == "1" && ToolchainInstaller().isInstalled }
 
     @Test func buildsTheUsersLayoutWithItsRecord() async throws {
         let layout = try KeyboardLayout(
@@ -277,4 +276,9 @@ struct LayoutRecordRealBuildTests {
         #expect(artifact.image.range(of: Data(record)) != nil, "the record is in the image as it was encoded")
         #expect(artifact.image.range(of: Data(identity.serial.utf8)) != nil)
     }
+}
+
+/// The real build runs only when asked for and once `RealToolchainTests` has set up the toolchain.
+private func canBuildWithRecord() -> Bool {
+    ProcessInfo.processInfo.environment["SEXTANT_REAL_TOOLCHAIN"] == "1" && ToolchainInstaller().isInstalled
 }
