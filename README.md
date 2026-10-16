@@ -1,127 +1,84 @@
 # Sextant
 
-A native macOS app for configuring the ZSA Voyager: edit layouts on your Mac, import them from Oryx, build the firmware locally, flash it, and watch the keyboard live.
+A native macOS app for the ZSA Voyager: edit your layout on your Mac, import it from Oryx, build the firmware locally, flash it, and watch the keyboard live.
 
 [![CI](https://github.com/afrase/Sextant/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/afrase/Sextant/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/afrase/Sextant)](https://github.com/afrase/Sextant/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![macOS 26](https://img.shields.io/badge/macOS-26-black.svg)
-![Swift 6](https://img.shields.io/badge/Swift-6-orange.svg)
 
-![Sextant's layout window: the layer list, the board with the Z key selected, and the key inspector showing its tap and hold actions](docs/images/window-light.png)
+![A tour of Sextant's layout window: editing a key, painting a layer's lighting, the heatmap of key presses, importing from Oryx, flashing the keyboard, and App Layers](docs/images/tour.webp)
 
 > [!NOTE]
-> Sextant is an independent project. It is not affiliated with or endorsed by ZSA Technology Labs. ZSA, Voyager, Navigator, Oryx and Keymapp are trademarks of their respective owners and are used here only to describe compatibility. The repo contains no ZSA artwork.
+> Sextant is an independent project, not affiliated with or endorsed by ZSA Technology Labs. ZSA, Voyager, Navigator, Oryx and Keymapp are trademarks of their owners, used here only to describe compatibility.
 
-## What it does
+## Features
 
-- **Edits layouts locally,** with undo: layers, tap/hold/double-tap actions, modifier chords, labels, per-key LED colors and tapping terms, macros, combos, firmware settings and the Navigator trackpad or trackball. Select several keys to edit them at once, cut, copy and paste keys, and copy a layer onto another.
-- **Imports from Oryx** by pasting a layout link, or from the layout id the connected keyboard reports. It uses Oryx's public GraphQL read-only: no login and no changes to your Oryx account.
-- **Builds QMK firmware on your Mac** with a pinned toolchain that runs in a sandbox. The first build downloads about 200 MB of build tools, each checked by size and SHA-256.
-- **Flashes the keyboard over DFU,** behind strict guards (see [Safety](#safety)).
-- **Shows the keyboard live:** the active layer and the keys you press, on the board and in the menu bar. Off by default. While it's on, an overlay shows the layer you hold over any app, you can move the keyboard to a layer from the menu bar, the Keyboard menu, or from any app with optional global shortcuts (⌃⌥0–⌃⌥9), let App Layers move it to a layer when you switch apps, and preview a layer's LED colors on the keyboard as you paint them.
-- **Keeps history and exports:** saved revisions you can compare and restore, and export as layout JSON, QMK source, firmware, PNG or PDF.
+- **Edit everything locally, with undo:** layers, tap/hold/double-tap actions, chords, labels, per-key colors, tapping terms, macros, combos, firmware settings and the Navigator.
+- **Import from Oryx** by pasting a layout link. Read-only: no login, nothing changes in your Oryx account.
+- **Build and flash on your Mac,** with a pinned, sandboxed QMK toolchain and a flasher that only writes where it should.
+- **See the keyboard live:** the active layer and the keys you press, an overlay of the layer you hold, layer switching from the menu bar or shortcuts, and App Layers that follow the app you're in.
+- **Lighting and heatmap:** paint a layer's LEDs and preview them on the keyboard; see which keys you actually use.
+- **History and export:** revisions you can compare and restore; export JSON, QMK source, firmware, PNG or PDF.
 
-## Status
+| Layer overlay, over any app | Menu bar |
+|---|---|
+| ![The overlay showing the Sym+Num layer while its key is held](docs/images/overlay.png) | ![The menu bar panel showing the keyboard's layer, with buttons to move it to another](docs/images/menu-bar.png) |
 
-- The MVP is complete and v1 is under way ([docs/progress.md](docs/progress.md), [docs/v1-plan.md](docs/v1-plan.md)). Sextant is developed with Claude Code, and those two files are its working log.
-- There is no signed release yet. Build it from source.
-- It has been tested on one Voyager with the STM32 bootloader. Images for the GD32 bootloader are refused. The Navigator trackball is untested.
-
-## Requirements
-
-- macOS 26 on Apple silicon (the firmware build tools Sextant downloads are arm64 builds).
-- Xcode 26 with Swift 6.2 or later.
-- A ZSA Voyager, to build for and flash. Editing works without one.
+[The guide](docs/guide.md) walks through each feature.
 
 ## Install
-
-With [Homebrew](https://brew.sh):
 
 ```sh
 brew install --cask afrase/tap/sextant
 ```
 
-Or download `Sextant-X.Y.Z.zip` from [Releases](https://github.com/afrase/Sextant/releases). Release builds are signed ad hoc, not notarized: the Homebrew cask clears macOS's quarantine flag for you; a zip you download yourself needs System Settings › Privacy & Security › Open Anyway on first launch.
+Or download the zip from [Releases](https://github.com/afrase/Sextant/releases). Releases are signed ad hoc, not notarized: the Homebrew cask clears the quarantine flag for you, and a zip you download yourself needs System Settings › Privacy & Security › Open Anyway on first launch.
 
-## Build and run
+Sextant needs macOS 26 on Apple silicon. Editing works without a keyboard. It has been tested on a Voyager with the STM32 bootloader; images for the GD32 bootloader are refused, and the Navigator trackball is untested.
+
+## Build from source
+
+Needs Xcode 26 (Swift 6.2 or later).
 
 ```sh
 git clone https://github.com/afrase/Sextant.git
 cd Sextant
-scripts/bundle            # release build, signed ad hoc, at .build/Sextant.app
+scripts/bundle            # release build at .build/Sextant.app
 open .build/Sextant.app
 ```
 
-`scripts/bundle` signs with `SEXTANT_SIGN_IDENTITY` (a Developer ID) when it is set, and takes the version from `SEXTANT_VERSION`. `scripts/check` is the quality gate: formatting, lint and layer rules, a warnings-as-errors build and the tests.
-
-## Flashing and the live view
-
-Build & Flash works out of the box: it builds the firmware, asks you to put the keyboard in flash mode, checks the image and writes it (see [Safety](#safety)). It asks first if the keyboard runs a different layout.
-
-The live view (the active layer and the keys you press) starts only when you turn it on: click the live button in the toolbar, or choose Keyboard ▸ Live View. Plugging the keyboard in never starts it, because pairing writes to the keyboard.
-
-Sextant's menu bar item shows the keyboard's layer and, while a flash writes, its progress. Its panel can turn the live view on, move the keyboard to a layer, and start Build & Flash. Settings › General can hide it, or keep Sextant in the menu bar, out of the Dock, when its windows are closed.
-
-While the live view is on, Key ▸ Select Key by Pressing It (⇧⌘L) selects the next key you press on the keyboard. Keyboard ▸ Move Keyboard to Layer (also in the Device popover and the menu bar) moves the keyboard to the layer you choose, and Settings › Keyboard can turn on global shortcuts that do the same from any app, ⌃⌥0–⌃⌥9 unless you record others. They're off by default, and while they're on other apps don't get those keys.
-
-While the live view is on, the Lighting inspector's Preview on Keyboard switch (or Keyboard ▸ Preview Lighting on Keyboard) shows the layer you're painting on the keyboard's LEDs, at a brightness you choose. Nothing is saved to the keyboard: the preview ends when you leave Lighting, open another layout, close the window, turn the live view off, put the Mac to sleep or quit, and the keyboard's own lighting comes back. If Sextant crashes during a preview, the colors stay until you unplug the keyboard.
-
-While the live view is on, holding a layer key brings up an overlay with that layer's map, whichever app you're in; letting go hides it. A layer you lock (a toggle, say) shows a small reminder instead until the keyboard is back on its base layer. The overlay never takes focus or clicks, hides while you type in a password field, and can be turned off or adjusted in Settings › Keyboard, the Keyboard menu or the Device popover.
-
-The Heatmap lens (View ▸ Lens ▸ Heatmap, ⌃⌘3) colors each key by how often you press it, with layer share, hand balance, a finger histogram and your busiest keys, over 24 hours, 7 days, 30 days or everything kept. Recording is off until you turn it on in Settings › Privacy or the lens, and then counts only while the live view is on and the keyboard runs a layout in your library. It keeps hourly counts per key position, never characters or the order you typed in, pauses in password fields, and stays on your Mac; Clear Heatmap Data… deletes it.
-
-App Layers (the App Layers page in a layout's sidebar) moves the keyboard to a layer when an app comes forward: Xcode on your symbols layer, say, and back to the base layer when you leave it. It's off until you turn on "Switch layers when you change apps" with at least one rule, and it works only while the live view is on and the keyboard runs that layout as you flashed it; it sends nothing at launch. The rules are saved beside the layout, so they never mark it edited. Sextant remembers the last 20 switches, by app name, until it quits.
+`scripts/check` is the quality gate (formatting, lint, layer rules, a warnings-as-errors build and the tests). See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Safety
 
-- **The flasher writes only the application region,** `[0x08002000, 0x08042000)`, and can't express a mass erase, so the bootloader is never touched.
-- **Every image is checked before the first write:** its DFU suffix (vendor id, product id and CRC) must match the connected bootloader, and its md5 must match the build. Status polling is capped, and `dfuERROR` is a failure.
-- **It asks first** before replacing a keyboard that runs a different layout.
-- **Generated firmware keeps the Navigator modules,** so the trackpad keeps working.
-- **Builds run in a sandbox** with no network, no access to your files, and writes only to the build folder.
-- **A layer move is sent only when you ask:** one choice or shortcut press moves the keyboard once, only while the live view is on, and only to a layer its layout has (just layer 0 when Sextant doesn't have that layout), since a layer past the build's layers drops the keyboard to its base layer.
-- **The live view is private:** it sees key positions, never characters, keeps events in memory only, and pauses while secure input (a password field) is on. The Heatmap, once you turn it on, writes only hourly counts per key position.
-- **Recovery:** if a flash goes wrong, the Voyager's reset button puts it in its bootloader, and you can flash again.
+- **The flasher writes only the application region,** `[0x08002000, 0x08042000)`, and can't mass erase, so the bootloader is never touched.
+- **Every image is checked before the first write:** its DFU suffix must match the connected bootloader and its md5 the build. It asks first before replacing a different layout.
+- **Generated firmware keeps the Navigator working,** and builds run in a sandbox with no network and no access to your files.
+- **Nothing is sent to the keyboard unless you ask:** the live view, layer moves and lighting previews start only when you turn them on.
+- **If a flash goes wrong,** the Voyager's reset button puts it back in its bootloader, and you can flash again.
 
 ## Privacy
 
-Sextant has no accounts, analytics or telemetry. It goes online only to import from Oryx and to download the build tools the first time you build. An Oryx request tells ZSA your IP address and the layout id you asked for. Layouts live in `~/Library/Application Support/Sextant/Library/`; the Heatmap's hourly counts, when you turn recording on, live beside them in `Heatmap/`, outside the layouts, so exports never include them, and are deleted after 30 days unless you choose to keep them longer.
-
-## Architecture
-
-Sextant follows a clean (hexagonal) architecture: dependencies point inward only, and each layer is its own SwiftPM target, so a wrong import fails to compile.
-
-| Target | Role |
-|---|---|
-| `SextantDomain` | Layouts, layers, keys and actions, the keycode catalog, board geometry, validation and diffing. Pure Swift and Foundation. |
-| `SextantApplication` | Use cases (editing with undo, import, build and flash, the live session) and the ports they use. |
-| `SextantStorage` | The `.sextant` layout library on disk. |
-| `SextantOryx` | The read-only Oryx client. |
-| `SextantBuild` | The QMK generator and the sandboxed toolchain. |
-| `SextantDevice` | USB device watching, raw HID and the DFU flasher. |
-| `SextantUI` | SwiftUI views and `@Observable` view models. |
-| `SextantApp` | The composition root: the only place that wires adapters to ports. |
-| `SextantSnapshots` | A developer tool that renders real scenes offscreen for design review. |
-
-Details are in [docs/architecture.md](docs/architecture.md), and every significant decision has a record in [docs/adr/](docs/adr/).
+No accounts, analytics or telemetry. Sextant goes online only to import from Oryx and to download the build tools on the first build. The live view sees key positions, never characters, and pauses in password fields. The heatmap is off until you turn it on, keeps only hourly counts per key, and stays on your Mac.
 
 ## Documentation
 
-- [docs/architecture.md](docs/architecture.md): the code design (targets, ports, adapters, concurrency, errors, the `.sextant` format, testing).
-- [docs/decisions.md](docs/decisions.md) and [docs/adr/](docs/adr/): the decisions and why they were made.
+- [docs/guide.md](docs/guide.md): using Sextant.
+- [docs/architecture.md](docs/architecture.md): the code design. It's a clean (hexagonal) architecture with one SwiftPM target per layer, so a wrong import fails to compile.
+- [docs/decisions.md](docs/decisions.md) and [docs/adr/](docs/adr/): every significant decision and why.
 - [docs/design/ui-spec.md](docs/design/ui-spec.md): the UI specification.
 - [docs/research/00-overview.md](docs/research/00-overview.md): how Oryx, the firmware, the flasher and the live protocol work.
-- [docs/progress.md](docs/progress.md) and [docs/v1-plan.md](docs/v1-plan.md): what's done and what's next.
+- [docs/progress.md](docs/progress.md): what's done and what's next. Sextant is built with Claude Code, and this is its working log.
 
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). To report a vulnerability, follow [SECURITY.md](SECURITY.md); please don't open a public issue.
+To report a vulnerability, follow [SECURITY.md](SECURITY.md) rather than opening an issue.
 
 ## License
 
-Sextant is released under the [MIT License](LICENSE).
+[MIT](LICENSE).
 
-### Third-party software
+<details>
+<summary>Third-party software</summary>
 
 - **QMK firmware** (GPL-2.0-or-later) is downloaded at build time, pinned by checksum, and compiled on your Mac. It is not bundled with Sextant. The Arm GNU toolchain, Python and GNU make are downloaded the same way.
 - **Swift packages**, pinned to exact versions:
@@ -144,3 +101,6 @@ Sextant is released under the [MIT License](LICENSE).
   | [Periphery](https://github.com/peripheryapp/periphery) | MIT | Unused-code report (`Tools/`) |
 
 - `docs/research/oryx-examples/` holds the author's own Oryx layout and Oryx's generated source for it, used as golden test data. The zip includes a QMK-built firmware binary, which is GPL-2.0-or-later.
+- The screenshots are rendered offscreen from the author's own layout and contain no ZSA artwork.
+
+</details>

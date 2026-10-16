@@ -49,7 +49,7 @@ Sextant is not affiliated with ZSA. Don't add ZSA logos, artwork, screenshots, O
 
 ## Snapshot tests
 
-Pixel snapshot references (`Tests/SextantUITests/__Snapshots__`) are rendered on the maintainer's macOS and are skipped on CI (`CI` is set). If you change what they show, re-record them locally and look at every image before committing. UI checks render offscreen (`swift run SextantSnapshots <dir>`); never use screen capture.
+Pixel snapshot references (`Tests/SextantUITests/__Snapshots__`) are rendered on the maintainer's macOS and are skipped on CI (`CI` is set). If you change what they show, re-record them locally and look at every image before committing. UI checks render offscreen (`swift run SextantSnapshots <dir>`); never use screen capture. `scripts/readme-images` re-renders the README's images (it needs `img2webp`, from `brew install webp`).
 
 ## License
 

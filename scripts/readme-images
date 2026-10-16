@@ -1,0 +1,22 @@
+#!/bin/sh
+# Renders the README's images offscreen from the snapshot scenes (the author's own layout, light mode): the animated
+# tour, the layer overlay and the menu bar panel. Needs img2webp (brew install webp). Output: docs/images/.
+set -eu
+cd "$(dirname "$0")/.."
+command -v img2webp >/dev/null || { echo "img2webp not found: brew install webp" >&2; exit 1; }
+tour="window-light lighting-light heatmap-light import-preview-light buildflash-writing-light app-layers-light"
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+swift build --product SextantSnapshots >/dev/null
+"$(swift build --show-bin-path)/SextantSnapshots" "$work" \
+    --only "$(echo "$tour" | tr ' ' ','),hud-symnum-light,menubar-panel-tiles-light" >/dev/null
+frames=""
+for scene in $tour; do
+    sips -Z 1600 "$work/$scene.png" --out "$work/frame-$scene.png" >/dev/null
+    frames="$frames $work/frame-$scene.png"
+done
+# shellcheck disable=SC2086
+img2webp -loop 0 -lossy -q 85 -m 6 -d 2800 $frames -o docs/images/tour.webp >/dev/null 2>&1
+sips -Z 1200 "$work/hud-symnum-light.png" --out docs/images/overlay.png >/dev/null
+sips -Z 700 "$work/menubar-panel-tiles-light.png" --out docs/images/menu-bar.png >/dev/null
+echo "docs/images updated"
