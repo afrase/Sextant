@@ -56,10 +56,15 @@ extension LayoutWindowModel {
 
     /// The keyboard's Oryx serial when no library layout came from that Oryx layout: the card offers [Import] (spec §3.6).
     var unknownOryxSerial: String? {
-        guard let serial = Self.oryxSerial(live?.firmwareSerial), let slash = serial.firstIndex(of: "/") else { return nil }
+        let serial = Self.oryxSerial(live?.firmwareSerial)
+        return Self.oryxLayoutInLibrary(serial, entries: library.entries) ? nil : serial
+    }
+
+    /// Whether `serial` is an Oryx serial (`layout/revision`) of an Oryx layout a library layout came from.
+    static func oryxLayoutInLibrary(_ serial: String?, entries: [LibraryEntry]) -> Bool {
+        guard let serial = oryxSerial(serial), let slash = serial.firstIndex(of: "/") else { return false }
         let layoutID = serial[..<slash]
-        let known = library.entries.contains { if case let .oryx(id, _) = $0.origin { id == layoutID } else { false } }
-        return known ? nil : serial
+        return entries.contains { if case let .oryx(id, _) = $0.origin { id == layoutID } else { false } }
     }
 
     /// What the card and the Device popover offer while the keyboard runs a layout Sextant doesn't have (ADR 0061): from
@@ -70,7 +75,7 @@ extension LayoutWindowModel {
             guard let live, let onKeyboard else { return nil }
             switch live.connection {
             case .connected, .liveOff:
-                return KeyboardLayoutPrompt(keyboardLayout.status, serial: live.firmwareSerial, runsKnownLayout: onKeyboard.running != nil)
+                return KeyboardLayoutPrompt(keyboardLayout.status, live: live, onKeyboard: onKeyboard, entries: library.entries)
             case .noKeyboard, .bootloader, .heldByAnotherApp: return nil
             }
         }
@@ -94,22 +99,27 @@ extension LayoutWindowModel {
         return Self.differs(session.layout, from: running.layout) ? revision : nil
     }
 
-    /// Whether Use It would change the working copy: a restore keeps its title, and macro drafts never reach the keyboard
-    /// (ADR 0042), so neither counts.
+    /// Whether Use It would change the working copy. Its title counts, since Use It takes the keyboard's, which is part of
+    /// the fingerprint; its macro drafts don't, since they never reach the keyboard (ADR 0042) and Use It keeps them.
     static func differs(_ working: KeyboardLayout, from keyboard: KeyboardLayout) -> Bool {
         var keyboard = keyboard
-        keyboard.title = working.title
         keyboard.macroDrafts = working.macroDrafts
         return keyboard != working
     }
 
-    /// [Use It]: makes the revision the keyboard runs the working copy, as one undoable edit that records unsaved edits in
-    /// History first. A failure shows on the History page.
+    /// [Use It]: makes the revision the keyboard runs the working copy exactly, title included, as one undoable edit that
+    /// records unsaved edits in History first. Then the offer ends, so later edits don't bring it back. A failure shows on
+    /// the History page, and the offer stays.
     func useKeyboardRevision() {
-        guard let history, let revision = keyboardRevision else { return }
+        guard let history, !history.isRestoring, let revision = keyboardRevision else { return }
+        let (pull, offer) = (keyboardLayout, keyboardLayout?.status)
         Task {
-            await history.restore(revision)
-            if history.error != nil { self.destination = .history }
+            await history.restore(revision, asOnKeyboard: true)
+            if history.error != nil {
+                self.destination = .history
+            } else if let pull, pull.status == offer {
+                pull.dismiss()
+            }
         }
     }
 

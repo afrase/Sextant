@@ -174,7 +174,7 @@ extension MenuBarPanelState {
         if let switcher, let id = running?.entry.id { appLayers = Self.appLayers(switcher, layout: id) }
         // Live View can read it: not while another app holds the keyboard.
         if let pull, keyboard != .heldByAnotherApp {
-            keyboardLayout = KeyboardLayoutPrompt(pull.status, serial: live.firmwareSerial, runsKnownLayout: running != nil)
+            keyboardLayout = KeyboardLayoutPrompt(pull.status, live: live, onKeyboard: onKeyboard, entries: library.entries)
         }
         guard keyboard == .live || keyboard == .connecting else { return }
         layers = Self.items(layout) { shortcuts?.menuShortcut(forLayer: $0)?.text }

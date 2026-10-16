@@ -31,6 +31,19 @@ public enum KeyboardLayoutPrompt: Equatable, Sendable {
         }
     }
 
+    /// The prompt for the keyboard as Sextant sees it now: the card's, the Device popover's and the menu bar's. None until
+    /// ``OnKeyboard`` has looked the serial up, or a layout the library has would read as missing for a moment on every
+    /// connect. None for an Oryx serial of an Oryx layout in the library either, as before Sextant read layouts back:
+    /// Oryx's build stores no layout, and Import from Oryx brings in its revision (spec §3.6).
+    @MainActor
+    init?(_ status: KeyboardLayoutPull.Status, live: LiveSession, onKeyboard: OnKeyboard, entries: [LibraryEntry]) {
+        let serial = live.firmwareSerial
+        guard onKeyboard.resolvedSerial == serial, !LayoutWindowModel.oryxLayoutInLibrary(serial, entries: entries) else {
+            return nil
+        }
+        self.init(status, serial: serial, runsKnownLayout: onKeyboard.running != nil)
+    }
+
     /// ``noRecord``'s words, in the prompt and in the Layout on the Keyboard window.
     static var noRecordText: String {
         String(
