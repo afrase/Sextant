@@ -51,11 +51,21 @@ private struct ToolbarBandReveal: NSViewRepresentable {
         private let mask = CALayer()
         private weak var maskedGlass: NSView?
         private var toolbarObservation: NSKeyValueObservation?
+        private var panelObservation: NSKeyValueObservation?
+        /// Passes left to wait for a panel's layer (see `layout()`).
+        private var retries = 0
 
         // Takes the mask off as it leaves, so a view that replaces it doesn't find a mask it can't tell is its own.
         override func viewWillMove(toWindow newWindow: NSWindow?) {
             super.viewWillMove(toWindow: newWindow)
-            if let layer = maskedGlass?.layer, layer.mask === mask { layer.mask = nil }
+            if newWindow == nil { release() }
+        }
+
+        // While a window opens, AppKit rebuilds the inspector's column and moves this content between glass panels.
+        override func viewDidMoveToSuperview() {
+            super.viewDidMoveToSuperview()
+            retries = 10
+            needsLayout = true
         }
 
         // The hairline's pixel is half a point on a Retina display and a whole point on others.
@@ -73,12 +83,26 @@ private struct ToolbarBandReveal: NSViewRepresentable {
             needsLayout = true
         }
 
-        // Runs whenever the inspector's size changes, which is when the panel's does.
         override func layout() {
             super.layout()
-            guard let window, let glass = sequence(first: self as NSView, next: \.superview).first(where: { $0 is NSGlassEffectView }),
-                let layer = glass.layer, layer.mask == nil || layer.mask === mask
+            guard let window, let glass = sequence(first: self as NSView, next: \.superview).first(where: { $0 is NSGlassEffectView })
             else { return }
+            if maskedGlass !== glass {
+                release()
+                maskedGlass = glass
+                // The panel animates in through a few heights while the inspector's content keeps its size.
+                panelObservation = glass.observe(\.frame) { [weak self] _, _ in
+                    MainActor.assumeIsolated { self?.needsLayout = true }
+                }
+            }
+            // A panel AppKit has just put up gets its layer a moment later, with no layout pass of this view to follow.
+            guard let layer = glass.layer else {
+                guard retries > 0 else { return }
+                retries -= 1
+                DispatchQueue.main.async { [weak self] in self?.needsLayout = true }
+                return
+            }
+            guard layer.mask == nil || layer.mask === mask else { return }
             // From the panel's top down to the toolbar's bottom edge and the hairline's pixel under it.
             let panel = glass.convert(glass.bounds, to: nil)
             let cut = panel.maxY - window.contentLayoutRect.maxY + 1 / window.backingScaleFactor
@@ -86,13 +110,19 @@ private struct ToolbarBandReveal: NSViewRepresentable {
                 layer.mask = nil
                 return
             }
-            maskedGlass = glass
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             mask.backgroundColor = NSColor.black.cgColor
             mask.frame = CGRect(x: 0, y: glass.isFlipped ? cut : 0, width: glass.bounds.width, height: glass.bounds.height - cut)
             layer.mask = mask
             CATransaction.commit()
+        }
+
+        /// Takes the mask off the panel this content last clipped.
+        private func release() {
+            if let layer = maskedGlass?.layer, layer.mask === mask { layer.mask = nil }
+            maskedGlass = nil
+            panelObservation = nil
         }
     }
 }

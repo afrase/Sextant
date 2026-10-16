@@ -21,14 +21,22 @@ The inspector clips its glass panel instead of painting over it. A view behind t
 `NSGlassEffectView` ancestor and gives that layer a mask covering everything below the toolbar's bottom edge
 (`contentLayoutRect.maxY`) and the hairline's pixel under it. AppKit's own band then shows through: the same views that
 draw the canvas column's band, in every appearance. The mask follows the inspector's size (`layout()`) and the
-toolbar's edge (KVO on `contentLayoutRect`, so Hide Toolbar moves it up to the title bar). It clears itself when there is
-nothing to clip or when the view leaves its window, and it leaves the glass alone if AppKit ever gives it a mask of its
-own.
+toolbar's edge (KVO on `contentLayoutRect`, so Hide Toolbar moves it up to the title bar) and the panel's own frame
+(which animates in while the inspector's content keeps its size). It clears itself when there is nothing to clip, when
+the content leaves its window or moves to another panel, and it leaves the glass alone if AppKit ever gives it a mask of
+its own.
+
+While a window opens, AppKit rebuilds the inspector's column up to three times and moves the content between new glass
+panels, and a panel gets its layer only after the content has arrived. So the view checks again whenever it moves to a
+new superview, and when the panel has no layer yet it retries on the next turns of the run loop (at most ten). Without
+that, about one launch in four (5 of 18 in the probe) started with no mask; with it, 12 of 12 did.
 
 ## Consequences
 - The band and hairline are AppKit's in both columns, so they match from the first frame. The real window confirms the
-  mask through resizes and Hide Toolbar; its look on screen is the user's to confirm, since nothing here can capture
-  glass without a screen-recording prompt.
+  mask through launches, resizes, the inspector turned off and on, Hide Toolbar, and full screen (where the toolbar
+  moves into its own window with its own band per column; the mask follows its edge, and with the toolbar hidden there
+  the panel stays full height, as the sidebar does). Its look on screen is the user's to confirm, since nothing here
+  can capture glass without a screen-recording prompt.
 - It leans on undocumented AppKit behavior: that the column's band is drawn beneath the glass, and that AppKit leaves
   the glass layer's mask alone (if it resets it, the mask returns at the next layout). Finding the panel needs only the
   nearest `NSGlassEffectView` ancestor, a public class. If a later macOS lays the inspector out below the toolbar, the
