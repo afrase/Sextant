@@ -76,6 +76,8 @@ public struct MenuBarPanelState: Equatable {
     var buildTarget: String?
     /// Shown while the keyboard runs a library layout that has App Layers rules.
     var appLayers: AppLayers?
+    /// What Sextant offers while the keyboard runs a layout it doesn't have: [Get Layout] or [Add to Library…] (ADR 0061).
+    var keyboardLayout: KeyboardLayoutPrompt?
 
     /// A panel from given values, for snapshots. Layers come from `layout`, or only layer 0 without one, while the
     /// keyboard is live or connecting; `shortcuts` gives each one's global shortcut.
@@ -83,7 +85,7 @@ public struct MenuBarPanelState: Equatable {
         keyboard: Keyboard, boardName: String = BoardDefinition.voyager.displayName, running: String? = nil,
         layout: KeyboardLayout? = nil, layer: Int? = nil, shortcuts: [Int: String] = [:], layerNote: String? = nil,
         canMove: Bool = true, pressed: Set<Int> = [], isSecureInputOn: Bool = false, flash: Flash? = nil,
-        buildTarget: String? = nil, appLayers: AppLayers? = nil
+        buildTarget: String? = nil, appLayers: AppLayers? = nil, keyboardLayout: KeyboardLayoutPrompt? = nil
     ) {
         self.boardName = boardName
         self.keyboard = keyboard
@@ -97,6 +99,7 @@ public struct MenuBarPanelState: Equatable {
         self.flash = flash
         self.buildTarget = buildTarget
         self.appLayers = appLayers
+        self.keyboardLayout = keyboardLayout
         if keyboard == .live || keyboard == .connecting { layers = Self.items(layout) { shortcuts[$0] } }
         if let layout, let layer, layer > 0 { activator = KeyText.activator(layout: layout, layer: layer)?.text }
     }
@@ -137,10 +140,11 @@ extension MenuBarPanelState {
     /// - Parameters:
     ///   - buildTarget: the layout Build & Flash… acts on (``WindowRouter/target``).
     ///   - switcher: App Layers, whose row shows for the keyboard's layout.
+    ///   - pull: reads the keyboard's layout when Sextant doesn't have it (ADR 0061).
     @MainActor
     init(
         live: LiveSession, onKeyboard: OnKeyboard, shortcuts: LayerShortcuts?, library: Library, buildTarget: UUID?,
-        appLayers switcher: AppLayerSwitcher? = nil, board: BoardDefinition = .voyager
+        appLayers switcher: AppLayerSwitcher? = nil, board: BoardDefinition = .voyager, keyboardLayout pull: KeyboardLayoutPull? = nil
     ) {
         boardName = board.displayName
         switch live.connection {
@@ -168,6 +172,10 @@ extension MenuBarPanelState {
         }
         self.buildTarget = buildTarget.flatMap { id in library.entries.first { $0.id == id }?.title }
         if let switcher, let id = running?.entry.id { appLayers = Self.appLayers(switcher, layout: id) }
+        // Live View can read it: not while another app holds the keyboard.
+        if let pull, keyboard != .heldByAnotherApp {
+            keyboardLayout = KeyboardLayoutPrompt(pull.status, serial: live.firmwareSerial, runsKnownLayout: running != nil)
+        }
         guard keyboard == .live || keyboard == .connecting else { return }
         layers = Self.items(layout) { shortcuts?.menuShortcut(forLayer: $0)?.text }
         let heading = MoveKeyboardToLayerMenu.heading(onKeyboard)

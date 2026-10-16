@@ -23,6 +23,8 @@ public struct DevicePopover: View {
     @AppStorage(SettingsKey.showsOverlay) private var showsOverlay = true
     @State private var showsTrace = true
     @Environment(RawHIDTrace.self) private var trace: RawHIDTrace?
+    @Environment(WindowRouter.self) private var windows: WindowRouter?
+    @Environment(\.openWindow) private var openWindow
 
     public init(model: LayoutWindowModel) { self.model = model }
 
@@ -32,15 +34,7 @@ public struct DevicePopover: View {
                 header(live)
                 if let serial = live.firmwareSerial {
                     Divider()
-                    section("Identity") {
-                        row("Layout") {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(verbatim: serial).font(.callout.monospaced()).textSelection(.enabled)
-                                if let match = model.firmwareMatch { MatchLabel(match: match, long: true) }
-                            }
-                        }
-                        row("Firmware") { Text(firmware(live)).font(.callout.monospacedDigit()) }
-                    }
+                    identity(live, serial: serial)
                 }
                 if model.canGoLive || model.isLive {
                     Divider()
@@ -74,6 +68,43 @@ public struct DevicePopover: View {
             }
             .padding(16)
             .frame(width: 360)
+        }
+    }
+
+    /// The keyboard's layout and firmware, and what Sextant offers when it doesn't have that layout (ADR 0061).
+    private func identity(_ live: LiveSession, serial: String) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            section("Identity") {
+                row("Layout") {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(verbatim: serial).font(.callout.monospaced()).textSelection(.enabled)
+                        if let match = model.firmwareMatch { MatchLabel(match: match, long: true) }
+                    }
+                }
+                row("Firmware") { Text(firmware(live)).font(.callout.monospacedDigit()) }
+            }
+            if let prompt = model.keyboardLayoutPrompt { keyboardLayout(prompt) }
+        }
+    }
+
+    /// What Sextant offers for a layout it doesn't have. The popover closes for the window or the sheet a button opens.
+    private func keyboardLayout(_ prompt: KeyboardLayoutPrompt) -> some View {
+        KeyboardLayoutPromptView(
+            prompt: prompt, isLive: model.isLive, font: .callout, getLayout: { model.getKeyboardLayout() },
+            addToLibrary: { addToLibrary() }, importFromOryx: importFromOryx)
+    }
+
+    private func addToLibrary() {
+        model.devicePopover = nil
+        openWindow.keyboardLayout(windows)
+    }
+
+    /// The Oryx [Import], for an Oryx serial: Oryx's own build stores no layout to read.
+    private var importFromOryx: (@MainActor () -> Void)? {
+        guard let serial = model.connectedOryxSerial else { return nil }
+        return {
+            model.devicePopover = nil
+            model.openImport(serial)
         }
     }
 

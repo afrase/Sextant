@@ -54,6 +54,16 @@ public struct SextantScenes: Scene {
                 layerShortcuts: services.layerShortcuts, layerShortcutRecorder: layerShortcutRecorder, heatmap: services.heatmap)
         }
 
+        // The layout read from the keyboard, and where to add it (ADR 0061). Only Add to Library… opens it: never at
+        // launch or by window restoration, and the Window menu doesn't list it.
+        Window("Layout on the Keyboard", id: KeyboardLayoutWindow.sceneID) {
+            KeyboardLayoutWindow(pull: services.keyboardLayout, library: services.library).environment(windows)
+        }
+        .windowResizability(.contentSize)
+        .restorationBehavior(.disabled)
+        .defaultLaunchBehavior(.suppressed)
+        .commandsRemoved()
+
         // The label is an image the panel's state draws, since a menu bar extra's label shows only an Image and a Text
         // (spec §8.3, ADR 0049).
         MenuBarExtra(isInserted: $showsInMenuBar) {

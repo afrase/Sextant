@@ -89,6 +89,8 @@ public final class LayoutWindowModel {
     @ObservationIgnored let onKeyboard: OnKeyboard?
     /// The keyboard lighting preview, app-wide (ADR 0051); nil in tests and snapshots without a keyboard.
     @ObservationIgnored let lightingPreview: LightingPreview?
+    /// Reads the layout a Sextant build stores in the keyboard, app-wide (ADR 0061); nil in tests and snapshots without it.
+    @ObservationIgnored let keyboardLayout: KeyboardLayoutPull?
     /// Times Select Key by Pressing It's waits (``selectByPressTail``); tests pass a test clock.
     @ObservationIgnored let clock: any Clock<Duration>
     // MARK: inspector
@@ -186,6 +188,8 @@ public final class LayoutWindowModel {
     var devicePopover: DevicePopoverAnchor?
     /// The layout of the latest import revision, which the keyboard's serial is matched against (ADR 0019).
     var importedLayout: KeyboardLayout?
+    /// ``keyboardLayoutPrompt`` where nothing reads the keyboard's layout (tests, snapshots).
+    var fixedKeyboardLayoutPrompt: KeyboardLayoutPrompt?
     private var followsWithoutLive = false
     private var fixedActivity = ActivityState()
 
@@ -193,7 +197,7 @@ public final class LayoutWindowModel {
         library: Library, live: LiveSession? = nil, makeImport: (@MainActor () -> ImportFromOryx)? = nil,
         makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)? = nil, onKeyboard: OnKeyboard? = nil,
         lightingPreview: LightingPreview? = nil, heatmap: HeatmapRecorder? = nil, appLayers: AppLayerSwitcher? = nil,
-        clock: any Clock<Duration> = ContinuousClock()
+        keyboardLayout: KeyboardLayoutPull? = nil, clock: any Clock<Duration> = ContinuousClock()
     ) {
         self.library = library
         self.clock = clock
@@ -204,6 +208,7 @@ public final class LayoutWindowModel {
         self.makeBuildFlash = makeBuildFlash
         self.onKeyboard = onKeyboard
         self.lightingPreview = lightingPreview
+        self.keyboardLayout = keyboardLayout
     }
 
     /// A window over the composition root's use cases.
@@ -211,7 +216,7 @@ public final class LayoutWindowModel {
         self.init(
             library: services.library, live: services.live, makeImport: services.makeImport, makeBuildFlash: services.makeBuildFlash,
             onKeyboard: services.onKeyboard, lightingPreview: services.lightingPreview, heatmap: services.heatmap,
-            appLayers: services.appLayers)
+            appLayers: services.appLayers, keyboardLayout: services.keyboardLayout)
     }
 
     /// Opens `id`, or the most recently modified layout no other window has open when `id` is nil, no longer in the

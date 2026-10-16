@@ -66,11 +66,12 @@ enum Scenes {
         scenes += await heatmap(f)
         scenes += await `import`(f)
         scenes += await device(f)
+        scenes += await keyboardLayout(f)
         scenes += await settings(f)
         scenes += await layerShortcuts(f)
         scenes += await overlay(f)
         scenes += await menuBar(f)
-        scenes += SnapshotScene.pair("activity", size: CGSize(width: 480, height: 15 * 40 + 16), chrome: .content) { activityStates }
+        scenes += SnapshotScene.pair("activity", size: CGSize(width: 480, height: 16 * 40 + 16), chrome: .content) { activityStates }
         scenes += await layers(f)
         scenes += await export(f)
         scenes += await macros(f)
@@ -173,6 +174,7 @@ enum Scenes {
             ActivityState(device: connected, status: .notOnKeyboard(edits: 5)),
             ActivityState(device: .connected(serial: "Q9x2/aa11", matchesLayout: false), status: .otherLayout(name: nil)),
             ActivityState(device: .connected(serial: "sx-C57FDF8B-9084DE1F", matchesLayout: false), status: .otherLayout(name: "Travel")),
+            ActivityState(device: connected, status: .keyboardRunsRevision(number: 7)),
             ActivityState(device: .connected(serial: nil, matchesLayout: true), status: .heldByAnotherApp("Keymapp")),
             ActivityState(device: connected, status: .issues(count: 2, firstKey: 45)),
             ActivityState(device: connected, status: .building(file: "keymap.c", done: 12, total: 41)),
@@ -186,7 +188,7 @@ enum Scenes {
         ]
         return VStack(spacing: 8) {
             ForEach(Array(states.enumerated()), id: \.offset) { _, state in
-                ActivityCapsule(state: state, boardName: "ZSA Voyager", onShowLog: {})
+                ActivityCapsule(state: state, boardName: "ZSA Voyager", onShowLog: {}, onUseRevision: {})
                     .frame(width: 440, height: 32)
                     .background(Capsule().fill(Tokens.surface.color))
             }
