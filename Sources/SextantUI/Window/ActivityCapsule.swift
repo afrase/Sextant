@@ -18,6 +18,9 @@ public struct ActivityState: Hashable, Sendable {
         case notOnKeyboard(edits: Int?)
         /// The keyboard runs another layout: its name when the library holds it (the serial already shows beside it).
         case otherLayout(name: String?)
+        /// The keyboard runs revision `number` of this layout, which Sextant read from the keyboard and added to History
+        /// without making it the working copy (ADR 0061). [Use It] restores it.
+        case keyboardRunsRevision(number: Int)
         case heldByAnotherApp(String)
         /// The keyboard sits in flash mode with no flash running.
         case inFlashMode
@@ -102,6 +105,8 @@ extension ActivityState.Status {
             ActivityLook(
                 symbol: "exclamationmark.triangle.fill", tone: .warning,
                 text: name.map { String(localized: "Keyboard runs ‘\($0)’") } ?? String(localized: "Keyboard runs another layout"))
+        case let .keyboardRunsRevision(number):
+            ActivityLook(symbol: "arrow.down.circle", tone: .warning, text: String(localized: "Keyboard runs revision \(number)"))
         case let .heldByAnotherApp(app):
             ActivityLook(symbol: "lock.fill", tone: .secondary, text: String(localized: "In use by \(app)"))
         case .inFlashMode:
@@ -182,18 +187,22 @@ public struct ActivityCapsule: View {
     var onShowDevice: (() -> Void)?
     /// Opens the Build & Flash sheet; nil where building is off.
     var onShowLog: (() -> Void)?
+    /// [Use It] while the keyboard runs a revision the working copy isn't (``ActivityState/Status/keyboardRunsRevision(number:)``):
+    /// restores that revision. Nil where there is nothing to restore it in.
+    var onUseRevision: (() -> Void)?
     /// Narrower in small windows, so the toolbar's trailing items stay out of its overflow menu.
     var idealWidth: CGFloat
     @State private var width: CGFloat = 440
 
     public init(
         state: ActivityState, boardName: String, onShowDevice: (() -> Void)? = nil, onShowLog: (() -> Void)? = nil,
-        idealWidth: CGFloat = 440
+        onUseRevision: (() -> Void)? = nil, idealWidth: CGFloat = 440
     ) {
         self.state = state
         self.boardName = boardName
         self.onShowDevice = onShowDevice
         self.onShowLog = onShowLog
+        self.onUseRevision = onUseRevision
         self.idealWidth = idealWidth
     }
 
@@ -203,12 +212,22 @@ public struct ActivityCapsule: View {
         HStack(spacing: 0) {
             segment(onShowDevice) { deviceSegment(compact: compact) }
             Divider().frame(height: 16)
-            segment(onShowLog) { statusSegment(look, compact: compact) }
-                .accessibilityLabel([look.text, look.detail].compactMap { $0 }.joined(separator: ", "))
+            if let useRevision {
+                // Its own button, so the segment isn't one: a button in a button takes no clicks.
+                statusSegment(look, compact: compact, useRevision: useRevision).padding(.horizontal, 12)
+            } else {
+                segment(onShowLog) { statusSegment(look, compact: compact) }
+                    .accessibilityLabel([look.text, look.detail].compactMap { $0 }.joined(separator: ", "))
+            }
         }
         .frame(minWidth: 280, idealWidth: idealWidth, maxWidth: 520, minHeight: 28)
         .overlay(alignment: .bottom) { ProgressHairline(progress: look.progress) }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: { width = $0 })
+    }
+
+    /// [Use It]'s action while the status offers it.
+    private var useRevision: (() -> Void)? {
+        if case .keyboardRunsRevision = state.status { onUseRevision } else { nil }
     }
 
     /// A button when there is something to open, else just its label.
@@ -249,7 +268,7 @@ public struct ActivityCapsule: View {
         return parts.compactMap { $0 }.joined(separator: ", ")
     }
 
-    private func statusSegment(_ look: ActivityLook, compact: Bool) -> some View {
+    private func statusSegment(_ look: ActivityLook, compact: Bool, useRevision: (() -> Void)? = nil) -> some View {
         HStack(spacing: 6) {
             if let symbol = look.symbol {
                 Image(systemName: symbol)
@@ -260,7 +279,10 @@ public struct ActivityCapsule: View {
             }
             Text(look.text).font(.callout).lineLimit(1).layoutPriority(1)
             Spacer(minLength: 6)
-            if let detail = look.detail, !compact {
+            if let useRevision {
+                Button("Use It", action: useRevision).controlSize(.small)
+                    .help(Text("Make the revision the keyboard runs your working copy. Your edits stay in History."))
+            } else if let detail = look.detail, !compact {
                 Text(detail).font(.caption.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
             }
         }

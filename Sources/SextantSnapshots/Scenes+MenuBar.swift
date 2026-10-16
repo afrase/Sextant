@@ -53,6 +53,7 @@ extension Scenes {
         ]
         // In flash mode with the keyboard's layout unknown, the row names the layout it would write.
         panels.append(("flash-mode", MenuBarPanelState(keyboard: .flashMode, buildTarget: target), false))
+        panels += keyboardLayoutPanels(layout, target: target)
         for (name, state, both) in panels {
             let size = NSHostingView(rootView: MenuBarPanelContent(state: state)).fittingSize
             let make = { MenuBarPanelContent(state: state) }
@@ -66,6 +67,33 @@ extension Scenes {
             labels(layout)
         }
         return scenes
+    }
+
+    /// A layout Sextant doesn't have (ADR 0061): Get Layout with Live View off, then, with it on, the layout read and
+    /// one that stores none.
+    private static func keyboardLayoutPanels(_ layout: KeyboardLayout, target: String) -> [(String, MenuBarPanelState, Bool)] {
+        let serial = "sx-C57FDF8B-9084DE1F"
+        let note = "Sextant doesn’t have the keyboard’s layout, so it can move it only to layer 0."
+        return [
+            (
+                "keyboard-layout-off",
+                MenuBarPanelState(keyboard: .liveOff, running: serial, buildTarget: target, keyboardLayout: .notInLibrary(serial: serial)),
+                true
+            ),
+            (
+                "keyboard-layout-found",
+                MenuBarPanelState(
+                    keyboard: .live, running: serial, layer: 0, layerNote: note, buildTarget: target,
+                    keyboardLayout: .found(title: layout.title)),
+                true
+            ),
+            (
+                "keyboard-layout-no-record",
+                MenuBarPanelState(
+                    keyboard: .live, running: "Q9x2/aa11", layer: 0, layerNote: note, buildTarget: target, keyboardLayout: .noRecord),
+                false
+            ),
+        ]
     }
 
     /// The user's layout grown to twelve layers, past the four that get tiles.

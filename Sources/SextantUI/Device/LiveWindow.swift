@@ -8,15 +8,17 @@ enum DevicePopoverAnchor { case capsule, card }
 
 extension LayoutWindowModel {
     /// The capsule for a window with a live session (spec §3.5): a running or finished Build & Flash, then live
-    /// issues, then the keyboard against the open layout.
+    /// issues, then a revision read from the keyboard to use (ADR 0061), then the keyboard against the open layout.
     var liveActivity: ActivityState {
         guard let live else { return ActivityState() }
         let match = firmwareMatch
         let errors = session.map { LayoutIssues.check($0.layout).filter { $0.severity == .error } } ?? []
+        let pulled = keyboardRevision.map { ActivityState.Status.keyboardRunsRevision(number: $0.number) }
         let status =
             buildFlash.flatMap { ActivityState.Status($0.phase, usedBytes: $0.usedBytes, capacity: $0.capacity) }
             ?? flashingElsewhere.map { .flashingElsewhere(layout: $0) }
             ?? (errors.isEmpty ? nil : .issues(count: errors.count, firstKey: errors.first?.key?.index))
+            ?? pulled
             ?? ActivityState.Status(
                 live.connection, match: match, serial: live.firmwareSerial, edits: editsSinceImport,
                 revisionDate: session?.revisions.last?.createdAt, layoutOpen: session != nil,
@@ -57,6 +59,57 @@ extension LayoutWindowModel {
         let layoutID = serial[..<slash]
         let known = library.entries.contains { if case let .oryx(id, _) = $0.origin { id == layoutID } else { false } }
         return known ? nil : serial
+    }
+
+    /// What the card and the Device popover offer while the keyboard runs a layout Sextant doesn't have (ADR 0061): from
+    /// the app's keyboard layout pull, or a fixed value where there is none (tests, snapshots).
+    public var keyboardLayoutPrompt: KeyboardLayoutPrompt? {
+        get {
+            guard let keyboardLayout else { return fixedKeyboardLayoutPrompt }
+            guard let live, let onKeyboard else { return nil }
+            switch live.connection {
+            case .connected, .liveOff:
+                return KeyboardLayoutPrompt(keyboardLayout.status, serial: live.firmwareSerial, runsKnownLayout: onKeyboard.running != nil)
+            case .noKeyboard, .bootloader, .heldByAnotherApp: return nil
+            }
+        }
+        set { fixedKeyboardLayoutPrompt = newValue }
+    }
+
+    /// Get Layout and Try Again: reads the layout the keyboard's firmware stores, turning on Live View first. The click is
+    /// the consent (ADR 0057).
+    func getKeyboardLayout() {
+        guard let keyboardLayout else { return }
+        Task { await keyboardLayout.read(startingLiveView: true) }
+    }
+
+    /// The revision [Use It] restores (ADR 0061): Sextant read the keyboard's layout and added it to this layout's History
+    /// without making it the working copy, the keyboard still runs it, and the working copy differs from it.
+    var keyboardRevision: RevisionSummary? {
+        guard let session, case let .added(added)? = keyboardLayout?.status, added.entryID == session.id, !added.adopted,
+            let revision = added.revision, let running = onKeyboard?.running, running.entry.id == session.id,
+            running.revision?.id == revision.id
+        else { return nil }
+        return Self.differs(session.layout, from: running.layout) ? revision : nil
+    }
+
+    /// Whether Use It would change the working copy: a restore keeps its title, and macro drafts never reach the keyboard
+    /// (ADR 0042), so neither counts.
+    static func differs(_ working: KeyboardLayout, from keyboard: KeyboardLayout) -> Bool {
+        var keyboard = keyboard
+        keyboard.title = working.title
+        keyboard.macroDrafts = working.macroDrafts
+        return keyboard != working
+    }
+
+    /// [Use It]: makes the revision the keyboard runs the working copy, as one undoable edit that records unsaved edits in
+    /// History first. A failure shows on the History page.
+    func useKeyboardRevision() {
+        guard let history, let revision = keyboardRevision else { return }
+        Task {
+            await history.restore(revision)
+            if history.error != nil { self.destination = .history }
+        }
     }
 
     /// The keyboard in normal mode, for Build & Flash's "replace the layout on this keyboard?" check.

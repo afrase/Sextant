@@ -18,6 +18,7 @@ struct WindowToolbar: CustomizableToolbarContent {
                 state: model.activity, boardName: model.boardName,
                 onShowDevice: model.live == nil ? nil : { model.devicePopover = .capsule },
                 onShowLog: model.buildFlash == nil ? nil : { model.showsBuildSheet = true },
+                onUseRevision: { model.useKeyboardRevision() },
                 // The toolbar sizes items by their ideal width: at the narrowest, the trailing items need the room.
                 idealWidth: windowWidth >= 1280 ? 440 : 280
             )

@@ -38,6 +38,8 @@ enum SettingsKey {
     static let keyboardConnectAction = "keyboardConnectAction"
     static let notifiesWhenFlashFinishes = "notifiesWhenFlashFinishes"
     static let prefersOryxBuild = "prefersOryxBuild"
+    /// Settings › Build's "Store the layout in the firmware" (ADR 0061).
+    static let storesLayoutInFirmware = "storesLayoutInFirmware"
     static let recordsHeatmap = "recordsHeatmap"
     static let heatmapRetentionDays = "heatmapRetentionDays"
     /// The Device popover's note about live data, shown at the first connect (spec §12.3).
@@ -82,6 +84,7 @@ public struct BuildSettings: View {
     var status: BuildToolsStatus?
     var source: FirmwareSource?
     @AppStorage(SettingsKey.prefersOryxBuild) private var prefersOryxBuild = true
+    @AppStorage(SettingsKey.storesLayoutInFirmware) private var storesLayout = true
     @State private var toolsStatus: ToolchainStatus?
 
     /// `known` shows a status before the first check finishes (snapshots run no tasks).
@@ -89,6 +92,12 @@ public struct BuildSettings: View {
         self.status = status
         self.source = source
         _toolsStatus = State(initialValue: known)
+    }
+
+    /// Whether a Sextant build stores its layout in the firmware, so Sextant on other Macs can read it back (ADR 0061); on
+    /// by default.
+    public static func storesLayoutInFirmware(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: SettingsKey.storesLayoutInFirmware) as? Bool ?? true
     }
 
     public var body: some View {
@@ -122,6 +131,18 @@ public struct BuildSettings: View {
                 }
             }
             Toggle("Use Oryx's build when the layout is unchanged since import", isOn: $prefersOryxBuild)
+            Section {
+                Toggle("Store the layout in the firmware", isOn: $storesLayout)
+            } footer: {
+                Text(
+                    """
+                    Lets Sextant on your other Macs read this layout from the keyboard over Live View, so they know what it \
+                    runs. Any app on a Mac the keyboard is plugged into could read it, macros included. Applies from the next \
+                    Build & Flash.
+                    """
+                )
+                .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .task { toolsStatus = await status?() }
