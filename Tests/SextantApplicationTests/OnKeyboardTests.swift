@@ -87,6 +87,43 @@ struct OnKeyboardTests {
         #expect(running?.entry.id == entry.id && running?.revision?.id == revision.id && running?.layout == flashed, "the flash revision")
     }
 
+    /// The keyboard runs the user's other Mac's build: once linked (ADR 0061), the same content here is what it runs.
+    @Test func aLinkedLayoutsBuildFromAnotherMacResolves() async throws {
+        let entry = try await store.create(layout, origin: .local, firstRevision: RevisionDraft(source: .save, layout: layout))
+        let otherMac = UUID()
+        let flashed = retitled(layout, "Flashed")
+        let serial = FirmwareIdentity(layout: flashed, libraryID: otherMac, importedLayout: nil).serial
+        try await store.save(flashed, to: entry.id)
+        #expect(await resolve(serial) == nil, "not linked")
+
+        try await store.link(entry.id, to: [otherMac])
+        var running = await resolve(serial)
+        #expect(running?.entry.id == entry.id && running?.revision == nil && running?.layout == flashed, "the working copy has it")
+        let revision = try await store.appendRevision(RevisionDraft(source: .flash, layout: flashed), to: entry.id)
+        try await store.save(retitled(layout, "Edited since"), to: entry.id)
+        running = await resolve(serial)
+        #expect(running?.revision?.id == revision.id && running?.layout == flashed, "the flash revision with its content")
+    }
+
+    /// A revision added to a layout doesn't change the library's entries: ``OnKeyboard/refresh()`` looks again.
+    @Test func refreshResolvesAgainAndTheResolvedSerialFollowsTheKeyboard() async throws {
+        let entry = try await store.create(layout, origin: .local, firstRevision: RevisionDraft(source: .save, layout: layout))
+        await library.refresh()
+        let flashed = retitled(layout, "Flashed")
+        let serial = FirmwareIdentity(layout: flashed, libraryID: entry.id, importedLayout: nil).serial
+        live.start()
+        onKeyboard.start()
+        watcher.attach(.keyboard(.voyager(serial: serial)))
+        #expect(await eventually { onKeyboard.resolvedSerial == serial })
+        #expect(onKeyboard.running == nil, "looked up, and the library has no revision with it")
+
+        _ = try await store.appendRevision(RevisionDraft(source: .flash, layout: flashed), to: entry.id)
+        onKeyboard.refresh()
+        #expect(await eventually { onKeyboard.running?.layout == flashed })
+        watcher.detach(1)
+        #expect(await eventually { onKeyboard.resolvedSerial == nil && onKeyboard.running == nil }, "unplugged")
+    }
+
     @Test func anythingElseIsNil() async throws {
         let entry = try await store.create(
             layout, origin: .oryx(layoutId: "KlgM7", revisionId: "40xJ7M"), firstRevision: RevisionDraft(source: .import, layout: layout))

@@ -335,4 +335,58 @@ struct PackageLibraryTests {
         try Data("{".utf8).write(to: file)
         await #expect(throws: LibraryError.self) { try await library.appLayerRules(of: entry.id) }
     }
+
+    // MARK: Aliases (ADR 0061)
+
+    /// The `aliases` key of a package's `meta.json`; nil when the file leaves it out.
+    func storedAliases(of id: UUID) async throws -> [String]? {
+        let file = try #require(await library.location(of: id)).appending(path: "meta.json")
+        let meta = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any]
+        return meta?["aliases"] as? [String]
+    }
+
+    /// A layout's ids on other Macs live in `meta.json`, sorted, and only once there are some. Linking moves nothing the
+    /// layout's identity rests on: its content hash, modification date, revisions and working copy stay.
+    @Test func aliasesLiveInTheMetadata() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await library.create(layout, origin: .local, firstRevision: RevisionDraft(source: .save, layout: layout))
+        #expect(try await storedAliases(of: entry.id) == nil, "left out while there are none")
+        try await library.link(entry.id, to: [entry.id])
+        #expect(try await storedAliases(of: entry.id) == nil, "its own id isn't an alias")
+        #expect(try await library.load(entry.id).entry.aliases.isEmpty)
+
+        let before = try await library.load(entry.id)
+        let folder = try #require(await library.location(of: entry.id))
+        let layoutBefore = try Data(contentsOf: folder.appending(path: "layout.json"))
+        let (a, b) = (UUID(), UUID())
+        try await library.link(entry.id, to: [b, a, entry.id])
+        #expect(try await storedAliases(of: entry.id) == [a, b].map(\.uuidString).sorted())
+        let after = try await library.load(entry.id)
+        #expect(after.entry.aliases == [a, b])
+        #expect(after.contentHash == before.contentHash && after.revisions == before.revisions)
+        #expect(after.entry.modifiedAt == before.entry.modifiedAt && !after.hasEditsSinceLastRevision)
+        #expect(try Data(contentsOf: folder.appending(path: "layout.json")) == layoutBefore)
+        #expect(try await library.entries().first?.aliases == [a, b], "the sidebar's entries carry them")
+
+        let c = UUID()
+        try await library.link(entry.id, to: [c])
+        #expect(try await library.load(entry.id).entry.aliases == [a, b, c], "linking adds to them")
+        var edited = layout
+        edited.title = "Edited"
+        try await library.save(edited, to: entry.id)
+        try await library.rename(entry.id, to: "Renamed")
+        #expect(try await library.load(entry.id).entry.aliases == [a, b, c], "saves and renames keep them")
+        await #expect(throws: LibraryError.notFound(c)) { try await library.link(c, to: [a]) }
+    }
+
+    /// A copy is another layout: no other Mac's build is it.
+    @Test func aDuplicateDoesntCopyTheAliases() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await library.create(layout, origin: .local, firstRevision: nil)
+        try await library.link(entry.id, to: [UUID()])
+        let copy = try await library.duplicate(entry.id)
+        #expect(try await library.load(copy.id).entry.aliases.isEmpty)
+        #expect(try await storedAliases(of: copy.id) == nil)
+        #expect(try await library.load(entry.id).entry.aliases.count == 1)
+    }
 }

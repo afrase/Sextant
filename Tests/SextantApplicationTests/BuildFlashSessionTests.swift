@@ -12,14 +12,15 @@ struct BuildFlashSessionTests {
 
     func make(
         generator: FakeGenerator = FakeGenerator(), toolchain: FakeToolchain = FakeToolchain(), flasher: FakeFlasher = FakeFlasher(),
-        issues: @escaping @Sendable (KeyboardLayout) -> [LayoutIssue] = { _ in [] }
+        issues: @escaping @Sendable (KeyboardLayout) -> [LayoutIssue] = { _ in [] },
+        storesLayoutRecord: @escaping @MainActor () -> Bool = { true }
     ) async throws -> (BuildFlashSession, EditSession) {
         let library = Library(store: store)
         let entry = try await library.importOryxJSON(Fixtures.userLayoutData)
         let document = try await library.open(entry.id, autosaveDelay: .milliseconds(1))
         let session = BuildFlashSession(
             session: document, library: store, generator: generator, toolchain: toolchain, watcher: watcher, flasher: flasher,
-            md5: { _ in "d41d8cd9" }, clock: clock, issues: issues)
+            md5: { _ in "d41d8cd9" }, clock: clock, issues: issues, storesLayoutRecord: storesLayoutRecord)
         return (session, document)
     }
 

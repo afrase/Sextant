@@ -8,7 +8,7 @@ import os
 ///
 /// ```
 /// <root>/<Title>-<id6>.sextant/
-///   meta.json            format version, id, title, origin, dates, content hash
+///   meta.json            format version, id, title, origin, dates, content hash, aliases (ids on other Macs, ADR 0061)
 ///   layout.json          the working copy (Oryx-shaped layout JSON)
 ///   revisions/NNNN-<hash8>.json   append-only checkpoints
 ///   firmware/<revision>.bin       an Oryx- or Sextant-built image, plus <revision>.bin.md5
@@ -160,6 +160,17 @@ public actor PackageLibrary: LayoutLibrary {
         try write(stored, to: folder(for: id).appending(path: Self.appLayersFile))
     }
 
+    /// Only `meta.json` changes, so the content hash, modification date and revisions stay as they are. Older Sextant
+    /// ignores the key, so the format version doesn't move (ADR 0061).
+    public func link(_ id: UUID, to ids: Set<UUID>) throws(LibraryError) {
+        let folder = try folder(for: id)
+        var meta = try readMeta(folder)
+        let aliases = meta.entry.aliases.union(ids).subtracting([meta.id])
+        guard aliases != meta.entry.aliases else { return }
+        meta.aliases = Meta.stored(aliases)
+        try write(meta, to: folder.appending(path: "meta.json"))
+    }
+
     public func trash(_ id: UUID) throws(LibraryError) {
         let folder = try folder(for: id)
         try io { try moveToTrash(folder) }
@@ -247,8 +258,17 @@ public actor PackageLibrary: LayoutLibrary {
         var createdAt: Date
         var modifiedAt: Date
         var contentHash: String
+        /// ``LibraryEntry/aliases``, sorted; nil (left out of the file) when there are none.
+        var aliases: [UUID]?
 
-        var entry: LibraryEntry { LibraryEntry(id: id, title: title, origin: origin.model, modifiedAt: modifiedAt) }
+        var entry: LibraryEntry {
+            LibraryEntry(id: id, title: title, origin: origin.model, modifiedAt: modifiedAt, aliases: Set(aliases ?? []))
+        }
+
+        /// Aliases as the file keeps them: sorted, so the file changes only when they do, and none when empty.
+        static func stored(_ aliases: Set<UUID>) -> [UUID]? {
+            aliases.isEmpty ? nil : aliases.sorted { $0.uuidString < $1.uuidString }
+        }
     }
 
     /// `app-layers.json`. Its own format version, so a newer Sextant's rules are refused rather than overwritten.
