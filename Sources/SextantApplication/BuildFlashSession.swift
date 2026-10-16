@@ -164,6 +164,7 @@ public final class BuildFlashSession {
     @ObservationIgnored private let issues: @Sendable (KeyboardLayout) -> [LayoutIssue]
     @ObservationIgnored private let board: BoardDefinition
     @ObservationIgnored private let live: LiveSession?
+    @ObservationIgnored private let storesLayoutRecord: @MainActor () -> Bool
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private var runID = 0
     @ObservationIgnored private var request: Request?
@@ -177,11 +178,14 @@ public final class BuildFlashSession {
     ///   - md5: hex md5 of an image, recorded at build time for the flasher's check (ADR 0013).
     ///   - issues: the live-issue check (the domain's, unless a test injects one).
     ///   - live: the app-wide live session, which lets one Build & Flash at a time wait for flash mode and write.
+    ///   - storesLayoutRecord: whether a build stores the layout in the firmware for Sextant on other Macs to read back
+    ///     (Settings › Build, ADR 0061), asked at each build.
     public init(
         session: EditSession, library: any LayoutLibrary, generator: any FirmwareGenerator, toolchain: any Toolchain,
         watcher: any DeviceWatcher, flasher: any Flasher, md5: @escaping @Sendable (Data) -> String,
         clock: any Clock<Duration> = ContinuousClock(),
-        issues: @escaping @Sendable (KeyboardLayout) -> [LayoutIssue] = LayoutIssues.check, live: LiveSession? = nil
+        issues: @escaping @Sendable (KeyboardLayout) -> [LayoutIssue] = LayoutIssues.check, live: LiveSession? = nil,
+        storesLayoutRecord: @escaping @MainActor () -> Bool = { true }
     ) {
         self.session = session
         self.library = library
@@ -193,6 +197,7 @@ public final class BuildFlashSession {
         self.clock = clock
         self.issues = issues
         self.live = live
+        self.storesLayoutRecord = storesLayoutRecord
         board = session.layout.board ?? .voyager
     }
 
@@ -292,17 +297,21 @@ public final class BuildFlashSession {
     private func run(_ request: Request, keyboard: KeyboardDevice?, confirmed: Bool) async {
         let layout: KeyboardLayout
         let expected: FirmwareIdentity
+        let aliases = await currentAliases()
         if request == .flash, let builtLayout, let identity {
             (layout, expected) = (builtLayout, identity)
         } else {
             layout = self.layout
             let errors = issues(layout).filter { $0.severity == .error }
             guard errors.isEmpty else { return show(.blocked(errors)) }
-            expected = FirmwareIdentity(layout: layout, libraryID: session.id, importedLayout: await importedLayout())
+            let plain = FirmwareIdentity(layout: layout, libraryID: session.id, importedLayout: await importedLayout())
+            // The serial stays the same with or without the record (ADR 0061).
+            expected = storesLayoutRecord() ? plain.storingRecord(of: layout, libraryID: session.id, aliases: aliases) : plain
         }
         if request != .build, !confirmed, let keyboard,
             (keyboard.serial.map {
-                FirmwareMatch(serial: $0, expected: expected, libraryID: session.id, oryxLayoutID: layout.oryx?.layoutId)
+                FirmwareMatch(
+                    serial: $0, expected: expected, libraryID: session.id, aliases: aliases, oryxLayoutID: layout.oryx?.layoutId)
             } ?? .otherLayout) == .otherLayout
         {
             return show(.confirmingReplace(serial: keyboard.serial, title: await title(runningSerial: keyboard.serial)))
@@ -317,6 +326,17 @@ public final class BuildFlashSession {
         // Never ask for flash mode when the write would be refused: the keyboard would sit in its bootloader for nothing.
         guard flasher.isEnabled else { return fail(.flash(.hardwareAccessOff)) }
         await flashAndVerify()
+    }
+
+    /// The layout's library ids on other Macs (ADR 0061), read at each run: a link made since the window opened counts.
+    private func currentAliases() async -> Set<UUID> {
+        let id = session.id
+        do {
+            return try await library.entries().first { $0.id == id }?.aliases ?? []
+        } catch {
+            logger.error("Reading the layout's aliases failed: \(String(describing: error), privacy: .public)")
+            return []
+        }
     }
 
     /// The library title of the layout a serial names, for the replace confirmation.

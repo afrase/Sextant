@@ -560,4 +560,5 @@ private actor UnreadableRules: LayoutLibrary {
     func discardRecovery(of id: UUID) {}
     func appLayerRules(of id: UUID) throws(LibraryError) -> AppLayerRules { throw .newerFormat(2) }
     func saveAppLayerRules(_ rules: AppLayerRules, for id: UUID) throws(LibraryError) { throw .io("must not be written") }
+    func link(_ id: UUID, to ids: Set<UUID>) {}
 }

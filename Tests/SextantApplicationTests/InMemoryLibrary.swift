@@ -127,6 +127,12 @@ actor InMemoryLibrary: LayoutLibrary {
         appLayersSaves += 1
     }
 
+    /// Like storage: only the aliases change, never the layout, its date or its revisions.
+    func link(_ id: UUID, to ids: Set<UUID>) throws(LibraryError) {
+        guard items[id] != nil else { throw .notFound(id) }
+        items[id]?.entry.aliases.formUnion(ids.subtracting([id]))
+    }
+
     func layout(_ id: UUID) -> KeyboardLayout? { items[id]?.layout }
 
     /// Equal layouts hash equally within a test run, like storage's canonical hash.
