@@ -46,11 +46,14 @@ the layout in it and answer a request for it.
     links the record's ids and adds the keyboard's layout as a revision ("From the keyboard"; `.flash`, or `.import` for an
     Oryx serial), through the open document when there is one. It also becomes the working copy when the working copy
     equals its latest flash or import, that is when nothing newer than what was last put on a keyboard would be replaced;
-    otherwise the layout window offers "Keyboard runs revision N · Use It" (History's Restore).
+    otherwise the layout window offers "Keyboard runs revision N · Use It". Use It makes the working copy exactly that revision, the keyboard's title included (the title is part of the fingerprint), keeping only the local macro drafts, as one undo step after a checkpoint; the offer then ends.
+  - For an Oryx serial, only a layout from that Oryx layout counts as linked or is offered, since OnKeyboard finds an Oryx serial's import revision by the layout's origin; otherwise the choice is a new layout, from that Oryx layout.
+  - A Sextant serial's record must also decode to a layout that re-encodes to the serial's fingerprint (a newer Sextant's field this one drops would otherwise be added again at every connect); else it fails as unreadable.
   - **Not linked:** the device card, the Device popover and the menu bar offer Add to Library…, which opens the Layout on
     the Keyboard window: a new layout, or a revision of the layout the user picks (the same Oryx layout or name is
     suggested), which becomes its working copy after a checkpoint (ADR 0024's rule). That links the two from then on.
   - The keyboard's layout is kept exactly, title included, since changing it would change its fingerprint.
+- Nothing is offered until `OnKeyboard` has looked the serial up for the current library and flash state (`resolvedSerial`), so a known layout never flashes "not in your library" on connect.
 - **Consent.** The read goes only over a Live View session the user started (ADR 0057). Get Layout on the device card turns
   Live View on and reads; the click is the consent. Agents never send it; the user tries it on the keyboard.
 - **Settings › Build › Store the layout in the firmware**, on by default: any app on a Mac the keyboard is plugged into can
