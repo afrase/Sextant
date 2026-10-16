@@ -2,6 +2,7 @@ import AppKit
 import SextantApplication
 import SextantDomain
 import SwiftUI
+import Synchronization
 import Testing
 
 @testable import SextantUI
@@ -117,8 +118,10 @@ struct KeyboardLayoutPromptTests {
     @Test func thePanelWithThePromptStaysUnder520Points() {
         let note = "Sextant doesn’t have the keyboard’s layout, so it can move it only to layer 0."
         let failure = PullFailure.keyboard(.timedOut).localizedDescription
+        let pairing = LayerMoveRefusal.connecting.localizedDescription
         let states = [
             MenuBarPanelState(keyboard: .liveOff, running: serial, keyboardLayout: .notInLibrary(serial: serial)),
+            MenuBarPanelState(keyboard: .connecting, running: serial, layerNote: pairing, keyboardLayout: .notInLibrary(serial: serial)),
             MenuBarPanelState(keyboard: .connecting, running: serial, layerNote: note, keyboardLayout: .reading(0.5)),
             MenuBarPanelState(keyboard: .live, running: serial, layer: 0, layerNote: note, keyboardLayout: .noRecord),
             MenuBarPanelState(keyboard: .live, running: serial, layer: 0, layerNote: note, keyboardLayout: .found(title: "Work")),
@@ -130,6 +133,14 @@ struct KeyboardLayoutPromptTests {
             #expect(size.width == 360)
             #expect(size.height < 520, "\(String(describing: state.keyboardLayout)): \(size.height) pt")
         }
+    }
+
+    /// The menu bar's [Get Layout] goes without words only under the note that says Sextant doesn't have the layout, which
+    /// shows once Live View is on. While Live View connects, the note says that instead, so the prompt says it itself.
+    @Test func theMenuBarPromptSaysWhatItOffersUntilLiveViewIsOn() {
+        #expect(MenuBarPanelContent.promptWording(.live) == .buttonOnly)
+        #expect(MenuBarPanelContent.promptWording(.connecting) == .plain)
+        #expect(MenuBarPanelContent.promptWording(.liveOff) == .plain)
     }
 
     // MARK: Use It
@@ -196,6 +207,36 @@ struct KeyboardLayoutPromptTests {
         #expect(model.keyboardRevision == nil, "later edits don't bring the offer back")
     }
 
+    /// Keymapp taking the keyboard wins over the offer: the capsule says Keymapp has it, as it does without one.
+    @Test func keymappHoldingTheKeyboardWinsOverUseIt() async throws {
+        let id = UUID()
+        var mine = KeyboardLayout.blankQWERTY(title: "Travel")
+        mine.updateKey(layer: 0, index: 1) { $0 = Key("KC_F14") }
+        var keyboard = mine
+        keyboard.updateKey(layer: 0, index: 1) { $0 = Key("KC_F13") }
+        let running = FirmwareIdentity(layout: keyboard, libraryID: id, importedLayout: nil).serial
+        let fake = RecordKeyboard(serial: running, record: try LayoutRecord(layout: keyboard, libraryIDs: [id]).encoded())
+        let store = OneLayoutLibrary(mine, id: id)
+        let live = LiveSession(watcher: fake, link: fake, secureInputProbe: { false })
+        let library = Library(store: store)
+        let onKeyboard = OnKeyboard(library: library, store: store, live: live)
+        let pull = KeyboardLayoutPull(live: live, onKeyboard: onKeyboard, library: library, store: store)
+        let model = LayoutWindowModel(library: library, live: live, onKeyboard: onKeyboard, keyboardLayout: pull)
+        await model.open(id)
+        live.start()
+        onKeyboard.start()
+        pull.start()
+        live.startLive()
+        #expect(await eventually(tries: 500) { model.keyboardRevision != nil })
+        let offered = try #require(model.keyboardRevision)
+        #expect(model.liveActivity.status == .keyboardRunsRevision(number: offered.number))
+
+        fake.keymappTakesOver()
+        #expect(await eventually { if case .heldByAnotherApp = live.connection { true } else { false } })
+        #expect(model.keyboardRevision == nil)
+        #expect(model.liveActivity.status == .heldByAnotherApp("Keymapp"))
+    }
+
     // MARK: The window
 
     @Test func theWindowSaysWhereTheLayoutCameFromAndWhyALayoutIsSuggested() {
@@ -252,14 +293,35 @@ struct KeyboardLayoutPromptTests {
 }
 
 /// A Voyager running a Sextant build that stores `record` (ADR 0061): Live View pairs at once, and each layout read is
-/// answered as the firmware answers it, up to 24 bytes from the offset. Nothing else is answered.
+/// answered as the firmware answers it, up to 24 bytes from the offset. Nothing else is answered, until Keymapp takes it.
 private final class RecordKeyboard: DeviceWatcher, KeyboardLink, Sendable {
     private let serial: String
     private let record: [UInt8]
+    /// The session running now, and whether Keymapp has the keyboard.
+    private let state = Mutex<(session: AsyncStream<LiveEvent>.Continuation?, held: Bool)>((nil, false))
 
     init(serial: String, record: [UInt8]) {
         self.serial = serial
         self.record = record
+    }
+
+    /// Keymapp takes the keyboard: the running session ends as held by another app, and each later one does at once.
+    func keymappTakesOver() {
+        let running: AsyncStream<LiveEvent>.Continuation? = state.withLock { state in
+            state.held = true
+            return state.session
+        }
+        running?.yield(.ended(.heldByAnotherApp))
+        running?.finish()
+    }
+
+    /// Keeps `continuation` as the running session's; false once Keymapp has the keyboard.
+    private func keep(_ continuation: AsyncStream<LiveEvent>.Continuation) -> Bool {
+        state.withLock { state in
+            guard !state.held else { return false }
+            state.session = continuation
+            return true
+        }
     }
 
     func events(for board: BoardDefinition) -> AsyncStream<DeviceEvent> {
@@ -269,6 +331,11 @@ private final class RecordKeyboard: DeviceWatcher, KeyboardLink, Sendable {
     func session(with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>) -> AsyncStream<LiveEvent> {
         let bytes = record
         return AsyncStream { continuation in
+            guard self.keep(continuation) else {
+                continuation.yield(.ended(.heldByAnotherApp))
+                continuation.finish()
+                return
+            }
             // The first layer report pairs the session.
             continuation.yield(.layer(0))
             let task = Task {

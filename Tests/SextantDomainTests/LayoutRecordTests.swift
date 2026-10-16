@@ -127,7 +127,7 @@ struct LayoutRecordTests {
     enum Damage: String, CaseIterable, Sendable {
         case empty, oneByte, magicOnly, noIDCount, wrongMagic, versionZero, noIDs, seventeenIDs, idsPastTheEnd
         case lengthZero, lengthOverOneMiB, lengthOneShort, lengthOneLong
-        case noCompressedBytes, truncatedDeflate, notDeflate, overSixtyFourKiB
+        case noCompressedBytes, truncatedDeflate, notDeflate, overMaximumSize, overSixtyFourKiB
     }
 
     /// The user's layout as a record, with `damage` done to it.
@@ -159,6 +159,10 @@ struct LayoutRecordTests {
         case .noCompressedBytes: parts.compressed = []
         case .truncatedDeflate: parts.compressed.removeLast(parts.compressed.count / 2)
         case .notDeflate: parts.compressed = Array(repeating: 0xFF, count: 64)
+        case .overMaximumSize:
+            // A size a reply can announce, but larger than any build stores: refused before it is inflated.
+            let padding = LayoutRecord.maximumSize + 1 - parts.bytes.count
+            parts.compressed += Array(repeating: 0, count: padding)
         case .overSixtyFourKiB: parts.compressed += Array(repeating: 0, count: 70_000)
         }
         return parts.bytes

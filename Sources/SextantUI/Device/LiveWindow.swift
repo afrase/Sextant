@@ -90,8 +90,13 @@ extension LayoutWindowModel {
     }
 
     /// The revision [Use It] restores (ADR 0061): Sextant read the keyboard's layout and added it to this layout's History
-    /// without making it the working copy, the keyboard still runs it, and the working copy differs from it.
+    /// without making it the working copy, the keyboard still runs it, and the working copy differs from it. Not while
+    /// another app holds the keyboard: the capsule says Keymapp has it instead.
     var keyboardRevision: RevisionSummary? {
+        switch live?.connection {
+        case .connected, .liveOff: break
+        default: return nil
+        }
         guard let session, case let .added(added)? = keyboardLayout?.status, added.entryID == session.id, !added.adopted,
             let revision = added.revision, let running = onKeyboard?.running, running.entry.id == session.id,
             running.revision?.id == revision.id

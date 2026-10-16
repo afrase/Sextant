@@ -40,16 +40,19 @@ public enum LayoutRecordError: Error, Equatable, Sendable, LocalizedError {
 ///
 /// Read back, a record is untrusted input (any firmware could answer), so decoding checks every size before trusting
 /// it, refuses a declared JSON over ``maximumJSONSize`` or of another length than it inflates to, and never traps.
+/// Foundation inflates the whole stream before its length can be compared, so the input is what bounds inflating: a
+/// record over ``maximumSize`` is refused first, and DEFLATE expands at most 1032:1, so a hostile record makes a reader
+/// hold at most about 34 MB, briefly, before refusing it.
 public struct LayoutRecord: Hashable, Sendable {
-    /// The largest encoded record a build stores, in bytes.
+    /// The largest encoded record, in bytes: a build stores none larger, and a reader refuses one larger before inflating
+    /// it, although a raw-HID reply could announce up to 64 KiB.
     public static let maximumSize = 32 * 1024
     public static let currentVersion: UInt8 = 1
     /// The most library ids a record holds.
     public static let maximumIDs = 16
-    /// The largest JSON a record may declare (1 MiB), so a small record can't make a reader inflate a huge one.
+    /// The largest JSON a record may declare (1 MiB). A larger declared length is refused before inflating, and the JSON
+    /// must inflate to exactly the declared length; inflating itself is bounded by ``maximumSize``, not by this.
     public static let maximumJSONSize = 1_048_576
-    /// The largest record a reader takes: the raw-HID reply's size field has 16 bits.
-    private static let maximumReadSize = 65_535
     /// "SXL".
     private static let magic: [UInt8] = [0x53, 0x58, 0x4C]
 
@@ -72,7 +75,7 @@ public struct LayoutRecord: Hashable, Sendable {
     public init(decoding bytes: [UInt8]) throws(LayoutRecordError) {
         guard bytes.count >= 4, bytes.starts(with: Self.magic) else { throw .malformed }
         guard bytes[3] <= Self.currentVersion else { throw .newerFormat(bytes[3]) }
-        guard bytes[3] == Self.currentVersion, bytes.count >= 5, bytes.count <= Self.maximumReadSize else { throw .malformed }
+        guard bytes[3] == Self.currentVersion, bytes.count >= 5, bytes.count <= Self.maximumSize else { throw .malformed }
         let count = Int(bytes[4])
         let lengthAt = 5 + count * 16
         // At least one compressed byte after the ids and the length.

@@ -13,6 +13,9 @@ final class OverlayPanel: NSPanel {
         level = .statusBar
         ignoresMouseEvents = true
         hidesOnDeactivate = false
+        // Nor when Sextant is hidden: AppKit would take the panel off screen with its windows and put it back on unhide, even
+        // when its presentation ended meanwhile (hide() leaves a panel that isn't on screen), so an old HUD would stay up.
+        canHide = false
         isOpaque = false
         backgroundColor = .clear
         hasShadow = false

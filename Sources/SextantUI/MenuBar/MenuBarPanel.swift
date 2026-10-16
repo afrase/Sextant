@@ -208,13 +208,18 @@ public struct MenuBarPanelContent: View {
         }
     }
 
-    /// What Sextant offers for a layout it doesn't have (ADR 0061). While Live View is on, the note above already says so,
-    /// and the header names the serial.
+    /// What Sextant offers for a layout it doesn't have (ADR 0061). The header names the serial.
     private func keyboardLayout(_ prompt: KeyboardLayoutPrompt) -> some View {
         let isLive = state.keyboard == .live || state.keyboard == .connecting
         return KeyboardLayoutPromptView(
-            prompt: prompt, isLive: isLive, wording: isLive ? .buttonOnly : .plain, font: .callout,
+            prompt: prompt, isLive: isLive, wording: Self.promptWording(state.keyboard), font: .callout,
             getLayout: actions.getKeyboardLayout, addToLibrary: actions.addKeyboardLayout)
+    }
+
+    /// How the prompt says Sextant doesn't have the layout: only its button once Live View is on, since the note above
+    /// then says so; in its own words otherwise, as while Live View connects, when the note says that instead.
+    static func promptWording(_ keyboard: MenuBarPanelState.Keyboard) -> KeyboardLayoutPromptView.Wording {
+        keyboard == .live ? .buttonOnly : .plain
     }
 
     /// App Layers' row (spec §8.3): what the keyboard layout's rules do now, and their switch.

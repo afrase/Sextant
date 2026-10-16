@@ -372,6 +372,7 @@ struct OverlayModelTests {
         let panel = OverlayPanel()
         #expect(!panel.canBecomeKey && !panel.canBecomeMain)
         #expect(panel.ignoresMouseEvents && !panel.hidesOnDeactivate && panel.level == .statusBar)
+        #expect(!panel.canHide, "hiding Sextant leaves it, so unhiding can't bring back a presentation that ended")
         #expect(panel.styleMask.contains(.nonactivatingPanel) && panel.styleMask.contains(.borderless))
         #expect(panel.collectionBehavior.isSuperset(of: [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]))
         #expect(!panel.isVisible)

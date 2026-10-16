@@ -213,8 +213,13 @@ public struct ActivityCapsule: View {
             segment(onShowDevice) { deviceSegment(compact: compact) }
             Divider().frame(height: 16)
             if let useRevision {
-                // Its own button, so the segment isn't one: a button in a button takes no clicks.
+                // Its own button, so the segment isn't one: a button in a button takes no clicks. VoiceOver reads one
+                // element, without the symbol, whose action is Use It.
                 statusSegment(look, compact: compact, useRevision: useRevision).padding(.horizontal, 12)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(look.text)
+                    .accessibilityHint(Text("Make the revision the keyboard runs your working copy. Your edits stay in History."))
+                    .accessibilityAction(named: Text("Use It"), useRevision)
             } else {
                 segment(onShowLog) { statusSegment(look, compact: compact) }
                     .accessibilityLabel([look.text, look.detail].compactMap { $0 }.joined(separator: ", "))
