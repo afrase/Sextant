@@ -35,7 +35,7 @@ The keyboard has to be flashed once from Sextant with a version that does this. 
 
 ## Menu bar
 
-Sextant's menu bar item shows the keyboard's layer and, while a flash writes, its progress. Its panel can turn the live view on, move the keyboard to a layer, and start Build & Flash. Settings › General can hide it, or keep Sextant in the menu bar, out of the Dock, when its windows are closed.
+Sextant's menu bar item shows the keyboard's layer and, while a flash writes, its progress. Its panel can turn the live view on, move the keyboard to a layer, and start Build & Flash. When you close Sextant's last window it leaves the Dock and stays in the menu bar; open it again from the menu bar item, Spotlight or Finder. Settings › General can keep the Dock icon instead, or hide the menu bar item.
 
 ## App Layers
 

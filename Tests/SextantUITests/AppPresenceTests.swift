@@ -9,9 +9,17 @@ import Testing
 struct AppPresenceTests {
     private let defaults: UserDefaults
     private let suite = "sextant-app-presence-\(UUID().uuidString)"
+    /// Each test's own, so one test's window closing never reaches another's presence.
+    private let windowNotifications = NotificationCenter()
 
     init() throws {
         defaults = try #require(UserDefaults(suiteName: suite))
+    }
+
+    private func makePresence(
+        windows: @escaping @MainActor () -> Int = { 0 }, apply: @escaping @MainActor (NSApplication.ActivationPolicy) -> Void
+    ) -> AppPresence {
+        AppPresence(defaults: defaults, windowNotifications: windowNotifications, openWindows: windows, apply: apply)
     }
 
     private func set(shows: Bool, keeps: Bool) {
@@ -21,11 +29,18 @@ struct AppPresenceTests {
 
     @Test func theLastWindowClosingLeavesTheDockOnlyWithBothSettingsOn() {
         var applied: [NSApplication.ActivationPolicy] = []
-        let presence = AppPresence(defaults: defaults) { applied.append($0) }
-        // The defaults: shown in the menu bar, not kept there.
+        let presence = makePresence { applied.append($0) }
+        // The defaults: shown in the menu bar and kept there (the user's request, 2026-10-16).
         presence.windowOpened()
         presence.windowClosed()
-        #expect(applied.isEmpty && presence.policy == .regular)
+        #expect(applied == [.accessory])
+        presence.windowOpened()
+        #expect(applied == [.accessory, .regular])
+        applied = []
+
+        set(shows: true, keeps: false)
+        presence.windowClosed()
+        #expect(applied.isEmpty && presence.policy == .regular, "not kept in the menu bar")
 
         set(shows: true, keeps: true)
         presence.windowOpened()
@@ -51,7 +66,7 @@ struct AppPresenceTests {
         for setting in [SettingsKey.showsInMenuBar, SettingsKey.keepsInMenuBar] {
             var applied: [NSApplication.ActivationPolicy] = []
             set(shows: true, keeps: true)
-            let presence = AppPresence(defaults: defaults) { applied.append($0) }
+            let presence = makePresence { applied.append($0) }
             presence.windowOpened()
             presence.windowClosed()
             #expect(applied == [.accessory])
@@ -61,7 +76,7 @@ struct AppPresenceTests {
         // Turning them on waits for the last window to close: the Dock icon doesn't vanish under Settings.
         var applied: [NSApplication.ActivationPolicy] = []
         set(shows: false, keeps: false)
-        let presence = AppPresence(defaults: defaults) { applied.append($0) }
+        let presence = makePresence { applied.append($0) }
         set(shows: true, keeps: true)
         try? await Task.sleep(for: .milliseconds(50))
         #expect(applied.isEmpty && presence.policy == .regular)
@@ -72,7 +87,9 @@ struct AppPresenceTests {
     @Test func theDockIconReturnsBeforeAnyWindowOpens() async throws {
         set(shows: true, keeps: true)
         var calls: [String] = []
-        let presence = AppPresence(defaults: defaults) { calls.append("policy \($0 == .accessory ? "accessory" : "regular")") }
+        let presence = makePresence {
+            calls.append("policy \($0 == .accessory ? "accessory" : "regular")")
+        }
         let library = Library(store: MemoryLibrary())
         _ = try await library.importOryxJSON(#require(userLayoutData))
         let router = WindowRouter(
@@ -93,6 +110,30 @@ struct AppPresenceTests {
         presence.windowClosed()
         router.showSettings { calls.append("settings") }
         #expect(calls == ["policy accessory", "policy regular", "settings", "activate"])
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// Settings opened from the menu bar brings the Dock icon back; closing it, the last window, takes it away again.
+    @Test func theLastOtherWindowClosingLeavesTheDockToo() async {
+        set(shows: true, keeps: true)
+        var applied: [NSApplication.ActivationPolicy] = []
+        var windows = 1
+        let presence = makePresence(windows: { windows }) { applied.append($0) }
+        presence.windowOpened()
+        presence.windowClosed()
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(applied.isEmpty, "Settings is still open")
+
+        windows = 0
+        windowNotifications.post(name: NSWindow.willCloseNotification, object: nil)
+        #expect(await eventually { applied == [.accessory] })
+
+        // A closing window can still count while it goes: Sextant looks once more after it has gone.
+        presence.prepareToOpen()
+        windows = 1
+        windowNotifications.post(name: NSWindow.willCloseNotification, object: nil)
+        windows = 0
+        #expect(await eventually { applied == [.accessory, .regular, .accessory] })
         defaults.removePersistentDomain(forName: suite)
     }
 }

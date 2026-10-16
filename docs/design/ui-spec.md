@@ -142,7 +142,7 @@ The main complaints about Instrument can all be fixed without changing its struc
 | Overlay HUD | AppKit `NSPanel`: nonactivating, borderless, click-through, hosting SwiftUI | §8.4 | v1 |
 | Welcome | The layout window's empty state (not a separate window) | §12.1 | MVP |
 
-**Activation policy.** The app is `.regular`, with a Dock icon. In v1, the Settings option "Keep Sextant in the menu bar when its windows are closed" switches the policy to `.accessory` once the last layout window closes, and only while "Show in menu bar" is on too. It switches back to `.regular` before the menu bar extra (or Window ▸ Main Window) opens any window, when a window opens by another path, and as soon as either option is turned off (ADR 0049).
+**Activation policy.** The app is `.regular`, with a Dock icon. In v1, the Settings option "Keep Sextant in the menu bar when its windows are closed" (on by default since 2026-10-16, the user's request) switches the policy to `.accessory` once Sextant's last window closes (a layout window, or Settings or another window a menu bar request opened), and only while "Show in menu bar" is on too. It switches back to `.regular` before the menu bar extra (or Window ▸ Main Window) opens any window, when a window opens by another path, and as soon as either option is turned off (ADR 0049).
 
 ### 2.2 Navigation model
 

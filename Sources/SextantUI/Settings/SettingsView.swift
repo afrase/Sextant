@@ -48,7 +48,7 @@ public struct GeneralSettings: View {
     @AppStorage(SettingsKey.notifiesWhenFlashFinishes) private var notifies = false
     @AppStorage(SettingsKey.showsInMenuBar) private var showsInMenuBar = true
     @AppStorage(SettingsKey.showsMenuBarLayerColor) private var showsLayerColor = false
-    @AppStorage(SettingsKey.keepsInMenuBar) private var keepsInMenuBar = false
+    @AppStorage(SettingsKey.keepsInMenuBar) private var keepsInMenuBar = true
 
     public init() {}
 
