@@ -9,6 +9,10 @@ import SextantDomain
 /// `zsa/oryx` and `zsa/defaults` modules and the Navigator modules, and maps every key-specific `keymap.c` line back
 /// to its key. Layouts it can't express exactly fail with ``GeneratorError/unsupported(_:_:)`` instead of building
 /// firmware that silently differs from the layout.
+///
+/// An identity with a layout record also gets `sextant_layout.c`, which stores the record and answers reads of it
+/// over raw HID, and the two `rules.mk` lines that build it in (``LayoutRecordSource``, ADR 0061). Without one, the
+/// output is Oryx's.
 public struct QMKGenerator: FirmwareGenerator {
     public init() {}
 
@@ -35,6 +39,15 @@ public struct QMKGenerator: FirmwareGenerator {
             files["i18n.h"] =
                 plan.localeCodes.compactMap { code in QMKCodes.locale[code].map { "#define \(code) \($0)" } }
                 .joined(separator: "\n") + "\n"
+        }
+        if let record = identity.record {
+            // Build & Flash leaves out a record that doesn't fit, so this only backs it up.
+            let bytes: [UInt8]
+            do { bytes = try record.encoded() } catch {
+                throw .unsupported(String(localized: "storing a layout this large in the firmware"), nil)
+            }
+            files["sextant_layout.c"] = LayoutRecordSource.render(bytes)
+            files["rules.mk", default: ""] += LayoutRecordSource.rules
         }
         return GeneratedSource(files: files, sourceMap: keymap.sourceMap)
     }

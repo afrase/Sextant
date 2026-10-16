@@ -6,12 +6,19 @@ import SextantDomain
 /// What the built firmware calls itself: QMK `SERIAL_NUMBER`, which the keyboard reports over USB.
 public struct FirmwareIdentity: Hashable, Sendable {
     public var serial: String
-    public init(serial: String) { self.serial = serial }
+    /// The layout record the build stores (ADR 0061); nil stores none (Oryx's own build, the setting off, too large).
+    public var record: LayoutRecord?
+
+    public init(serial: String, record: LayoutRecord? = nil) {
+        self.serial = serial
+        self.record = record
+    }
 }
 
 /// Generated QMK keymap sources plus the map from `keymap.c` lines back to keys.
 public struct GeneratedSource: Hashable, Sendable {
-    /// File name → contents: `keymap.c`, `config.h`, `rules.mk`, `keymap.json`, and `i18n.h` when needed.
+    /// File name → contents: `keymap.c`, `config.h`, `rules.mk`, `keymap.json`, `i18n.h` when needed, and
+    /// `sextant_layout.c` when the identity carries a layout record.
     public var files: [String: String]
     /// `keymap.c` line (1-based) → the key that line was generated from.
     public var sourceMap: [Int: KeyRef]
