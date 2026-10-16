@@ -39,11 +39,16 @@ final class FakeDeviceWatcher: DeviceWatcher {
     }
 }
 
-/// A live link whose sessions the test drives; it records every command each session receives.
+/// A live link whose sessions the test drives; it records every command each session receives, and answers each layout
+/// read as the keyboard's firmware would (``storeLayoutRecord(_:)``).
 final class FakeKeyboardLink: KeyboardLink {
     private let sessions = Mutex<[AsyncStream<LiveEvent>.Continuation]>([])
     private let received = Mutex<[[KeyboardCommand]]>([])
     private let closed = Mutex<Set<Int>>([])
+    /// The layout record the firmware stores; nil for firmware that stores none.
+    private let record = Mutex<[UInt8]?>(nil)
+    /// Layout reads still to go unanswered.
+    private let unanswered = Mutex(0)
 
     func session(
         with device: KeyboardDevice, board: BoardDefinition, commands: AsyncStream<KeyboardCommand>
@@ -54,9 +59,33 @@ final class FakeKeyboardLink: KeyboardLink {
             return $0.count - 1
         }
         received.withLock { $0.append([]) }
-        Task { for await command in commands { received.withLock { $0[n].append(command) } } }
+        Task {
+            for await command in commands {
+                received.withLock { $0[n].append(command) }
+                if case let .readLayoutRecord(offset) = command, let answer = reply(toReadAt: offset) { continuation.yield(answer) }
+            }
+        }
         continuation.onTermination = { [self] _ in closed.withLock { _ = $0.insert(n) } }
         return stream
+    }
+
+    /// From now on, each layout read a session receives is answered as a Sextant build storing `bytes` answers it: up to
+    /// 24 bytes from the offset, none at or past the end. Nil, the default, answers `FF FF` as stock Oryx firmware does.
+    func storeLayoutRecord(_ bytes: [UInt8]?) { record.withLock { $0 = bytes } }
+
+    /// The next `count` layout reads go unanswered, as if their replies were lost.
+    func dropLayoutReads(_ count: Int) { unanswered.withLock { $0 = count } }
+
+    private func reply(toReadAt offset: Int) -> LiveEvent? {
+        let dropped = unanswered.withLock { left in
+            guard left > 0 else { return false }
+            left -= 1
+            return true
+        }
+        guard !dropped else { return nil }
+        guard let bytes = record.withLock({ $0 }) else { return .error(0xFF) }
+        let part = bytes.indices.contains(offset) ? Array(bytes[offset..<min(offset + 24, bytes.count)]) : []
+        return .layoutRecord(LayoutRecordChunk(offset: offset, size: bytes.count, bytes: part))
     }
 
     var sessionCount: Int { sessions.withLock { $0.count } }

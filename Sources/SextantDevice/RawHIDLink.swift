@@ -47,7 +47,7 @@ public struct RawHIDLink: KeyboardLink {
     }
 }
 
-/// Oryx raw-HID protocol reports (research 03 §3.3, §3.4).
+/// Oryx raw-HID protocol reports (research 03 §3.3, §3.4), and Sextant's own layout read (ADR 0061).
 enum OryxReport {
     static let size = 32
     static let getFirmwareVersion: UInt8 = 0x00
@@ -57,12 +57,21 @@ enum OryxReport {
     private static let rgbControl: UInt8 = 0x05
     private static let setRGBLED: UInt8 = 0x06
     private static let setRGBLEDAll: UInt8 = 0x09
+    /// A Sextant build's own requests and replies (ADR 0061): outside every Oryx command and event id.
+    private static let sextant: UInt8 = 0x53
+    /// `53 01`: a part of the stored layout record.
+    private static let recordPartRequest: UInt8 = 0x01
+    /// A layout record reply's header: `53 01 status size(2) offset(2) count`.
+    private static let layoutRecordHeader = 8
+    /// The most record bytes one reply carries.
+    private static let layoutRecordPart = 24
     private static let stop: UInt8 = 0xFE
 
     static func command(_ id: UInt8) -> [UInt8] { padded([id]) }
 
     /// The report for a command, or nil when the firmware wouldn't bounds-check it (ADR 0038). Only `04 01`, `05`,
-    /// `06` and `09` are ever built: `04 00` (layer off) and every other command id are out of reach.
+    /// `06`, `09` and Sextant's read `53 01` are ever built: `04 00` (layer off) and every other command id are out of
+    /// reach.
     static func encode(_ command: KeyboardCommand, board: BoardDefinition) -> [UInt8]? {
         guard command.isAllowed(on: board) else { return nil }
         return switch command {
@@ -70,6 +79,8 @@ enum OryxReport {
         case let .lighting(on): padded([rgbControl, on ? 0x01 : 0x00])
         case let .setLED(index, red, green, blue): padded([setRGBLED, UInt8(index), red, green, blue])
         case let .setAllLEDs(red, green, blue): padded([setRGBLEDAll, red, green, blue])
+        case let .readLayoutRecord(offset):
+            padded([sextant, recordPartRequest, UInt8(truncatingIfNeeded: offset >> 8), UInt8(truncatingIfNeeded: offset)])
         }
     }
 
@@ -78,7 +89,8 @@ enum OryxReport {
     /// What the raw-HID log keeps of a report: a sent one without its zero padding (by command, since a trailing 0 can
     /// be a value), a received one up to and including its stop byte. The firmware's stack garbage after it is never
     /// kept: `08`, `0B` and `FF` have no stop byte and keep exactly two bytes, and any other received report with no
-    /// stop byte keeps only its id.
+    /// stop byte keeps only its id. A layout record's part keeps only its 8-byte header: the record holds macro text,
+    /// which is never logged (ADR 0042, 0045, 0061).
     static func trimmed(_ report: [UInt8], sent: Bool) -> [UInt8] {
         guard let id = report.first else { return [] }
         let length =
@@ -86,21 +98,31 @@ enum OryxReport {
             case (true, _): commandLengths[id] ?? 1
             // `0B` answers `0A`, which Sextant never sends, but another host's reply reaches every open client.
             case (false, 0x08), (false, 0x0B), (false, 0xFF): 2
+            case (false, 0x53): layoutRecordHeader
             case (false, _): (report.dropFirst().firstIndex(of: stop) ?? 0) + 1
             }
         return Array(report.prefix(length))
     }
 
     /// The bytes `encode` pads for each command; the handshake's queries are one byte.
-    private static let commandLengths: [UInt8: Int] = [setLayer: 3, rgbControl: 2, setRGBLED: 5, setRGBLEDAll: 4]
+    private static let commandLengths: [UInt8: Int] = [setLayer: 3, rgbControl: 2, setRGBLED: 5, setRGBLEDAll: 4, sextant: 4]
+
+    /// A received report as the raw-HID log keeps it: trimmed, with its event, except a layout record's part, which
+    /// keeps none, since its bytes are the layout's.
+    static func traceEntry(received report: [UInt8], board: BoardDefinition) -> HIDTraceEntry {
+        let event = parse(report, board: board)
+        let kept: LiveEvent? = if case .layoutRecord = event { nil } else { event }
+        return HIDTraceEntry(direction: .received, bytes: trimmed(report, sent: false), event: kept)
+    }
 
     /// The event in an input report, or nil when it carries none (pairing success, unused replies) or is malformed.
     /// Payloads end at the first 0xFE; the firmware leaves stack garbage after it. `08` and `FF` have no stop byte:
-    /// exactly byte 1 counts.
+    /// exactly byte 1 counts. `53` has none either: its header says how many bytes count.
     static func parse(_ report: [UInt8], board: BoardDefinition) -> LiveEvent? {
         switch (report.first, report.count) {
         case (0x08, 2...): return .lighting(report[1] != 0)
         case (0xFF, 2...): return .error(report[1])
+        case (0x53, _): return layoutRecord(report)
         default: break
         }
         guard let id = report.first, let end = report.dropFirst().firstIndex(of: stop) else { return nil }
@@ -116,6 +138,24 @@ enum OryxReport {
             return id == 0x06 ? .keyDown(row: row, column: column) : .keyUp(row: row, column: column)
         default: return nil
         }
+    }
+
+    /// A Sextant build's reply to `53 01` (ADR 0061): `53 01 status size(2) offset(2) count`, big-endian, then `count`
+    /// record bytes. Status 0 carries up to 24 of them, 1 none (the offset is at or past the end); 2 (an unknown
+    /// request) and a reply whose count doesn't fit carry no event.
+    private static func layoutRecord(_ report: [UInt8]) -> LiveEvent? {
+        guard report.count >= layoutRecordHeader, report[1] == recordPartRequest else { return nil }
+        let size = Int(report[3]) << 8 | Int(report[4])
+        let offset = Int(report[5]) << 8 | Int(report[6])
+        let count = Int(report[7])
+        let bytes: [UInt8]
+        switch report[2] {
+        case 0 where count <= layoutRecordPart && layoutRecordHeader + count <= report.count:
+            bytes = Array(report[layoutRecordHeader..<layoutRecordHeader + count])
+        case 1: bytes = []
+        default: return nil
+        }
+        return .layoutRecord(LayoutRecordChunk(offset: offset, size: size, bytes: bytes))
     }
 }
 
@@ -164,12 +204,7 @@ private struct OryxSession: Sendable {
         do {
             try await open { bytes in
                 // Logged as it arrives, not when the loop gets to it, so the log keeps the wire's order and times.
-                if let trace, let bytes {
-                    trace(
-                        HIDTraceEntry(
-                            direction: .received, bytes: OryxReport.trimmed(bytes, sent: false),
-                            event: OryxReport.parse(bytes, board: board)))
-                }
+                if let trace, let bytes { trace(OryxReport.traceEntry(received: bytes, board: board)) }
                 feed.yield(bytes.map(Input.report) ?? .removed)
             }
             reason = try await converse(inputs, feed, out)
@@ -259,7 +294,7 @@ private struct OryxSession: Sendable {
                     // command's write fails; watch kIOMessageServiceIsRequestingClose if LiveSession must say so sooner.
                     phase = .live
                     deadline.cancel()
-                case (.live, _), (_, .protocolVersion), (_, .firmwareSerial), (_, .lighting), (_, .error), (_, .ended):
+                case (.live, _), (_, .protocolVersion), (_, .firmwareSerial), (_, .lighting), (_, .error), (_, .layoutRecord), (_, .ended):
                     break
                 case (_, .layer), (_, .keyDown), (_, .keyUp):
                     // A board another host paired already reports these during the handshake. Each tells LiveSession the
