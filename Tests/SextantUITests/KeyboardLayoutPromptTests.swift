@@ -133,6 +133,19 @@ struct KeyboardLayoutPromptTests {
         #expect(KeyboardLayoutWindow.suggestion(named, for: layout) == "Mine (same name)")
     }
 
+    /// Sextant's build of an Oryx revision reads as on the keyboard only in a layout from that Oryx layout, so Add to offers
+    /// only those besides New Layout. A Sextant build's layout can go in any.
+    @Test func addToOffersAnOryxRevisionsBuildOnlyItsOryxLayout() {
+        let layout = KeyboardLayout(title: "Mine", layers: [], oryx: OryxRevisionInfo(layoutId: "KlgM7", revisionId: "40xJ7M"))
+        let oryx = LibraryEntry(id: UUID(), title: "Work", origin: .oryx(layoutId: "KlgM7", revisionId: "aa11"), modifiedAt: Date())
+        let other = LibraryEntry(id: UUID(), title: "Travel", origin: .oryx(layoutId: "Q9x2", revisionId: "bb22"), modifiedAt: Date())
+        let named = LibraryEntry(id: UUID(), title: "Mine", origin: .local, modifiedAt: Date(), aliases: [UUID()])
+        let imported = KeyboardLayoutPull.Found(layout: layout, serial: "KlgM7/40xJ7M", suggested: nil)
+        #expect(KeyboardLayoutWindow.destinations(for: imported, in: [named, oryx, other]) == [oryx])
+        let built = KeyboardLayoutPull.Found(layout: layout, serial: serial, suggested: nil)
+        #expect(KeyboardLayoutWindow.destinations(for: built, in: [named, oryx, other]) == [named, oryx, other])
+    }
+
     // MARK: Settings › Build
 
     @Test func storingTheLayoutIsOnUntilTurnedOff() throws {

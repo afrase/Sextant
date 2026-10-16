@@ -54,6 +54,10 @@ public final class KeyboardLayoutPull {
             self.serial = serial
             self.suggested = suggested
         }
+
+        /// Whether ``KeyboardLayoutPull/add(to:)`` can put it in `entry`. Sextant's build of an Oryx revision goes only in a
+        /// layout from that Oryx layout, or in a new one; a Sextant build's layout can go in any.
+        public func fits(_ entry: LibraryEntry) -> Bool { entry.takesKeyboardLayout(serial: serial) }
     }
 
     public struct Added: Equatable, Sendable {
@@ -165,7 +169,12 @@ public final class KeyboardLayoutPull {
     /// Puts a found layout in the library: as a new revision of `entryID` that becomes its working copy (unsaved edits
     /// checkpointed first, undoable in an open window), or as a new layout when nil. Links the record's ids either way.
     public func add(to entryID: UUID?) async {
-        guard case .found = status, let pending, !isAdding else { return }
+        guard case let .found(found) = status, let pending, !isAdding else { return }
+        // A layout it doesn't fit would never read as on the keyboard; the window doesn't offer one.
+        if let entryID, let entry = library.entries.first(where: { $0.id == entryID }), !found.fits(entry) {
+            Self.log.error("Not adding the keyboard's layout to \(entryID, privacy: .public): it doesn't fit there")
+            return
+        }
         isAdding = true
         defer { isAdding = false }
         do throws(LibraryError) {
@@ -262,7 +271,7 @@ public final class KeyboardLayoutPull {
             await addLinked(checked, to: entry)
         } else {
             pending = checked
-            let suggested = Self.suggestion(for: checked.layout, in: library.entries)
+            let suggested = Self.suggestion(for: checked.layout, in: library.entries.filter { $0.takesKeyboardLayout(serial: serial) })
             status = .found(Found(layout: checked.layout, serial: serial, suggested: suggested))
         }
     }
@@ -283,7 +292,7 @@ public final class KeyboardLayoutPull {
         status = .failed(failure)
     }
 
-    /// Decodes a record and checks it is the layout `serial` names.
+    /// Decodes a record and checks it is the layout `serial` names, as this Sextant reads it.
     static func verified(_ bytes: [UInt8], serial: String) throws(PullFailure) -> Pending {
         let record: LayoutRecord
         let layout: KeyboardLayout
@@ -294,6 +303,11 @@ public final class KeyboardLayoutPull {
             throw .record(error)
         }
         guard let made = source(of: record, layout: layout, serial: serial) else { throw .mismatch }
+        // The keyboard is recognised by the layout as this Sextant writes it. A newer Sextant's record can hold what this
+        // one drops: that layout would never read as on the keyboard.
+        if let fingerprint = FirmwareIdentity.sextantFingerprint(of: serial), FirmwareIdentity.fingerprint(of: layout) != fingerprint {
+            throw .record(.unreadableLayout)
+        }
         return Pending(record: record, layout: layout, serial: serial, source: made)
     }
 
@@ -316,13 +330,13 @@ public final class KeyboardLayoutPull {
     // MARK: Adding
 
     /// The library layout linked to a record: one whose id or aliases are among the record's ids, else, for an Oryx
-    /// serial, one imported from that Oryx layout. The first in the library's order.
+    /// serial, one imported from that Oryx layout. Only one it fits (``Found/fits(_:)``): an Oryx serial's import revision
+    /// in a layout from elsewhere would never read as on the keyboard. The first in the library's order.
     private func linked(_ pending: Pending) -> LibraryEntry? {
         let ids = Set(pending.record.libraryIDs)
-        let entries = library.entries
+        let entries = library.entries.filter { $0.takesKeyboardLayout(serial: pending.serial) }
         if let entry = entries.first(where: { !ids.isDisjoint(with: $0.aliases.union([$0.id])) }) { return entry }
-        guard pending.source == .import else { return nil }
-        return entries.first { entry in entry.origin.oryxLayoutID.map { pending.serial.hasPrefix($0 + "/") } == true }
+        return pending.source == .import ? entries.first : nil
     }
 
     /// Puts the keyboard's layout in the library layout linked to it, by itself.
@@ -392,5 +406,14 @@ extension LayoutOrigin {
     /// The Oryx layout an Oryx origin names.
     fileprivate var oryxLayoutID: String? {
         if case let .oryx(layoutId, _) = self { layoutId } else { nil }
+    }
+}
+
+extension LibraryEntry {
+    /// Whether the keyboard's layout, read for `serial`, can become a revision of this layout. An Oryx serial reads as on
+    /// the keyboard only in a layout from that Oryx layout, however linked (the import rule, ADR 0039); a Sextant serial
+    /// reads as on the keyboard in any layout linked to the record's ids, which adding it does.
+    fileprivate func takesKeyboardLayout(serial: String) -> Bool {
+        FirmwareIdentity.sextantFingerprint(of: serial) != nil || isOnKeyboard(serial: serial)
     }
 }

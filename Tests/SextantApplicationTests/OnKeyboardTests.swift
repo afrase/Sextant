@@ -119,9 +119,34 @@ struct OnKeyboardTests {
 
         _ = try await store.appendRevision(RevisionDraft(source: .flash, layout: flashed), to: entry.id)
         onKeyboard.refresh()
+        #expect(onKeyboard.resolvedSerial == nil, "being looked up again")
         #expect(await eventually { onKeyboard.running?.layout == flashed })
+        #expect(onKeyboard.resolvedSerial == serial)
         watcher.detach(1)
         #expect(await eventually { onKeyboard.resolvedSerial == nil && onKeyboard.running == nil }, "unplugged")
+    }
+
+    /// Flash This Revision: the keyboard comes back while flash mode is held, before the flash records its revision. Its
+    /// release is looked up again, so until then the stale nil ``OnKeyboard/running`` isn't resolved: the keyboard layout
+    /// pull, which follows ``OnKeyboard/resolvedSerial``, would read the keyboard for a layout the library has.
+    @Test func aFlashsReleaseIsntResolvedUntilItsRevisionIsLookedUp() async throws {
+        let entry = try await store.create(layout, origin: .local, firstRevision: RevisionDraft(source: .save, layout: layout))
+        await library.refresh()
+        let flashed = retitled(layout, "Flashed")
+        let serial = FirmwareIdentity(layout: flashed, libraryID: entry.id, importedLayout: nil).serial
+        let flashRun = NSObject()
+        live.start()
+        onKeyboard.start()
+        #expect(live.claimFlashMode(for: entry.id, owner: flashRun))
+        watcher.attach(.keyboard(.voyager(serial: serial)))
+        #expect(await eventually { onKeyboard.resolvedSerial == serial })
+        #expect(onKeyboard.running == nil, "not recorded yet")
+
+        let revision = try await store.appendRevision(RevisionDraft(source: .flash, layout: flashed), to: entry.id)
+        live.releaseFlashMode(owner: flashRun)
+        #expect(onKeyboard.resolvedSerial == nil, "the release is looked up first")
+        #expect(await eventually { onKeyboard.resolvedSerial == serial })
+        #expect(onKeyboard.running?.revision?.id == revision.id)
     }
 
     @Test func anythingElseIsNil() async throws {

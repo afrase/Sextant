@@ -109,6 +109,12 @@ public struct KeyboardLayoutWindow: View {
         return String(localized: "Oryx revision \(oryx.revisionId)")
     }
 
+    /// The library layouts a layout read from the keyboard can go in (``KeyboardLayoutPull/Found/fits(_:)``): Sextant's
+    /// build of an Oryx revision only in a layout from that Oryx layout. A new layout can take any.
+    static func destinations(for found: KeyboardLayoutPull.Found, in entries: [LibraryEntry]) -> [LibraryEntry] {
+        entries.filter { found.fits($0) }
+    }
+
     /// The suggested library layout's name in the Add to menu, with why: it came from the same Oryx layout, or else it has
     /// the same name.
     static func suggestion(_ entry: LibraryEntry, for layout: KeyboardLayout) -> String {
@@ -138,9 +144,12 @@ private struct KeyboardLayoutForm: View {
         self.add = add
         self.cancel = cancel
         // The layout it most likely is, chosen already.
-        let suggested = found.suggested.flatMap { id in library.entries.contains(where: { $0.id == id }) ? id : nil }
+        let suggested = KeyboardLayoutWindow.destinations(for: found, in: library.entries).first { $0.id == found.suggested }?.id
         _target = State(initialValue: suggested)
     }
+
+    /// The library layouts it can go in.
+    private var destinations: [LibraryEntry] { KeyboardLayoutWindow.destinations(for: found, in: library.entries) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -187,8 +196,8 @@ private struct KeyboardLayoutForm: View {
         VStack(alignment: .leading, spacing: 6) {
             Picker("Add to", selection: $target) {
                 Text("New Layout").tag(UUID?.none)
-                Divider()
-                ForEach(library.entries) { entry in
+                if !destinations.isEmpty { Divider() }
+                ForEach(destinations) { entry in
                     Text(verbatim: title(entry)).tag(Optional(entry.id))
                 }
             }

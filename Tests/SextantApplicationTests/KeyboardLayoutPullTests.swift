@@ -152,6 +152,23 @@ struct KeyboardLayoutPullTests {
         }
     }
 
+    /// A newer Sextant's record can hold what this one drops: its CRC is the serial's, but the layout this Sextant reads
+    /// from it has another fingerprint, so it would never read as on the keyboard.
+    @Test func aRecordThisSextantReadsAsAnotherLayoutIsUnreadable() throws {
+        var json = Data(#"{"aFutureSetting":1,"#.utf8)
+        json.append(flashed.firmwareJSON().dropFirst())
+        let record = LayoutRecord(json: json, libraryIDs: [otherMac])
+        #expect(try record.layout() == flashed, "the setting is dropped")
+        let bytes = try record.encoded()
+        let running = "sx-\(otherMac.uuidString.prefix(8))-" + String(format: "%08X", record.fingerprint)
+        do throws(PullFailure) {
+            _ = try KeyboardLayoutPull.verified(bytes, serial: running)
+            Issue.record("read as the layout the serial names")
+        } catch {
+            #expect(error == .record(.unreadableLayout))
+        }
+    }
+
     // MARK: A linked layout
 
     /// The other Mac's record names this Mac's id (linked there): its layout is added by itself, and the keyboard reads
@@ -227,6 +244,28 @@ struct KeyboardLayoutPullTests {
         #expect(result.entryID == entry.id && result.adopted && result.revision?.source == .import)
         #expect(try await store.load(entry.id).entry.origin == .oryx(layoutId: "Q9x2", revisionId: "aa11"))
         #expect(await eventually { onKeyboard.running?.revision?.id == result.revision?.id })
+    }
+
+    /// An Oryx serial reads as on the keyboard only in a layout from that Oryx layout: one linked to the other Mac's but
+    /// from elsewhere doesn't get its import, by itself or when chosen, so no reconnect adds it again. A new layout does.
+    @Test func anOryxRevisionsBuildGoesOnlyInALayoutFromThatOryxLayout() async throws {
+        let entry = try await store.create(older, origin: .local, firstRevision: RevisionDraft(source: .flash, layout: older))
+        try await store.link(entry.id, to: [otherMac])
+        var newer = flashed
+        newer.oryx = OryxRevisionInfo(layoutId: "Q9x2", revisionId: "aa11")
+        try storeRecord(of: newer)
+        await connect("Q9x2/aa11")
+        #expect(await settles { found != nil }, "not added to the linked layout by itself")
+        #expect(found?.suggested == nil, "the same name, but not from that Oryx layout")
+        await pull.add(to: entry.id)
+        #expect(found != nil, "refused")
+        #expect(try await store.load(entry.id).revisions.count == 1)
+
+        await pull.add(to: nil)
+        let result = try #require(added)
+        #expect(try await store.load(result.entryID).entry.origin == .oryx(layoutId: "Q9x2", revisionId: "aa11"))
+        #expect(await eventually { onKeyboard.running?.entry.id == result.entryID })
+        #expect(onKeyboard.running?.revision?.id == result.revision?.id, "its import")
     }
 
     // MARK: A found layout

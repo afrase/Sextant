@@ -16,11 +16,33 @@ public final class OnKeyboard {
         public let layout: KeyboardLayout
     }
 
+    /// What a resolve looks at.
+    private struct Inputs: Equatable, Sendable {
+        var serial: String?
+        var entries: [LibraryEntry]
+        var flashing: UUID?
+        var refreshes: Int
+
+        @MainActor init(live: LiveSession, library: Library, refreshes: Int) {
+            serial = live.firmwareSerial
+            entries = library.entries
+            flashing = live.flashingLayoutID
+            self.refreshes = refreshes
+        }
+    }
+
     /// Nil without a keyboard, or when it runs a layout or a version the library doesn't hold.
     public private(set) var running: Running?
-    /// The serial ``running`` was last resolved for, set after each resolve; nil without one. While it isn't the keyboard's
-    /// serial, that serial is still being looked up, so a nil ``running`` doesn't yet mean the library lacks it.
-    public private(set) var resolvedSerial: String?
+    /// The serial ``running`` was resolved for, while the serial, the library, the flash and refreshes are as that resolve
+    /// saw them; nil while they await a resolve, and without a serial. While it isn't the keyboard's serial, a nil
+    /// ``running`` doesn't yet mean the library lacks what the keyboard runs (a flash's release, say, still has to find
+    /// the revision it recorded).
+    public var resolvedSerial: String? {
+        guard let resolvedFor, resolvedFor == Inputs(live: live, library: library, refreshes: refreshes) else { return nil }
+        return resolvedFor.serial
+    }
+    /// What the last resolve looked at.
+    private var resolvedFor: Inputs?
     /// Bumped by ``refresh()``, which the resolve loop observes.
     private var refreshes = 0
 
@@ -42,13 +64,13 @@ public final class OnKeyboard {
         let (library, live) = (library, live)
         task = Task {
             var flashed: UUID?
-            let changes = Observations({ (live.firmwareSerial, library.entries, live.flashingLayoutID, self.refreshes) })
+            let changes = Observations({ Inputs(live: live, library: library, refreshes: self.refreshes) })
             // A flash records its revision before it lets go of flash mode, so the release picks the revision up.
-            for await (serial, entries, flashing, _) in changes {
-                flashed = flashing ?? flashed
-                let found = await Self.resolve(serial, entries: entries, flashed: flashed, store: store)
+            for await now in changes {
+                flashed = now.flashing ?? flashed
+                let found = await Self.resolve(now.serial, entries: now.entries, flashed: flashed, store: store)
                 if found != running { running = found }
-                if serial != resolvedSerial { resolvedSerial = serial }
+                if now != resolvedFor { resolvedFor = now }
             }
         }
     }
