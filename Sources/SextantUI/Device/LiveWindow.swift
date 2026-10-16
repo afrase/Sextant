@@ -50,7 +50,8 @@ extension LayoutWindowModel {
     /// How the keyboard's firmware relates to the open layout; nil without a serial or an open layout.
     var firmwareMatch: FirmwareMatch? {
         guard let live, let session else { return nil }
-        return live.match(session.layout, libraryID: session.id, importedLayout: importedLayout)
+        let aliases = library.entries.first { $0.id == session.id }?.aliases ?? []
+        return live.match(session.layout, libraryID: session.id, aliases: aliases, importedLayout: importedLayout)
     }
 
     /// The keyboard's Oryx serial when no library layout came from that Oryx layout: the card offers [Import] (spec §3.6).

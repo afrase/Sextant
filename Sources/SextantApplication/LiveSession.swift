@@ -190,11 +190,14 @@ public final class LiveSession {
 
     /// How the keyboard's firmware relates to a layout; nil when no keyboard reports a serial.
     /// - Parameter importedLayout: see ``FirmwareIdentity/importedLayout(of:revisions:library:)``.
-    public func match(_ layout: KeyboardLayout, libraryID: UUID, importedLayout: KeyboardLayout?) -> FirmwareMatch? {
+    /// - Parameter aliases: the layout's ids on other Macs (ADR 0061), so their builds of it count as this layout.
+    public func match(
+        _ layout: KeyboardLayout, libraryID: UUID, aliases: Set<UUID> = [], importedLayout: KeyboardLayout?
+    ) -> FirmwareMatch? {
         firmwareSerial.map {
             FirmwareMatch(
                 serial: $0, expected: FirmwareIdentity(layout: layout, libraryID: libraryID, importedLayout: importedLayout),
-                libraryID: libraryID, oryxLayoutID: layout.oryx?.layoutId)
+                libraryID: libraryID, aliases: aliases, oryxLayoutID: layout.oryx?.layoutId)
         }
     }
 
