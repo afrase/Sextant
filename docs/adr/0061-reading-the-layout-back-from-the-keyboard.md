@@ -21,7 +21,7 @@ the layout in it and answer a request for it.
   layout's firmware JSON (sorted keys, no macro drafts: the same bytes the fingerprint is the CRC of) compressed with raw
   DEFLATE. About 2 KB for the user's layout. Over 32 KiB, the build stores none and says so in the log.
 - **The read command.** The generator adds `sextant_layout.c` and, in `rules.mk`, `SRC += sextant_layout.c` and
-  `EXTRALDFLAGS += -Wl,--wrap=raw_hid_receive`. GNU ld then sends QMK's one call of `raw_hid_receive` (`usb_main.c`) to
+  `override EXTRALDFLAGS += -Wl,--wrap=raw_hid_receive` (`override`, because `QMKBuild` already sets `EXTRALDFLAGS` on make's command line through `qmk compile -e`, and make ignores a plain `+=` to such a variable; reproduced with make 4.3). GNU ld then sends QMK's one call of `raw_hid_receive` (`usb_main.c`) to
   `__wrap_raw_hid_receive`, which answers reports starting `53` and hands every other report to zsa/oryx unchanged
   (`__real_raw_hid_receive`). ZSA's sources aren't patched or copied. Oryx's builds don't use LTO, which `--wrap` doesn't
   survive in every toolchain.
