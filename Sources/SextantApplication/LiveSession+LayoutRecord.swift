@@ -1,9 +1,6 @@
 import Foundation
 
 extension LiveSession {
-    /// How long a part may take once the link has likely written its request; then it is asked for once more.
-    static let layoutRecordReplyWait = Duration.milliseconds(500)
-
     /// Reads the layout record a Sextant build stores (ADR 0061), 24 bytes per report, over the paired Live View session.
     /// Changes nothing on the keyboard. `progress` gets the fraction read after each part.
     ///
@@ -58,7 +55,7 @@ extension LiveSession {
         } catch {
             throw LayoutReadError.disconnected
         }
-        deadline.arm(Self.layoutRecordReplyWait + queuedWritesLeft, clock: clock, feed: feed)
+        deadline.arm(layoutRecordReplyWait + queuedWritesLeft, clock: clock, feed: feed)
     }
 }
 

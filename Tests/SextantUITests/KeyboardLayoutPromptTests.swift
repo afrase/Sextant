@@ -170,9 +170,12 @@ struct KeyboardLayoutPromptTests {
         // Only saved here, never flashed or imported: the keyboard's layout goes to History, not into the working copy.
         let store = OneLayoutLibrary(mine, id: id)
         let live = LiveSession(watcher: fake, link: fake, secureInputProbe: { false })
+        // On real time, a loaded test machine can hold the main actor for seconds: no wait here is about timing out.
+        live.layoutRecordReplyWait = .seconds(30)
         let library = Library(store: store)
         let onKeyboard = OnKeyboard(library: library, store: store, live: live)
         let pull = KeyboardLayoutPull(live: live, onKeyboard: onKeyboard, library: library, store: store)
+        pull.pairingWait = .seconds(30)
         let model = LayoutWindowModel(library: library, live: live, onKeyboard: onKeyboard, keyboardLayout: pull)
         await model.open(id)
         let session = try #require(model.session)
@@ -235,12 +238,16 @@ struct KeyboardLayoutPromptTests {
         _ fake: StandInKeyboard, looksUp: Bool = true
     ) -> (LiveSession, OnKeyboard, Library, KeyboardLayoutPull) {
         let live = LiveSession(watcher: fake, link: fake, secureInputProbe: { false })
+        // On real time, a loaded test machine can hold the main actor for seconds: no wait here is about timing out.
+        live.layoutRecordReplyWait = .seconds(30)
         let store = MemoryLibrary()
         let library = Library(store: store)
         let onKeyboard = OnKeyboard(library: library, store: store, live: live)
         live.start()
         if looksUp { onKeyboard.start() }
-        return (live, onKeyboard, library, KeyboardLayoutPull(live: live, onKeyboard: onKeyboard, library: library, store: store))
+        let pull = KeyboardLayoutPull(live: live, onKeyboard: onKeyboard, library: library, store: store)
+        pull.pairingWait = .seconds(30)
+        return (live, onKeyboard, library, pull)
     }
 }
 

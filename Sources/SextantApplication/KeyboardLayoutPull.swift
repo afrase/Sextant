@@ -102,8 +102,8 @@ public final class KeyboardLayoutPull {
         }
     }
 
-    /// How long ``read(startingLiveView:)`` waits for Live View to pair.
-    static let pairingWait = Duration.seconds(3)
+    /// How long ``read(startingLiveView:)`` waits for Live View to pair. Tests that run on real time lengthen it.
+    @ObservationIgnored var pairingWait = Duration.seconds(3)
 
     @ObservationIgnored private let live: LiveSession
     @ObservationIgnored private let onKeyboard: OnKeyboard
@@ -227,7 +227,7 @@ public final class KeyboardLayoutPull {
     /// Turns Live View on and waits up to ``pairingWait`` for it to pair.
     private func pairs() async -> Bool {
         live.startLive()
-        let (live, clock, wait) = (live, clock, Self.pairingWait)
+        let (live, clock, wait) = (live, clock, pairingWait)
         let (outcomes, outcome) = AsyncStream.makeStream(of: Bool.self)
         let paired = Task {
             for await canSend in Observations({ live.canSend }) where canSend {

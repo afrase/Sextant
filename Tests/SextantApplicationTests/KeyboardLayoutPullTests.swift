@@ -28,6 +28,9 @@ struct KeyboardLayoutPullTests {
         library = Library(store: store)
         onKeyboard = OnKeyboard(library: library, store: store, live: live)
         pull = KeyboardLayoutPull(live: live, onKeyboard: onKeyboard, library: library, store: store)
+        // On real time, a loaded test machine can hold the main actor for seconds: no wait here is about timing out.
+        live.layoutRecordReplyWait = .seconds(30)
+        pull.pairingWait = .seconds(30)
         var layout = KeyboardLayout.blankQWERTY(title: "Travel")
         layout.updateKey(layer: 0, index: 1) { $0 = Key("KC_F13") }
         flashed = layout

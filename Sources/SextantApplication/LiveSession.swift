@@ -92,6 +92,9 @@ public final class LiveSession {
     @ObservationIgnored private var stopping: Task<Void, Never>?
     /// The running ``readLayoutRecord(progress:)``'s feed: the paired session's record parts and refusals, and its end.
     @ObservationIgnored var layoutRead: AsyncStream<LayoutReadInput>.Continuation?
+    /// How long a layout record part may take once its request is likely written; then it is asked for once more. Tests
+    /// that run on real time lengthen it, since a loaded machine can hold the main actor longer than a keyboard takes.
+    @ObservationIgnored var layoutRecordReplyWait = Duration.milliseconds(500)
 
     /// One queued write: the link writes a report and then waits 5 ms (ADR 0022), but its sleeps overshoot and the write
     /// takes time too (about 7.5 ms a report measured on a Mac with a free transport). A sender that waits this out never
