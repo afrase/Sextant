@@ -14,6 +14,7 @@ One SwiftPM package at the repo root (`Package.swift`). One target per layer or 
         ┌───────────────┬───────────┼────────────┬──────────────┬──────────────┐
         ▼               ▼           ▼            ▼              ▼              ▼
  SextantStorage   SextantOryx   SextantBuild  SextantDevice  SextantUI   SextantSnapshots
+ SextantUpdates (GitHub releases), beside them
  (.sextant pkgs)  (GraphQL)     (generator,   (IOKit HID,    (SwiftUI,    (dev-tool exe:
                                  toolchains)   IOUSBHost DFU, view models) offscreen scenes)
                                                device watch)
@@ -31,16 +32,17 @@ Arrows are `dependencies:` in `Package.swift`. Nothing depends on `SextantApp`. 
 | Target | Layer | May import | Contents |
 |---|---|---|---|
 | `SextantDomain` | domain | Foundation (+ CoreGraphics value types) | Layout model, Oryx JSON codec, keycode catalog, legends, Voyager board definition and geometry, settings catalog, validation (live issues), diffing, firmware image validation, colour maths |
-| `SextantApplication` | use cases | `SextantDomain`, Foundation, Observation, os | Ports (protocols), use cases (`EditSession`, `Library`, `ImportFromOryx`, `LiveSession`, `OnKeyboard`, `LightingPreview`, `HeatmapRecorder`, `AppLayerSwitcher`, `BuildFlashSession`), typed errors |
+| `SextantApplication` | use cases | `SextantDomain`, Foundation, Observation, os | Ports (protocols), use cases (`EditSession`, `Library`, `ImportFromOryx`, `LiveSession`, `OnKeyboard`, `LightingPreview`, `HeatmapRecorder`, `AppLayerSwitcher`, `BuildFlashSession`, `UpdateChecker`), typed errors |
 | `SextantStorage` | adapter | Application, Domain, Foundation, CryptoKit | `PackageLibrary`: the `.sextant` library in Application Support; `HeatmapFiles`: the Heatmap's hourly counts beside it (ADR 0053) |
 | `SextantOryx` | adapter | Application, Domain, Foundation (URLSession), CryptoKit | `OryxClient`: read-only GraphQL `layout` query, firmware download with md5 check |
 | `SextantBuild` | adapter | Application, Domain, Foundation | `QMKGenerator` (Oryx-equivalent source + source map), `NativeToolchain` with its pinned `ToolchainInstaller` and `sandbox-exec` profile, compiler-diagnostic parser, size parser |
 | `SextantDevice` | adapter | Application, Domain, IOKit, IOUSBHost, CryptoKit, Carbon (secure input) | `IOKitDeviceWatcher`, `RawHIDLink` (Oryx protocol v5), `DFUFlasher` (DfuSe with guards), `SecureInputProbe` |
+| `SextantUpdates` | adapter | Application, Domain, Foundation (URLSession) | `GitHubReleaseFeed`: one unauthenticated GET of the latest GitHub release (ADR 0063) |
 | `SextantUI` | driving adapter | Application, Domain, SwiftUI, AppKit, PDFKit (printing) | Views, `@Observable` view models, tokens, `SurfaceStyle`, `SextantMotion`, board, commands, exports and printing |
 | `SextantSnapshots` | dev-tool executable | UI, Application, Storage, SwiftUI, AppKit | Ported PrototypeKit snapshot runner (offscreen, no TCC) and the design-QA scene list |
 | `SextantApp` | composition root | everything, plus KeyboardShortcuts | `@main`, adapter wiring, scenes; `KeyboardShortcutsHotKeys`, the global layer shortcuts' adapter and recorder (ADR 0048); `WorkspaceAppWatcher`, App Layers' frontmost-app adapter over NSWorkspace (ADR 0054) |
 
-Test targets mirror them: `SextantDomainTests`, `SextantApplicationTests`, `SextantStorageTests`, `SextantOryxTests`, `SextantBuildTests`, `SextantDeviceTests`, `SextantUITests`.
+Test targets mirror them: `SextantDomainTests`, `SextantApplicationTests`, `SextantStorageTests`, `SextantOryxTests`, `SextantBuildTests`, `SextantDeviceTests`, `SextantUpdatesTests`, `SextantUITests`.
 
 ### 1.1 Reconciling spec §13.1
 
@@ -110,6 +112,7 @@ All ports are `Sendable` protocols with `async` methods and **typed throws**. Im
 | `Flasher` | `flash(image, md5:, to: BootloaderDevice, board:, progress:)` | `DFUFlasher` (SextantDevice), always wired (ADR 0056) | `FakeFlasher` |
 | `HeatmapStore` | `hours(of: layoutID, from:)`, `add(_ hour, to:)` (one hour, whole or not at all), `prune(before:)`, `clear(_ layoutID?)`: hourly counts by layer id and key index, per layout (ADR 0053) | `HeatmapFiles` (SextantStorage) | `FakeHeatmapStore` |
 | `FrontmostAppWatcher` | `activations() -> AsyncStream<MacApp>` (the frontmost app now, then each that comes forward), `runningApps()`, `app(at: URL)`; a `MacApp` is a bundle id and a name, nothing else (ADR 0054) | `WorkspaceAppWatcher` (SextantApp, NSWorkspace notifications, no TCC) | `FakeFrontmostAppWatcher` |
+| `ReleaseFeed` | `latest() -> AppRelease` (never a draft or pre-release) | `GitHubReleaseFeed` (SextantUpdates, ADR 0063) | `FakeReleaseFeed` |
 | `HotKeys` | `register(layers:onPress:)`, `unregister()`, `setPaused(_:)`, `shortcut(forLayer:) -> HotKeyShortcut?`, `conflicts()`; `@MainActor`, since hot-key events arrive on the main thread (ADR 0048) | `KeyboardShortcutsHotKeys` (SextantApp, over sindresorhus/KeyboardShortcuts) | `FakeHotKeys` |
 
 Small things that are not worth a port are injected as values: an `any Clock<Duration>` for debounce and timeouts, a `@Sendable () -> Bool` secure-input probe, a `@MainActor () -> Bool` for Settings › Keyboard's Follow by default, an `UndoManager`.

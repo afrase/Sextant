@@ -17,6 +17,8 @@ struct MenuBarActions {
     var buildAndFlash: @MainActor () -> Void = {}
     var openSextant: @MainActor () -> Void = {}
     var openSettings: @MainActor () -> Void = {}
+    /// Details… on the update notice: the Software Update window (ADR 0063).
+    var showUpdate: @MainActor () -> Void = {}
     var quit: @MainActor () -> Void = {}
 }
 
@@ -30,7 +32,7 @@ extension MenuBarActions {
     init(
         live: LiveSession, onKeyboard: OnKeyboard, windows: WindowRouter, openWindow: @escaping WindowRouter.OpenWindow,
         appLayers: AppLayerSwitcher? = nil, openSettings: @escaping @MainActor () -> Void, keyboardLayout: KeyboardLayoutPull? = nil,
-        openKeyboardLayout: @escaping @MainActor () -> Void = {}
+        openKeyboardLayout: @escaping @MainActor () -> Void = {}, openSoftwareUpdate: @escaping @MainActor () -> Void = {}
     ) {
         self.init(
             moveToLayer: { try? onKeyboard.moveKeyboard(toLayer: $0) },
@@ -46,6 +48,7 @@ extension MenuBarActions {
             buildAndFlash: { windows.buildAndFlash(openWindow) },
             openSextant: { windows.showMainWindow(openWindow) },
             openSettings: { windows.showSettings(openSettings) },
+            showUpdate: { windows.showWindow(openSoftwareUpdate) },
             quit: { NSApplication.shared.terminate(nil) })
     }
 }
@@ -60,6 +63,7 @@ struct MenuBarPanel: View {
     var heatmap: HeatmapRecorder?
     var appLayers: AppLayerSwitcher?
     var keyboardLayout: KeyboardLayoutPull?
+    var updates: UpdateChecker?
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
     /// Closes the panel (MenuBarExtraAccess's binding: SwiftUI has no call that closes a menu bar extra).
@@ -68,14 +72,15 @@ struct MenuBarPanel: View {
     var body: some View {
         let state = MenuBarPanelState(
             live: live, onKeyboard: onKeyboard, shortcuts: shortcuts, library: library, buildTarget: windows.target,
-            appLayers: appLayers, keyboardLayout: keyboardLayout)
+            appLayers: appLayers, keyboardLayout: keyboardLayout, updates: updates)
         var actions = MenuBarActions(
             live: live, onKeyboard: onKeyboard, windows: windows, openWindow: { openWindow.layout($0) }, appLayers: appLayers,
             openSettings: { openSettings() }, keyboardLayout: keyboardLayout,
-            openKeyboardLayout: { openWindow(id: KeyboardLayoutWindow.sceneID) })
+            openKeyboardLayout: { openWindow(id: KeyboardLayoutWindow.sceneID) },
+            openSoftwareUpdate: { openWindow(id: SoftwareUpdateWindow.sceneID) })
         // The rows that take the user to a window close the panel, as a menu would; tiles, switches and Get Layout, whose
         // progress shows here, leave it open.
-        for keyPath in [\MenuBarActions.buildAndFlash, \.openSextant, \.openSettings, \.addKeyboardLayout] {
+        for keyPath in [\MenuBarActions.buildAndFlash, \.openSextant, \.openSettings, \.addKeyboardLayout, \.showUpdate] {
             let action = actions[keyPath: keyPath]
             actions[keyPath: keyPath] = { [dismiss] in
                 dismiss()
@@ -91,7 +96,7 @@ extension MenuBarPanel {
         self.init(
             live: services.live, onKeyboard: services.onKeyboard, shortcuts: services.layerShortcuts, library: services.library,
             windows: windows, heatmap: services.heatmap, appLayers: services.appLayers, keyboardLayout: services.keyboardLayout,
-            dismiss: dismiss)
+            updates: services.updates, dismiss: dismiss)
     }
 }
 
@@ -128,6 +133,7 @@ public struct MenuBarPanelContent: View {
             keyboard
             if let prompt = state.keyboardLayout { keyboardLayout(prompt) }
             if let typingStats { TypingStatsLine(source: typingStats) }
+            if let update = state.update { updateRow(update) }
             // The two switches sit closer together than the sections, as in a menu.
             VStack(spacing: 6) {
                 if let appLayers = state.appLayers { appLayersRow(appLayers) }
@@ -220,6 +226,15 @@ public struct MenuBarPanelContent: View {
     /// then says so; in its own words otherwise, as while Live View connects, when the note says that instead.
     static func promptWording(_ keyboard: MenuBarPanelState.Keyboard) -> KeyboardLayoutPromptView.Wording {
         keyboard == .live ? .buttonOnly : .plain
+    }
+
+    /// A newer Sextant is out (ADR 0063): Details… opens the Software Update window.
+    private func updateRow(_ version: AppVersion) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            note("arrow.down.circle") { Text("Sextant \(version.description) is available.") }
+            Spacer(minLength: 8)
+            Button("Details…", action: actions.showUpdate).controlSize(.small)
+        }
     }
 
     /// App Layers' row (spec §8.3): what the keyboard layout's rules do now, and their switch.

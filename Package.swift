@@ -44,6 +44,7 @@ let package = Package(
             ]
         ),
         .target(name: "SextantDevice", dependencies: ["SextantApplication", "SextantDomain"]),
+        .target(name: "SextantUpdates", dependencies: ["SextantApplication", "SextantDomain"]),
 
         // Driving adapter (UI).
         .target(
@@ -59,7 +60,8 @@ let package = Package(
         .executableTarget(
             name: "SextantApp",
             dependencies: [
-                "SextantDomain", "SextantApplication", "SextantStorage", "SextantOryx", "SextantBuild", "SextantDevice", "SextantUI",
+                "SextantDomain", "SextantApplication", "SextantStorage", "SextantOryx", "SextantBuild", "SextantDevice",
+                "SextantUpdates", "SextantUI",
                 // The global layer shortcuts' adapter and recorder (ADR 0048).
                 .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
             ]
@@ -82,6 +84,7 @@ let package = Package(
         .testTarget(name: "SextantStorageTests", dependencies: ["SextantStorage", "SextantApplication", "SextantDomain"]),
         .testTarget(name: "SextantOryxTests", dependencies: ["SextantOryx", "SextantApplication", "SextantDomain"]),
         .testTarget(name: "SextantBuildTests", dependencies: ["SextantBuild", "SextantApplication", "SextantDomain"]),
+        .testTarget(name: "SextantUpdatesTests", dependencies: ["SextantUpdates", "SextantApplication", "SextantDomain"]),
         .testTarget(
             name: "SextantDeviceTests",
             dependencies: ["SextantDevice", "SextantApplication", "SextantDomain", .product(name: "Clocks", package: "swift-clocks")]

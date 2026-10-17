@@ -61,7 +61,7 @@ open .build/Sextant.app
 
 ## Privacy
 
-No accounts, analytics or telemetry. Sextant goes online only to import from Oryx and to download the build tools on the first build. The live view sees key positions, never characters, and pauses in password fields. The heatmap is off until you turn it on, keeps only hourly counts per key, and stays on your Mac.
+No accounts, analytics or telemetry. Sextant goes online only to import from Oryx, to download the build tools on the first build, and once a day to ask GitHub whether a newer Sextant is out (Settings › General can turn that off; GitHub sees your IP address and Sextant's version). The live view sees key positions, never characters, and pauses in password fields. The heatmap is off until you turn it on, keeps only hourly counts per key, and stays on your Mac.
 
 ## Documentation
 

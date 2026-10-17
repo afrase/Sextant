@@ -78,6 +78,8 @@ public struct MenuBarPanelState: Equatable {
     var appLayers: AppLayers?
     /// What Sextant offers while the keyboard runs a layout it doesn't have: [Get Layout] or [Add to Library…] (ADR 0061).
     var keyboardLayout: KeyboardLayoutPrompt?
+    /// A newer Sextant the update check found and the user hasn't dismissed (ADR 0063).
+    var update: AppVersion?
 
     /// A panel from given values, for snapshots. Layers come from `layout`, or only layer 0 without one, while the
     /// keyboard is live or connecting; `shortcuts` gives each one's global shortcut.
@@ -85,7 +87,8 @@ public struct MenuBarPanelState: Equatable {
         keyboard: Keyboard, boardName: String = BoardDefinition.voyager.displayName, running: String? = nil,
         layout: KeyboardLayout? = nil, layer: Int? = nil, shortcuts: [Int: String] = [:], layerNote: String? = nil,
         canMove: Bool = true, pressed: Set<Int> = [], isSecureInputOn: Bool = false, flash: Flash? = nil,
-        buildTarget: String? = nil, appLayers: AppLayers? = nil, keyboardLayout: KeyboardLayoutPrompt? = nil
+        buildTarget: String? = nil, appLayers: AppLayers? = nil, keyboardLayout: KeyboardLayoutPrompt? = nil,
+        update: AppVersion? = nil
     ) {
         self.boardName = boardName
         self.keyboard = keyboard
@@ -100,6 +103,7 @@ public struct MenuBarPanelState: Equatable {
         self.buildTarget = buildTarget
         self.appLayers = appLayers
         self.keyboardLayout = keyboardLayout
+        self.update = update
         if keyboard == .live || keyboard == .connecting { layers = Self.items(layout) { shortcuts[$0] } }
         if let layout, let layer, layer > 0 { activator = KeyText.activator(layout: layout, layer: layer)?.text }
     }
@@ -144,9 +148,11 @@ extension MenuBarPanelState {
     @MainActor
     init(
         live: LiveSession, onKeyboard: OnKeyboard, shortcuts: LayerShortcuts?, library: Library, buildTarget: UUID?,
-        appLayers switcher: AppLayerSwitcher? = nil, board: BoardDefinition = .voyager, keyboardLayout pull: KeyboardLayoutPull? = nil
+        appLayers switcher: AppLayerSwitcher? = nil, board: BoardDefinition = .voyager, keyboardLayout pull: KeyboardLayoutPull? = nil,
+        updates: UpdateChecker? = nil
     ) {
         boardName = board.displayName
+        update = updates?.notice?.version
         switch live.connection {
         case .noKeyboard: keyboard = .none
         case .bootloader: keyboard = .flashMode

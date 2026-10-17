@@ -45,10 +45,14 @@ The App Layers page moves the keyboard to a layer when an app comes forward: Xco
 
 The Heatmap lens (View ▸ Lens ▸ Heatmap, ⌃⌘3) colors each key by how often you press it, with layer share, hand balance, a finger histogram and your busiest keys, over 24 hours, 7 days, 30 days or everything kept. Recording is off until you turn it on in Settings › Privacy or the lens, and then counts only while the live view is on and the keyboard runs a layout in your library. It saves counts per key position by the hour, never characters or the order you typed in, pauses in password fields, and stays on your Mac. Counts are kept for 30 days unless you choose otherwise; Clear Heatmap Data… deletes them.
 
+## Updates
+
+Once a day, Sextant asks GitHub whether a newer version is out, and says so in the menu bar panel and the Sextant menu. Sextant ▸ Check for Updates… asks now. The Software Update window links the release notes and the download, or shows the `brew upgrade --cask sextant` command when Homebrew installed Sextant; nothing downloads or installs by itself. Skip This Version stops the notice until a newer one. Settings › General turns the daily check off.
+
 ## History and export
 
 File ▸ Save Revision… (⌘S) keeps a snapshot on the History page, where you can compare it with the current layout and restore it; every flash is recorded there too. File ▸ Export saves the layout's JSON, its QMK source, the firmware (.bin), an image of a layer (PNG) or all layers (PDF).
 
 ## Your data
 
-Layouts live in `~/Library/Application Support/Sextant/Library/`. The heatmap's counts, when recording is on, live beside them in `Heatmap/`, outside the layouts, so exports never include them. An Oryx import tells ZSA your IP address and the layout id you asked for; nothing else leaves your Mac except the build tools' download.
+Layouts live in `~/Library/Application Support/Sextant/Library/`. The heatmap's counts, when recording is on, live beside them in `Heatmap/`, outside the layouts, so exports never include them. An Oryx import tells ZSA your IP address and the layout id you asked for. Once a day Sextant asks GitHub for its newest release, which tells GitHub your IP address and Sextant's version. Nothing else leaves your Mac except the build tools' download.
