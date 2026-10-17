@@ -14,13 +14,14 @@ chose the nine spots.
   is a button VoiceOver names.
 - **Distance from edge:** 0–200 pt (72, the old fixed value), from the anchored edges of the visible frame. The panel is
   always kept inside the visible frame.
-- **Display:** the one with the pointer when the overlay appears (as before), or the main display (the one with the menu
-  bar).
+- **Display:** the one with the pointer when the overlay appears (as before; "Follows the pointer"), or the main display
+  (the one with the menu bar; "Main display"). Not the display with focus: the overlay shows over other apps, whose key
+  window Sextant can't see.
 - **Opacity:** 30–100% in 5% steps (100%), the whole panel, the reminder pill included.
 - **Delay:** 0–1000 ms (was 0–500), still 150 ms by default.
 - **Entrance:** rises 8 pt into place, except in the top row, where it drops 8 pt into place; a plain fade under Reduce
   Motion, as before.
-- **Preview:** a button in the pane shows the full overlay with the current settings, even with Live View off: the
+- **Preview:** a button at the top of the pane's overlay options shows the full overlay with the current settings, even with Live View off: the
   keyboard's layout on its layer 1 when Sextant has it, else a sample. Its header says "Preview". Every change re-places it at
   once. It ends when clicked again, when the pane closes, or 8 s after the last change. A real presentation wins over it.
 - The keys and defaults are declared twice, in the pane and in `OverlaySettings` (ADR 0045's rule).

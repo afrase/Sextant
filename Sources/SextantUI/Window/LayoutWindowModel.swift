@@ -182,6 +182,9 @@ public final class LayoutWindowModel {
     public var buildFlash: BuildFlashSession?
     /// The Build & Flash sheet is up. Hide takes it down while the run goes on (spec §7.6).
     var showsBuildSheet = false
+    /// Stop, Cancel or Done took the sheet down: the run stops once the sheet has gone, so it doesn't show the first
+    /// step as it leaves.
+    @ObservationIgnored var stopsBuildWhenSheetCloses = false
     /// The sheet's build log is expanded (⇧⌘B).
     var showsBuildLog = false
     /// Where the Device popover hangs while it is open (spec §8.2).
@@ -421,6 +424,7 @@ public final class LayoutWindowModel {
             // Live errors block it; the sheet lists them, or ⌘B would seem to do nothing (spec §7.5).
             if session.map({ LayoutIssues.check($0.layout).contains { $0.severity == .error } }) == true { showsBuildSheet = true }
         case .buildAndFlash:
+            stopsBuildWhenSheetCloses = false
             buildFlash.buildAndFlash(connectedKeyboard: connectedKeyboard, revision: revision)
             showsBuildSheet = true
         case .stop: buildFlash.stop()

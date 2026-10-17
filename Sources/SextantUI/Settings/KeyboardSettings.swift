@@ -154,6 +154,7 @@ private struct OverlaySection: View {
         Section {
             Toggle("Show overlay while a layer is held", isOn: $showsOverlay)
             Group {
+                preview
                 placement
                 Picker("Size", selection: $size) {
                     Text("Small").tag(OverlaySize.small)
@@ -173,7 +174,6 @@ private struct OverlaySection: View {
                     Text("Reminder").tag(LockedLayerOverlay.reminder)
                     Text("Nothing").tag(LockedLayerOverlay.nothing)
                 }
-                preview
             }
             .disabled(!showsOverlay)
         } header: {
@@ -207,8 +207,8 @@ private struct OverlaySection: View {
         )
         .disabled(position == .center)
         Picker("Display", selection: $display) {
-            Text("The one with the pointer").tag(OverlayDisplay.pointer)
-            Text("The main display").tag(OverlayDisplay.main)
+            Text("Follows the pointer").tag(OverlayDisplay.pointer)
+            Text("Main display").tag(OverlayDisplay.main)
         }
     }
 

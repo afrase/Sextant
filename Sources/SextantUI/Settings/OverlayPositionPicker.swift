@@ -33,7 +33,8 @@ struct OverlayPositionPicker: View {
         .opacity(isEnabled ? 1 : 0.5)
         // A screen, not text: left stays left in a right-to-left language.
         .environment(\.layoutDirection, .leftToRight)
-        .focusable()
+        // Focusable with keyboard navigation on, as buttons are: no focus ring the moment Settings opens.
+        .focusable(interactions: .activate)
         .onMoveCommand(perform: move)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text("Position"))

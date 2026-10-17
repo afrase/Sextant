@@ -10,7 +10,7 @@ struct DeviceWiring: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .sheet(isPresented: $model.showsBuildSheet) { BuildFlashSheet(model: model) }
+            .sheet(isPresented: $model.showsBuildSheet, onDismiss: stopIfAsked) { BuildFlashSheet(model: model) }
             .task { await model.followKeyboard() }
             .task(id: model.isFlashedOutOfSight) {
                 guard model.isFlashedOutOfSight, (try? await Task.sleep(for: .seconds(8))) != nil else { return }
@@ -26,6 +26,13 @@ struct DeviceWiring: ViewModifier {
                 else { return }
                 AccessibilityNotification.Announcement(String(localized: "\(title) layer")).post()
             }
+    }
+
+    /// After Stop, Cancel or Done, once the sheet has gone; not when a new run has brought it back meanwhile.
+    private func stopIfAsked() {
+        guard model.stopsBuildWhenSheetCloses else { return }
+        model.stopsBuildWhenSheetCloses = false
+        if !model.showsBuildSheet { model.buildFlash?.stop() }
     }
 }
 
@@ -121,8 +128,9 @@ public struct BuildFlashSheet: View {
 
     @ViewBuilder private func buttons(_ phase: BuildFlashSession.Phase, _ build: BuildFlashSession) -> some View {
         let hide = { model.showsBuildSheet = false }
+        // The run stops once the sheet has gone (DeviceWiring), so it doesn't flash back to the first step as it leaves.
         let stop = {
-            build.stop()
+            model.stopsBuildWhenSheetCloses = true
             model.showsBuildSheet = false
         }
         switch phase {

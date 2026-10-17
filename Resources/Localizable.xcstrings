@@ -1672,6 +1672,9 @@
     "Follow the keyboard’s layer" : {
 
     },
+    "Follows the pointer" : {
+
+    },
     "Found" : {
 
     },
@@ -2346,6 +2349,9 @@
 
     },
     "Main Window" : {
+
+    },
+    "Main display" : {
 
     },
     "Make %lld Keys Transparent" : {
@@ -3821,12 +3827,6 @@
       }
     },
     "The layout the keyboard sent doesn’t add up." : {
-
-    },
-    "The main display" : {
-
-    },
-    "The one with the pointer" : {
 
     },
     "The trackpad or trackball module on your keyboard, if any." : {
