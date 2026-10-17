@@ -1,9 +1,12 @@
 name: CI
 
+# Docs alone build nothing: progress notes, ADRs and the README don't run the gate.
 on:
   push:
     branches: [main]
+    paths-ignore: ["docs/**", "**/*.md", "LICENSE"]
   pull_request:
+    paths-ignore: ["docs/**", "**/*.md", "LICENSE"]
   workflow_dispatch:
 
 permissions:
@@ -14,10 +17,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
-    name: scripts/check
+  # Formatting, lint and layer import rules: scripts/lint.
+  lint:
+    name: Lint
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -27,14 +31,66 @@ jobs:
       - name: Select Xcode 26.6
         run: sudo xcode-select -s /Applications/Xcode_26.6.app
 
+      # The packages (SwiftLint's plugin resolves them all), restored only: the build-and-test job saves them.
+      - name: Restore packages
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build/checkouts
+            .build/repositories
+            .build/artifacts
+            .build/workspace-state.json
+            ~/Library/Caches/org.swift.swiftpm
+          key: spm-packages-xcode26.6-${{ hashFiles('Package.resolved') }}
+
+      - name: Lint
+        run: scripts/lint
+
+  # A warnings-as-errors build and the tests: scripts/test.
+  test:
+    name: Build and test
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 26.6
+        run: sudo xcode-select -s /Applications/Xcode_26.6.app
+
       - name: Show toolchain
         run: |
           sw_vers
           xcodebuild -version
           swift --version
-          swift format --version
 
-      # GitHub sets CI=true: pixel snapshots and Periphery are skipped, and without SEXTANT_REFERENCE the tests run
-      # on the author's own layout only.
-      - name: Check
-        run: scripts/check
+      # The packages, their checkouts and SwiftLint's binary, until Package.resolved or Xcode changes.
+      - name: Restore packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build/checkouts
+            .build/repositories
+            .build/artifacts
+            .build/workspace-state.json
+            ~/Library/Caches/org.swift.swiftpm
+          key: spm-packages-xcode26.6-${{ hashFiles('Package.resolved') }}
+
+      # The last build's products, so the build is incremental. Saved per commit; a run restores the newest one for the
+      # same packages and Xcode. Only a passing run saves, so nothing built with a warning is ever restored.
+      - name: Restore the last build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          # .build/arm64-apple-macosx is SwiftPM's own build system (Xcode 26.6's); .build/out is Swift Build's.
+          path: |
+            .build/arm64-apple-macosx
+            .build/out
+            .build/plugins
+          key: spm-build-xcode26.6-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
+          restore-keys: spm-build-xcode26.6-${{ hashFiles('Package.resolved') }}-
+
+      # GitHub sets CI=true: pixel snapshots are skipped, and without SEXTANT_REFERENCE the tests run on the author's
+      # own layout only.
+      - name: Build and test
+        run: scripts/test

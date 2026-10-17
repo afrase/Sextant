@@ -10,7 +10,7 @@ Run the quality gate and make it pass with no warnings:
 scripts/check
 ```
 
-It runs `swift format lint --strict`, SwiftLint (code quality and the layer import rules), a build with warnings as errors, and the tests. Locally it also prints a Periphery unused-code report; findings there don't fail the gate. CI runs the same script on macOS 26 with Xcode 26.6.
+It runs `scripts/lint` (`swift format lint --strict` and SwiftLint: code quality and the layer import rules), then `scripts/test` (a build with warnings as errors, and the tests). Locally it also prints a Periphery unused-code report; findings there don't fail the gate. CI runs `scripts/lint` and `scripts/test` as two jobs on macOS 26 with Xcode 26.6, side by side, and skips changes to docs alone.
 
 ## Code
 

@@ -1,25 +1,12 @@
 #!/bin/sh
-# The quality gate (ADR 0018): formatting, lint and layer rules, a warnings-as-errors build, the tests, and an
-# unused-code report. Run from anywhere; run it before every commit.
+# The quality gate (ADR 0018): formatting, lint and layer rules (scripts/lint), a warnings-as-errors build and the tests
+# (scripts/test), and an unused-code report. Run from anywhere; run it before every commit. CI runs the two halves as
+# separate jobs.
 set -eu
 cd "$(dirname "$0")/.."
 
-# Other people's Oryx samples are kept outside the repo; the tests that need them skip without this.
-if [ -z "${SEXTANT_REFERENCE:-}" ] && [ -d "$HOME/Developer/Sextant-reference" ]; then
-    export SEXTANT_REFERENCE="$HOME/Developer/Sextant-reference"
-fi
-
-echo "› swift format (formatting, force-unwrap and force-try bans)"
-swift format lint --strict --recursive Sources Tests Package.swift
-
-echo "› SwiftLint (code quality and layer import rules)"
-swift package plugin --allow-writing-to-package-directory swiftlint --strict --quiet
-
-echo "› build (warnings are errors)"
-swift build --build-tests -Xswiftc -warnings-as-errors
-
-echo "› tests"
-swift test --skip-build
+scripts/lint
+scripts/test
 
 # shortcut: report-only, so findings never fail the gate; add --strict once the report is clean.
 # Not on CI: nobody reads a report there, and .periphery.yml's index store (.build/out) is Swift Build's layout.
