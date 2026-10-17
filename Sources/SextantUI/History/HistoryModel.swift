@@ -199,13 +199,19 @@ final class HistoryModel {
         return layout != session.layout
     }
 
-    func restore(_ revision: RevisionSummary) async {
+    /// - Parameter asOnKeyboard: Use It (ADR 0061): the revision exactly as the keyboard runs it, title included, keeping
+    ///   the macro drafts (``EditSession/restoreKeyboardRevision(_:)``), rather than under the working copy's title.
+    func restore(_ revision: RevisionSummary, asOnKeyboard: Bool = false) async {
         guard !isRestoring else { return }
         isRestoring = true
         defer { isRestoring = false }
         error = nil
         do throws(LibraryError) {
-            try await session.restoreRevision(revision)
+            if asOnKeyboard {
+                try await session.restoreKeyboardRevision(revision)
+            } else {
+                try await session.restoreRevision(revision)
+            }
             selectedID = nil
             pinnedLayer = nil
         } catch {

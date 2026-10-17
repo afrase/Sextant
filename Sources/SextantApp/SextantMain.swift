@@ -34,6 +34,8 @@ struct SextantMain: App {
         appDelegate.heatmap = services.heatmap
         services.live.start()
         services.onKeyboard.start()
+        // Reads the keyboard's stored layout only over a Live View session the user turned on (ADR 0057, ADR 0061).
+        services.keyboardLayout.start()
         services.layerShortcuts.start()
         services.lightingPreview.start()
         services.overlay.start()
@@ -96,12 +98,14 @@ struct SextantMain: App {
             appLayers: AppLayerSwitcher(
                 watcher: WorkspaceAppWatcher(), onKeyboard: onKeyboard, live: live, store: store,
                 ownBundleID: Bundle.main.bundleIdentifier),
+            keyboardLayout: KeyboardLayoutPull(live: live, onKeyboard: onKeyboard, library: library, store: store),
             makeImport: { ImportFromOryx(oryx: oryx, library: library) },
             makeBuildFlash: { session in
-                // ADR 0033: the native toolchain, every build sandboxed.
+                // ADR 0033: the native toolchain, every build sandboxed. Settings › Build says whether a build stores its
+                // layout for other Macs to read (ADR 0061), asked at each build.
                 BuildFlashSession(
                     session: session, library: store, generator: generator, toolchain: toolchain, watcher: watcher,
-                    flasher: flasher, md5: md5, live: live)
+                    flasher: flasher, md5: md5, live: live, storesLayoutRecord: { BuildSettings.storesLayoutInFirmware() })
             })
     }
 }

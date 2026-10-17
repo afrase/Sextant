@@ -62,6 +62,14 @@ public final class Library {
         if sessions[session.id]?.session === session { sessions[session.id] = nil }
     }
 
+    /// The layout's open document, or else a temporary one that goes away after use. An edit that replaces the working copy
+    /// goes through it, so it lands in a window that has the layout open (undoable there) and never overwrites edits only
+    /// a recovery copy holds.
+    func document(_ id: UUID) async throws(LibraryError) -> EditSession {
+        if let session = sessions[id]?.session { return session }
+        return try await open(id)
+    }
+
     /// Writes every open document's pending edit now (before quitting). False when one couldn't be saved.
     @discardableResult
     public func flushOpenSessions() async -> Bool {
@@ -99,7 +107,7 @@ public final class Library {
         layout.title = Self.cleanImportedTitle(layout.title)
         let entry: LibraryEntry
         if let existing {
-            let session = if let open = sessions[existing]?.session { open } else { try await open(existing) }
+            let session = try await document(existing)
             try await session.applyImport(layout)
             entry = try await store.load(existing).entry
         } else {

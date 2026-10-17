@@ -8,6 +8,10 @@ struct MenuBarActions {
     var moveToLayer: @MainActor (Int) -> Void = { _ in }
     /// The same path as the toolbar's live button (ADR 0057): only ever on the user's click.
     var turnOnLiveView: @MainActor () -> Void = {}
+    /// Get Layout and Try Again (ADR 0061): reads the layout the keyboard's firmware stores, turning on Live View first.
+    var getKeyboardLayout: @MainActor () -> Void = {}
+    /// Add to Library…: the Layout on the Keyboard window.
+    var addKeyboardLayout: @MainActor () -> Void = {}
     /// The switch of the keyboard layout's App Layers (ADR 0054).
     var setAppLayersOn: @MainActor (Bool) -> Void = { _ in }
     var buildAndFlash: @MainActor () -> Void = {}
@@ -17,16 +21,22 @@ struct MenuBarActions {
 }
 
 extension MenuBarActions {
-    /// The live panel's controls. Live View starts only on Turn On Live View, and a layer reaches the keyboard only
-    /// through Move Keyboard to Layer (ADR 0048).
+    /// The live panel's controls. Live View starts only on Turn On Live View or Get Layout, and a layer reaches the
+    /// keyboard only through Move Keyboard to Layer (ADR 0048).
+    /// - Parameters:
+    ///   - keyboardLayout: reads the keyboard's layout when Sextant doesn't have it (ADR 0061).
+    ///   - openKeyboardLayout: opens the Layout on the Keyboard window (`openWindow(id:)`).
     @MainActor
     init(
         live: LiveSession, onKeyboard: OnKeyboard, windows: WindowRouter, openWindow: @escaping WindowRouter.OpenWindow,
-        appLayers: AppLayerSwitcher? = nil, openSettings: @escaping @MainActor () -> Void
+        appLayers: AppLayerSwitcher? = nil, openSettings: @escaping @MainActor () -> Void, keyboardLayout: KeyboardLayoutPull? = nil,
+        openKeyboardLayout: @escaping @MainActor () -> Void = {}
     ) {
         self.init(
             moveToLayer: { try? onKeyboard.moveKeyboard(toLayer: $0) },
             turnOnLiveView: { live.startLive() },
+            getKeyboardLayout: { Task { await keyboardLayout?.read(startingLiveView: true) } },
+            addKeyboardLayout: { windows.showWindow(openKeyboardLayout) },
             setAppLayersOn: { on in
                 guard let appLayers, let id = onKeyboard.running?.entry.id else { return }
                 var rules = appLayers.rules(for: id)
@@ -49,6 +59,7 @@ struct MenuBarPanel: View {
     var windows: WindowRouter
     var heatmap: HeatmapRecorder?
     var appLayers: AppLayerSwitcher?
+    var keyboardLayout: KeyboardLayoutPull?
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
     /// Closes the panel (MenuBarExtraAccess's binding: SwiftUI has no call that closes a menu bar extra).
@@ -57,12 +68,14 @@ struct MenuBarPanel: View {
     var body: some View {
         let state = MenuBarPanelState(
             live: live, onKeyboard: onKeyboard, shortcuts: shortcuts, library: library, buildTarget: windows.target,
-            appLayers: appLayers)
+            appLayers: appLayers, keyboardLayout: keyboardLayout)
         var actions = MenuBarActions(
             live: live, onKeyboard: onKeyboard, windows: windows, openWindow: { openWindow.layout($0) }, appLayers: appLayers,
-            openSettings: { openSettings() })
-        // The rows that take the user to a window close the panel, as a menu would; tiles and switches leave it open.
-        for keyPath in [\MenuBarActions.buildAndFlash, \.openSextant, \.openSettings] {
+            openSettings: { openSettings() }, keyboardLayout: keyboardLayout,
+            openKeyboardLayout: { openWindow(id: KeyboardLayoutWindow.sceneID) })
+        // The rows that take the user to a window close the panel, as a menu would; tiles, switches and Get Layout, whose
+        // progress shows here, leave it open.
+        for keyPath in [\MenuBarActions.buildAndFlash, \.openSextant, \.openSettings, \.addKeyboardLayout] {
             let action = actions[keyPath: keyPath]
             actions[keyPath: keyPath] = { [dismiss] in
                 dismiss()
@@ -77,7 +90,8 @@ extension MenuBarPanel {
     init(services: SextantServices, windows: WindowRouter, dismiss: @escaping @MainActor () -> Void) {
         self.init(
             live: services.live, onKeyboard: services.onKeyboard, shortcuts: services.layerShortcuts, library: services.library,
-            windows: windows, heatmap: services.heatmap, appLayers: services.appLayers, dismiss: dismiss)
+            windows: windows, heatmap: services.heatmap, appLayers: services.appLayers, keyboardLayout: services.keyboardLayout,
+            dismiss: dismiss)
     }
 }
 
@@ -112,6 +126,7 @@ public struct MenuBarPanelContent: View {
             header
             Divider()
             keyboard
+            if let prompt = state.keyboardLayout { keyboardLayout(prompt) }
             if let typingStats { TypingStatsLine(source: typingStats) }
             // The two switches sit closer together than the sections, as in a menu.
             VStack(spacing: 6) {
@@ -191,6 +206,20 @@ public struct MenuBarPanelContent: View {
                 state: state, moveToLayer: actions.moveToLayer, hasTypingLine: typingStats?.isShown == true,
                 typingLineNotesSecureInput: typingStats?.isPausedForSecureInput == true)
         }
+    }
+
+    /// What Sextant offers for a layout it doesn't have (ADR 0061). The header names the serial.
+    private func keyboardLayout(_ prompt: KeyboardLayoutPrompt) -> some View {
+        let isLive = state.keyboard == .live || state.keyboard == .connecting
+        return KeyboardLayoutPromptView(
+            prompt: prompt, isLive: isLive, wording: Self.promptWording(state.keyboard), font: .callout,
+            getLayout: actions.getKeyboardLayout, addToLibrary: actions.addKeyboardLayout)
+    }
+
+    /// How the prompt says Sextant doesn't have the layout: only its button once Live View is on, since the note above
+    /// then says so; in its own words otherwise, as while Live View connects, when the note says that instead.
+    static func promptWording(_ keyboard: MenuBarPanelState.Keyboard) -> KeyboardLayoutPromptView.Wording {
+        keyboard == .live ? .buttonOnly : .plain
     }
 
     /// App Layers' row (spec §8.3): what the keyboard layout's rules do now, and their switch.

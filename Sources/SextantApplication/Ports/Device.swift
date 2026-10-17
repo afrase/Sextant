@@ -94,12 +94,57 @@ public enum LiveEvent: Hashable, Sendable {
     case lighting(Bool)
     /// The firmware refused a command (an Oryx error code, such as `0xFF` for an unknown command).
     case error(UInt8)
+    /// Part of the stored layout record, in reply to ``KeyboardCommand/readLayoutRecord(offset:)``.
+    case layoutRecord(LayoutRecordChunk)
     /// The stream ends after this.
     case ended(DeviceError?)
 }
 
-/// Everything Sextant may send to a keyboard over the live connection (ADR 0038). Nothing else is ever encoded: not
-/// disconnect, brightness steps, the status LEDs or automouse.
+/// Part of a stored layout record (ADR 0061).
+public struct LayoutRecordChunk: Hashable, Sendable {
+    public var offset: Int
+    /// The whole record's size in bytes.
+    public var size: Int
+    /// Up to 24 bytes; empty when `offset` is at or past the end.
+    public var bytes: [UInt8]
+
+    public init(offset: Int, size: Int, bytes: [UInt8]) {
+        self.offset = offset
+        self.size = size
+        self.bytes = bytes
+    }
+}
+
+/// Why reading the keyboard's stored layout failed (ADR 0061).
+public enum LayoutReadError: Error, Equatable, Sendable, LocalizedError {
+    /// No paired Live View session.
+    case notLive
+    /// The firmware stores no layout: Oryx's build, or a Sextant build from before ADR 0061 or with storing off.
+    case noRecord
+    /// A part didn't arrive (500 ms, asked twice).
+    case timedOut
+    /// The keyboard went away or Live View ended mid-read.
+    case disconnected
+    /// The parts don't add up (size changed, wrong offset, over 32 KiB, an unknown-request reply).
+    case malformed
+    /// Another read is running.
+    case busy
+
+    public var errorDescription: String? {
+        switch self {
+        case .notLive: String(localized: "Turn on Live View to read the layout from the keyboard.")
+        case .noRecord: String(localized: "The keyboard’s firmware doesn’t store its layout.")
+        case .timedOut: String(localized: "The keyboard stopped answering while Sextant read its layout.")
+        case .disconnected: String(localized: "The keyboard went away or Live View ended while Sextant read its layout.")
+        case .malformed: String(localized: "The layout the keyboard sent doesn’t add up.")
+        case .busy: String(localized: "Sextant is already reading the keyboard’s layout.")
+        }
+    }
+}
+
+/// Everything Sextant may send to a keyboard over the live connection (ADR 0038): four Oryx commands, and one read of
+/// Sextant's own that changes nothing on the keyboard (ADR 0061). Nothing else is ever encoded: not disconnect,
+/// brightness steps, the status LEDs or automouse.
 public enum KeyboardCommand: Hashable, Sendable {
     /// Moves the keyboard to a layer, like TO(n): momentary layers drop, the default layer stays.
     case moveToLayer(Int)
@@ -109,6 +154,9 @@ public enum KeyboardCommand: Hashable, Sendable {
     case setLED(index: Int, red: UInt8, green: UInt8, blue: UInt8)
     /// Every light; takes the lights.
     case setAllLEDs(red: UInt8, green: UInt8, blue: UInt8)
+    /// Asks a Sextant build for up to 24 bytes of its stored layout record from `offset` (`53 01 hi lo`, ADR 0061). It
+    /// changes nothing on the keyboard; other firmware answers "unknown command" (`FF FF`).
+    case readLayoutRecord(offset: Int)
 
     /// False for values the firmware doesn't bounds-check: it shifts 1 by the layer, which is undefined from 32 on,
     /// and indexes its LED array unchecked. A layer below 32 can still lie past the build's 8- or 16-bit layer state,
@@ -118,21 +166,23 @@ public enum KeyboardCommand: Hashable, Sendable {
         switch self {
         case let .moveToLayer(layer): (0..<32).contains(layer)
         case let .setLED(index, _, _, _): (0..<board.keyCount).contains(index)  // LED index = key index (BoardDefinition)
+        case let .readLayoutRecord(offset): (0..<65_536).contains(offset)  // two bytes on the wire
         case .lighting, .setAllLEDs: true
         }
     }
 }
 
 /// One report the live link wrote or read, for the Developer raw-HID log (ADR 0045). The protocol carries matrix
-/// positions, never characters.
+/// positions, never characters; a stored layout record's parts carry macro text, so the log keeps only their header
+/// (ADR 0061).
 public struct HIDTraceEntry: Hashable, Sendable {
     public enum Direction: Hashable, Sendable { case sent, received }
 
     public var date: Date
     public var direction: Direction
-    /// The report up to its stop byte; a sent one without its zero padding.
+    /// The report up to its stop byte; a sent one without its zero padding; a layout record's part, its 8-byte header.
     public var bytes: [UInt8]
-    /// What a received report means, when it means something.
+    /// What a received report means, when it means something; never a layout record's part.
     public var event: LiveEvent?
 
     public init(date: Date = .now, direction: Direction, bytes: [UInt8], event: LiveEvent? = nil) {

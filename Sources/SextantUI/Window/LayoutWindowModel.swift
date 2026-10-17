@@ -89,6 +89,8 @@ public final class LayoutWindowModel {
     @ObservationIgnored let onKeyboard: OnKeyboard?
     /// The keyboard lighting preview, app-wide (ADR 0051); nil in tests and snapshots without a keyboard.
     @ObservationIgnored let lightingPreview: LightingPreview?
+    /// Reads the layout a Sextant build stores in the keyboard, app-wide (ADR 0061); nil in tests and snapshots without it.
+    @ObservationIgnored let keyboardLayout: KeyboardLayoutPull?
     /// Times Select Key by Pressing It's waits (``selectByPressTail``); tests pass a test clock.
     @ObservationIgnored let clock: any Clock<Duration>
     // MARK: inspector
@@ -180,12 +182,17 @@ public final class LayoutWindowModel {
     public var buildFlash: BuildFlashSession?
     /// The Build & Flash sheet is up. Hide takes it down while the run goes on (spec §7.6).
     var showsBuildSheet = false
+    /// Stop, Cancel or Done took the sheet down: the run stops once the sheet has gone, so it doesn't show the first
+    /// step as it leaves.
+    @ObservationIgnored var stopsBuildWhenSheetCloses = false
     /// The sheet's build log is expanded (⇧⌘B).
     var showsBuildLog = false
     /// Where the Device popover hangs while it is open (spec §8.2).
     var devicePopover: DevicePopoverAnchor?
     /// The layout of the latest import revision, which the keyboard's serial is matched against (ADR 0019).
     var importedLayout: KeyboardLayout?
+    /// ``keyboardLayoutPrompt`` where nothing reads the keyboard's layout (tests, snapshots).
+    var fixedKeyboardLayoutPrompt: KeyboardLayoutPrompt?
     private var followsWithoutLive = false
     private var fixedActivity = ActivityState()
 
@@ -193,7 +200,7 @@ public final class LayoutWindowModel {
         library: Library, live: LiveSession? = nil, makeImport: (@MainActor () -> ImportFromOryx)? = nil,
         makeBuildFlash: (@MainActor (EditSession) -> BuildFlashSession)? = nil, onKeyboard: OnKeyboard? = nil,
         lightingPreview: LightingPreview? = nil, heatmap: HeatmapRecorder? = nil, appLayers: AppLayerSwitcher? = nil,
-        clock: any Clock<Duration> = ContinuousClock()
+        keyboardLayout: KeyboardLayoutPull? = nil, clock: any Clock<Duration> = ContinuousClock()
     ) {
         self.library = library
         self.clock = clock
@@ -204,6 +211,7 @@ public final class LayoutWindowModel {
         self.makeBuildFlash = makeBuildFlash
         self.onKeyboard = onKeyboard
         self.lightingPreview = lightingPreview
+        self.keyboardLayout = keyboardLayout
     }
 
     /// A window over the composition root's use cases.
@@ -211,7 +219,7 @@ public final class LayoutWindowModel {
         self.init(
             library: services.library, live: services.live, makeImport: services.makeImport, makeBuildFlash: services.makeBuildFlash,
             onKeyboard: services.onKeyboard, lightingPreview: services.lightingPreview, heatmap: services.heatmap,
-            appLayers: services.appLayers)
+            appLayers: services.appLayers, keyboardLayout: services.keyboardLayout)
     }
 
     /// Opens `id`, or the most recently modified layout no other window has open when `id` is nil, no longer in the
@@ -416,6 +424,7 @@ public final class LayoutWindowModel {
             // Live errors block it; the sheet lists them, or ⌘B would seem to do nothing (spec §7.5).
             if session.map({ LayoutIssues.check($0.layout).contains { $0.severity == .error } }) == true { showsBuildSheet = true }
         case .buildAndFlash:
+            stopsBuildWhenSheetCloses = false
             buildFlash.buildAndFlash(connectedKeyboard: connectedKeyboard, revision: revision)
             showsBuildSheet = true
         case .stop: buildFlash.stop()

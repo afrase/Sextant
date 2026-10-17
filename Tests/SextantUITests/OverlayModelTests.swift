@@ -287,14 +287,84 @@ struct OverlayModelTests {
         defer { defaults.removePersistentDomain(forName: suiteName) }
         #expect(OverlaySettings(defaults) == OverlaySettings())
         defaults.set(false, forKey: SettingsKey.showsOverlay)
-        defaults.set(990, forKey: SettingsKey.overlayDelay)
+        defaults.set(1990, forKey: SettingsKey.overlayDelay)
         defaults.set("top", forKey: SettingsKey.overlayPosition)
         defaults.set("large", forKey: SettingsKey.overlaySize)
         defaults.set(true, forKey: SettingsKey.tintsOverlay)
         defaults.set("full", forKey: SettingsKey.lockedLayerOverlay)
         let read = OverlaySettings(defaults)
-        #expect(!read.showsOverlay && read.delay == .milliseconds(500) && read.position == .top && read.size == .large)
+        #expect(!read.showsOverlay && read.delay == .milliseconds(1000) && read.position == .top && read.size == .large)
         #expect(read.tints && read.locked == .full)
+    }
+
+    /// Settings › Keyboard's Preview (ADR 0062) shows the keyboard's layer 1 even with Live View off, and is never a
+    /// presentation: a held layer shows in its place while it lasts.
+    @Test func thePreviewShowsWithLiveViewOffAndGivesWayToAHeldLayer() async throws {
+        let model = try model()
+        let layout = try #require(model.keyboard?.layout)
+        model.isLive = false
+        model.isPreviewing = true
+        #expect(model.shown == ShownOverlay(presentation: .full(layer: 1, heldBy: nil), layout: layout, isPreview: true))
+        #expect(model.presentation == nil)
+
+        model.isLive = true
+        model.handle(.layer(0))
+        model.handle(.keyDown(index: 24, layer: 0))
+        model.handle(.layer(1))
+        #expect(model.shown?.isPreview == true, "the preview stays up through the delay")
+        await advance(150)
+        let held = OverlayPresentation.full(layer: 1, heldBy: KeyRef(layer: 0, index: 24))
+        #expect(model.presentation == held)
+        #expect(model.shown == ShownOverlay(presentation: held, layout: layout, isPreview: false))
+        model.handle(.keyUp(index: 24))
+        model.handle(.layer(0))
+        #expect(model.presentation == nil)
+        #expect(model.shown?.isPreview == true, "back to the preview")
+
+        model.isPreviewing = false
+        #expect(model.shown == nil)
+    }
+
+    @Test func thePreviewDrawsASampleWithoutTheKeyboardsLayout() throws {
+        let model = try model()
+        model.keyboard = nil
+        model.isPreviewing = true
+        let shown = try #require(model.shown)
+        #expect(shown == ShownOverlay(presentation: .full(layer: 0, heldBy: nil), layout: OverlayModel.previewSample, isPreview: true))
+        #expect(shown.layout.layers.count == 1)
+        model.isPreviewing = false
+    }
+
+    @Test func thePreviewEndsEightSecondsAfterTheLastChange() async throws {
+        let model = try model()
+        model.isPreviewing = true
+        await advance(7000)
+        var settings = model.settings
+        settings.opacity = 0.5
+        model.settings = settings
+        await advance(7999)
+        #expect(model.isPreviewing, "a change starts its time again")
+        await advance(1)
+        #expect(!model.isPreviewing && model.shown == nil)
+
+        model.isPreviewing = true
+        await advance(8000)
+        #expect(!model.isPreviewing, "with no change, 8 s after it started")
+    }
+
+    @Test func turningTheOverlayOffEndsThePreview() async throws {
+        let model = try model()
+        model.isPreviewing = true
+        var settings = model.settings
+        settings.showsOverlay = false
+        model.settings = settings
+        #expect(!model.isPreviewing && model.shown == nil)
+        model.isPreviewing = true
+        #expect(!model.isPreviewing, "it can't start while the overlay is off")
+        settings.showsOverlay = true
+        model.settings = settings
+        await advance(10_000)
+        #expect(model.shown == nil)
     }
 
     /// The panel never takes focus or clicks (spec §13.3 rule 8). It is made, never shown.
@@ -302,6 +372,7 @@ struct OverlayModelTests {
         let panel = OverlayPanel()
         #expect(!panel.canBecomeKey && !panel.canBecomeMain)
         #expect(panel.ignoresMouseEvents && !panel.hidesOnDeactivate && panel.level == .statusBar)
+        #expect(!panel.canHide, "hiding Sextant leaves it, so unhiding can't bring back a presentation that ended")
         #expect(panel.styleMask.contains(.nonactivatingPanel) && panel.styleMask.contains(.borderless))
         #expect(panel.collectionBehavior.isSuperset(of: [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]))
         #expect(!panel.isVisible)
@@ -310,8 +381,10 @@ struct OverlayModelTests {
     @Test func theHUDSitsCenteredClearOfTheScreensEdges() {
         let visible = CGRect(x: 0, y: 40, width: 1512, height: 900)
         let size = CGSize(width: 696, height: 300)
-        #expect(OverlayPanel.frame(size: size, position: .bottom, on: visible) == CGRect(x: 408, y: 112, width: 696, height: 300))
-        #expect(OverlayPanel.frame(size: size, position: .top, on: visible) == CGRect(x: 408, y: 568, width: 696, height: 300))
+        // The default distance, 72 pt; the other spots are in OverlayPlacementTests.
+        let bottom = OverlayPanel.frame(size: size, position: .bottom, margin: 72, on: visible)
+        #expect(bottom == CGRect(x: 408, y: 112, width: 696, height: 300))
+        #expect(OverlayPanel.frame(size: size, position: .top, margin: 72, on: visible) == CGRect(x: 408, y: 568, width: 696, height: 300))
         #expect(HUDView.width(size: .medium, screenWidth: 1512) == 696)
         #expect(HUDView.width(size: .medium, screenWidth: 2560) == 720)
         #expect(HUDView.width(size: .small, screenWidth: 2560) == 540)

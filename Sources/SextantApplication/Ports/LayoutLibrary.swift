@@ -21,12 +21,16 @@ public struct LibraryEntry: Identifiable, Hashable, Sendable {
     public var title: String
     public var origin: LayoutOrigin
     public var modifiedAt: Date
+    /// This layout's library ids on other Macs (ADR 0061): a Sextant serial or a stored record naming one of them is
+    /// this layout. Never contains `id`.
+    public var aliases: Set<UUID>
 
-    public init(id: UUID, title: String, origin: LayoutOrigin, modifiedAt: Date) {
+    public init(id: UUID, title: String, origin: LayoutOrigin, modifiedAt: Date, aliases: Set<UUID> = []) {
         self.id = id
         self.title = title
         self.origin = origin
         self.modifiedAt = modifiedAt
+        self.aliases = aliases.subtracting([id])
     }
 }
 
@@ -142,4 +146,7 @@ public protocol LayoutLibrary: Sendable {
     func appLayerRules(of id: UUID) async throws(LibraryError) -> AppLayerRules
     /// Saves the layout's App Layers. Its content hash, modification date and revisions stay as they were.
     func saveAppLayerRules(_ rules: AppLayerRules, for id: UUID) async throws(LibraryError)
+    /// Records that `ids` (this layout's library ids on other Macs) are this layout, adding them to its aliases. Its own
+    /// id is ignored. Its content hash, modification date and revisions stay as they are.
+    func link(_ id: UUID, to ids: Set<UUID>) async throws(LibraryError)
 }

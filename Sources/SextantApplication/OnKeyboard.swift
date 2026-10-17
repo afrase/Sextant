@@ -16,8 +16,35 @@ public final class OnKeyboard {
         public let layout: KeyboardLayout
     }
 
+    /// What a resolve looks at.
+    private struct Inputs: Equatable, Sendable {
+        var serial: String?
+        var entries: [LibraryEntry]
+        var flashing: UUID?
+        var refreshes: Int
+
+        @MainActor init(live: LiveSession, library: Library, refreshes: Int) {
+            serial = live.firmwareSerial
+            entries = library.entries
+            flashing = live.flashingLayoutID
+            self.refreshes = refreshes
+        }
+    }
+
     /// Nil without a keyboard, or when it runs a layout or a version the library doesn't hold.
     public private(set) var running: Running?
+    /// The serial ``running`` was resolved for, while the serial, the library, the flash and refreshes are as that resolve
+    /// saw them; nil while they await a resolve, and without a serial. While it isn't the keyboard's serial, a nil
+    /// ``running`` doesn't yet mean the library lacks what the keyboard runs (a flash's release, say, still has to find
+    /// the revision it recorded).
+    public var resolvedSerial: String? {
+        guard let resolvedFor, resolvedFor == Inputs(live: live, library: library, refreshes: refreshes) else { return nil }
+        return resolvedFor.serial
+    }
+    /// What the last resolve looked at.
+    private var resolvedFor: Inputs?
+    /// Bumped by ``refresh()``, which the resolve loop observes.
+    private var refreshes = 0
 
     @ObservationIgnored private let library: Library
     @ObservationIgnored private let store: any LayoutLibrary
@@ -37,14 +64,20 @@ public final class OnKeyboard {
         let (library, live) = (library, live)
         task = Task {
             var flashed: UUID?
+            let changes = Observations({ Inputs(live: live, library: library, refreshes: self.refreshes) })
             // A flash records its revision before it lets go of flash mode, so the release picks the revision up.
-            for await (serial, entries, flashing) in Observations({ (live.firmwareSerial, library.entries, live.flashingLayoutID) }) {
-                flashed = flashing ?? flashed
-                let found = await Self.resolve(serial, entries: entries, flashed: flashed, store: store)
+            for await now in changes {
+                flashed = now.flashing ?? flashed
+                let found = await Self.resolve(now.serial, entries: now.entries, flashed: flashed, store: store)
                 if found != running { running = found }
+                if now != resolvedFor { resolvedFor = now }
             }
         }
     }
+
+    /// Resolves the keyboard's layout again: after a change ``Library/entries`` doesn't show, such as a revision added to
+    /// a layout (the keyboard's layout read back from it, ADR 0061).
+    public func refresh() { refreshes += 1 }
 
     /// Moves the keyboard to `layer` (`04 01 n`, ADR 0038), only over a paired Live View session (ADR 0057) and only to
     /// a layer of the layout it runs: layer 0 alone when Sextant doesn't hold that layout, since a layer past the build's
@@ -64,12 +97,13 @@ public final class OnKeyboard {
         do throws(DeviceError) { try live.send(.moveToLayer(layer)) } catch { throw LayerMoveRefusal(error, layer: layer) }
     }
 
-    /// An Oryx serial names an import revision. A Sextant serial names the working copy when it has the same
-    /// fingerprint (the same content), otherwise the newest flash revision that has it.
+    /// An Oryx serial names an import revision. A Sextant serial of the layout's id or one of its aliases (ADR 0061) names
+    /// the working copy when it has the same fingerprint (the same content), otherwise the newest flash revision that has it.
     /// - Parameter flashed: the entry Sextant flashed last, which wins when two entries claim one Oryx serial (the same
     ///   layout imported twice); otherwise the first of `entries` does.
     static func resolve(_ serial: String?, entries: [LibraryEntry], flashed: UUID? = nil, store: any LayoutLibrary) async -> Running? {
         guard let serial else { return nil }
+        let fingerprint = FirmwareIdentity.sextantFingerprint(of: serial)
         for entry in entries.filter({ $0.id == flashed }) + entries.filter({ $0.id != flashed }) where entry.isOnKeyboard(serial: serial) {
             let stored: StoredLayout
             do {
@@ -78,12 +112,14 @@ public final class OnKeyboard {
                 log.error("Layout unreadable: \(String(describing: error), privacy: .public)")
                 continue
             }
-            if FirmwareIdentity(layout: stored.layout, libraryID: entry.id, importedLayout: nil).serial == serial {
+            // On the keyboard, a Sextant serial names this layout's id or an alias: the fingerprint alone says which content.
+            if let fingerprint, FirmwareIdentity.fingerprint(of: stored.layout) == fingerprint {
                 let revision = stored.revisions.last { $0.source == .flash && $0.contentHash == stored.contentHash }
                 return Running(entry: entry, revision: revision, layout: stored.layout)
             }
             let found = await FirmwareIdentity.revision(
-                runningSerial: serial, of: entry.id, origin: entry.origin, revisions: stored.revisions, library: store)
+                runningSerial: serial, of: entry.id, aliases: entry.aliases, origin: entry.origin, revisions: stored.revisions,
+                library: store)
             if let found { return Running(entry: entry, revision: found.summary, layout: found.layout) }
         }
         return nil

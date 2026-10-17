@@ -16,12 +16,14 @@ struct SettingsView: View {
     var layerShortcuts: LayerShortcuts
     var layerShortcutRecorder: LayerShortcutRecorder?
     var heatmap: HeatmapRecorder
+    /// Keyboard's overlay Preview shows on it.
+    var overlayHUD: OverlayHUD
 
     var body: some View {
         TabView {
             Tab("General", systemImage: "gearshape") { GeneralSettings() }
             Tab("Keyboard", systemImage: "keyboard") {
-                KeyboardSettings(layerShortcuts: layerShortcuts, recorder: layerShortcutRecorder)
+                KeyboardSettings(layerShortcuts: layerShortcuts, recorder: layerShortcutRecorder, overlay: overlayHUD)
             }
             Tab("Build", systemImage: "hammer") { BuildSettings(status: buildToolsStatus, source: firmwareSource) }
             Tab("Privacy", systemImage: "hand.raised") { PrivacySettings(heatmap: heatmap) }
@@ -36,6 +38,8 @@ enum SettingsKey {
     static let keyboardConnectAction = "keyboardConnectAction"
     static let notifiesWhenFlashFinishes = "notifiesWhenFlashFinishes"
     static let prefersOryxBuild = "prefersOryxBuild"
+    /// Settings › Build's "Store the layout in the firmware" (ADR 0061).
+    static let storesLayoutInFirmware = "storesLayoutInFirmware"
     static let recordsHeatmap = "recordsHeatmap"
     static let heatmapRetentionDays = "heatmapRetentionDays"
     /// The Device popover's note about live data, shown at the first connect (spec §12.3).
@@ -48,7 +52,7 @@ public struct GeneralSettings: View {
     @AppStorage(SettingsKey.notifiesWhenFlashFinishes) private var notifies = false
     @AppStorage(SettingsKey.showsInMenuBar) private var showsInMenuBar = true
     @AppStorage(SettingsKey.showsMenuBarLayerColor) private var showsLayerColor = false
-    @AppStorage(SettingsKey.keepsInMenuBar) private var keepsInMenuBar = false
+    @AppStorage(SettingsKey.keepsInMenuBar) private var keepsInMenuBar = true
 
     public init() {}
 
@@ -80,6 +84,7 @@ public struct BuildSettings: View {
     var status: BuildToolsStatus?
     var source: FirmwareSource?
     @AppStorage(SettingsKey.prefersOryxBuild) private var prefersOryxBuild = true
+    @AppStorage(SettingsKey.storesLayoutInFirmware) private var storesLayout = false
     @State private var toolsStatus: ToolchainStatus?
 
     /// `known` shows a status before the first check finishes (snapshots run no tasks).
@@ -87,6 +92,12 @@ public struct BuildSettings: View {
         self.status = status
         self.source = source
         _toolsStatus = State(initialValue: known)
+    }
+
+    /// Whether a Sextant build stores its layout in the firmware, so Sextant on other Macs can read it back (ADR 0061); off
+    /// by default, since any app could read it.
+    public static func storesLayoutInFirmware(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: SettingsKey.storesLayoutInFirmware) as? Bool ?? false
     }
 
     public var body: some View {
@@ -120,9 +131,26 @@ public struct BuildSettings: View {
                 }
             }
             Toggle("Use Oryx's build when the layout is unchanged since import", isOn: $prefersOryxBuild)
+            storesLayoutSection
         }
         .formStyle(.grouped)
         .task { toolsStatus = await status?() }
+    }
+
+    /// Store the layout in the firmware (ADR 0061).
+    private var storesLayoutSection: some View {
+        Section {
+            Toggle("Store the layout in the firmware", isOn: $storesLayout)
+        } footer: {
+            Text(
+                """
+                Lets Sextant on your other Macs read the layout from the keyboard over Live View, so they know what it runs. \
+                Any app on a Mac the keyboard is plugged into could read it too, macros included. Adds about 1–2 KB to the \
+                firmware. Applies from the next Build & Flash.
+                """
+            )
+            .foregroundStyle(.secondary)
+        }
     }
 }
 

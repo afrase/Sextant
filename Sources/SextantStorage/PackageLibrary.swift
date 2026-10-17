@@ -13,6 +13,7 @@ import os
 ///   revisions/NNNN-<hash8>.json   append-only checkpoints
 ///   firmware/<revision>.bin       an Oryx- or Sextant-built image, plus <revision>.bin.md5
 ///   app-layers.json      App Layers: rules kept beside the layout, outside its content hash (ADR 0054)
+///   links.json           the layout's ids on other Macs (ADR 0061), when it has some
 /// <root>/.recovery/<id>.json   the latest edits until their autosave lands
 /// ```
 public actor PackageLibrary: LayoutLibrary {
@@ -52,7 +53,7 @@ public actor PackageLibrary: LayoutLibrary {
         try scan()
         return folders.compactMap { _, folder in
             do {
-                return try readMeta(folder).entry
+                return try entry(readMeta(folder), in: folder)
             } catch {
                 let detail = "\(folder.lastPathComponent): \(String(describing: error))"
                 log.error("Skipping unreadable package \(detail, privacy: .public)")
@@ -67,7 +68,8 @@ public actor PackageLibrary: LayoutLibrary {
         let meta = try readMeta(folder)
         let layout = try decode(KeyboardLayout.self, from: folder.appending(path: "layout.json"))
         // Hash what is on disk: meta.json's copy is stale if its write failed after layout.json's.
-        return StoredLayout(entry: meta.entry, layout: layout, contentHash: try Self.contentHash(layout), revisions: revisions(in: folder))
+        return StoredLayout(
+            entry: entry(meta, in: folder), layout: layout, contentHash: try Self.contentHash(layout), revisions: revisions(in: folder))
     }
 
     public func create(_ layout: KeyboardLayout, origin: LayoutOrigin, firstRevision: RevisionDraft?) throws(LibraryError) -> LibraryEntry {
@@ -83,7 +85,7 @@ public actor PackageLibrary: LayoutLibrary {
         try write(meta, to: folder.appending(path: "meta.json"))
         folders[id] = folder
         if let firstRevision { _ = try appendRevision(firstRevision, in: folder) }
-        return meta.entry
+        return meta.entry(aliases: [])
     }
 
     public func save(_ layout: KeyboardLayout, to id: UUID) throws(LibraryError) {
@@ -158,6 +160,25 @@ public actor PackageLibrary: LayoutLibrary {
     public func saveAppLayerRules(_ rules: AppLayerRules, for id: UUID) throws(LibraryError) {
         let stored = StoredAppLayers(formatVersion: Self.appLayersFormatVersion, isOn: rules.isOn, rules: rules.rules)
         try write(stored, to: folder(for: id).appending(path: Self.appLayersFile))
+    }
+
+    /// Only `links.json` changes, so the content hash, modification date and revisions stay as they are. Older Sextant
+    /// never opens the file, so it keeps the links through its own saves, and the format version doesn't move (ADR 0061).
+    /// Damaged links are replaced; a newer Sextant's are refused.
+    public func link(_ id: UUID, to ids: Set<UUID>) throws(LibraryError) {
+        let folder = try folder(for: id)
+        let file = folder.appending(path: Self.linksFile)
+        var current: Set<UUID> = []
+        do throws(LibraryError) {
+            current = try links(at: file)
+        } catch {
+            // A newer Sextant's links are never overwritten; damaged ones are replaced.
+            if case .newerFormat = error { throw error }
+            log.error("Replacing unreadable links of \(id, privacy: .public): \(String(describing: error), privacy: .public)")
+        }
+        let aliases = current.union(ids).subtracting([id])
+        guard aliases != current else { return }
+        try write(StoredLinks(formatVersion: Self.linksFormatVersion, aliases: StoredLinks.sorted(aliases)), to: file)
     }
 
     public func trash(_ id: UUID) throws(LibraryError) {
@@ -248,8 +269,23 @@ public actor PackageLibrary: LayoutLibrary {
         var modifiedAt: Date
         var contentHash: String
 
-        var entry: LibraryEntry { LibraryEntry(id: id, title: title, origin: origin.model, modifiedAt: modifiedAt) }
+        func entry(aliases: Set<UUID>) -> LibraryEntry {
+            LibraryEntry(id: id, title: title, origin: origin.model, modifiedAt: modifiedAt, aliases: aliases)
+        }
     }
+
+    /// `links.json`: ``LibraryEntry/aliases``. Its own file, not a key in `meta.json`, which an older Sextant rewrites
+    /// without the keys it doesn't know; its own format version, so a newer Sextant's links are refused, not overwritten.
+    struct StoredLinks: Codable {
+        var formatVersion: Int
+        var aliases: [UUID]
+
+        /// Sorted, so the file changes only when the aliases do.
+        static func sorted(_ aliases: Set<UUID>) -> [UUID] { aliases.sorted { $0.uuidString < $1.uuidString } }
+    }
+
+    static let linksFile = "links.json"
+    static let linksFormatVersion = 1
 
     /// `app-layers.json`. Its own format version, so a newer Sextant's rules are refused rather than overwritten.
     struct StoredAppLayers: Codable {
@@ -314,6 +350,24 @@ public actor PackageLibrary: LayoutLibrary {
             revisionID.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") })
         else { throw .io("Invalid revision id \(revisionID)") }
         return folder.appending(path: "firmware/\(revisionID).bin")
+    }
+
+    /// The entry `meta` describes, with its aliases. Links that can't be read leave it unlinked rather than unlisted.
+    private func entry(_ meta: Meta, in folder: URL) -> LibraryEntry {
+        do throws(LibraryError) {
+            return meta.entry(aliases: try links(at: folder.appending(path: Self.linksFile)))
+        } catch {
+            log.error("Ignoring unreadable links of \(meta.id, privacy: .public): \(String(describing: error), privacy: .public)")
+            return meta.entry(aliases: [])
+        }
+    }
+
+    /// The aliases a `links.json` holds; none when there is no file.
+    private func links(at file: URL) throws(LibraryError) -> Set<UUID> {
+        guard FileManager.default.fileExists(atPath: file.path) else { return [] }
+        let stored = try decode(StoredLinks.self, from: file)
+        guard stored.formatVersion <= Self.linksFormatVersion else { throw .newerFormat(stored.formatVersion) }
+        return Set(stored.aliases)
     }
 
     private func readMeta(_ folder: URL) throws(LibraryError) -> Meta {

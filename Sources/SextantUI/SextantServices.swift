@@ -20,6 +20,8 @@ public struct SextantServices {
     public let heatmap: HeatmapRecorder
     /// App Layers, app-wide (ADR 0054).
     public let appLayers: AppLayerSwitcher
+    /// Reads the layout a Sextant build stores in the keyboard when the library doesn't have it, app-wide (ADR 0061).
+    public let keyboardLayout: KeyboardLayoutPull
     /// A fresh Import from Oryx flow (one per sheet).
     public let makeImport: @MainActor () -> ImportFromOryx
     /// The Build & Flash state machine for one open layout.
@@ -28,7 +30,7 @@ public struct SextantServices {
     public init(
         library: Library, live: LiveSession, trace: RawHIDTrace, onKeyboard: OnKeyboard, layerShortcuts: LayerShortcuts,
         lightingPreview: LightingPreview, overlay: OverlayHUD, heatmap: HeatmapRecorder, appLayers: AppLayerSwitcher,
-        makeImport: @escaping @MainActor () -> ImportFromOryx,
+        keyboardLayout: KeyboardLayoutPull, makeImport: @escaping @MainActor () -> ImportFromOryx,
         makeBuildFlash: @escaping @MainActor (EditSession) -> BuildFlashSession
     ) {
         self.library = library
@@ -40,6 +42,7 @@ public struct SextantServices {
         self.overlay = overlay
         self.heatmap = heatmap
         self.appLayers = appLayers
+        self.keyboardLayout = keyboardLayout
         self.makeImport = makeImport
         self.makeBuildFlash = makeBuildFlash
     }

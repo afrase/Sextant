@@ -210,14 +210,92 @@ struct RawHIDLinkTests {
         }
     }
 
-    /// Shifting by layer 32 is undefined in the firmware; LED 52 would write past its LED array.
+    /// Shifting by layer 32 is undefined in the firmware; LED 52 would write past its LED array; a layout read's offset
+    /// is two bytes.
     @Test(arguments: [
         KeyboardCommand.moveToLayer(32), .moveToLayer(255), .moveToLayer(256), .moveToLayer(-1),
         .setLED(index: 52, red: 1, green: 1, blue: 1), .setLED(index: 255, red: 1, green: 1, blue: 1),
-        .setLED(index: -1, red: 1, green: 1, blue: 1),
+        .setLED(index: -1, red: 1, green: 1, blue: 1), .readLayoutRecord(offset: 65_536), .readLayoutRecord(offset: -1),
     ])
     func refusesValuesTheFirmwareDoesntBoundsCheck(_ command: KeyboardCommand) {
         #expect(OryxReport.encode(command, board: .voyager) == nil)
+    }
+
+    // MARK: Layout record (ADR 0061)
+
+    /// A layout record reply: the 8-byte header, the part, then the firmware's zero padding.
+    static func recordReply(status: UInt8, size: Int, offset: Int, part: [UInt8]) -> [UInt8] {
+        let header: [UInt8] = [
+            0x53, 0x01, status, UInt8(size >> 8), UInt8(size & 0xFF), UInt8(offset >> 8), UInt8(offset & 0xFF), UInt8(part.count),
+        ]
+        return header + part + [UInt8](repeating: 0, count: 32 - header.count - part.count)
+    }
+
+    @Test func encodesTheLayoutReadWithItsTwoByteOffset() {
+        let expected: [(Int, [UInt8])] = [
+            (0, [0x53, 0x01, 0x00, 0x00]), (0x1234, [0x53, 0x01, 0x12, 0x34]), (65_535, [0x53, 0x01, 0xFF, 0xFF]),
+        ]
+        for (offset, bytes) in expected {
+            let report = OryxReport.encode(.readLayoutRecord(offset: offset), board: .voyager)
+            #expect(report == bytes + [UInt8](repeating: 0, count: 28))
+            #expect(report.map { OryxReport.trimmed($0, sent: true) } == bytes, "the log keeps the request without its padding")
+        }
+    }
+
+    @Test func parsesALayoutRecordPartByItsHeader() {
+        let board = BoardDefinition.voyager
+        let part = [UInt8](0x41..<0x59)  // 24 bytes
+        let full = Self.recordReply(status: 0, size: 300, offset: 24, part: part)
+        #expect(OryxReport.parse(full, board: board) == .layoutRecord(LayoutRecordChunk(offset: 24, size: 300, bytes: part)))
+        // The last part is short; what follows its count is padding, never record bytes.
+        let last = Self.recordReply(status: 0, size: 300, offset: 288, part: Array(part.prefix(12)))
+        let lastChunk = LayoutRecordChunk(offset: 288, size: 300, bytes: Array(part.prefix(12)))
+        #expect(OryxReport.parse(last, board: board) == .layoutRecord(lastChunk))
+        let end = Self.recordReply(status: 1, size: 300, offset: 300, part: [])
+        let endChunk = LayoutRecordChunk(offset: 300, size: 300, bytes: [])
+        #expect(OryxReport.parse(end, board: board) == .layoutRecord(endChunk), "status 1: at or past the end")
+        var tooLong = Self.recordReply(status: 0, size: 300, offset: 0, part: part)
+        tooLong[7] = 25
+        var cutShort = Self.recordReply(status: 0, size: 300, offset: 0, part: part)
+        cutShort.removeLast(4)
+        var otherRequest = Self.recordReply(status: 0, size: 300, offset: 0, part: part)
+        otherRequest[1] = 0x02
+        let malformed: [[UInt8]] = [
+            Self.recordReply(status: 2, size: 0, offset: 0, part: []),  // the build doesn't know the request
+            Self.recordReply(status: 3, size: 300, offset: 0, part: part), tooLong, cutShort, otherRequest,
+            [0x53, 0x01, 0x00, 0x01, 0x2C, 0x00, 0x00], [0x53],  // shorter than a header
+        ]
+        for bytes in malformed { #expect(OryxReport.parse(bytes, board: board) == nil, "\(bytes.prefix(8))") }
+    }
+
+    /// The record holds macro text, which is never logged (ADR 0042, 0045): the log keeps only the header.
+    @Test func theTraceKeepsOnlyALayoutRecordPartsHeader() {
+        let reply = Self.recordReply(status: 0, size: 30, offset: 0, part: [UInt8](repeating: 0x41, count: 24))
+        #expect(OryxReport.trimmed(reply, sent: false) == [0x53, 0x01, 0x00, 0x00, 0x1E, 0x00, 0x00, 0x18])
+        let entry = OryxReport.traceEntry(received: reply, board: .voyager)
+        #expect(entry.bytes == [0x53, 0x01, 0x00, 0x00, 0x1E, 0x00, 0x00, 0x18] && entry.event == nil && entry.direction == .received)
+        #expect(OryxReport.traceEntry(received: report(0x05, 0x02, 0xFE), board: .voyager).event == .layer(2), "other events stay")
+    }
+
+    /// The read is written once paired, like Oryx's commands, and its reply comes out as an event; the log sees the request
+    /// and the reply's header only.
+    @Test func readsALayoutRecordPartOverThePairedSession() async {
+        let part = [UInt8](repeating: 0x41, count: 24)
+        let reply = Self.recordReply(status: 0, size: 30, offset: 0, part: part)
+        let hid = FakeHID(script: [[report(0xFE, 0x05, 0xFE)], [], [report(0x05, 0x00, 0xFE)], [reply, nil]])
+        let traced = Locked<[HIDTraceEntry]>([])
+        let link = RawHIDLink(clock: ImmediateClock(), trace: { entry in traced.withLock { $0.append(entry) } }) { _, _ in hid }
+        let (commands, feed) = AsyncStream.makeStream(of: KeyboardCommand.self)
+        var events: [LiveEvent] = []
+        for await event in link.session(with: keyboard, board: .voyager, commands: commands) {
+            if case .layer = event { feed.yield(.readLayoutRecord(offset: 0)) }
+            events.append(event)
+        }
+        let chunk = LayoutRecordChunk(offset: 0, size: 30, bytes: part)
+        #expect(events == [.protocolVersion(5), .layer(0), .layoutRecord(chunk), .ended(nil)])
+        #expect(hid.sent.value.last == [0x53, 0x01, 0x00, 0x00] + [UInt8](repeating: 0, count: 28))
+        #expect(traced.value.suffix(2).map(\.bytes) == [[0x53, 0x01, 0x00, 0x00], Array(reply.prefix(8))])
+        #expect(traced.value.last?.event == nil)
     }
 
     /// The pre-buffered command arrives while the session drains, so it is dropped; the out-of-range one is refused.

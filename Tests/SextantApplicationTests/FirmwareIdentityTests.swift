@@ -89,6 +89,79 @@ struct FirmwareIdentityTests {
         #expect(await revision("Q9x2/aa11") == nil, "another layout's serial")
     }
 
+    // MARK: Across Macs (ADR 0061)
+
+    /// The fingerprint is the CRC of the JSON the build stores, so a record read back names the serial it came with.
+    @Test func theFingerprintIsTheStoredJSONsCRC() {
+        var edited = layout
+        edited.updateKey(layer: 0, index: 1) { $0 = Key("KC_Q") }
+        let fingerprint = String(format: "%08X", FirmwareImage.crc(edited.firmwareJSON()))
+        #expect(FirmwareIdentity(layout: edited, libraryID: id, importedLayout: layout).serial == "sx-1F3A9C2B-" + fingerprint)
+        #expect(FirmwareIdentity.sextantFingerprint(of: "sx-1F3A9C2B-" + fingerprint) == fingerprint)
+        #expect(String(format: "%08X", LayoutRecord(layout: edited, libraryIDs: [id]).fingerprint) == fingerprint)
+    }
+
+    @Test func onlySextantSerialsHaveAFingerprint() {
+        #expect(FirmwareIdentity.sextantFingerprint(of: "sx-1F3A9C2B-00C0FFEE") == "00C0FFEE")
+        #expect(FirmwareIdentity.sextantFingerprint(of: "KlgM7/40xJ7M") == nil)
+        #expect(FirmwareIdentity.sextantFingerprint(of: "sx-1F3A9C2B-0000FFEZ") == nil, "not hex")
+        #expect(FirmwareIdentity.sextantFingerprint(of: "sx-1F3A9C2B-00C0FFEE-1") == nil)
+        #expect(FirmwareIdentity.sextantFingerprint(of: "sx-1F3A9C2-000C0FFEE") == nil)
+        #expect(FirmwareIdentity.sextantFingerprint(of: "") == nil)
+    }
+
+    /// The same layout imported on two Macs has two library ids; linked, each Mac's builds are the layout's on the other.
+    @Test func aliasesNameTheLayoutOnOtherMacs() {
+        let otherMac = UUID(uuidString: "0A2B4C6D-0000-4000-8000-000000000000") ?? UUID()
+        let entry = LibraryEntry(id: id, title: "", origin: .local, modifiedAt: .now, aliases: [otherMac, id])
+        #expect(entry.aliases == [otherMac], "never its own id")
+        #expect(entry.isOnKeyboard(serial: "sx-0A2B4C6D-00000001") && entry.isOnKeyboard(serial: "sx-1F3A9C2B-00000001"))
+        #expect(!entry.isOnKeyboard(serial: "sx-00000000-00000001"))
+
+        let ours = FirmwareIdentity(serial: "sx-1F3A9C2B-00000001")
+        func match(_ serial: String, linked: Bool = true) -> FirmwareMatch {
+            FirmwareMatch(serial: serial, expected: ours, libraryID: id, aliases: linked ? [otherMac] : [], oryxLayoutID: nil)
+        }
+        #expect(match("sx-0A2B4C6D-00000001") == .current, "the same content, flashed from the other Mac")
+        #expect(match("sx-0A2B4C6D-00000002") == .thisLayout, "another version, flashed from the other Mac")
+        #expect(match("sx-0A2B4C6D-00000001", linked: false) == .otherLayout, "not linked")
+        #expect(match("sx-00000000-00000001") == .otherLayout, "another layout with the same content is still another layout")
+        #expect(match("sx-1F3A9C2B-00000001") == .current)
+    }
+
+    /// History's ON KEYBOARD badge for a build from the other Mac: the flash revision with the same content.
+    @Test func aBuildFromAnotherMacNamesTheRevisionWithItsContent() async throws {
+        let store = InMemoryLibrary()
+        let entry = try await store.create(layout, origin: .local, firstRevision: RevisionDraft(source: .save, layout: layout))
+        var edited = layout
+        edited.title = "Edited"
+        let flash = try await store.appendRevision(RevisionDraft(source: .flash, layout: edited), to: entry.id)
+        let revisions = try await store.load(entry.id).revisions
+        let otherMac = UUID()
+        let serial = FirmwareIdentity(layout: edited, libraryID: otherMac, importedLayout: nil).serial
+        func revision(aliases: Set<UUID>) async -> String? {
+            await FirmwareIdentity.revision(
+                runningSerial: serial, of: entry.id, aliases: aliases, origin: entry.origin, revisions: revisions, library: store)?
+                .summary.id
+        }
+        #expect(await revision(aliases: [otherMac]) == flash.id)
+        #expect(await revision(aliases: []) == nil, "unlinked, it isn't this layout's")
+    }
+
+    @Test func theRecordNamesTheLayoutsOwnIdFirstThenItsAliases() {
+        let (a, b) = (UUID(), UUID())
+        let plain = FirmwareIdentity(layout: layout, libraryID: id, importedLayout: layout)
+        let stored = plain.storingRecord(of: layout, libraryID: id, aliases: [b, a, id])
+        #expect(stored.serial == plain.serial)
+        #expect(stored.record?.libraryIDs == [id] + [a, b].sorted { $0.uuidString < $1.uuidString })
+        #expect(stored.record?.json == layout.firmwareJSON())
+
+        var huge = layout
+        // Random text barely compresses: far over the 32 KiB a record may take.
+        huge.title = (0..<3000).map { _ in UUID().uuidString }.joined()
+        #expect(plain.storingRecord(of: huge, libraryID: id, aliases: []).record == nil, "too large: built without one")
+    }
+
     @Test func theBaselineIsTheLatestImportRevision() async throws {
         let store = InMemoryLibrary()
         let entry = try await store.create(layout, origin: .local, firstRevision: RevisionDraft(source: .import, layout: layout))

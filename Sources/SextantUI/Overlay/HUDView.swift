@@ -13,14 +13,20 @@ public struct HUDView: View {
     var pressed: Set<Int>
     var width: CGFloat
     var tints: Bool
+    /// Settings › Keyboard's preview (ADR 0062): the header says "Preview" in place of held or locked.
+    var isPreview: Bool
 
-    public init(layout: KeyboardLayout, layer: Int, holder: KeyRef?, pressed: Set<Int>, width: CGFloat, tints: Bool = false) {
+    public init(
+        layout: KeyboardLayout, layer: Int, holder: KeyRef?, pressed: Set<Int>, width: CGFloat, tints: Bool = false,
+        isPreview: Bool = false
+    ) {
         self.layout = layout
         self.layer = layer
         self.holder = holder
         self.pressed = pressed
         self.width = width
         self.tints = tints
+        self.isPreview = isPreview
     }
 
     static let cornerRadius: CGFloat = 24
@@ -76,7 +82,7 @@ public struct HUDView: View {
             Text(state).font(.callout).foregroundStyle(.secondary).lineLimit(1).layoutPriority(1)
             Spacer(minLength: 12)
             LayerPips(layer: layer)
-            if holder != nil {
+            if holder != nil, !isPreview {
                 ViewThatFits(in: .horizontal) {
                     Text("release to hide").font(.caption).foregroundStyle(.secondary).lineLimit(1).fixedSize()
                     Color.clear.frame(width: 0)
@@ -86,8 +92,9 @@ public struct HUDView: View {
         .frame(height: Self.headerHeight)
     }
 
-    /// "held with ⏎", "held" for a key whose cap names the layer, or "locked".
+    /// "held with ⏎", "held" for a key whose cap names the layer, "locked", or "Preview".
     private var state: String {
+        if isPreview { return String(localized: "Preview") }
         guard let holder else { return String(localized: "locked") }
         guard let name = Self.keyName(layout: layout, key: holder) else { return String(localized: "held") }
         return String(localized: "held with \(name)")

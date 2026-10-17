@@ -65,7 +65,8 @@ extension Scenes {
         scenes += SnapshotScene.pair("settings-general", size: CGSize(width: 520, height: 380), chrome: .window(title: "General")) {
             GeneralSettings()
         }
-        scenes += SnapshotScene.pair("settings-build", size: CGSize(width: 520, height: 370), chrome: .window(title: "Build")) {
+        // Tall enough for Store the layout in the firmware and its footer (ADR 0061).
+        scenes += SnapshotScene.pair("settings-build", size: CGSize(width: 520, height: 480), chrome: .window(title: "Build")) {
             BuildSettings(
                 status: status, source: ("93b2b9ec3368f86c5eb5a2e3f934049f8daef885", "13890cd7856175de20798689d15ba6a46bf0c5c7"),
                 known: setup)

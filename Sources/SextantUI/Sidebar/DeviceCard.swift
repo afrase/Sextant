@@ -3,9 +3,11 @@ import SextantDomain
 import SwiftUI
 
 /// The sidebar's pinned device card (spec §3.6): the keyboard at a glance. A click opens the Device popover; a layout
-/// that isn't in the library gets [Import].
+/// that isn't in the library gets [Get Layout], which reads it from the keyboard (ADR 0061), and [Import] for an Oryx one.
 public struct DeviceCard: View {
     var model: LayoutWindowModel
+    @Environment(\.openWindow) private var openWindow
+    @Environment(WindowRouter.self) private var windows: WindowRouter?
 
     public init(model: LayoutWindowModel) { self.model = model }
 
@@ -20,7 +22,11 @@ public struct DeviceCard: View {
                 .buttonStyle(.plain)
                 .accessibilityHint(Text("Shows the Device popover"))
                 .devicePopover(model, from: .card, arrowEdge: .trailing)
-                if let serial = model.unknownOryxSerial {
+                if let prompt = model.keyboardLayoutPrompt {
+                    KeyboardLayoutPromptView(
+                        prompt: prompt, isLive: model.isLive, getLayout: { model.getKeyboardLayout() },
+                        addToLibrary: { openWindow.keyboardLayout(windows) }, importFromOryx: importFromOryx)
+                } else if let serial = model.unknownOryxSerial {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text("Runs \(serial) · not in your library").font(.caption).foregroundStyle(.secondary)
                         Spacer(minLength: 0)
@@ -33,6 +39,12 @@ public struct DeviceCard: View {
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.05)))
             .padding(10)
         }
+    }
+
+    /// The Oryx [Import] beside the prompt, for an Oryx serial: Oryx's own build stores no layout to read.
+    private var importFromOryx: (@MainActor () -> Void)? {
+        guard let serial = model.connectedOryxSerial else { return nil }
+        return { model.openImport(serial) }
     }
 
     private func summary(_ live: LiveSession) -> some View {

@@ -178,6 +178,8 @@ My MacOS Layout-1F3A9C.sextant/
     <revisionId>.bin.md5
   app-layers.json           App Layers: {"formatVersion":1,"isOn":false,"rules":[{"bundleID":…,"name":…,"layerID":…,
                              "leaving":"returnToMain|stay","isEnabled":true}]}; missing means no rules (ADR 0054)
+  links.json                {"formatVersion":1,"aliases":["<UUID>",…]}: the layout's ids on other Macs; missing means
+                             none (ADR 0061)
 .recovery/<UUID>.json       the latest edits until their autosave lands (ADR 0032)
 ```
 
@@ -187,6 +189,7 @@ My MacOS Layout-1F3A9C.sextant/
 - The Heatmap's counts are never in a package: they live beside the library (§4, ADR 0053), so exports, Duplicate, revisions and the content hash never carry typing data.
 - Macros on keys and combos stay inline, in Oryx's shape. `macroDrafts` is written only when non-empty, so a layout without drafts hashes exactly as before.
 - `app-layers.json` is a sidecar outside `layout.json`: saving it leaves the content hash, `modifiedAt`, the revisions, "Edited" and the `sx-` fingerprint as they were. It has its own `formatVersion` (a newer one is refused, and Sextant then never overwrites it). Duplicate copies it; Trash takes it with the package (ADR 0054).
+- `links.json` is a sidecar too, for the same reason and one more: an older Sextant rewrites `meta.json` from the keys it knows, but never opens `links.json`, so links survive its saves. A newer `formatVersion` is refused and never overwritten; a damaged file leaves the layout listed, unlinked, until the next link replaces it. Duplicate doesn't copy it: a copy is another layout (ADR 0061).
 
 ## 7. Errors
 

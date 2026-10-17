@@ -73,4 +73,5 @@ actor MemoryLibrary: LayoutLibrary {
     var appLayers: [UUID: AppLayerRules] = [:]
     func appLayerRules(of id: UUID) -> AppLayerRules { appLayers[id] ?? AppLayerRules() }
     func saveAppLayerRules(_ rules: AppLayerRules, for id: UUID) { appLayers[id] = rules }
+    func link(_ id: UUID, to ids: Set<UUID>) { items[id]?.0.aliases.formUnion(ids.subtracting([id])) }
 }

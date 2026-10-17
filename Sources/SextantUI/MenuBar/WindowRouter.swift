@@ -77,6 +77,14 @@ public final class WindowRouter {
         activate()
     }
 
+    /// Another window from a place that may have none of its own: the Layout on the Keyboard window, or the layout it
+    /// added (ADR 0061). The Dock icon comes back first and Sextant comes forward, so it works from the menu bar alone.
+    public func showWindow(_ open: @MainActor () -> Void) {
+        presence.prepareToOpen()
+        open()
+        activate()
+    }
+
     /// The window showing `layout` asks whether to start a Build & Flash; true once, for a request still fresh.
     func takeBuild(for layout: UUID) -> Bool {
         guard let pendingBuild else { return false }

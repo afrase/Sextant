@@ -24,12 +24,18 @@ While it's on:
 
 - **Select by pressing:** Key ▸ Select Key by Pressing It (⇧⌘L) selects the next key you press on the keyboard.
 - **Move the keyboard to a layer:** Keyboard ▸ Move Keyboard to Layer, the Device popover or the menu bar. Settings › Keyboard can turn on global shortcuts that do the same from any app, ⌃⌥0–⌃⌥9 unless you record others. They're off by default, and while they're on other apps don't get those keys.
-- **Layer overlay:** holding a layer key brings up that layer's map over whichever app you're in; letting go hides it. A layer you lock (a toggle, say) shows a small reminder instead until the keyboard is back on its base layer. The overlay never takes focus or clicks, hides while you type in a password field, and can be turned off or adjusted in Settings › Keyboard, the Keyboard menu or the Device popover.
+- **Layer overlay:** holding a layer key brings up that layer's map over whichever app you're in; letting go hides it. A layer you lock (a toggle, say) shows a small reminder instead until the keyboard is back on its base layer. The overlay never takes focus or clicks, hides while you type in a password field, and can be turned off in Settings › Keyboard, the Keyboard menu or the Device popover. Settings › Keyboard also sets where it appears (any corner, edge or the centre, how far from the edge, and on which display), its opacity, size and delay, and its Preview button shows it with those settings while you adjust them.
 - **Lighting preview:** the Lighting inspector's Preview on Keyboard switch (or Keyboard ▸ Preview Lighting on Keyboard) shows the layer you're painting on the keyboard's LEDs, at a brightness you choose. Nothing is saved to the keyboard: the preview ends when you leave Lighting, open another layout, close the window, turn the live view off, put the Mac to sleep or quit, and the keyboard's own lighting comes back. If Sextant crashes during a preview, the colors stay until you unplug the keyboard.
+
+## Two Macs, one keyboard
+
+Turn on Settings › Build › Store the layout in the firmware, and Sextant stores the layout inside the firmware it builds (about 1–2 KB of the 120 KB the firmware may take). When you plug the keyboard into another Mac and turn the live view on, Sextant there reads the layout back from the keyboard if it doesn't have that version. The first time, it asks where it goes: a new layout, or a new revision of one you have. After that, each Mac picks up the other's flashes by itself, as a revision marked "From the keyboard", so the overlay, the menu bar, the heatmap and App Layers keep working. If you've changed the layout on that Mac since its last flash, nothing is replaced: the layout window offers "Keyboard runs revision N" and Use It.
+
+It's off by default: while it's on, any app on a Mac the keyboard is plugged into could read the layout, macros included. The keyboard has to be flashed once with it on before another Mac can read it. If a layout is too large to store, or the firmware would be too large with it, the build leaves it out and its log says so.
 
 ## Menu bar
 
-Sextant's menu bar item shows the keyboard's layer and, while a flash writes, its progress. Its panel can turn the live view on, move the keyboard to a layer, and start Build & Flash. Settings › General can hide it, or keep Sextant in the menu bar, out of the Dock, when its windows are closed.
+Sextant's menu bar item shows the keyboard's layer and, while a flash writes, its progress. Its panel can turn the live view on, move the keyboard to a layer, and start Build & Flash. When you close Sextant's last window it leaves the Dock and stays in the menu bar; open it again from the menu bar item, Spotlight or Finder. Settings › General can keep the Dock icon instead, or hide the menu bar item.
 
 ## App Layers
 

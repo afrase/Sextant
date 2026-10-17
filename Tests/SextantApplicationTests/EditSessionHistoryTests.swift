@@ -76,6 +76,38 @@ struct EditSessionHistoryTests {
         #expect(undo.undoActionName == "Set Tap", "the edit is still the last step")
     }
 
+    /// Use It (ADR 0061): the revision read back from the keyboard exactly, its title included, so its fingerprint names it
+    /// on the keyboard again; only the working copy's macro drafts stay, which no firmware holds. One undo step, after a
+    /// checkpoint of unsaved edits.
+    @Test func restoringTheKeyboardsRevisionTakesItsTitleAndKeepsTheDrafts() async throws {
+        let (session, undo) = try await open()
+        var keyboard = session.layout
+        keyboard.title = "From the other Mac"
+        keyboard.updateKey(layer: 0, index: 0) { $0 = Key("KC_F13") }
+        let pulled = try await session.recordRevision(RevisionDraft(source: .flash, message: "From the keyboard", layout: keyboard))
+        step(undo) { session.newMacro() }
+        step(undo) { session.setCode("KC_Q", layer: 0, index: 1) }
+        let edited = session.layout
+        #expect(!edited.macroDrafts.isEmpty)
+
+        undo.beginUndoGrouping()
+        try await session.restoreKeyboardRevision(pulled)
+        undo.endUndoGrouping()
+
+        var expected = keyboard
+        expected.macroDrafts = edited.macroDrafts
+        #expect(session.layout == expected, "the keyboard's title, the working copy's drafts")
+        #expect(session.layout.firmwareJSON() == keyboard.firmwareJSON(), "what the keyboard's fingerprint is the CRC of")
+        let n = pulled.number
+        #expect(session.revisions.suffix(2).map(\.message) == ["Before restoring revision \(n)", "Restored revision \(n)"])
+        let checkpoint = session.revisions[session.revisions.count - 2]
+        #expect(try await session.revisionLayout(checkpoint.id) == edited, "unsaved edits are checkpointed first")
+        #expect(!session.isEditedSinceRevision)
+        #expect(undo.undoActionName == "Use the Keyboard's Layout")
+        undo.undo()
+        #expect(session.layout == edited, "one step undoes it")
+    }
+
     @Test func restoringWhatTheDocumentIsAddsNothing() async throws {
         let (session, _) = try await open()
         try await session.restoreRevision(try #require(session.revisions.first))

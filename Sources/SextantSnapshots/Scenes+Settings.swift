@@ -12,7 +12,8 @@ extension Scenes {
     static func settings(_ f: Fixtures) async -> [SnapshotScene] {
         var scenes: [SnapshotScene] = []
         let layerShortcuts = await layerShortcuts(on: false).0
-        scenes += SnapshotScene.pair("settings-keyboard", size: CGSize(width: 520, height: 720), chrome: .window(title: "Keyboard")) {
+        // The overlay's placement, opacity, delay and Preview (ADR 0062); Preview is off without the app's HUD.
+        scenes += SnapshotScene.pair("settings-keyboard", size: CGSize(width: 520, height: 960), chrome: .window(title: "Keyboard")) {
             KeyboardSettings(layerShortcuts: layerShortcuts)
         }
         let trace = RawHIDTrace { false }

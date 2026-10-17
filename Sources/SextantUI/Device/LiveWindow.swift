@@ -8,15 +8,17 @@ enum DevicePopoverAnchor { case capsule, card }
 
 extension LayoutWindowModel {
     /// The capsule for a window with a live session (spec §3.5): a running or finished Build & Flash, then live
-    /// issues, then the keyboard against the open layout.
+    /// issues, then a revision read from the keyboard to use (ADR 0061), then the keyboard against the open layout.
     var liveActivity: ActivityState {
         guard let live else { return ActivityState() }
         let match = firmwareMatch
         let errors = session.map { LayoutIssues.check($0.layout).filter { $0.severity == .error } } ?? []
+        let pulled = keyboardRevision.map { ActivityState.Status.keyboardRunsRevision(number: $0.number) }
         let status =
             buildFlash.flatMap { ActivityState.Status($0.phase, usedBytes: $0.usedBytes, capacity: $0.capacity) }
             ?? flashingElsewhere.map { .flashingElsewhere(layout: $0) }
             ?? (errors.isEmpty ? nil : .issues(count: errors.count, firstKey: errors.first?.key?.index))
+            ?? pulled
             ?? ActivityState.Status(
                 live.connection, match: match, serial: live.firmwareSerial, edits: editsSinceImport,
                 revisionDate: session?.revisions.last?.createdAt, layoutOpen: session != nil,
@@ -48,15 +50,82 @@ extension LayoutWindowModel {
     /// How the keyboard's firmware relates to the open layout; nil without a serial or an open layout.
     var firmwareMatch: FirmwareMatch? {
         guard let live, let session else { return nil }
-        return live.match(session.layout, libraryID: session.id, importedLayout: importedLayout)
+        let aliases = library.entries.first { $0.id == session.id }?.aliases ?? []
+        return live.match(session.layout, libraryID: session.id, aliases: aliases, importedLayout: importedLayout)
     }
 
     /// The keyboard's Oryx serial when no library layout came from that Oryx layout: the card offers [Import] (spec §3.6).
     var unknownOryxSerial: String? {
-        guard let serial = Self.oryxSerial(live?.firmwareSerial), let slash = serial.firstIndex(of: "/") else { return nil }
+        let serial = Self.oryxSerial(live?.firmwareSerial)
+        return Self.oryxLayoutInLibrary(serial, entries: library.entries) ? nil : serial
+    }
+
+    /// Whether `serial` is an Oryx serial (`layout/revision`) of an Oryx layout a library layout came from.
+    static func oryxLayoutInLibrary(_ serial: String?, entries: [LibraryEntry]) -> Bool {
+        guard let serial = oryxSerial(serial), let slash = serial.firstIndex(of: "/") else { return false }
         let layoutID = serial[..<slash]
-        let known = library.entries.contains { if case let .oryx(id, _) = $0.origin { id == layoutID } else { false } }
-        return known ? nil : serial
+        return entries.contains { if case let .oryx(id, _) = $0.origin { id == layoutID } else { false } }
+    }
+
+    /// What the card and the Device popover offer while the keyboard runs a layout Sextant doesn't have (ADR 0061): from
+    /// the app's keyboard layout pull, or a fixed value where there is none (tests, snapshots).
+    public var keyboardLayoutPrompt: KeyboardLayoutPrompt? {
+        get {
+            guard let keyboardLayout else { return fixedKeyboardLayoutPrompt }
+            guard let live, let onKeyboard else { return nil }
+            switch live.connection {
+            case .connected, .liveOff:
+                return KeyboardLayoutPrompt(keyboardLayout.status, live: live, onKeyboard: onKeyboard, entries: library.entries)
+            case .noKeyboard, .bootloader, .heldByAnotherApp: return nil
+            }
+        }
+        set { fixedKeyboardLayoutPrompt = newValue }
+    }
+
+    /// Get Layout and Try Again: reads the layout the keyboard's firmware stores, turning on Live View first. The click is
+    /// the consent (ADR 0057).
+    func getKeyboardLayout() {
+        guard let keyboardLayout else { return }
+        Task { await keyboardLayout.read(startingLiveView: true) }
+    }
+
+    /// The revision [Use It] restores (ADR 0061): Sextant read the keyboard's layout and added it to this layout's History
+    /// without making it the working copy, the keyboard still runs it, and the working copy differs from it. Not while
+    /// another app holds the keyboard: the capsule says Keymapp has it instead.
+    var keyboardRevision: RevisionSummary? {
+        switch live?.connection {
+        case .connected, .liveOff: break
+        default: return nil
+        }
+        guard let session, case let .added(added)? = keyboardLayout?.status, added.entryID == session.id, !added.adopted,
+            let revision = added.revision, let running = onKeyboard?.running, running.entry.id == session.id,
+            running.revision?.id == revision.id
+        else { return nil }
+        return Self.differs(session.layout, from: running.layout) ? revision : nil
+    }
+
+    /// Whether Use It would change the working copy. Its title counts, since Use It takes the keyboard's, which is part of
+    /// the fingerprint; its macro drafts don't, since they never reach the keyboard (ADR 0042) and Use It keeps them.
+    static func differs(_ working: KeyboardLayout, from keyboard: KeyboardLayout) -> Bool {
+        var keyboard = keyboard
+        keyboard.macroDrafts = working.macroDrafts
+        return keyboard != working
+    }
+
+    /// [Use It]: makes the revision the keyboard runs the working copy exactly, title included, as one undoable edit that
+    /// records unsaved edits in History first. Then the offer ends, so later edits don't bring it back. A failure shows on
+    /// the History page, and the offer stays.
+    func useKeyboardRevision() {
+        guard let history, !history.isRestoring, let revision = keyboardRevision else { return }
+        let (pull, offer) = (keyboardLayout, keyboardLayout?.status)
+        Task {
+            await history.restore(revision, asOnKeyboard: true)
+            if history.error != nil {
+                self.destination = .history
+            } else if let pull, pull.status == offer {
+                pull.dismiss()
+            }
+        }
     }
 
     /// The keyboard in normal mode, for Build & Flash's "replace the layout on this keyboard?" check.
