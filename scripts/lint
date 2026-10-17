@@ -1,0 +1,10 @@
+#!/bin/sh
+# Formatting, lint and layer import rules (ADR 0018): the first half of scripts/check, and CI's lint job.
+set -eu
+cd "$(dirname "$0")/.."
+
+echo "› swift format (formatting, force-unwrap and force-try bans)"
+swift format lint --strict --recursive Sources Tests Package.swift
+
+echo "› SwiftLint (code quality and layer import rules)"
+swift package plugin --allow-writing-to-package-directory swiftlint --strict --quiet

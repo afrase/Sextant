@@ -1,0 +1,15 @@
+#!/bin/sh
+# A warnings-as-errors build and the tests: the second half of scripts/check, and CI's build-and-test job.
+set -eu
+cd "$(dirname "$0")/.."
+
+# Other people's Oryx samples are kept outside the repo; the tests that need them skip without this.
+if [ -z "${SEXTANT_REFERENCE:-}" ] && [ -d "$HOME/Developer/Sextant-reference" ]; then
+    export SEXTANT_REFERENCE="$HOME/Developer/Sextant-reference"
+fi
+
+echo "› build (warnings are errors)"
+swift build --build-tests -Xswiftc -warnings-as-errors
+
+echo "› tests"
+swift test --skip-build

@@ -17,7 +17,7 @@ Read this first after a context reset. Plan: `docs/v1-plan.md`. Design: `docs/ar
   - **Still to try on the Voyager:** with Store the layout in the firmware on, Build & Flash, then plug the keyboard into the other Mac with Live View on and check it reads the layout and asks where it goes.
 
 ## How to run
-- Gate: `scripts/check`.
+- Gate: `scripts/check` (= `scripts/lint`, then `scripts/test`, then Periphery locally). CI runs lint and build-and-test as separate jobs.
 - Snapshots: `swift run SextantSnapshots <dir> [--only window-light,board-brdsys-dark]`.
 - App: `scripts/bundle`, then `open .build/Sextant.app --args --import docs/research/oryx-examples/my-layout-KlgM7-full.json` (the full export: the slim `-40xJ7M` one has no `navigators`, so a build from it leaves out the trackpad) (the import writes to `~/Library/Application Support/Sextant/Library/`).
 
