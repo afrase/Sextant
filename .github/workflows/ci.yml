@@ -54,7 +54,9 @@ jobs:
       - name: Restore the last build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
+          # .build/arm64-apple-macosx is SwiftPM's own build system (Xcode 26.6's); .build/out is Swift Build's.
           path: |
+            .build/arm64-apple-macosx
             .build/out
             .build/plugins
           key: spm-build-xcode26.6-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
