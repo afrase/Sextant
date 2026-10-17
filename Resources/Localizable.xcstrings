@@ -3360,6 +3360,9 @@
     "Sextant Help" : {
 
     },
+    "Sextant asks GitHub for its newest release only when you check. Nothing is downloaded or installed by itself." : {
+
+    },
     "Sextant asks GitHub for its newest release. Nothing is downloaded or installed." : {
 
     },

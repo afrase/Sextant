@@ -7,7 +7,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 identity="${SEXTANT_SIGN_IDENTITY:--}"
-tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
+tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-*' 2>/dev/null || true)
 version="${SEXTANT_VERSION:-${tag#v}}"
 version="${version:-0.1.0}"
 build=$(git rev-list --count HEAD 2>/dev/null || echo 1)

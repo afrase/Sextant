@@ -14,8 +14,13 @@ struct UpdateSettingsTests {
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         #expect(UpdateSettings.saved(in: defaults) == UpdateChecker.Saved(checksAutomatically: true))
+        let page = try #require(URL(string: "https://github.com/afrase/Sextant/releases/tag/v0.3.1"))
+        let found = AppRelease(
+            version: AppVersion(major: 0, minor: 3, patch: 1), page: page, download: page,
+            published: Date(timeIntervalSince1970: 1_800_000_000))
         let saved = UpdateChecker.Saved(
-            checksAutomatically: false, lastChecked: Date(timeIntervalSince1970: 1_800_000_000), dismissed: AppVersion("0.3.0"))
+            checksAutomatically: false, lastChecked: Date(timeIntervalSince1970: 1_800_000_000), dismissed: AppVersion("0.3.0"),
+            found: found)
         UpdateSettings.save(saved, in: defaults)
         #expect(UpdateSettings.saved(in: defaults) == saved)
         UpdateSettings.save(.init(), in: defaults)
@@ -23,9 +28,11 @@ struct UpdateSettingsTests {
     }
 
     @Test func homebrewIsTheCaskroomOnEitherPrefix() {
-        #expect(UpdateSettings.installedWithHomebrew { $0 == "/opt/homebrew/Caskroom/sextant" })
-        #expect(UpdateSettings.installedWithHomebrew { $0 == "/usr/local/Caskroom/sextant" })
-        #expect(!UpdateSettings.installedWithHomebrew { _ in false })
+        let app = "/Applications/Sextant.app"
+        #expect(UpdateSettings.installedWithHomebrew(bundlePath: app) { $0 == "/opt/homebrew/Caskroom/sextant" })
+        #expect(UpdateSettings.installedWithHomebrew(bundlePath: app) { $0 == "/usr/local/Caskroom/sextant" })
+        #expect(!UpdateSettings.installedWithHomebrew(bundlePath: app) { _ in false })
+        #expect(!UpdateSettings.installedWithHomebrew(bundlePath: "/Users/me/Sextant/.build/Sextant.app") { _ in true }, "a local build")
     }
 
     @Test func theMenuBarShowsANoticeUntilItIsSkipped() async throws {

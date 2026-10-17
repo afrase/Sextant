@@ -39,16 +39,7 @@ struct SextantCommands: Commands {
         CommandMenu("Layer") { LayerMenu(window: window) }
         CommandMenu("Key") { KeyMenu(window: window) }
         CommandMenu("Keyboard") { KeyboardMenu(window: window, onKeyboard: onKeyboard, live: live, layerShortcuts: layerShortcuts) }
-        CommandGroup(after: .appInfo) {
-            // Names the version found, so a notice shows here too when the menu bar item is hidden.
-            Button(
-                updates.notice.map { String(localized: "Update to Sextant \($0.version.description)…") }
-                    ?? String(localized: "Check for Updates…")
-            ) {
-                windows.showWindow { openWindow(id: SoftwareUpdateWindow.sceneID) }
-                if updates.notice == nil { Task { await updates.check() } }
-            }
-        }
+        CommandGroup(after: .appInfo) { UpdateMenuItem(updates: updates, windows: windows) }
         CommandGroup(before: .windowList) {
             Button("Main Window") { windows.showMainWindow { openWindow.layout($0) } }.keyboardShortcut("0")
         }

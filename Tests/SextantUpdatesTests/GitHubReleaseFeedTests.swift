@@ -40,7 +40,7 @@ struct GitHubReleaseFeedTests {
         let release = try await feed.latest()
         #expect(release.version == AppVersion(major: 0, minor: 3, patch: 0))
         #expect(release.page.absoluteString == "https://github.com/afrase/Sextant/releases/tag/v0.3.0")
-        #expect(release.download.absoluteString == "https://github.com/afrase/Sextant/releases/download/v0.3.0/Sextant-0.3.0.zip")
+        #expect(release.download?.absoluteString == "https://github.com/afrase/Sextant/releases/download/v0.3.0/Sextant-0.3.0.zip")
         #expect(release.published == Date(timeIntervalSince1970: 1_792_497_600))
 
         let sent = try #require(ReleaseStub.sent.first)
@@ -50,12 +50,21 @@ struct GitHubReleaseFeedTests {
         #expect(sent.value(forHTTPHeaderField: "Authorization") == nil)
         #expect(sent.value(forHTTPHeaderField: "Cookie") == nil)
         #expect(sent.value(forHTTPHeaderField: "User-Agent") == "Sextant/0.2.0 (macOS; update check)")
+        #expect(sent.value(forHTTPHeaderField: "Accept-Language") == "en", "not the Mac's languages")
     }
 
-    @Test func withoutTheZipTheDownloadIsTheReleasePage() async throws {
+    /// The release workflow attaches the zip after publishing: until then there's nothing to download.
+    @Test func withoutTheZipThereIsNoDownloadYet() async throws {
         ReleaseStub.reply(.http(200, Self.reply(assets: "[]")))
-        let release = try await feed.latest()
-        #expect(release.download == release.page)
+        #expect(try await feed.latest().download == nil)
+    }
+
+    /// The adapter's own session keeps nothing between checks and gives up on a stalled one.
+    @Test func itsOwnSessionKeepsNoCookiesOrCacheAndTimesOut() {
+        let configuration = GitHubReleaseFeed.ephemeral().configuration
+        #expect(configuration.httpCookieStorage == nil || configuration.httpShouldSetCookies == false)
+        #expect(configuration.httpCookieAcceptPolicy == .never && configuration.urlCache == nil)
+        #expect(configuration.timeoutIntervalForResource == 30)
     }
 
     @Test func linksOffGitHubAreRefused() async throws {
@@ -63,7 +72,7 @@ struct GitHubReleaseFeedTests {
             [{"name": "Sextant-0.3.0.zip", "browser_download_url": "https://example.com/Sextant-0.3.0.zip"}]
             """
         ReleaseStub.reply(.http(200, Self.reply(assets: elsewhere)))
-        #expect(try await feed.latest().download.host() == "github.com", "the release page instead")
+        #expect(try await feed.latest().download == nil, "a zip off GitHub isn't offered")
 
         var page = String(bytes: Self.reply(), encoding: .utf8) ?? ""
         page = page.replacingOccurrences(of: "\"html_url\": \"https://github.com", with: "\"html_url\": \"http://github.com")

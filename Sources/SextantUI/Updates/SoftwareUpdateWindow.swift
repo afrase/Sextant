@@ -43,7 +43,11 @@ public struct SoftwareUpdateWindow: View {
                 Toggle("Check for updates automatically", isOn: $updates.checksAutomatically)
                 Spacer()
                 if let last = updates.saved.lastChecked {
-                    Text("Last checked \(last.formatted(.relative(presentation: .named)))").font(.caption).foregroundStyle(.secondary)
+                    // Redrawn each minute, so "3 hours ago" stays true while the window is open.
+                    TimelineView(.periodic(from: .now, by: 60)) { context in
+                        Text("Last checked \(last.formatted(.relative(presentation: .named, unitsStyle: .wide)))")
+                            .font(.caption).foregroundStyle(.secondary).id(context.date)
+                    }
                 }
             }
         }
@@ -80,8 +84,8 @@ public struct SoftwareUpdateWindow: View {
         case .checking: Button("Check Now") {}.disabled(true)
         case let .available(release), let .unknownVersion(release):
             Button("Release Notes") { openURL(release.page) }
-            if !installedWithHomebrew, case .available = updates.status {
-                Button("Download") { openURL(release.download) }.keyboardShortcut(.defaultAction)
+            if !installedWithHomebrew, case .available = updates.status, let download = release.download {
+                Button("Download") { openURL(download) }.keyboardShortcut(.defaultAction)
             }
         case .idle, .upToDate, .failed:
             Button(updates.status == .idle ? "Check Now" : "Check Again") { Task { await updates.check() } }
@@ -108,37 +112,56 @@ public struct SoftwareUpdateWindow: View {
     }
 }
 
-extension UpdateChecker {
-    /// The release found newer than this build, dismissed or not.
-    var available: AppRelease? {
-        if case let .available(release) = status { release } else { nil }
-    }
-}
-
 /// Settings › General's update choices (ADR 0063), kept in UserDefaults; the composition root reads them at launch and
 /// ``UpdateChecker`` saves through ``save(_:in:)``.
 public enum UpdateSettings {
     static let checksAutomatically = "checksForUpdates"
     static let lastChecked = "updatesLastChecked"
     static let dismissed = "updatesDismissedVersion"
+    /// The newer release the last answer named, as JSON.
+    static let found = "updatesFoundRelease"
 
     /// On by default (the user's choice, 2026-10-17).
     public static func saved(in defaults: UserDefaults = .standard) -> UpdateChecker.Saved {
         UpdateChecker.Saved(
             checksAutomatically: defaults.object(forKey: checksAutomatically) as? Bool ?? true,
             lastChecked: defaults.object(forKey: lastChecked) as? Date,
-            dismissed: defaults.string(forKey: dismissed).flatMap(AppVersion.init))
+            dismissed: defaults.string(forKey: dismissed).flatMap(AppVersion.init),
+            found: defaults.data(forKey: found).flatMap { try? JSONDecoder().decode(AppRelease.self, from: $0) })
     }
 
     public static func save(_ saved: UpdateChecker.Saved, in defaults: UserDefaults = .standard) {
         defaults.set(saved.checksAutomatically, forKey: checksAutomatically)
         defaults.set(saved.lastChecked, forKey: lastChecked)
         defaults.set(saved.dismissed?.description, forKey: dismissed)
+        defaults.set(saved.found.flatMap { try? JSONEncoder().encode($0) }, forKey: found)
     }
 
-    /// Whether Homebrew's cask installed Sextant: its Caskroom folder exists, on Apple silicon or Intel.
-    public static func installedWithHomebrew(fileExists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }) -> Bool {
-        ["/opt/homebrew/Caskroom/sextant", "/usr/local/Caskroom/sextant"].contains(where: fileExists)
+    /// Whether Homebrew's cask installed this copy: the cask's Caskroom folder exists (Apple silicon or Intel) and Sextant
+    /// runs from /Applications, where the cask puts it, not from a build folder.
+    public static func installedWithHomebrew(
+        bundlePath: String = Bundle.main.bundlePath, fileExists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }
+    ) -> Bool {
+        bundlePath == "/Applications/Sextant.app"
+            && ["/opt/homebrew/Caskroom/sextant", "/usr/local/Caskroom/sextant"].contains(where: fileExists)
+    }
+}
+
+/// Sextant ▸ Check for Updates…, named for the version once one is found. A view, so the menu follows the checker:
+/// a `Commands` body reading it directly may not.
+struct UpdateMenuItem: View {
+    var updates: UpdateChecker
+    var windows: WindowRouter
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button(
+            updates.notice.map { String(localized: "Update to Sextant \($0.version.description)…") }
+                ?? String(localized: "Check for Updates…")
+        ) {
+            windows.showWindow { openWindow(id: SoftwareUpdateWindow.sceneID) }
+            if updates.notice == nil { Task { await updates.check() } }
+        }
     }
 }
 
@@ -162,12 +185,17 @@ struct UpdatesSection: View {
         } header: {
             Text("Updates")
         } footer: {
-            Text(
-                """
-                Once a day, Sextant asks GitHub for its newest release and tells you when there is one. GitHub sees your IP \
-                address and Sextant’s version. Nothing is downloaded or installed by itself.
-                """
-            )
+            Group {
+                if updates.checksAutomatically {
+                    Text(
+                        """
+                        Once a day, Sextant asks GitHub for its newest release and tells you when there is one. GitHub sees \
+                        your IP address and Sextant’s version. Nothing is downloaded or installed by itself.
+                        """)
+                } else {
+                    Text("Sextant asks GitHub for its newest release only when you check. Nothing is downloaded or installed by itself.")
+                }
+            }
             .foregroundStyle(.secondary)
         }
     }

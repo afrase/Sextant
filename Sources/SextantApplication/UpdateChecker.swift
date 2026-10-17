@@ -9,6 +9,7 @@ import os
 @MainActor
 @Observable
 public final class UpdateChecker {
+    /// What the last check said, for the Software Update window and Settings.
     public enum Status: Equatable, Sendable {
         /// Nothing checked since launch.
         case idle
@@ -21,17 +22,20 @@ public final class UpdateChecker {
     }
 
     /// What is kept between launches.
-    public struct Saved: Equatable, Sendable {
+    public struct Saved: Codable, Equatable, Sendable {
         public var checksAutomatically: Bool
         /// The last check that got an answer.
         public var lastChecked: Date?
-        /// A version the user dismissed: not offered by itself again, though a check still finds it.
+        /// A version the user skipped: not offered by itself again, though a check still finds it.
         public var dismissed: AppVersion?
+        /// The newer release the last answer named, so a relaunch still offers it before the next check.
+        public var found: AppRelease?
 
-        public init(checksAutomatically: Bool = true, lastChecked: Date? = nil, dismissed: AppVersion? = nil) {
+        public init(checksAutomatically: Bool = true, lastChecked: Date? = nil, dismissed: AppVersion? = nil, found: AppRelease? = nil) {
             self.checksAutomatically = checksAutomatically
             self.lastChecked = lastChecked
             self.dismissed = dismissed
+            self.found = found
         }
     }
 
@@ -46,6 +50,8 @@ public final class UpdateChecker {
     public private(set) var saved: Saved
     /// The running build's version; nil when it has none.
     public let current: AppVersion?
+    /// Times the daily loop has looked whether a check is due; tests wait on it.
+    @ObservationIgnored private(set) var looks = 0
 
     public var checksAutomatically: Bool {
         get { saved.checksAutomatically }
@@ -53,14 +59,20 @@ public final class UpdateChecker {
             guard newValue != saved.checksAutomatically else { return }
             saved.checksAutomatically = newValue
             persist(saved)
-            if newValue, isDue { Task { await self.check(automatic: true) } }
+            if newValue, isDue { Task { await self.check() } }
         }
     }
 
-    /// A newer release to tell the user about without being asked: found, and not dismissed.
+    /// The newer release found, whatever later checks that failed said.
+    public var available: AppRelease? {
+        guard let found = saved.found, let current, current < found.version else { return nil }
+        return found
+    }
+
+    /// A newer release to tell the user about without being asked: found, and not skipped.
     public var notice: AppRelease? {
-        guard case let .available(release) = status, release.version != saved.dismissed else { return nil }
-        return release
+        guard let available, available.version != saved.dismissed else { return nil }
+        return available
     }
 
     @ObservationIgnored private let feed: any ReleaseFeed
@@ -68,11 +80,13 @@ public final class UpdateChecker {
     @ObservationIgnored private let now: @Sendable () -> Date
     @ObservationIgnored private let persist: @MainActor (Saved) -> Void
     @ObservationIgnored private var task: Task<Void, Never>?
+    /// The check under way; a check asked for meanwhile waits for it instead of starting another.
+    @ObservationIgnored private var running: Task<Void, Never>?
     private static let log = Logger(subsystem: "com.sextant.app", category: "application")
 
     /// - Parameters:
     ///   - current: the running build's version (its bundle's short version); nil when it has none.
-    ///   - saved: the choices and dates kept between launches; `persist` saves a change.
+    ///   - saved: the choices and the last answer, kept between launches; `persist` saves a change.
     ///   - clock: paces the daily loop; `now` dates the checks.
     public init(
         current: AppVersion?, feed: any ReleaseFeed, saved: Saved, clock: any Clock<Duration> = ContinuousClock(),
@@ -84,6 +98,7 @@ public final class UpdateChecker {
         self.clock = clock
         self.now = now
         self.persist = persist
+        if let available { status = .available(available) }
     }
 
     /// Checks by itself from now on: a little after launch, then whenever a day has passed since the last answer,
@@ -94,9 +109,9 @@ public final class UpdateChecker {
         task = Task { [weak self] in
             guard (try? await clock.sleep(for: Self.launchDelay)) != nil else { return }
             while !Task.isCancelled {
-                guard let self else { return }
-                if isDue { await check(automatic: true) }
-                guard (try? await clock.sleep(for: Self.poll)) != nil else { return }
+                // Held only while it looks, so the loop never keeps the checker alive.
+                await self?.checkIfDue()
+                guard self != nil, (try? await clock.sleep(for: Self.poll)) != nil else { return }
             }
         }
     }
@@ -106,8 +121,15 @@ public final class UpdateChecker {
         task = nil
     }
 
-    /// Checks now (Check for Updates…), whether or not checking automatically is on.
-    public func check() async { await check(automatic: false) }
+    /// Checks now (Check for Updates…), whether or not checking automatically is on. A check already under way answers
+    /// this one too.
+    public func check() async {
+        if let running { return await running.value }
+        let task = Task { await self.ask() }
+        running = task
+        await task.value
+        running = nil
+    }
 
     /// Stops offering the release found until a newer one is out.
     public func dismiss() {
@@ -124,21 +146,30 @@ public final class UpdateChecker {
         return elapsed < 0 || elapsed >= TimeInterval(Self.interval.components.seconds)
     }
 
-    private func check(automatic: Bool) async {
-        if case .checking = status { return }
-        let before = status
+    private func checkIfDue() async {
+        looks += 1
+        if isDue { await check() }
+    }
+
+    private func ask() async {
         status = .checking
         do throws(UpdateCheckError) {
             let latest = try await feed.latest()
             saved.lastChecked = now()
+            guard let current else {
+                persist(saved)
+                return status = .unknownVersion(latest)
+            }
+            // A release whose zip isn't attached yet (its build still running) isn't out.
+            let isNewer = current < latest.version && latest.download != nil
+            saved.found = isNewer ? latest : nil
             persist(saved)
-            guard let current else { return status = .unknownVersion(latest) }
-            status = current < latest.version ? .available(latest) : .upToDate
+            status = isNewer ? .available(latest) : .upToDate
             Self.log.info("Latest release \(latest.version, privacy: .public), running \(current, privacy: .public)")
         } catch {
+            // What was found stays found: the notice doesn't vanish while offline.
             Self.log.error("Checking for updates failed: \(String(describing: error), privacy: .public)")
-            // A check by itself that fails keeps what was known; one the user asked for says why.
-            if automatic, before != .idle { status = before } else { status = .failed(error) }
+            status = .failed(error)
         }
     }
 }

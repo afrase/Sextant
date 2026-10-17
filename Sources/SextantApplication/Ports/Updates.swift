@@ -2,15 +2,15 @@ import Foundation
 import SextantDomain
 
 /// A published Sextant release (ADR 0063).
-public struct AppRelease: Equatable, Sendable {
+public struct AppRelease: Codable, Equatable, Sendable {
     public var version: AppVersion
     /// Its release page, with the notes.
     public var page: URL
-    /// The zip to download; the release page when it has none.
-    public var download: URL
+    /// The zip to download; nil until the release workflow has attached it, and then the release isn't offered yet.
+    public var download: URL?
     public var published: Date?
 
-    public init(version: AppVersion, page: URL, download: URL, published: Date? = nil) {
+    public init(version: AppVersion, page: URL, download: URL?, published: Date? = nil) {
         self.version = version
         self.page = page
         self.download = download

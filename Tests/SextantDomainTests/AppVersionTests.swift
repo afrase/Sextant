@@ -12,7 +12,10 @@ struct AppVersionTests {
         #expect(AppVersion("v1.0.0-beta.1")?.description == "1.0.0-beta.1")
     }
 
-    @Test(arguments: ["", "v", "1.", "1..2", "1.2.3.4", "a.b.c", "1.2.x", "1.2.3-", "1.2.3-beta..1", "１.２.３", "nightly", "-1.0.0"])
+    @Test(arguments: [
+        "", "v", "1.", "1..2", "1.2.3.4", "a.b.c", "1.2.x", "1.2.3-", "1.2.3-beta..1", "１.２.３", "nightly", "-1.0.0", "1.0.0-01",
+        "1.0.0-bêta",
+    ])
     func refusesWhatIsntAVersion(_ text: String) {
         #expect(AppVersion(text) == nil)
     }

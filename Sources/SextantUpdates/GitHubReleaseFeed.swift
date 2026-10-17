@@ -5,7 +5,8 @@ import os
 
 /// Sextant's releases on GitHub (ADR 0063): one unauthenticated GET of the repository's latest release, which GitHub
 /// never answers with a draft or a pre-release. It sends no credentials and no identifiers beyond the User-Agent GitHub
-/// requires, which names Sextant's version.
+/// requires, which names Sextant's version: its own ephemeral session keeps no cookies or cache, and the language header
+/// is a fixed `en` rather than the Mac's.
 public struct GitHubReleaseFeed: ReleaseFeed {
     static let endpoint = "https://api.github.com/repos/afrase/Sextant/releases/latest"
     private static let offline: [URLError.Code] = [
@@ -17,9 +18,11 @@ public struct GitHubReleaseFeed: ReleaseFeed {
     private let userAgent: String
     private let log = Logger(subsystem: "com.sextant.app", category: "updates")
 
-    /// - Parameter version: the running build's version, for the User-Agent; nil says "unknown".
-    public init(session: URLSession = .shared, version: String?) {
-        self.session = session
+    /// - Parameters:
+    ///   - session: tests pass one over a stub; by default an ephemeral one that gives up after 30 s.
+    ///   - version: the running build's version, for the User-Agent; nil says "unknown".
+    public init(session: URLSession? = nil, version: String?) {
+        self.session = session ?? Self.ephemeral()
         userAgent = "Sextant/\(version ?? "unknown") (macOS; update check)"
     }
 
@@ -29,6 +32,7 @@ public struct GitHubReleaseFeed: ReleaseFeed {
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("en", forHTTPHeaderField: "Accept-Language")
         let data: Data
         let response: URLResponse
         do {
@@ -48,6 +52,17 @@ public struct GitHubReleaseFeed: ReleaseFeed {
         return try Self.release(from: data)
     }
 
+    /// No cookies, no cache, nothing written to disk; a stalled request ends after 30 s.
+    static func ephemeral() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.httpShouldSetCookies = false
+        configuration.urlCache = nil
+        configuration.timeoutIntervalForRequest = 20
+        configuration.timeoutIntervalForResource = 30
+        return URLSession(configuration: configuration)
+    }
+
     static func release(from data: Data) throws(UpdateCheckError) -> AppRelease {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -63,12 +78,11 @@ public struct GitHubReleaseFeed: ReleaseFeed {
         guard let version = AppVersion(release.tagName) else {
             throw .unreadable(String(localized: "The latest release’s tag, \(release.tagName), isn’t a version."))
         }
-        // Only github.com links leave the app: the release page, and the zip the release workflow attaches.
+        // Only github.com links leave the app: the release page, and the zip the release workflow attaches. Until it has
+        // (the build runs after publishing), there is no download, and the release isn't offered yet.
         guard isGitHub(release.htmlURL) else { throw .unreadable(String(localized: "The release page isn’t on GitHub.")) }
         let zip = release.assets?.first { $0.name == "Sextant-\(version).zip" && isGitHub($0.browserDownloadURL) }
-        return AppRelease(
-            version: version, page: release.htmlURL, download: zip?.browserDownloadURL ?? release.htmlURL,
-            published: release.publishedAt)
+        return AppRelease(version: version, page: release.htmlURL, download: zip?.browserDownloadURL, published: release.publishedAt)
     }
 
     private static func isGitHub(_ url: URL) -> Bool { url.scheme == "https" && url.host() == "github.com" }
