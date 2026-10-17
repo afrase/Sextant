@@ -29,9 +29,9 @@ While it's on:
 
 ## Two Macs, one keyboard
 
-Sextant stores the layout inside the firmware it builds (about 2 KB). When you plug the keyboard into another Mac and turn the live view on, Sextant there reads the layout back from the keyboard if it doesn't have that version. The first time, it asks where it goes: a new layout, or a new revision of one you have. After that, each Mac picks up the other's flashes by itself, as a revision marked "From the keyboard", so the overlay, the menu bar, the heatmap and App Layers keep working. If you've changed the layout on that Mac since its last flash, nothing is replaced: the layout window offers "Keyboard runs revision N" and Use It.
+Turn on Settings › Build › Store the layout in the firmware, and Sextant stores the layout inside the firmware it builds (about 1–2 KB of the 120 KB the firmware may take). When you plug the keyboard into another Mac and turn the live view on, Sextant there reads the layout back from the keyboard if it doesn't have that version. The first time, it asks where it goes: a new layout, or a new revision of one you have. After that, each Mac picks up the other's flashes by itself, as a revision marked "From the keyboard", so the overlay, the menu bar, the heatmap and App Layers keep working. If you've changed the layout on that Mac since its last flash, nothing is replaced: the layout window offers "Keyboard runs revision N" and Use It.
 
-The keyboard has to be flashed once from Sextant with a version that does this. Settings › Build › Store the layout in the firmware turns it off; while it's on, any app on a Mac the keyboard is plugged into could read the layout, macros included.
+It's off by default: while it's on, any app on a Mac the keyboard is plugged into could read the layout, macros included. The keyboard has to be flashed once with it on before another Mac can read it. If a layout is too large to store, or the firmware would be too large with it, the build leaves it out and its log says so.
 
 ## Menu bar
 

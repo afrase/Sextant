@@ -95,5 +95,6 @@ The user asked that Sextant leave the Dock when its windows are closed, since it
 the menu bar when its windows are closed" is now on by default. `AppPresence` also leaves the Dock when the last of any of
 Sextant's windows closes, not only the last layout window: Settings opened from the menu bar used to bring the Dock icon
 back and leave it there after closing. It counts titled, non-panel windows that are visible or minimized (so not the
-overlay, the menu bar panel, popovers or open and save panels), checked when any window closes and once more after it has
-gone, since a closing window can still count as visible while it goes.
+overlay, the menu bar panel, popovers or open and save panels), checked when any such window closes and once more after it has
+gone, since a closing window can still count as visible while it goes. A panel's close (the menu bar panel's, as Open
+Sextant or Settings… opens a window that may not count yet) is ignored.

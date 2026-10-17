@@ -7,14 +7,30 @@ extension EditSession {
     /// Unlike an import it is kept exactly, title and layer ids included, since its fingerprint is what names it on the
     /// keyboard; only the macro drafts stay, which no firmware holds (ADR 0047). Edits since the last revision are
     /// checkpointed first; a failure leaves the document as it was. Undo leaves the appended revisions, as after an import.
-    /// - Parameter source: `.flash` for a Sextant serial, `.import` for an Oryx one (so the import rule finds it).
+    /// - Parameters:
+    ///   - source: `.flash` for a Sextant serial, `.import` for an Oryx one (so the import rule finds it).
+    ///   - expected: the working copy it may replace. When the document has moved from it (edits typed while the keyboard
+    ///     was read), the keyboard's layout is only recorded, and `adopted` is false.
     @discardableResult
-    func useKeyboardLayout(_ keyboard: KeyboardLayout, source: RevisionSource) async throws(LibraryError) -> RevisionSummary {
+    func useKeyboardLayout(
+        _ keyboard: KeyboardLayout, source: RevisionSource, replacing expected: KeyboardLayout? = nil
+    ) async throws(LibraryError) -> (revision: RevisionSummary, adopted: Bool) {
+        func moved() -> Bool { expected.map { layout != $0 } ?? false }
+        func withDrafts() -> KeyboardLayout {
+            var next = keyboard
+            next.macroDrafts = layout.macroDrafts
+            return next
+        }
+        if moved() {
+            let draft = RevisionDraft(source: source, message: String(localized: "From the keyboard"), layout: withDrafts())
+            return (try await recordRevision(draft), false)
+        }
         try await checkpoint(String(localized: "Before using the keyboard's layout"))
-        var next = keyboard
-        next.macroDrafts = layout.macroDrafts
+        let next = withDrafts()
         let draft = RevisionDraft(source: source, message: String(localized: "From the keyboard"), layout: next)
         let summary = try await recordRevision(draft)
+        // Checked again after the waits, with nothing awaited before the edit.
+        if moved() { return (summary, false) }
         edit(
             String(localized: "Use the Keyboard's Layout"),
             select: { selection, doc in
@@ -26,7 +42,7 @@ extension EditSession {
         await flush()
         // A temporary session (no window open) is discarded after this; its save error must not be.
         if let saveError { throw saveError }
-        return summary
+        return (summary, true)
     }
 
     /// [Use It]: makes a revision read back from the keyboard the document again, as one undoable edit. Unlike History's

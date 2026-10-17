@@ -13,7 +13,7 @@ struct BuildFlashSessionTests {
     func make(
         generator: FakeGenerator = FakeGenerator(), toolchain: FakeToolchain = FakeToolchain(), flasher: FakeFlasher = FakeFlasher(),
         issues: @escaping @Sendable (KeyboardLayout) -> [LayoutIssue] = { _ in [] },
-        storesLayoutRecord: @escaping @MainActor () -> Bool = { true }
+        storesLayoutRecord: @escaping @MainActor () -> Bool = { false }
     ) async throws -> (BuildFlashSession, EditSession) {
         let library = Library(store: store)
         let entry = try await library.importOryxJSON(Fixtures.userLayoutData)

@@ -125,7 +125,7 @@ public enum LayoutReadError: Error, Equatable, Sendable, LocalizedError {
     case timedOut
     /// The keyboard went away or Live View ended mid-read.
     case disconnected
-    /// The parts don't add up (size changed, wrong offset, over 64 KiB, an unknown-request reply).
+    /// The parts don't add up (size changed, wrong offset, over 32 KiB, an unknown-request reply).
     case malformed
     /// Another read is running.
     case busy

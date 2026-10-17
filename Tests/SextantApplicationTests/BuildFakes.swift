@@ -3,7 +3,8 @@ import SextantApplication
 import SextantDomain
 import Synchronization
 
-/// Records the layout and identity it was asked to build; `keymap.c` line 31 maps to Brd+Sys key 45's tap.
+/// Records the layout and identity it was asked to build; `keymap.c` line 31 maps to Brd+Sys key 45's tap. An identity
+/// with a layout record also gets `sextant_layout.c`, as the real generator's does.
 final class FakeGenerator: FirmwareGenerator {
     static let mappedLine = 31
     static let mappedKey = KeyRef(layer: 2, index: 45, slot: .tap)
@@ -21,27 +22,32 @@ final class FakeGenerator: FirmwareGenerator {
         identities.withLock { $0.append(identity) }
         layouts.withLock { $0.append(layout) }
         if let error { throw error }
-        return GeneratedSource(files: ["keymap.c": "…"], sourceMap: [Self.mappedLine: Self.mappedKey])
+        var files = ["keymap.c": "…"]
+        if identity.record != nil { files["sextant_layout.c"] = "…" }
+        return GeneratedSource(files: files, sourceMap: [Self.mappedLine: Self.mappedKey])
     }
 }
 
 /// Plays scripted build events; with `hangs`, never finishes (until the consumer stops). Setting up plays `setup`
-/// (holding open unless it ends) and is ready afterwards when it ends with `.finished`.
+/// (holding open unless it ends) and is ready afterwards when it ends with `.finished`. With `tooLargeWithRecord`, a
+/// source that stores the layout (`sextant_layout.c`) fails as too large.
 final class FakeToolchain: Toolchain {
     private let readiness: Mutex<ToolchainStatus>
     private let script: [BuildEvent]
     private let hangs: Bool
+    private let tooLargeWithRecord: Bool
     private let setup: [SetupEvent]
     private let open = Mutex<[AsyncStream<BuildEvent>.Continuation]>([])
     private let settingUp = Mutex<[AsyncStream<SetupEvent>.Continuation]>([])
 
     init(
         readiness: ToolchainStatus = .ready("test"), script: [BuildEvent] = FakeToolchain.success(), hangs: Bool = false,
-        setup: [SetupEvent] = [.finished]
+        tooLargeWithRecord: Bool = false, setup: [SetupEvent] = [.finished]
     ) {
         self.readiness = Mutex(readiness)
         self.script = script
         self.hangs = hangs
+        self.tooLargeWithRecord = tooLargeWithRecord
         self.setup = setup
     }
 
@@ -62,6 +68,11 @@ final class FakeToolchain: Toolchain {
     func build(_ source: GeneratedSource, board: BoardDefinition) -> AsyncStream<BuildEvent> {
         let (stream, continuation) = AsyncStream.makeStream(of: BuildEvent.self)
         open.withLock { $0.append(continuation) }  // kept alive so a hanging build stays open
+        if tooLargeWithRecord, source.files["sextant_layout.c"] != nil {
+            [.output("Linking"), .failed(.tooLarge(overBy: 512))].forEach { continuation.yield($0) }
+            continuation.finish()
+            return stream
+        }
         script.forEach { continuation.yield($0) }
         if !hangs { continuation.finish() }
         return stream

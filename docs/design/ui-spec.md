@@ -172,7 +172,7 @@ The main complaints about Instrument can all be fixed without changing its struc
 
 **Library (decided, §14 item 7)**
 - Sextant manages a library at `~/Library/Application Support/Sextant/Library/`.
-- Each layout is a `.sextant` package: a folder of plain, git-friendly JSON. It holds `layout.json`, `revisions/<n>-<id>.json` (append-only), `firmware/<rev>.bin` and `.md5`, `meta.json` (UUID, content hash, origin), and `app-layers.json` once it has App Layers rules (kept out of the content hash, ADR 0054).
+- Each layout is a `.sextant` package: a folder of plain, git-friendly JSON. It holds `layout.json`, `revisions/<n>-<id>.json` (append-only), `firmware/<rev>.bin` and `.md5`, `meta.json` (UUID, content hash, origin), `app-layers.json` once it has App Layers rules (kept out of the content hash, ADR 0054), and `links.json` once it is linked to layouts on other Macs (ADR 0061).
 - The document model is a lossless superset of Oryx's revision JSON (research §2.3). It has stable UUIDs and content hashes from day one, so sync can be added later (Future).
 
 **Sidebar "Layouts" section**
@@ -1120,10 +1120,10 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
 - **Coexistence.** If Keymapp holds the device: "In use by Keymapp. Quit Keymapp or disconnect it there; Sextant connects automatically."
 - **HID protocol details** follow research §5. Release RGB takeover on quit and sleep. Never seize the device.
 
-**The keyboard's own layout (v1, ADR 0061).** Sextant builds store their layout, and Sextant reads it back over Live View when the library doesn't have the version the keyboard runs (a flash from another Mac).
-- A layout linked to the record (its ids on other Macs are kept as aliases) gets it as a revision, "From the keyboard", without asking. It also becomes the working copy when the working copy is still what was last flashed or imported; otherwise the activity capsule says "Keyboard runs revision N" [Use It], which restores it.
-- Otherwise the device card, the Device popover and the menu bar offer [Add to Library…], which opens **Layout on the Keyboard**: its title and where it came from ("Flashed from Sextant on another Mac", or the Oryx revision), its layers, a small map of layer 0, and "Add to" (New Layout, or a library layout, the same Oryx layout or name suggested; "Becomes its working copy. Your current version stays in History.") with [Cancel] [Add]. Adding links the two layouts.
-- Settings › Build › "Store the layout in the firmware" (on) turns it off for later builds.
+**The keyboard's own layout (v1, ADR 0061).** With Settings › Build › "Store the layout in the firmware" on (off by default), Sextant builds store their layout, and Sextant reads it back over Live View when the library doesn't have the version the keyboard runs (a flash from another Mac).
+- The one layout linked to the record (its ids on other Macs are kept as aliases) gets it as a revision, "From the keyboard", without asking. It also becomes the working copy when the working copy is still what was last flashed or imported; otherwise the activity capsule says "Keyboard runs revision N" [Use It], which restores it.
+- Otherwise the device card, the Device popover and the menu bar offer [Add to Library…], which opens **Layout on the Keyboard**: its title and where it came from ("Flashed from Sextant on another Mac", or the Oryx revision), its layers, a small map of layer 0, and "Add to" (New Layout, or a library layout, the same Oryx layout or name suggested; "Becomes its working copy. Your current version stays in History.") with [Cancel] [Add]. Adding links the two layouts. It is offered too when the record names several library layouts.
+- A layout too large to store, or a firmware too large with it, builds without it; the build log says so.
 
 ### 8.3 Menu bar extra (v1)
 
@@ -1289,7 +1289,7 @@ Never called "Smart Layers". The rules belong to the layout, in `app-layers.json
 |---|---|---|
 | General | Open at login. Show in menu bar (on), show the layer's color in the menu bar (off), keep Sextant in the menu bar when its windows are closed (on since 2026-10-16, ADR 0049). When the keyboard connects: Open Sextant / Do nothing. Show grid behind the keyboard. Notify when a flash finishes (opt-in) | MVP (menu bar options v1) |
 | Keyboard | Show key presses on the board (on). Follow the keyboard by default (on). Overlay: on/off (on), position (nine spots, bottom center), distance from edge (0–200 pt, 72), display (with the pointer or main), size (S/M/L, M), opacity (30–100%, 100%), delay (0–1000 ms in 10 ms steps, 150), tint with layer color (off), toggled-layer behavior (full overlay, reminder or nothing; reminder), [Preview] (ADR 0062). Layer shortcuts: global shortcuts to move the keyboard to a layer (⌃⌥0–9, off by default; a recorder per layer while on) | v1 |
-| Build | Build tools: Apple container (recommended) or managed toolchain, with status, disk use, [Update] and [Remove]. Firmware source pinned to ZSA fork commit `93b2b9e` and modules `13890cd`. "Use Oryx's build when the layout is unchanged since import". Store the layout in the firmware (on, ADR 0061) | MVP |
+| Build | Build tools: Apple container (recommended) or managed toolchain, with status, disk use, [Update] and [Remove]. Firmware source pinned to ZSA fork commit `93b2b9e` and modules `13890cd`. "Use Oryx's build when the layout is unchanged since import". Store the layout in the firmware (off, ADR 0061) | MVP |
 | Privacy | Heatmap recording (off by default), retention (30 days, 90 days, 1 year; a shorter one asks first), [Clear Heatmap Data…] for every layout, which asks first, and a save or read that failed. Explanatory text about raw HID and secure input, and that the heatmap counts only while Live View is on | MVP (Clear v1) |
 | Advanced | Developer raw-HID log (positions only): the last 500 reports, in memory only, off at each launch, cleared when turned off, paused during secure input, shown in the Device popover (ADR 0045). Reset all warnings | v1 |
 | Sync | Server URL, device pairing, end-to-end encryption (hidden until built) | Future |

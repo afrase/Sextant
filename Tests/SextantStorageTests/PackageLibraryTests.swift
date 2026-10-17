@@ -338,16 +338,17 @@ struct PackageLibraryTests {
 
     // MARK: Aliases (ADR 0061)
 
-    /// The `aliases` key of a package's `meta.json`; nil when the file leaves it out.
+    /// The aliases a package's `links.json` holds; nil when there is no file.
     func storedAliases(of id: UUID) async throws -> [String]? {
-        let file = try #require(await library.location(of: id)).appending(path: "meta.json")
-        let meta = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any]
-        return meta?["aliases"] as? [String]
+        let file = try #require(await library.location(of: id)).appending(path: "links.json")
+        guard FileManager.default.fileExists(atPath: file.path) else { return nil }
+        let links = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any]
+        return links?["aliases"] as? [String]
     }
 
-    /// A layout's ids on other Macs live in `meta.json`, sorted, and only once there are some. Linking moves nothing the
-    /// layout's identity rests on: its content hash, modification date, revisions and working copy stay.
-    @Test func aliasesLiveInTheMetadata() async throws {
+    /// A layout's ids on other Macs live in `links.json`, sorted, and only once there are some. Linking moves nothing the
+    /// layout's identity rests on: its metadata, content hash, modification date, revisions and working copy stay.
+    @Test func aliasesLiveInTheirOwnFile() async throws {
         defer { try? FileManager.default.removeItem(at: root) }
         let entry = try await library.create(layout, origin: .local, firstRevision: RevisionDraft(source: .save, layout: layout))
         #expect(try await storedAliases(of: entry.id) == nil, "left out while there are none")
@@ -358,6 +359,7 @@ struct PackageLibraryTests {
         let before = try await library.load(entry.id)
         let folder = try #require(await library.location(of: entry.id))
         let layoutBefore = try Data(contentsOf: folder.appending(path: "layout.json"))
+        let metaBefore = try Data(contentsOf: folder.appending(path: "meta.json"))
         let (a, b) = (UUID(), UUID())
         try await library.link(entry.id, to: [b, a, entry.id])
         #expect(try await storedAliases(of: entry.id) == [a, b].map(\.uuidString).sorted())
@@ -366,6 +368,7 @@ struct PackageLibraryTests {
         #expect(after.contentHash == before.contentHash && after.revisions == before.revisions)
         #expect(after.entry.modifiedAt == before.entry.modifiedAt && !after.hasEditsSinceLastRevision)
         #expect(try Data(contentsOf: folder.appending(path: "layout.json")) == layoutBefore)
+        #expect(try Data(contentsOf: folder.appending(path: "meta.json")) == metaBefore)
         #expect(try await library.entries().first?.aliases == [a, b], "the sidebar's entries carry them")
 
         let c = UUID()
@@ -377,6 +380,31 @@ struct PackageLibraryTests {
         try await library.rename(entry.id, to: "Renamed")
         #expect(try await library.load(entry.id).entry.aliases == [a, b, c], "saves and renames keep them")
         await #expect(throws: LibraryError.notFound(c)) { try await library.link(c, to: [a]) }
+    }
+
+    /// An older Sextant rewrites `meta.json` without keys it doesn't know, and never opens `links.json`: the links survive
+    /// its saves. A damaged or newer `links.json` leaves the layout listed, unlinked; a newer one is never overwritten.
+    @Test func linksSurviveAnOlderSextantAndDamage() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await library.create(layout, origin: .local, firstRevision: nil)
+        let a = UUID()
+        try await library.link(entry.id, to: [a])
+        let folder = try #require(await library.location(of: entry.id))
+        let meta = folder.appending(path: "meta.json")
+        // As an older Sextant's save leaves it: re-encoded from only the keys it knows.
+        let object = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: meta)) as? [String: Any])
+        try JSONSerialization.data(withJSONObject: object.filter { $0.key != "aliases" }).write(to: meta)
+        #expect(try await library.load(entry.id).entry.aliases == [a])
+
+        let links = folder.appending(path: "links.json")
+        try Data(#"{"formatVersion": 2, "aliases": []}"#.utf8).write(to: links)
+        #expect(try await library.entries().first?.aliases.isEmpty == true, "listed, unlinked")
+        await #expect(throws: LibraryError.newerFormat(2)) { try await library.link(entry.id, to: [UUID()]) }
+        try Data("not json".utf8).write(to: links)
+        #expect(try await library.load(entry.id).entry.aliases.isEmpty)
+        let b = UUID()
+        try await library.link(entry.id, to: [b])
+        #expect(try await library.load(entry.id).entry.aliases == [b], "damaged links are replaced")
     }
 
     /// A copy is another layout: no other Mac's build is it.

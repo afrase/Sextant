@@ -7,6 +7,12 @@
     "#" : {
 
     },
+    "%@ (same Oryx layout)" : {
+
+    },
+    "%@ (same name)" : {
+
+    },
     "%@ B" : {
 
     },
@@ -455,6 +461,9 @@
     "%lld own" : {
 
     },
+    "%lld pt" : {
+
+    },
     "%lld removed" : {
 
     },
@@ -626,6 +635,9 @@
     "A macro types a sequence of keys from one key press." : {
 
     },
+    "A newer version of Sextant stored this layout. Update Sextant to read it." : {
+
+    },
     "A revision is a checkpoint in History. You can compare the layout with it or restore it later." : {
 
     },
@@ -633,6 +645,9 @@
 
     },
     "Action can't run in a tap dance" : {
+
+    },
+    "Add" : {
 
     },
     "Add App…" : {
@@ -662,6 +677,12 @@
     "Add tap" : {
 
     },
+    "Add to" : {
+
+    },
+    "Add to Library…" : {
+
+    },
     "Add to Selection" : {
 
     },
@@ -675,6 +696,9 @@
 
     },
     "Added layer %@" : {
+
+    },
+    "Adding" : {
 
     },
     "Advanced" : {
@@ -760,10 +784,16 @@
     "Base layer" : {
 
     },
+    "Becomes its working copy. Your current version stays in History." : {
+
+    },
     "Before importing from Oryx" : {
 
     },
     "Before restoring revision %lld" : {
+
+    },
+    "Before using the keyboard's layout" : {
 
     },
     "Behavior" : {
@@ -775,7 +805,13 @@
     "Bootloader %@ isn't one Sextant knows." : {
 
     },
-    "Bottom center" : {
+    "Bottom Center" : {
+
+    },
+    "Bottom Left" : {
+
+    },
+    "Bottom Right" : {
 
     },
     "Brightness" : {
@@ -866,6 +902,9 @@
 
     },
     "Can’t stop while writing. If the cable comes out, the keyboard stays in flash mode and you can simply flash again." : {
+
+    },
+    "Center" : {
 
     },
     "Change %@" : {
@@ -1279,6 +1318,12 @@
     "Disabled. No action." : {
 
     },
+    "Display" : {
+
+    },
+    "Distance from edge" : {
+
+    },
     "Do nothing" : {
 
     },
@@ -1573,6 +1618,9 @@
     "Flashed from Sextant" : {
 
     },
+    "Flashed from Sextant on another Mac" : {
+
+    },
     "Flashed revision %lld" : {
 
     },
@@ -1627,6 +1675,9 @@
     "Found" : {
 
     },
+    "From the keyboard" : {
+
+    },
     "Full overlay" : {
 
     },
@@ -1637,6 +1688,9 @@
 
     },
     "Generating source" : {
+
+    },
+    "Get Layout" : {
 
     },
     "Global (%lld ms)" : {
@@ -1905,6 +1959,9 @@
     "Keyboard runs another layout" : {
 
     },
+    "Keyboard runs revision %lld" : {
+
+    },
     "Keyboard runs ‘%@’" : {
 
     },
@@ -2135,6 +2192,9 @@
     "Layout JSON…" : {
 
     },
+    "Layout on the Keyboard" : {
+
+    },
     "Layouts" : {
 
     },
@@ -2201,6 +2261,9 @@
 
     },
     "Lens: %@" : {
+
+    },
+    "Lets Sextant on your other Macs read the layout from the keyboard over Live View, so they know what it runs. Any app on a Mac the keyboard is plugged into could read it too, macros included. Adds about 1–2 KB to the firmware. Applies from the next Build & Flash." : {
 
     },
     "Lighting" : {
@@ -2294,6 +2357,9 @@
     "Make Transparent (⌘⌫)" : {
 
     },
+    "Make the revision the keyboard runs your working copy. Your edits stay in History." : {
+
+    },
     "Makes this revision the layout again and saves that as a new revision. Nothing is lost, and you can undo it." : {
 
     },
@@ -2307,6 +2373,12 @@
 
     },
     "Message" : {
+
+    },
+    "Middle Left" : {
+
+    },
+    "Middle Right" : {
 
     },
     "Mixed" : {
@@ -2570,6 +2642,9 @@
     "Only the input sources Sextant has keycodes for are listed." : {
 
     },
+    "Opacity" : {
+
+    },
     "Open Sextant" : {
 
     },
@@ -2592,6 +2667,9 @@
 
     },
     "Oryx reported a problem: %@" : {
+
+    },
+    "Oryx revision %@" : {
 
     },
     "Oryx sent something Sextant couldn't read. %@" : {
@@ -2752,6 +2830,9 @@
     "Press the reset button %@." : {
 
     },
+    "Preview" : {
+
+    },
     "Preview Lighting on Keyboard" : {
 
     },
@@ -2809,7 +2890,19 @@
     "Read link" : {
 
     },
+    "Reading the layout from the keyboard" : {
+
+    },
+    "Reading the layout from the keyboard, %lld percent" : {
+
+    },
+    "Reading the layout from the keyboard…" : {
+
+    },
     "Reads the layout ID from the keyboard and downloads it from Oryx, read-only." : {
+
+    },
+    "Reads the layout Sextant stored in the keyboard’s firmware" : {
 
     },
     "Recent Switches" : {
@@ -3039,7 +3132,13 @@
     "Runs %@ · not in your library" : {
 
     },
+    "Runs ‘%@’ from another Mac" : {
+
+    },
     "Same as global" : {
+
+    },
+    "Sample" : {
 
     },
     "Save Revision" : {
@@ -3073,6 +3172,9 @@
 
     },
     "Sections" : {
+
+    },
+    "See the overlay with these settings" : {
 
     },
     "Select Key by Pressing It" : {
@@ -3273,6 +3375,18 @@
     "Sextant doesn’t have the keyboard’s layout, so it can move it only to layer 0." : {
 
     },
+    "Sextant doesn’t have the keyboard’s layout." : {
+
+    },
+    "Sextant is already reading the keyboard’s layout." : {
+
+    },
+    "Sextant put the keyboard’s layout in your library." : {
+
+    },
+    "Sextant put the keyboard’s layout in ‘%@’." : {
+
+    },
     "Sextant reads the active layer and which key positions are down over the keyboard's raw HID interface. It sees positions, never the characters you type. Key events stay in memory on this Mac, and the live display and the heatmap pause while you type in a password field." : {
 
     },
@@ -3318,6 +3432,12 @@
     "Sextant, no keyboard connected" : {
 
     },
+    "Sextant: the firmware is too large with the layout stored in it, so it builds again without it." : {
+
+    },
+    "Sextant: the layout is too large to store in the firmware, so this build doesn’t store it." : {
+
+    },
     "Show All Settings" : {
 
     },
@@ -3334,6 +3454,9 @@
 
     },
     "Show Key" : {
+
+    },
+    "Show Layout" : {
 
     },
     "Show Log" : {
@@ -3465,10 +3588,16 @@
     "Stop Following" : {
 
     },
+    "Stop Preview" : {
+
+    },
     "Stop showing the keyboard’s layer and key presses" : {
 
     },
     "Stopped selecting a key by pressing it." : {
+
+    },
+    "Store the layout in the firmware" : {
 
     },
     "Suggested" : {
@@ -3645,6 +3774,18 @@
     "The keyboard restarts with the new firmware. Sextant waits for it to report its new serial." : {
 
     },
+    "The keyboard stopped answering while Sextant read its layout." : {
+
+    },
+    "The keyboard went away or Live View ended while Sextant read its layout." : {
+
+    },
+    "The keyboard’s %@ layer" : {
+
+    },
+    "The keyboard’s firmware doesn’t store its layout." : {
+
+    },
     "The keyboard’s layout has no layer %lld." : {
 
     },
@@ -3658,6 +3799,34 @@
 
     },
     "The layout couldn’t be written as JSON." : {
+
+    },
+    "The layout stored in the keyboard doesn't match the firmware it runs." : {
+
+    },
+    "The layout stored in the keyboard's firmware is damaged." : {
+
+    },
+    "The layout stored in the keyboard's firmware isn't one this Sextant can read." : {
+
+    },
+    "The layout takes %lld bytes in the firmware, more than the %lld it can store." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The layout takes %1$lld bytes in the firmware, more than the %2$lld it can store."
+          }
+        }
+      }
+    },
+    "The layout the keyboard sent doesn’t add up." : {
+
+    },
+    "The main display" : {
+
+    },
+    "The one with the pointer" : {
 
     },
     "The trackpad or trackball module on your keyboard, if any." : {
@@ -3676,6 +3845,9 @@
 
     },
     "This deletes every key press counted for this layout. It can’t be undone." : {
+
+    },
+    "This firmware doesn’t store its layout. On the Mac that has the layout, turn on Store the layout in the firmware in Settings › Build, then Build & Flash once; after that any Mac can read it." : {
 
     },
     "This happens once. The build starts as soon as the tools are ready." : {
@@ -3750,7 +3922,13 @@
     "Toggle" : {
 
     },
-    "Top center" : {
+    "Top Center" : {
+
+    },
+    "Top Left" : {
+
+    },
+    "Top Right" : {
 
     },
     "Trackball" : {
@@ -3825,6 +4003,9 @@
     "Turn on Live View to preview lighting on the keyboard." : {
 
     },
+    "Turn on Live View to read the layout from the keyboard." : {
+
+    },
     "Turn on “Switch layers when you change apps” to use these rules." : {
 
     },
@@ -3832,6 +4013,9 @@
 
     },
     "Turning it on with punctuation, numbers and letters off turns them on; turning all three off turns it off." : {
+
+    },
+    "Turns on Live View and reads the layout Sextant stored in the keyboard’s firmware" : {
 
     },
     "Types: %@" : {
@@ -3849,7 +4033,13 @@
     "Use Brush" : {
 
     },
+    "Use It" : {
+
+    },
     "Use Oryx's build when the layout is unchanged since import" : {
+
+    },
+    "Use the Keyboard's Layout" : {
 
     },
     "Use the reset button" : {
@@ -3922,7 +4112,7 @@
     "When you leave it for an app without a rule, it stays there." : {
 
     },
-    "While Live View is on, shows the layer you’re holding over other apps once the delay passes, for a layout in your library. A locked layer can show a small reminder until the keyboard is back on its base layer. Turn on Live View from Sextant in the menu bar or a layout window’s toolbar." : {
+    "While Live View is on, shows the layer you’re holding over other apps once the delay passes, for a layout in your library. A locked layer can show a small reminder until the keyboard is back on its base layer. Turn on Live View from Sextant in the menu bar or a layout window’s toolbar. Preview shows the overlay with these settings for a few seconds, even with Live View off." : {
 
     },
     "Window" : {

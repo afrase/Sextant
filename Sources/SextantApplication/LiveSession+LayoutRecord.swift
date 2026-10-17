@@ -1,4 +1,5 @@
 import Foundation
+import SextantDomain
 
 extension LiveSession {
     /// Reads the layout record a Sextant build stores (ADR 0061), 24 bytes per report, over the paired Live View session.
@@ -88,8 +89,9 @@ private struct LayoutReadDeadline {
 
 /// A layout record arriving part by part: its size from the first reply, then each next offset in turn.
 private struct LayoutRecordAssembly {
-    /// The most a record can hold: its size is two bytes on the wire.
-    static let maximumSize = 65_535
+    /// The most a record may take (``LayoutRecord/maximumSize``): a larger size is refused at the first part, before
+    /// thousands of reads for a record decoding would refuse anyway.
+    static let maximumSize = LayoutRecord.maximumSize
 
     private var bytes: [UInt8] = []
     private var size: Int?
@@ -102,7 +104,7 @@ private struct LayoutRecordAssembly {
     var complete: [UInt8]? { bytes.count == size ? bytes : nil }
 
     /// Adds the part for ``offset``. False for a reply to another offset (a stale one, or another host's), which changes
-    /// nothing; throws when the parts don't add up: a size that is 0, over 64 KiB or changed, or a part that is empty
+    /// nothing; throws when the parts don't add up: a size that is 0, over 32 KiB or changed, or a part that is empty
     /// or runs past the size.
     mutating func add(_ chunk: LayoutRecordChunk) throws(LayoutReadError) -> Bool {
         guard chunk.offset == offset else { return false }

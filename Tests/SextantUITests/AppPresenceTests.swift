@@ -136,6 +136,27 @@ struct AppPresenceTests {
         #expect(await eventually { applied == [.accessory, .regular, .accessory] })
         defaults.removePersistentDomain(forName: suite)
     }
+
+    /// The menu bar panel closes as Open Sextant or Settings… opens a window, which may not count as open yet: its close
+    /// never leaves the Dock.
+    @Test func aPanelClosingDoesntLeaveTheDock() async {
+        set(shows: true, keeps: true)
+        var applied: [NSApplication.ActivationPolicy] = []
+        let presence = makePresence(windows: { 0 }) { applied.append($0) }
+        presence.prepareToOpen()
+        let panel = NSPanel(contentRect: .zero, styleMask: [.titled, .nonactivatingPanel], backing: .buffered, defer: true)
+        // Posted on the main thread to a main-queue observer, so it is handled before post returns; the yield lets a look
+        // once more run too.
+        windowNotifications.post(name: NSWindow.willCloseNotification, object: panel)
+        await Task.yield()
+        #expect(applied.isEmpty)
+
+        let window = NSWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: true)
+        window.isReleasedWhenClosed = false
+        windowNotifications.post(name: NSWindow.willCloseNotification, object: window)
+        #expect(await eventually { applied == [.accessory] }, "a window's close still counts")
+        defaults.removePersistentDomain(forName: suite)
+    }
 }
 
 /// How many windows a test says are open; a sendable closure can't read a local `var` that changes later.

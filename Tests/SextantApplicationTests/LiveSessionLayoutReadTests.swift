@@ -176,6 +176,17 @@ struct LiveSessionLayoutReadTests {
         await #expect(throws: LayoutReadError.malformed) { try await read.value }
     }
 
+    /// A record over the 32 KiB one may take is refused at its first part, not after about 2,700 more reads.
+    @Test func aRecordOverTheMostOneTakesIsRefusedAtOnce() async throws {
+        try #require(await paired())
+        link.dropLayoutReads(.max)
+        let read = reading()
+        #expect(await eventually { asked == [0] })
+        link.send(.layoutRecord(LayoutRecordChunk(offset: 0, size: LayoutRecord.maximumSize + 1, bytes: Array(repeating: 1, count: 24))))
+        await #expect(throws: LayoutReadError.malformed) { try await read.value }
+        #expect(asked == [0])
+    }
+
     /// A stale reply, or another host's, answers another offset; another command's refusal answers another command.
     @Test func ignoresRepliesToOtherRequests() async throws {
         try #require(await paired())

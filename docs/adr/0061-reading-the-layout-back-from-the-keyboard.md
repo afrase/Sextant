@@ -1,7 +1,8 @@
 # 61. Reading the layout back from the keyboard, so two Macs know what it runs
 
-Status: accepted, 2026-10-16. Amends ADRs 0019 (firmware identity), 0038 (live commands), 0039 (OnKeyboard) and 0045 (the
-raw-HID log).
+Status: accepted, 2026-10-16; revised 2026-10-17 after review (storing off by default, links in their own file, fixes
+listed at the end). Amends ADRs 0019 (firmware identity), 0038 (live commands), 0039 (OnKeyboard) and 0045 (the raw-HID
+log).
 
 ## Context
 The user plugs one Voyager into a work laptop and a home laptop, and each day the other laptop "doesn't have the firmware".
@@ -16,10 +17,13 @@ DFU needs flash mode and gives a lossy keymap (progress.md, 2026-10-15). But Sex
 the layout in it and answer a request for it.
 
 ## Decision
-- **The layout record.** Every Sextant build stores a `LayoutRecord` (domain): `SXL`, a version, the layout's library ids
+- **The layout record.** With the setting on (below), a Sextant build stores a `LayoutRecord` (domain): `SXL`, a version, the layout's library ids
   (the building Mac's entry id first, then the ids it is linked to on other Macs, at most 16), the JSON's length, then the
   layout's firmware JSON (sorted keys, no macro drafts: the same bytes the fingerprint is the CRC of) compressed with raw
-  DEFLATE. About 2 KB for the user's layout. Over 32 KiB, the build stores none and says so in the log.
+  DEFLATE. For the user's layout the JSON is 5,526 bytes and the record 1,151; the image grows by 1,336 bytes with the
+  handler, from 62,392 to 63,728 of the 122,880 the application window holds. It takes no RAM beyond a 32-byte reply on the
+  stack. Over 32 KiB, the build stores none and says so in its log; a firmware too large with the record builds again
+  without it, and the log says so too.
 - **The read command.** The generator adds `sextant_layout.c` and, in `rules.mk`, `SRC += sextant_layout.c` and
   `override EXTRALDFLAGS += -Wl,--wrap=raw_hid_receive` (`override`, because `QMKBuild` already sets `EXTRALDFLAGS` on make's command line through `qmk compile -e`, and make ignores a plain `+=` to such a variable; reproduced with make 4.3). GNU ld then sends QMK's one call of `raw_hid_receive` (`usb_main.c`) to
   `__wrap_raw_hid_receive`, which answers reports starting `53` and hands every other report to zsa/oryx unchanged
@@ -33,10 +37,12 @@ the layout in it and answer a request for it.
     byte-identical to before, so the golden tests hold. Export Source Zip stays without it.
 - **The link.** `KeyboardCommand.readLayoutRecord(offset:)` is the one command added to ADR 0038's list; it changes nothing
   on the keyboard. `LiveSession.readLayoutRecord(progress:)` asks for each part in turn over a paired Live View session,
-  matches replies by offset, asks again once after 500 ms, and fails as `noRecord` on `FF FF`. The Developer raw-HID log keeps
+  matches replies by offset, asks again once after 500 ms, and fails as `noRecord` on `FF FF`. A size over 32 KiB is refused at
+  the first part. The Developer raw-HID log keeps
   only the 8-byte header of a reply (amends ADR 0045): the record holds macro text, which is never logged (ADR 0042).
-- **Linked layouts.** A library entry keeps `aliases`, its ids on other Macs, in `meta.json` (written only when there are
-  some; older Sextant ignores the key). A serial or a record naming an alias is that layout. Matching a Sextant serial
+- **Linked layouts.** A library entry keeps `aliases`, its ids on other Macs, in its package's `links.json` (written only
+  when there are some). Not a key in `meta.json`: an older Sextant rewrites that from the keys it knows, which would drop
+  the links at its next save, but never opens `links.json`. A serial or a record naming an alias is that layout. Matching a Sextant serial
   compares its fingerprint, the content, so the same layout flashed from another Mac reads as `current` (amends ADR 0019) and
   `OnKeyboard` finds a revision by fingerprint whichever Mac's id the serial carries (amends ADR 0039).
 - **`KeyboardLayoutPull`** (application, app-wide) reads by itself once per serial per connection when Live View is paired
@@ -56,14 +62,32 @@ the layout in it and answer a request for it.
 - Nothing is offered until `OnKeyboard` has looked the serial up for the current library and flash state (`resolvedSerial`), so a known layout never flashes "not in your library" on connect.
 - **Consent.** The read goes only over a Live View session the user started (ADR 0057). Get Layout on the device card turns
   Live View on and reads; the click is the consent. Agents never send it; the user tries it on the keyboard.
-- **Settings › Build › Store the layout in the firmware**, on by default: any app on a Mac the keyboard is plugged into can
-  read the record, macros included, as it can already watch key positions over the same interface.
+- **Settings › Build › Store the layout in the firmware**, off by default (the user's call): any app on a Mac the keyboard is
+  plugged into can read the record, macros included, with no prompt. Reading the image needed flash mode before.
 
 ## Consequences
-- The keyboard has to be flashed once from Sextant with this build before another Mac can read it; the first read links the
+- The keyboard has to be flashed once from Sextant with the setting on before another Mac can read it; the first read links the
   two layouts, and after that each Mac picks up the other's flashes by itself whenever Live View is on.
 - The firmware grows by the record (about 2 KB here; at most 32 KiB, inside the 120 KiB window).
 - Unverified on hardware until the user tries it: the wrapped receive on the Voyager, and Keymapp and Oryx ignoring `53`
   replies they see (they get every input report).
 - The pulled revision has no firmware image, so Flash This Revision rebuilds it.
 - Layouts made before this release on two Macs stay unlinked until the first read; linking needs no sync service.
+
+## Revision after review (2026-10-17)
+An adversarial review of the first version found these, all fixed:
+- **Linking only takes other Macs' ids.** A record names every id the building Mac's layout is linked to, which can include
+  this Mac's other layouts (the other Mac had linked two of them to one of its own). Linking now leaves out the ids of this
+  Mac's layouts and their aliases; before, a build of one layout could read as another, with no replace confirmation.
+- **Several matches are offered, not picked.** When the record names more than one library layout, or an Oryx serial has
+  more than one layout from that Oryx layout, the pull offers Add to Library… instead of taking the first.
+- **Edits typed during a read stay.** Adopting re-checks the working copy after its waits, with nothing awaited before
+  the edit; if it moved, the keyboard's layout is only recorded and "Keyboard runs revision N" is offered.
+- **Unplugged mid-read.** The automatic read runs apart from the loop that follows the keyboard, so an unplug during a read
+  still counts as a new connection.
+- **The Dock.** Only titled, non-panel windows closing can leave the Dock (ADR 0049), so the menu bar panel's close while
+  Open Sextant or Settings… opens a window doesn't.
+- **Smaller:** a live read refuses a size over 32 KiB at the first part; adding to a layout links before it replaces the
+  working copy, so a failed link leaves it as it was; a damaged `links.json` is replaced at the next link; a rebuild without
+  the record doesn't start after Stop; when several layouts are named, one of them is the suggestion.
+

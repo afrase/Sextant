@@ -101,7 +101,7 @@ struct KeyboardLayoutPullTests {
         try storeRecord(of: flashed, ids: [entry.id])
         await connect(serial(of: flashed, from: entry.id))
         #expect(await eventually { onKeyboard.running?.entry.id == entry.id })
-        try await Task.sleep(for: .milliseconds(50))
+        #expect(await eventually { pull.isCaughtUp })
         #expect(reads == 0 && pull.status == .idle)
     }
 
@@ -117,13 +117,13 @@ struct KeyboardLayoutPullTests {
         #expect(await eventually { !live.canSend })
         live.startLive()
         #expect(await pair(session: 1))
-        try await Task.sleep(for: .milliseconds(50))
+        #expect(await eventually { pull.isCaughtUp })
         #expect(reads == 1 && pull.status == .noRecord)
 
         // Plugged in again: read again.
         watcher.detach(1)
         #expect(await eventually { live.connection == .noKeyboard })
-        try await Task.sleep(for: .milliseconds(20))
+        #expect(await eventually { pull.isCaughtUp })
         watcher.attach(.keyboard(.voyager(serial: running)))
         #expect(await pair(session: 2))
         #expect(await settles { reads == 2 && pull.status == .noRecord })
@@ -271,6 +271,97 @@ struct KeyboardLayoutPullTests {
         #expect(onKeyboard.running?.revision?.id == result.revision?.id, "its import")
     }
 
+    /// The other Mac linked two of this Mac's layouts to one of its own, so its builds name both: neither is picked by
+    /// itself, and the one the user picks, or a new layout, takes only the other Mac's id. Taking the other layout's id
+    /// would make a build of that layout read as this one, with no "Replace the layout on this keyboard?".
+    @Test func aRecordNamingSeveralLayoutsHereIsOfferedAndLinksOnlyOtherMacs() async throws {
+        let first = try await store.create(older, origin: .local, firstRevision: RevisionDraft(source: .flash, layout: older))
+        var other = older
+        other.title = "Desk"
+        let second = try await store.create(other, origin: .local, firstRevision: RevisionDraft(source: .flash, layout: other))
+        let third = UUID()
+        try await store.link(second.id, to: [third])
+        try storeRecord(of: flashed, ids: [otherMac, first.id, third])
+        await connect(serial(of: flashed, from: otherMac))
+        #expect(await settles { found != nil }, "two layouts here are named: the user picks")
+        #expect(try await store.load(first.id).revisions.count == 1)
+
+        await pull.add(to: first.id)
+        #expect(added?.entryID == first.id)
+        #expect(try await store.load(first.id).entry.aliases == [otherMac], "not the other layout's id or alias")
+        #expect(try await store.load(second.id).entry.aliases == [third])
+    }
+
+    @Test func aNewLayoutTakesNoIdOfALayoutHere() async throws {
+        let first = try await store.create(older, origin: .local, firstRevision: RevisionDraft(source: .flash, layout: older))
+        let second = try await store.create(older, origin: .local, firstRevision: RevisionDraft(source: .flash, layout: older))
+        try storeRecord(of: flashed, ids: [otherMac, first.id, second.id])
+        await connect(serial(of: flashed, from: otherMac))
+        #expect(await settles { found != nil })
+        await pull.add(to: nil)
+        let result = try #require(added)
+        #expect(try await store.load(result.entryID).entry.aliases == [otherMac])
+    }
+
+    /// Edits typed while the pull adds the keyboard's layout, after it looked at the working copy, are newer than it: they
+    /// stay the working copy, and the keyboard's layout is only recorded.
+    @Test func editsTypedWhileThePullAddsStayTheWorkingCopy() async throws {
+        let entry = try await store.create(older, origin: .local, firstRevision: RevisionDraft(source: .flash, layout: older))
+        await library.refresh()
+        let document = try await library.open(entry.id, autosaveDelay: .milliseconds(1))
+        try storeRecord(of: flashed, ids: [otherMac, entry.id])
+        let typed = Flag()
+        // The pull's load of the stored layout, after it has flushed and looked at the window's working copy.
+        await store.beforeLoad { [pull] in
+            await MainActor.run {
+                guard case .reading = pull.status, !typed.isOn else { return }
+                typed.isOn = true
+                document.setTitle("Typed meanwhile")
+            }
+        }
+        await connect(serial(of: flashed, from: otherMac))
+        #expect(await settles { added != nil })
+        #expect(typed.isOn && added?.adopted == false)
+        #expect(document.layout.title == "Typed meanwhile")
+        let revisionID = try #require(added?.revision?.id)
+        #expect(try await store.layout(ofRevision: revisionID, in: entry.id) == flashed)
+    }
+
+    /// Edits typed while adopting records the keyboard's layout, after every earlier check, still stay.
+    @Test func editsTypedWhileAdoptingRecordsStayTheWorkingCopy() async throws {
+        let entry = try await store.create(older, origin: .local, firstRevision: RevisionDraft(source: .flash, layout: older))
+        await library.refresh()
+        let document = try await library.open(entry.id, autosaveDelay: .milliseconds(1))
+        let looked = document.layout
+        let typed = Flag()
+        await store.beforeAppend {
+            await MainActor.run {
+                guard !typed.isOn else { return }
+                typed.isOn = true
+                document.setTitle("Typed meanwhile")
+            }
+        }
+        let used = try await document.useKeyboardLayout(flashed, source: .flash, replacing: looked)
+        #expect(typed.isOn && !used.adopted && document.layout.title == "Typed meanwhile")
+        #expect(try await store.layout(ofRevision: used.revision.id, in: entry.id) == flashed)
+    }
+
+    /// Unplugged mid-read and plugged back in: a new connection, read again. (A regression check: the read ends as soon as
+    /// the session does, so this passed before the automatic read ran apart from the loop too.)
+    @Test func aKeyboardPluggedBackInDuringAReadIsReadAgain() async throws {
+        try storeRecord(of: flashed)
+        link.dropLayoutReads(.max)
+        let running = serial(of: flashed, from: otherMac)
+        await connect(running)
+        #expect(await settles { if case .reading = pull.status { reads == 1 } else { false } })
+        watcher.detach(1)
+        #expect(await eventually { live.connection == .noKeyboard })
+        link.dropLayoutReads(0)
+        watcher.attach(.keyboard(.voyager(serial: running)))
+        #expect(await pair(session: 1))
+        #expect(await settles { reads == 2 && found?.layout == flashed })
+    }
+
     // MARK: A found layout
 
     @Test func aFoundLayoutCanBeANewLayout() async throws {
@@ -330,10 +421,10 @@ struct KeyboardLayoutPullTests {
 
         watcher.detach(1)
         #expect(await eventually { live.connection == .noKeyboard })
-        try await Task.sleep(for: .milliseconds(20))
+        #expect(await eventually { pull.isCaughtUp })
         watcher.attach(.keyboard(.voyager(serial: running)))
         #expect(await pair(session: 1))
-        try await Task.sleep(for: .milliseconds(50))
+        #expect(await eventually { pull.isCaughtUp })
         #expect(reads == 1 && pull.status == .idle, "dismissed")
         await pull.read()
         #expect(found?.layout == flashed && reads == 2, "Get Layout always reads")

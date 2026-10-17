@@ -48,8 +48,8 @@ public enum KeyboardLayoutPrompt: Equatable, Sendable {
     static var noRecordText: String {
         String(
             localized: """
-                This firmware doesn’t store its layout. Build & Flash it once from Sextant on the Mac that has the layout; \
-                after that any Mac can read it.
+                This firmware doesn’t store its layout. On the Mac that has the layout, turn on Store the layout in the \
+                firmware in Settings › Build, then Build & Flash once; after that any Mac can read it.
                 """)
     }
 }

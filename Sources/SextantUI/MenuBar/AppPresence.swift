@@ -41,10 +41,15 @@ public final class AppPresence {
                 MainActor.assumeIsolated { self?.settingsChanged() }
             }
         ]
-        // Settings, or another window a menu bar request brought the Dock icon back for, can be the last one to close.
+        // Settings, or another window a menu bar request brought the Dock icon back for, can be the last one to close. A
+        // panel's close is ignored: the menu bar panel closes as Open Sextant or Settings… opens a window, which may not
+        // count as open yet.
         windowObserver = windowNotifications.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) {
-            [weak self] _ in
-            MainActor.assumeIsolated { self?.leaveDockIfIdle() }
+            [weak self] note in
+            let window = note.object as? NSWindow
+            MainActor.assumeIsolated {
+                if window.map({ Self.counts($0) }) ?? true { self?.leaveDockIfIdle() }
+            }
         }
     }
 
@@ -59,11 +64,11 @@ public final class AppPresence {
     /// Sextant's windows on screen or in the Dock: titled windows, so not the overlay, the menu bar extra's panel, popovers
     /// or open and save panels.
     public static func windowsOnScreen() -> Int {
-        NSApplication.shared.windows.filter { window in
-            (window.isVisible || window.isMiniaturized) && window.styleMask.contains(.titled) && !(window is NSPanel)
-        }
-        .count
+        NSApplication.shared.windows.filter { ($0.isVisible || $0.isMiniaturized) && counts($0) }.count
     }
+
+    /// Whether a window is one of Sextant's windows for the Dock: titled, and not a panel.
+    static func counts(_ window: NSWindow) -> Bool { window.styleMask.contains(.titled) && !(window is NSPanel) }
 
     /// A layout window appeared. One may open without ``prepareToOpen()`` (window restoration, File ▸ New Window).
     public func windowOpened() {

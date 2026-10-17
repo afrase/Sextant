@@ -123,6 +123,8 @@ public final class KeyboardLayoutPull {
     /// Reads begun since launch. A read can ask for a part twice when its reply is late, so the requests the keyboard
     /// gets don't count reads.
     @ObservationIgnored private(set) var readsStarted = 0
+    /// The inputs the automatic read last followed.
+    @ObservationIgnored private var followed: Inputs?
     private static let log = Logger(subsystem: "com.sextant.app", category: "application")
 
     /// - Parameter clock: times the wait for Live View to pair (injected for tests).
@@ -144,7 +146,7 @@ public final class KeyboardLayoutPull {
         let (live, onKeyboard) = (live, onKeyboard)
         task = Task { [weak self] in
             for await now in Observations({ Inputs(live: live, onKeyboard: onKeyboard) }) {
-                await self?.follow(now)
+                self?.follow(now)
             }
         }
     }
@@ -203,7 +205,12 @@ public final class KeyboardLayoutPull {
         return isAdding
     }
 
-    private func follow(_ now: Inputs) async {
+    /// Whether the automatic read has followed the inputs as they are now: tests wait for it before checking that
+    /// nothing was read.
+    var isCaughtUp: Bool { followed == Inputs(live: live, onKeyboard: onKeyboard) }
+
+    private func follow(_ now: Inputs) {
+        followed = now
         // Another keyboard, or the same one back, is read again.
         if !now.hasKeyboard { readSerials = [] }
         if let serial = now.serial {
@@ -215,7 +222,16 @@ public final class KeyboardLayoutPull {
             !readSerials.contains(serial), serial != dismissedSerial, !isBusy
         else { return }
         readSerials.insert(serial)
-        await pull(serial)
+        // Busy at once, so the next change doesn't start another read before this one begins.
+        statusSerial = serial
+        status = .reading(0)
+        // Apart from the loop that follows the inputs, so an unplug mid-read still clears readSerials. Changes while it ran
+        // were followed busy, so it follows the inputs as they are once it ends.
+        Task { [weak self] in
+            await self?.pull(serial)
+            guard let self else { return }
+            follow(Inputs(live: live, onKeyboard: onKeyboard))
+        }
     }
 
     private func forget() {
@@ -271,7 +287,11 @@ public final class KeyboardLayoutPull {
             await addLinked(checked, to: entry)
         } else {
             pending = checked
-            let suggested = Self.suggestion(for: checked.layout, in: library.entries.filter { $0.takesKeyboardLayout(serial: serial) })
+            let fitting = library.entries.filter { $0.takesKeyboardLayout(serial: serial) }
+            // Several layouts named by the record: one of them, else the most likely.
+            let suggested =
+                fitting.first { !Set(checked.record.libraryIDs).isDisjoint(with: $0.aliases.union([$0.id])) }?.id
+                ?? Self.suggestion(for: checked.layout, in: fitting)
             status = .found(Found(layout: checked.layout, serial: serial, suggested: suggested))
         }
     }
@@ -329,25 +349,35 @@ public final class KeyboardLayoutPull {
 
     // MARK: Adding
 
-    /// The library layout linked to a record: one whose id or aliases are among the record's ids, else, for an Oryx
-    /// serial, one imported from that Oryx layout. Only one it fits (``Found/fits(_:)``): an Oryx serial's import revision
-    /// in a layout from elsewhere would never read as on the keyboard. The first in the library's order.
+    /// The library layout linked to a record: the one whose id or aliases are among the record's ids, else, for an Oryx
+    /// serial, the one imported from that Oryx layout. Only one it fits (``Found/fits(_:)``): an Oryx serial's import
+    /// revision in a layout from elsewhere would never read as on the keyboard. Nil when several match: the user picks.
     private func linked(_ pending: Pending) -> LibraryEntry? {
         let ids = Set(pending.record.libraryIDs)
         let entries = library.entries.filter { $0.takesKeyboardLayout(serial: pending.serial) }
-        if let entry = entries.first(where: { !ids.isDisjoint(with: $0.aliases.union([$0.id])) }) { return entry }
-        return pending.source == .import ? entries.first : nil
+        let named = entries.filter { !ids.isDisjoint(with: $0.aliases.union([$0.id])) }
+        if !named.isEmpty { return named.count == 1 ? named[0] : nil }
+        return pending.source == .import && entries.count == 1 ? entries[0] : nil
+    }
+
+    /// The record's ids `entryID` takes as aliases: only other Macs' ids. An id of another layout here, or one already
+    /// linked to another layout here, would make a build of that layout read as this one, so it is left out.
+    private func aliases(from pending: Pending, for entryID: UUID) -> Set<UUID> {
+        let others = library.entries.filter { $0.id != entryID }
+        let taken = others.reduce(into: Set(others.map(\.id))) { $0.formUnion($1.aliases) }
+        return Set(pending.record.libraryIDs).subtracting(taken).subtracting([entryID])
     }
 
     /// Puts the keyboard's layout in the library layout linked to it, by itself.
     private func addLinked(_ pending: Pending, to entry: LibraryEntry) async {
         do throws(LibraryError) {
-            try await store.link(entry.id, to: Set(pending.record.libraryIDs))
+            try await store.link(entry.id, to: aliases(from: pending, for: entry.id))
             let document = try await library.document(entry.id)
             // The working copy as the window has it, unsaved edits included.
             await document.flush()
+            let working = document.layout
             let stored = try await store.load(entry.id)
-            let added = try await addRevision(pending, to: document, stored: stored)
+            let added = try await addRevision(pending, to: document, stored: stored, working: working)
             await finish(added)
         } catch {
             fail(.library(error))
@@ -356,8 +386,11 @@ public final class KeyboardLayoutPull {
 
     /// Nothing more when a revision has the keyboard's layout already. Otherwise it becomes a revision, and the working
     /// copy too when that is its last flash or import: nothing newer than what was last put on a keyboard, so no work is
-    /// lost (it stays in History). Edits since then stay the working copy.
-    private func addRevision(_ pending: Pending, to document: EditSession, stored: StoredLayout) async throws(LibraryError) -> Added {
+    /// lost (it stays in History). Edits since then stay the working copy, including any typed while this ran: `working`
+    /// is the working copy `stored` was read for.
+    private func addRevision(
+        _ pending: Pending, to document: EditSession, stored: StoredLayout, working: KeyboardLayout
+    ) async throws(LibraryError) -> Added {
         let entry = stored.entry
         let existing = await FirmwareIdentity.revision(
             runningSerial: pending.serial, of: entry.id, aliases: entry.aliases, origin: entry.origin, revisions: stored.revisions,
@@ -369,16 +402,17 @@ public final class KeyboardLayoutPull {
             let revision = try await document.recordRevision(draft)
             return Added(entryID: entry.id, revision: revision, adopted: false)
         }
-        let revision = try await document.useKeyboardLayout(pending.layout, source: pending.source)
-        return Added(entryID: entry.id, revision: revision, adopted: true)
+        let used = try await document.useKeyboardLayout(pending.layout, source: pending.source, replacing: working)
+        return Added(entryID: entry.id, revision: used.revision, adopted: used.adopted)
     }
 
     /// Makes a found layout a revision and the working copy of `id`, as one undoable edit in its open window.
     private func adopt(_ pending: Pending, into id: UUID) async throws(LibraryError) -> Added {
         let document = try await library.document(id)
-        let revision = try await document.useKeyboardLayout(pending.layout, source: pending.source)
-        try await store.link(id, to: Set(pending.record.libraryIDs))
-        return Added(entryID: id, revision: revision, adopted: true)
+        // Linked first: a link that fails then leaves the working copy as it was.
+        try await store.link(id, to: aliases(from: pending, for: id))
+        let used = try await document.useKeyboardLayout(pending.layout, source: pending.source)
+        return Added(entryID: id, revision: used.revision, adopted: true)
     }
 
     /// Adds a found layout as a new library layout, kept exactly (title included): any change would change its fingerprint,
@@ -388,7 +422,7 @@ public final class KeyboardLayoutPull {
         let origin: LayoutOrigin = layout.oryx.map { .oryx(layoutId: $0.layoutId, revisionId: $0.revisionId) } ?? .local
         let first = RevisionDraft(source: pending.source, message: String(localized: "From the keyboard"), layout: layout)
         let entry = try await store.create(layout, origin: origin, firstRevision: first)
-        try await store.link(entry.id, to: Set(pending.record.libraryIDs))
+        try await store.link(entry.id, to: aliases(from: pending, for: entry.id))
         let revision = try await store.load(entry.id).revisions.last
         return Added(entryID: entry.id, revision: revision, adopted: true)
     }

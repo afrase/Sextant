@@ -84,7 +84,7 @@ public struct BuildSettings: View {
     var status: BuildToolsStatus?
     var source: FirmwareSource?
     @AppStorage(SettingsKey.prefersOryxBuild) private var prefersOryxBuild = true
-    @AppStorage(SettingsKey.storesLayoutInFirmware) private var storesLayout = true
+    @AppStorage(SettingsKey.storesLayoutInFirmware) private var storesLayout = false
     @State private var toolsStatus: ToolchainStatus?
 
     /// `known` shows a status before the first check finishes (snapshots run no tasks).
@@ -94,10 +94,10 @@ public struct BuildSettings: View {
         _toolsStatus = State(initialValue: known)
     }
 
-    /// Whether a Sextant build stores its layout in the firmware, so Sextant on other Macs can read it back (ADR 0061); on
-    /// by default.
+    /// Whether a Sextant build stores its layout in the firmware, so Sextant on other Macs can read it back (ADR 0061); off
+    /// by default, since any app could read it.
     public static func storesLayoutInFirmware(in defaults: UserDefaults = .standard) -> Bool {
-        defaults.object(forKey: SettingsKey.storesLayoutInFirmware) as? Bool ?? true
+        defaults.object(forKey: SettingsKey.storesLayoutInFirmware) as? Bool ?? false
     }
 
     public var body: some View {
@@ -144,9 +144,9 @@ public struct BuildSettings: View {
         } footer: {
             Text(
                 """
-                Lets Sextant on your other Macs read this layout from the keyboard over Live View, so they know what it runs. \
-                Any app on a Mac the keyboard is plugged into could read it, macros included. Applies from the next Build & \
-                Flash.
+                Lets Sextant on your other Macs read the layout from the keyboard over Live View, so they know what it runs. \
+                Any app on a Mac the keyboard is plugged into could read it too, macros included. Adds about 1–2 KB to the \
+                firmware. Applies from the next Build & Flash.
                 """
             )
             .foregroundStyle(.secondary)

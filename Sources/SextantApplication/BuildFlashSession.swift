@@ -3,43 +3,6 @@ import Observation
 import SextantDomain
 import os
 
-/// Why Build & Flash stopped (spec §7.3, §7.4).
-public enum BuildFlashError: Error, Equatable, Sendable, LocalizedError {
-    case generator(GeneratorError)
-    /// Compile errors (with their keys), too large, or a toolchain failure.
-    case toolchain(ToolchainError)
-    /// The build tools' one-time setup didn't finish (spec §7.3).
-    case setup(ToolchainError)
-    case multipleBootloaders
-    /// Includes `.imageRejected`: the image failed validation for the connected bootloader, with no override.
-    case flash(FlashError)
-    /// The keyboard didn't come back within 10 s of flashing.
-    case notReconnected
-    /// The keyboard came back reporting another serial than the build's.
-    case unexpectedSerial(String?)
-    /// Another layout's Build & Flash holds flash mode (spec §7.6).
-    case flashingElsewhere
-
-    public var errorDescription: String? {
-        switch self {
-        case let .generator(e): e.localizedDescription
-        case let .toolchain(e): e.localizedDescription
-        // The detail alone: the toolchain's own wording says the build didn't finish.
-        case let .setup(.failed(detail)): detail
-        case let .setup(e): e.localizedDescription
-        case .multipleBootloaders: String(localized: "Connect only one keyboard in flash mode.")
-        case let .flash(e): e.localizedDescription
-        case .notReconnected:
-            String(localized: "The keyboard didn't reconnect after flashing. Unplug it and plug it back in to check it.")
-        case let .unexpectedSerial(serial?):
-            String(localized: "The keyboard reconnected as \(serial), not the new firmware. Put it in flash mode to try again.")
-        case .unexpectedSerial(nil):
-            String(localized: "The keyboard reconnected without a serial. Put it in flash mode to try again.")
-        case .flashingElsewhere: String(localized: "Another window is flashing the keyboard. Try again when it finishes.")
-        }
-    }
-}
-
 /// A revision with the layout it recorded: what History's Flash This Revision… builds instead of the working copy.
 public struct RevisionLayout: Equatable, Sendable {
     public var revision: RevisionSummary
@@ -122,6 +85,9 @@ public final class BuildFlashSession {
     public var currentArtifact: BuildArtifact? { builtLayout == session.layout ? artifact : nil }
     /// The serial the last build reports (``FirmwareIdentity``).
     public private(set) var identity: FirmwareIdentity?
+    /// The identity the last build was asked for: ``identity`` without its layout record when the firmware was too large
+    /// with it (ADR 0061).
+    @ObservationIgnored private var builtFor: FirmwareIdentity?
     /// The revision this run builds and flashes (History's Flash This Revision…), until it is stopped or done; nil for the
     /// working copy.
     public var revision: RevisionSummary? { target?.revision }
@@ -185,7 +151,7 @@ public final class BuildFlashSession {
         watcher: any DeviceWatcher, flasher: any Flasher, md5: @escaping @Sendable (Data) -> String,
         clock: any Clock<Duration> = ContinuousClock(),
         issues: @escaping @Sendable (KeyboardLayout) -> [LayoutIssue] = LayoutIssues.check, live: LiveSession? = nil,
-        storesLayoutRecord: @escaping @MainActor () -> Bool = { true }
+        storesLayoutRecord: @escaping @MainActor () -> Bool = { false }
     ) {
         self.session = session
         self.library = library
@@ -297,6 +263,7 @@ public final class BuildFlashSession {
     private func run(_ request: Request, keyboard: KeyboardDevice?, confirmed: Bool) async {
         let layout: KeyboardLayout
         let expected: FirmwareIdentity
+        var storesRecord = false
         let aliases = await currentAliases()
         if request == .flash, let builtLayout, let identity {
             (layout, expected) = (builtLayout, identity)
@@ -306,7 +273,8 @@ public final class BuildFlashSession {
             guard errors.isEmpty else { return show(.blocked(errors)) }
             let plain = FirmwareIdentity(layout: layout, libraryID: session.id, importedLayout: await importedLayout())
             // The serial stays the same with or without the record (ADR 0061).
-            expected = storesLayoutRecord() ? plain.storingRecord(of: layout, libraryID: session.id, aliases: aliases) : plain
+            storesRecord = storesLayoutRecord()
+            expected = storesRecord ? plain.storingRecord(of: layout, libraryID: session.id, aliases: aliases) : plain
         }
         if request != .build, !confirmed, let keyboard,
             (keyboard.serial.map {
@@ -318,9 +286,9 @@ public final class BuildFlashSession {
         }
         guard !Task.isCancelled else { return }
         // The layout hasn't changed since the last build: use that build rather than compile it again.
-        let reusable = artifact != nil && builtLayout == layout && identity == expected
+        let reusable = artifact != nil && builtLayout == layout && (builtFor == expected || identity == expected)
         if request != .flash, !reusable {
-            guard await build(layout, as: expected) else { return }
+            guard await build(layout, as: expected, storingRecord: storesRecord) else { return }
         }
         if request == .build { return show(.built) }
         // Never ask for flash mode when the write would be refused: the keyboard would sit in its bootloader for nothing.
@@ -346,8 +314,10 @@ public final class BuildFlashSession {
         return entries.first { $0.isOnKeyboard(serial: serial) }?.title
     }
 
-    private func build(_ layout: KeyboardLayout, as identity: FirmwareIdentity) async -> Bool {
-        (artifact, self.identity, builtLayout, log) = (nil, nil, nil, [])
+    /// Builds `layout` as `identity`. With `storingRecord`, the user asked for the layout in the firmware (ADR 0061): the
+    /// log says so when it was too large to store, and a firmware too large with it builds again without it.
+    private func build(_ layout: KeyboardLayout, as identity: FirmwareIdentity, storingRecord: Bool) async -> Bool {
+        (artifact, self.identity, builtFor, builtLayout, log) = (nil, nil, nil, nil, [])
         if case let .needsSetup(detail) = await toolchain.status() {
             show(.needsSetup(detail))
             return false
@@ -355,6 +325,40 @@ public final class BuildFlashSession {
         show(.generating)
         await session.flush()
         guard !Task.isCancelled else { return false }
+        // Another Mac then finds no layout on the keyboard, so the log says why.
+        if storingRecord, identity.record == nil {
+            log.append(String(localized: "Sextant: the layout is too large to store in the firmware, so this build doesn’t store it."))
+        }
+        var built = identity
+        var compiled = await compile(layout, as: built)
+        if case .tooLarge = compiled, built.record != nil, !Task.isCancelled {
+            log.append(String(localized: "Sextant: the firmware is too large with the layout stored in it, so it builds again without it."))
+            built.record = nil
+            compiled = await compile(layout, as: built)
+        }
+        guard !Task.isCancelled else { return false }
+        switch compiled {
+        case .stopped:
+            return false
+        case let .tooLarge(over):
+            fail(.toolchain(.tooLarge(overBy: over)))
+            return false
+        case let .built(result):
+            (artifact, self.identity, builtFor, builtLayout, imageMD5) = (result, built, identity, layout, md5(result.image))
+            return true
+        }
+    }
+
+    /// What ``compile(_:as:)`` ended with. `.stopped` has already shown why.
+    private enum Compiled {
+        case built(BuildArtifact)
+        case tooLarge(overBy: Int)
+        case stopped
+    }
+
+    /// Generates and compiles `layout` as `identity`, showing its progress; a failure other than a firmware too large is
+    /// shown here.
+    private func compile(_ layout: KeyboardLayout, as identity: FirmwareIdentity) async -> Compiled {
         let source: GeneratedSource
         do {
             source = try generator.generate(layout, identity: identity)
@@ -363,7 +367,7 @@ public final class BuildFlashSession {
             // As with compile errors below: a revision's keys aren't the document's, so the error points at none.
             if target != nil, case let .unsupported(what, _) = error { error = .unsupported(what, nil) }
             fail(.generator(error))
-            return false
+            return .stopped
         }
         var result: BuildArtifact?
         for await event in toolchain.build(source, board: board) {
@@ -372,35 +376,21 @@ public final class BuildFlashSession {
             case let .compiling(file, done, total): show(.compiling(file: file, done: done, total: total))
             case .linking: show(.linking)
             case let .finished(built): result = built
+            case let .failed(.tooLarge(overBy: over)): return .tooLarge(overBy: over)
             case let .failed(error):
                 // A revision's keys aren't the document's, whose board shows the errors: they stay at their lines.
-                fail(.toolchain(Self.mapped(error, through: target == nil ? source.sourceMap : [:])))
-                return false
+                fail(.toolchain(error.mapped(through: target == nil ? source.sourceMap : [:])))
+                return .stopped
             }
         }
-        guard !Task.isCancelled else { return false }
+        guard !Task.isCancelled else { return .stopped }
         guard let result else {
             fail(.toolchain(.failed(String(localized: "The build ended without firmware."))))
-            return false
+            return .stopped
         }
         let used = result.usedBytes ?? max(0, result.image.count - 16)
-        guard used <= capacity else {
-            fail(.toolchain(.tooLarge(overBy: used - capacity)))
-            return false
-        }
-        (artifact, self.identity, builtLayout, imageMD5) = (result, identity, layout, md5(result.image))
-        return true
-    }
-
-    /// Points compile errors in `keymap.c` at the keys they came from.
-    private static func mapped(_ error: ToolchainError, through sourceMap: [Int: KeyRef]) -> ToolchainError {
-        guard case let .compileFailed(diagnostics) = error else { return error }
-        return .compileFailed(
-            diagnostics.map { d in
-                var d = d
-                if d.key == nil, d.file.split(separator: "/").last == "keymap.c" { d.key = sourceMap[d.line] }
-                return d
-            })
+        guard used <= capacity else { return .tooLarge(overBy: used - capacity) }
+        return .built(result)
     }
 
     /// Waits for exactly one bootloader, writes the build to it, then waits up to 10 s for the keyboard to come

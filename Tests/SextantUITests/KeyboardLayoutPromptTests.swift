@@ -266,12 +266,12 @@ struct KeyboardLayoutPromptTests {
 
     // MARK: Settings › Build
 
-    @Test func storingTheLayoutIsOnUntilTurnedOff() throws {
+    @Test func storingTheLayoutIsOffUntilTurnedOn() throws {
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        #expect(BuildSettings.storesLayoutInFirmware(in: defaults))
-        defaults.set(false, forKey: SettingsKey.storesLayoutInFirmware)
         #expect(!BuildSettings.storesLayoutInFirmware(in: defaults))
+        defaults.set(true, forKey: SettingsKey.storesLayoutInFirmware)
+        #expect(BuildSettings.storesLayoutInFirmware(in: defaults))
     }
 
     /// A started live session over `fake`, the layout on its keyboard, an empty in-memory library, and the pull, which is
