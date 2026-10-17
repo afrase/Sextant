@@ -1,9 +1,12 @@
 name: CI
 
+# Docs alone build nothing: progress notes, ADRs and the README don't run the gate.
 on:
   push:
     branches: [main]
+    paths-ignore: ["docs/**", "**/*.md", "LICENSE"]
   pull_request:
+    paths-ignore: ["docs/**", "**/*.md", "LICENSE"]
   workflow_dispatch:
 
 permissions:
@@ -33,6 +36,29 @@ jobs:
           xcodebuild -version
           swift --version
           swift format --version
+
+      # The packages, their checkouts and SwiftLint's binary, until Package.resolved or Xcode changes.
+      - name: Restore packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build/checkouts
+            .build/repositories
+            .build/artifacts
+            .build/workspace-state.json
+            ~/Library/Caches/org.swift.swiftpm
+          key: spm-packages-xcode26.6-${{ hashFiles('Package.resolved') }}
+
+      # The last build's products, so the build is incremental. Saved per commit; a run restores the newest one for the
+      # same packages and Xcode. Only a passing run saves, so nothing built with a warning is ever restored.
+      - name: Restore the last build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .build/out
+            .build/plugins
+          key: spm-build-xcode26.6-${{ hashFiles('Package.resolved') }}-${{ github.sha }}
+          restore-keys: spm-build-xcode26.6-${{ hashFiles('Package.resolved') }}-
 
       # GitHub sets CI=true: pixel snapshots and Periphery are skipped, and without SEXTANT_REFERENCE the tests run
       # on the author's own layout only.
