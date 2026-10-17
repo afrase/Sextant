@@ -17,7 +17,8 @@ A native macOS app for the ZSA Voyager: edit your layout on your Mac, import it 
 - **Edit everything locally, with undo:** layers, tap/hold/double-tap actions, chords, labels, per-key colors, tapping terms, macros, combos, firmware settings and the Navigator.
 - **Import from Oryx** by pasting a layout link. Read-only: no login, nothing changes in your Oryx account.
 - **Build and flash on your Mac,** with a pinned, sandboxed QMK toolchain and a flasher that only writes where it should.
-- **See the keyboard live:** the active layer and the keys you press, an overlay of the layer you hold, layer switching from the menu bar or shortcuts, and App Layers that follow the app you're in.
+- **See the keyboard live:** the active layer and the keys you press, an overlay of the layer you hold (placed where you like), layer switching from the menu bar or shortcuts, and App Layers that follow the app you're in.
+- **One keyboard, two Macs:** optionally store the layout in the firmware, so Sextant on your other Mac reads it back and knows what the keyboard runs.
 - **Lighting and heatmap:** paint a layer's LEDs and preview them on the keyboard; see which keys you actually use.
 - **History and export:** revisions you can compare and restore; export JSON, QMK source, firmware, PNG or PDF.
 
