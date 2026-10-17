@@ -45,20 +45,31 @@ public struct SextantScenes: Scene {
         .commands {
             SextantCommands(
                 library: services.library, onKeyboard: services.onKeyboard, live: services.live,
-                layerShortcuts: services.layerShortcuts, windows: windows)
+                layerShortcuts: services.layerShortcuts, updates: services.updates, windows: windows)
         }
 
         Settings {
             SettingsView(
                 buildToolsStatus: buildToolsStatus, firmwareSource: firmwareSource, trace: services.trace,
                 layerShortcuts: services.layerShortcuts, layerShortcutRecorder: layerShortcutRecorder, heatmap: services.heatmap,
-                overlayHUD: services.overlay)
+                overlayHUD: services.overlay, updates: services.updates
+            )
+            .environment(windows)
         }
 
         // The layout read from the keyboard, and where to add it (ADR 0061). Only Add to Library… opens it: never at
         // launch or by window restoration, and the Window menu doesn't list it.
         Window("Layout on the Keyboard", id: KeyboardLayoutWindow.sceneID) {
             KeyboardLayoutWindow(pull: services.keyboardLayout, library: services.library).environment(windows)
+        }
+        .windowResizability(.contentSize)
+        .restorationBehavior(.disabled)
+        .defaultLaunchBehavior(.suppressed)
+        .commandsRemoved()
+
+        // Check for Updates… and the menu bar's Details… (ADR 0063); not restored at launch, not in the Window menu.
+        Window("Software Update", id: SoftwareUpdateWindow.sceneID) {
+            SoftwareUpdateWindow(updates: services.updates, installedWithHomebrew: services.installedWithHomebrew)
         }
         .windowResizability(.contentSize)
         .restorationBehavior(.disabled)

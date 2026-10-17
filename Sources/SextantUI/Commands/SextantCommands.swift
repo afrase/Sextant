@@ -12,6 +12,8 @@ struct SextantCommands: Commands {
     let onKeyboard: OnKeyboard
     let live: LiveSession
     let layerShortcuts: LayerShortcuts
+    /// Sextant ▸ Check for Updates… (ADR 0063).
+    let updates: UpdateChecker
     /// Window ▸ Main Window opens the keyboard's layout, as the menu bar extra's Open Sextant does.
     let windows: WindowRouter
     @Environment(\.openWindow) private var openWindow
@@ -37,6 +39,7 @@ struct SextantCommands: Commands {
         CommandMenu("Layer") { LayerMenu(window: window) }
         CommandMenu("Key") { KeyMenu(window: window) }
         CommandMenu("Keyboard") { KeyboardMenu(window: window, onKeyboard: onKeyboard, live: live, layerShortcuts: layerShortcuts) }
+        CommandGroup(after: .appInfo) { UpdateMenuItem(updates: updates, windows: windows) }
         CommandGroup(before: .windowList) {
             Button("Main Window") { windows.showMainWindow { openWindow.layout($0) } }.keyboardShortcut("0")
         }

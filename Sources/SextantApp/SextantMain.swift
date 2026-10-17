@@ -9,6 +9,7 @@ import SextantDomain
 import SextantOryx
 import SextantStorage
 import SextantUI
+import SextantUpdates
 import SwiftUI
 import os
 
@@ -41,6 +42,8 @@ struct SextantMain: App {
         services.overlay.start()
         services.heatmap.start()
         services.appLayers.start()
+        // Once a day while checking automatically is on (the default), a little after launch (ADR 0063).
+        services.updates.start()
         // `--import <oryx.json>`: add an Oryx layout file to the library at launch.
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--import"), args.indices.contains(i + 1) {
@@ -92,6 +95,11 @@ struct SextantMain: App {
             live: live, onKeyboard: onKeyboard, library: library, store: HeatmapFiles(root: HeatmapFiles.defaultRoot()),
             isOn: PrivacySettings.recordsHeatmap(), retentionDays: PrivacySettings.heatmapRetentionDays(),
             persist: PrivacySettings.saveHeatmap)
+        // The bundle's short version; `swift run` has none, and then never checks by itself.
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let updates = UpdateChecker(
+            current: version.flatMap(AppVersion.init), feed: GitHubReleaseFeed(version: version), saved: UpdateSettings.saved(),
+            persist: { UpdateSettings.save($0) })
         return SextantServices(
             library: library, live: live, trace: trace, onKeyboard: onKeyboard, layerShortcuts: layerShortcuts,
             lightingPreview: LightingPreview(live: live), overlay: OverlayHUD(live: live, onKeyboard: onKeyboard), heatmap: heatmap,
@@ -99,6 +107,7 @@ struct SextantMain: App {
                 watcher: WorkspaceAppWatcher(), onKeyboard: onKeyboard, live: live, store: store,
                 ownBundleID: Bundle.main.bundleIdentifier),
             keyboardLayout: KeyboardLayoutPull(live: live, onKeyboard: onKeyboard, library: library, store: store),
+            updates: updates, installedWithHomebrew: UpdateSettings.installedWithHomebrew(),
             makeImport: { ImportFromOryx(oryx: oryx, library: library) },
             makeBuildFlash: { session in
                 // ADR 0033: the native toolchain, every build sandboxed. Settings › Build says whether a build stores its

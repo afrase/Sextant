@@ -1143,7 +1143,7 @@ They use the same badges, with orange for warnings. ⌘' and ⇧⌘' move to the
    - Instead of this section: "Connect your keyboard with a USB cable." (no keyboard); the write's progress or a note (flash mode); Keymapp's note (held); and, with Live View off, a line saying what it shows and a **Turn On Live View** button, the same path as the toolbar's live button. Nothing starts when the panel opens.
 3. **Mini map** of the active layer, with pressed keys lit (paused during secure input).
 4. **App Layers:** "Xcode → Sym+Num" while the frontmost app's rule holds, else On, Paused or Off, with the switch of the keyboard layout's rules. Shown only when that layout has rules; the layer list then shows one row fewer before it scrolls, so the panel stays under 520 pt (ADR 0054).
-5. **"Show overlay while holding a layer"** switch.
+5. **"Show overlay while holding a layer"** switch. Above it, once a check finds a newer Sextant the user hasn't skipped: "Sextant X.Y.Z is available." with [Details…], which opens the Software Update window (ADR 0063).
 6. **Native menu-style rows:** Build & Flash “My MacOS Layout”… (⌘R; names the layout it writes; shows progress while flashing), Open Sextant (⌘0), Settings… (⌘,), Quit Sextant (⌘Q). Build & Flash… and Open Sextant open or bring forward the window of the layout a flash is writing, else the keyboard's, else an open one, else the most recently modified; Build & Flash… then starts in that window as ⌘R does (ADR 0049). These three rows close the panel, as a menu would; the layer tiles, Turn On Live View and the switches leave it open.
 
 Typing statistics appear only when heatmap recording is on, and then only as one line under the mini map: "Today: 12,408 presses · 64 wpm", or why recording is paused (a long reason wraps to a second line). Today's count is read when recording starts, before any press, and starts again from zero at midnight. Words per minute count the last minute's key presses, five to a word, kept in memory only (ADR 0053). The line costs the layer list a row before it scrolls, as the App Layers row does, so with both the panel stays under 520 pt; while it says secure input pauses recording, the mini map doesn’t say so again.
@@ -1287,7 +1287,7 @@ Never called "Smart Layers". The rules belong to the layout, in `app-layers.json
 
 | Pane | Contents | Phase |
 |---|---|---|
-| General | Open at login. Show in menu bar (on), show the layer's color in the menu bar (off), keep Sextant in the menu bar when its windows are closed (on since 2026-10-16, ADR 0049). When the keyboard connects: Open Sextant / Do nothing. Show grid behind the keyboard. Notify when a flash finishes (opt-in) | MVP (menu bar options v1) |
+| General | Open at login. Show in menu bar (on), show the layer's color in the menu bar (off), keep Sextant in the menu bar when its windows are closed (on since 2026-10-16, ADR 0049). When the keyboard connects: Open Sextant / Do nothing. Show grid behind the keyboard. Notify when a flash finishes (opt-in). Updates: check for updates automatically (on, daily, ADR 0063), the status, [Check Now] | MVP (menu bar options v1) |
 | Keyboard | Show key presses on the board (on). Follow the keyboard by default (on). Overlay: on/off (on), [Preview], position (nine spots, bottom center), distance from edge (0–200 pt, 72), display ("Follows the pointer" or "Main display"), size (S/M/L, M), opacity (30–100%, 100%), delay (0–1000 ms in 10 ms steps, 150), tint with layer color (off), toggled-layer behavior (full overlay, reminder or nothing; reminder) (ADR 0062). Layer shortcuts: global shortcuts to move the keyboard to a layer (⌃⌥0–9, off by default; a recorder per layer while on) | v1 |
 | Build | Build tools: Apple container (recommended) or managed toolchain, with status, disk use, [Update] and [Remove]. Firmware source pinned to ZSA fork commit `93b2b9e` and modules `13890cd`. "Use Oryx's build when the layout is unchanged since import". Store the layout in the firmware (off, ADR 0061) | MVP |
 | Privacy | Heatmap recording (off by default), retention (30 days, 90 days, 1 year; a shorter one asks first), [Clear Heatmap Data…] for every layout, which asks first, and a save or read that failed. Explanatory text about raw HID and secure input, and that the heatmap counts only while Live View is on | MVP (Clear v1) |
@@ -1308,7 +1308,7 @@ Never called "Smart Layers". The rules belong to the layout, in `app-layers.json
 
 ### 9.1 Menus
 
-**Sextant:** About Sextant · Settings… ⌘, · Services · Hide ⌘H · Hide Others ⌥⌘H · Quit ⌘Q
+**Sextant:** About Sextant · Check for Updates… (reads "Update to Sextant X.Y.Z…" once one is found, ADR 0063) · Settings… ⌘, · Services · Hide ⌘H · Hide Others ⌥⌘H · Quit ⌘Q
 
 **File**
 

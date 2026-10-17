@@ -128,6 +128,12 @@ custom_rules:
     regex: "^import (?!(Foundation|CryptoKit|os|SextantApplication|SextantDomain)\\b)\\w+"
     message: "The Oryx adapter uses Foundation networking and CryptoKit only."
     severity: error
+  updates_imports:
+    name: "Updates imports"
+    included: "Sources/SextantUpdates/.*\\.swift"
+    regex: "^import (?!(Foundation|os|SextantApplication|SextantDomain)\\b)\\w+"
+    message: "The updates adapter uses Foundation networking only."
+    severity: error
   build_imports:
     name: "Build imports"
     included: "Sources/SextantBuild/.*\\.swift"
@@ -144,5 +150,5 @@ custom_rules:
     name: "UI imports"
     included: "Sources/SextantUI/.*\\.swift"
     regex: "^import (?!(SwiftUI|AppKit|Foundation|Observation|Accessibility|UniformTypeIdentifiers|CoreGraphics|PDFKit|os|MenuBarExtraAccess|SextantApplication|SextantDomain)\\b)\\w+"
-    message: "Views never touch adapters (SextantStorage, SextantOryx, SextantBuild, SextantDevice)."
+    message: "Views never touch adapters (SextantStorage, SextantOryx, SextantBuild, SextantDevice, SextantUpdates)."
     severity: error

@@ -1,12 +1,15 @@
 #!/bin/sh
 # Builds Sextant.app from the Swift package (ADR 0011): release build, bundle layout, String Catalog, signing.
 #   SEXTANT_SIGN_IDENTITY  codesign identity ("Developer ID Application: …"); ad-hoc when unset.
-#   SEXTANT_VERSION        CFBundleShortVersionString (default 0.1.0).
+#   SEXTANT_VERSION        CFBundleShortVersionString (default: the newest vX.Y.Z tag, so a local build isn't told that
+#                          release is an update; 0.1.0 without tags).
 # Output: .build/Sextant.app
 set -eu
 cd "$(dirname "$0")/.."
 identity="${SEXTANT_SIGN_IDENTITY:--}"
-version="${SEXTANT_VERSION:-0.1.0}"
+tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-*' 2>/dev/null || true)
+version="${SEXTANT_VERSION:-${tag#v}}"
+version="${version:-0.1.0}"
 build=$(git rev-list --count HEAD 2>/dev/null || echo 1)
 
 swift build -c release --product SextantApp
