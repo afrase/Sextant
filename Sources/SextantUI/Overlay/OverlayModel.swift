@@ -31,8 +31,8 @@ struct OverlaySettings: Equatable {
     var opacity: Double = 1
     var tints = false
     var locked = LockedLayerOverlay.reminder
-    /// Keys pressed over the full overlay hide it until they're let go and none goes down for the delay (ADR 0064).
-    var hidesWhileTyping = false
+    /// Whether keys pressed over the full overlay hide it, and until when (ADRs 0064, 0065).
+    var typing = OverlayTyping.keepShowing
 
     /// The delays the pane offers, in milliseconds.
     static let delays = 0...1000
@@ -53,7 +53,7 @@ struct OverlaySettings: Equatable {
         opacity = Double(Self.clamp(defaults.object(forKey: SettingsKey.overlayOpacity) as? Int ?? 100, to: Self.opacities)) / 100
         tints = defaults.bool(forKey: SettingsKey.tintsOverlay)
         locked = defaults.string(forKey: SettingsKey.lockedLayerOverlay).flatMap(LockedLayerOverlay.init) ?? .reminder
-        hidesWhileTyping = defaults.bool(forKey: SettingsKey.overlayHidesWhileTyping)
+        typing = defaults.string(forKey: SettingsKey.overlayTyping).flatMap(OverlayTyping.init) ?? .keepShowing
     }
 
     private static func clamp(_ value: Int, to range: ClosedRange<Int>) -> Int {
@@ -78,8 +78,8 @@ struct ShownOverlay: Equatable {
 
 /// When the overlay HUD shows, and what (spec §8.4, ADR 0050). It follows the keyboard's live activity: a layer a key
 /// holds on shows the full overlay once the hold lasts the delay, and hides the moment that key is let go; a locked
-/// layer shows a reminder (or the full overlay, or nothing, per Settings). With Hide while typing on, keys pressed over
-/// the full overlay hide it until they're let go and none goes down for the delay (ADR 0064). It shows nothing while
+/// layer shows a reminder (or the full overlay, or nothing, per Settings). Keys pressed over the full overlay can hide it
+/// until typing pauses for the delay or until the layer is held again, per Settings (ADRs 0064, 0065). It shows nothing while
 /// Live View is off, during secure input, without the keyboard's layout, or while a Sextant window that is key shows the
 /// same layer. Settings › Keyboard's preview shows apart from all that, whenever nothing else does (ADR 0062).
 @MainActor
@@ -134,9 +134,10 @@ final class OverlayModel {
     /// reports it before acting on it), and the change can also go missing (research 03 O2), so until the next layer
     /// report the layer counts as gone, not as locked.
     private var released: Int?
-    /// With Hide while typing on (ADR 0064): the full overlay keys were pressed over, and those of them still held. While
-    /// any is held it doesn't show; once none is, it shows after the delay (at least ``typingSettle``) unless another
-    /// goes down. A change to what should show forgets it.
+    /// When typing hides the overlay (ADRs 0064, 0065): the full overlay keys were pressed over, and those of them still
+    /// held. Until the next hold it doesn't show at all; until a pause, it doesn't while any is held, and once none is it
+    /// shows after the delay (at least ``typingSettle``) unless another goes down. A change to what should show forgets
+    /// it, so the next hold, or another layer, shows as usual.
     private var typed: (over: OverlayPresentation, keys: Set<Int>)?
     /// Each layout window that is key, with the layer its board shows.
     private var keyWindows: [ObjectIdentifier: ShownLayer] = [:]
@@ -203,10 +204,10 @@ final class OverlayModel {
         update()
     }
 
-    /// With Hide while typing on, a key that goes down over the full overlay hides it, or holds back one still waiting
-    /// for the delay. The key holding its layer doesn't, nor does a layer key: the layer it moves to shows as usual.
+    /// When typing hides the overlay, a key that goes down over the full overlay hides it, or holds back one still
+    /// waiting for the delay. The key holding its layer doesn't, nor does a layer key: the layer it moves to shows as usual.
     private func typing(_ index: Int, on pressedOn: Int) {
-        guard settings.hidesWhileTyping, let keyboard, let over = wanted, case let .full(_, holder) = over, holder?.index != index
+        guard settings.typing != .keepShowing, let keyboard, let over = wanted, case let .full(_, holder) = over, holder?.index != index
         else { return }
         let key = keyboard.layout.resolvedKey(layer: pressedOn, index: index).effective
         guard !key.actions.contains(where: { $0.action.layer != nil }) else { return }
@@ -252,8 +253,9 @@ final class OverlayModel {
     /// layer; a lock waits for `delay` and at least ``lockSettle``; one that typing hid waits for `delay` and at least
     /// ``typingSettle`` once the keys are let go. Hiding never waits.
     private func update() {
-        if let typed, !settings.hidesWhileTyping || typed.over != wanted { self.typed = nil }
-        let target = typed?.keys.isEmpty == false ? nil : wanted
+        if let typed, settings.typing == .keepShowing || typed.over != wanted { self.typed = nil }
+        let hidden = typed.map { !$0.keys.isEmpty || settings.typing == .hideUntilNextHold } ?? false
+        let target = hidden ? nil : wanted
         guard target != presentation else { return cancelPending() }
         guard let target else {
             cancelPending()

@@ -292,10 +292,10 @@ struct OverlayModelTests {
         defaults.set("large", forKey: SettingsKey.overlaySize)
         defaults.set(true, forKey: SettingsKey.tintsOverlay)
         defaults.set("full", forKey: SettingsKey.lockedLayerOverlay)
-        defaults.set(true, forKey: SettingsKey.overlayHidesWhileTyping)
+        defaults.set("hideUntilNextHold", forKey: SettingsKey.overlayTyping)
         let read = OverlaySettings(defaults)
         #expect(!read.showsOverlay && read.delay == .milliseconds(1000) && read.position == .top && read.size == .large)
-        #expect(read.tints && read.locked == .full && read.hidesWhileTyping)
+        #expect(read.tints && read.locked == .full && read.typing == .hideUntilNextHold)
     }
 
     /// Settings › Keyboard's Preview (ADR 0062) shows the keyboard's layer 1 even with Live View off, and is never a
