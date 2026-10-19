@@ -148,9 +148,9 @@ public struct MenuBarPanelContent: View {
             }
             Divider()
             VStack(spacing: 0) {
-                buildAndFlashRow
                 MenuBarRow(title: String(localized: "Open Sextant"), shortcut: "⌘0", action: actions.openSextant)
                     .keyboardShortcut("0")
+                buildAndFlashRow
                 MenuBarRow(title: String(localized: "Settings…"), shortcut: "⌘,", action: actions.openSettings).keyboardShortcut(",")
                 MenuBarRow(title: String(localized: "Quit Sextant"), shortcut: "⌘Q", action: actions.quit).keyboardShortcut("q")
             }
