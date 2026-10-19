@@ -292,9 +292,10 @@ struct OverlayModelTests {
         defaults.set("large", forKey: SettingsKey.overlaySize)
         defaults.set(true, forKey: SettingsKey.tintsOverlay)
         defaults.set("full", forKey: SettingsKey.lockedLayerOverlay)
+        defaults.set(true, forKey: SettingsKey.overlayHidesWhileTyping)
         let read = OverlaySettings(defaults)
         #expect(!read.showsOverlay && read.delay == .milliseconds(1000) && read.position == .top && read.size == .large)
-        #expect(read.tints && read.locked == .full)
+        #expect(read.tints && read.locked == .full && read.hidesWhileTyping)
     }
 
     /// Settings › Keyboard's Preview (ADR 0062) shows the keyboard's layer 1 even with Live View off, and is never a
@@ -393,7 +394,7 @@ struct OverlayModelTests {
     }
 
     /// Main's keys 0–8 hold layer 3 in each layer function's way (as in `LayerHoldTests`).
-    private func synthetic() -> KeyboardLayout {
+    func synthetic() -> KeyboardLayout {
         var layout = KeyboardLayout(
             title: "Synthetic", layers: (0..<4).map { Layer.transparent(title: "L\($0)", color: HexColor(red: 0, green: 0.5, blue: 1)) })
         let keys: [Int: Key] = [

@@ -1765,6 +1765,9 @@
     "Hide Sidebar" : {
 
     },
+    "Hide while typing on the layer" : {
+
+    },
     "History" : {
 
     },
@@ -4214,7 +4217,7 @@
     "When you leave it for an app without a rule, it stays there." : {
 
     },
-    "While Live View is on, shows the layer you’re holding over other apps once the delay passes, for a layout in your library. A locked layer can show a small reminder until the keyboard is back on its base layer. Turn on Live View from Sextant in the menu bar or a layout window’s toolbar. Preview shows the overlay with these settings for a few seconds, even with Live View off." : {
+    "While Live View is on, shows the layer you’re holding over other apps once the delay passes, for a layout in your library. A locked layer can show a small reminder until the keyboard is back on its base layer. Hide while typing hides it as you press keys on the layer, and brings it back once you stop typing for the delay. Turn on Live View from Sextant in the menu bar or a layout window’s toolbar. Preview shows the overlay with these settings for a few seconds, even with Live View off." : {
 
     },
     "Window" : {
