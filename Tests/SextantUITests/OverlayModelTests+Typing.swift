@@ -3,12 +3,13 @@ import Testing
 
 @testable import SextantUI
 
-/// Hide while typing on the layer (ADR 0064), on ``OverlayModelTests``' test clock and layouts.
+/// Typing on the layer hides its overlay (ADRs 0064, 0065), on ``OverlayModelTests``' test clock and layouts.
 extension OverlayModelTests {
-    /// Keys pressed on a held layer hide the overlay until they're all let go and none goes down for the delay.
+    /// Keys pressed on a held layer hide the overlay until they're all let go and none goes down for the show-again
+    /// delay (500 ms by default).
     @Test func typingHidesTheHeldOverlayUntilItStopsForTheDelay() async throws {
         var settings = OverlaySettings()
-        settings.hidesWhileTyping = true
+        settings.typing = .hideUntilPause
         let model = try model(settings: settings)
         let held = OverlayPresentation.full(layer: 1, heldBy: KeyRef(layer: 0, index: 24))
         model.handle(.keyDown(index: 24, layer: 0))
@@ -26,7 +27,7 @@ extension OverlayModelTests {
         await advance(100)
         model.handle(.keyDown(index: 15, layer: 1))
         model.handle(.keyUp(index: 15))
-        await advance(149)
+        await advance(499)
         #expect(model.presentation == nil, "a key-down starts the delay again")
         await advance(1)
         #expect(model.presentation == held)
@@ -36,7 +37,7 @@ extension OverlayModelTests {
 
     @Test func typingBeforeTheDelayHoldsTheOverlayBack() async throws {
         var settings = OverlaySettings()
-        settings.hidesWhileTyping = true
+        settings.typing = .hideUntilPause
         let model = try model(settings: settings)
         model.handle(.keyDown(index: 24, layer: 0))
         model.handle(.layer(1))
@@ -45,7 +46,7 @@ extension OverlayModelTests {
         await advance(100)
         #expect(model.presentation == nil)
         model.handle(.keyUp(index: 13))
-        await advance(149)
+        await advance(499)
         #expect(model.presentation == nil)
         await advance(1)
         #expect(model.presentation == .full(layer: 1, heldBy: KeyRef(layer: 0, index: 24)))
@@ -60,18 +61,19 @@ extension OverlayModelTests {
         #expect(model.presentation == .full(layer: 1, heldBy: KeyRef(layer: 0, index: 24)))
     }
 
-    /// With no delay it still waits ``OverlayModel/typingSettle``, so it doesn't flash back between keystrokes.
-    @Test func typingWithNoDelayWaitsTheSettleTime() async throws {
+    /// The show-again delay is its own: with no delay the overlay shows at once, and after typing waits its time.
+    @Test func typingWaitsTheShowAgainDelayNotTheDelay() async throws {
         var settings = OverlaySettings()
-        settings.hidesWhileTyping = true
+        settings.typing = .hideUntilPause
         settings.delay = .zero
+        settings.typingDelay = .milliseconds(300)
         let model = try model(settings: settings)
         model.handle(.keyDown(index: 24, layer: 0))
         model.handle(.layer(1))
         #expect(model.presentation != nil)
         model.handle(.keyDown(index: 13, layer: 1))
         model.handle(.keyUp(index: 13))
-        await advance(99)
+        await advance(299)
         #expect(model.presentation == nil)
         await advance(1)
         #expect(model.presentation == .full(layer: 1, heldBy: KeyRef(layer: 0, index: 24)))
@@ -80,7 +82,7 @@ extension OverlayModelTests {
     /// A locked layer's full overlay hides too; its reminder doesn't.
     @Test func typingHidesALockedLayersFullOverlayButNotItsReminder() async throws {
         var settings = OverlaySettings()
-        settings.hidesWhileTyping = true
+        settings.typing = .hideUntilPause
         settings.locked = .full
         let full = try model(synthetic(), settings: settings)
         full.handle(.layer(3))
@@ -88,7 +90,7 @@ extension OverlayModelTests {
         full.handle(.keyDown(index: 10, layer: 3))
         #expect(full.presentation == nil)
         full.handle(.keyUp(index: 10))
-        await advance(150)
+        await advance(500)
         #expect(full.presentation == .full(layer: 3, heldBy: nil))
 
         settings.locked = .reminder
@@ -105,7 +107,7 @@ extension OverlayModelTests {
         layout.layers[0].keys[0] = Key(tap: .momentary(1))
         layout.layers[1].keys[30] = Key(tap: .momentary(2))
         var settings = OverlaySettings()
-        settings.hidesWhileTyping = true
+        settings.typing = .hideUntilPause
         let model = try model(layout, settings: settings)
         model.handle(.keyDown(index: 0, layer: 0))
         model.handle(.layer(1))
@@ -119,7 +121,7 @@ extension OverlayModelTests {
     /// Letting go of the layer forgets the typing: held again, the overlay shows after the delay alone.
     @Test func typingEndsWithTheLayer() async throws {
         var settings = OverlaySettings()
-        settings.hidesWhileTyping = true
+        settings.typing = .hideUntilPause
         let model = try model(settings: settings)
         model.handle(.keyDown(index: 24, layer: 0))
         model.handle(.layer(1))
@@ -131,5 +133,69 @@ extension OverlayModelTests {
         model.handle(.layer(1))
         await advance(150)
         #expect(model.presentation == .full(layer: 1, heldBy: KeyRef(layer: 0, index: 24)), "key 13, still down, typed over the last hold")
+    }
+
+    /// Until the next hold (ADR 0065): letting go of the typed keys and waiting doesn't bring it back; holding the layer
+    /// again does, after the delay.
+    @Test func typingHidesTheHeldOverlayUntilTheNextHold() async throws {
+        var settings = OverlaySettings()
+        settings.typing = .hideUntilNextHold
+        let model = try model(settings: settings)
+        let held = OverlayPresentation.full(layer: 1, heldBy: KeyRef(layer: 0, index: 24))
+        model.handle(.keyDown(index: 24, layer: 0))
+        model.handle(.layer(1))
+        await advance(150)
+        #expect(model.presentation == held)
+        model.handle(.keyDown(index: 13, layer: 1))
+        #expect(model.presentation == nil)
+        model.handle(.keyUp(index: 13))
+        await advance(5000)
+        #expect(model.presentation == nil, "not until the layer is held again")
+        model.handle(.keyUp(index: 24))
+        model.handle(.layer(0))
+        model.handle(.keyDown(index: 24, layer: 0))
+        model.handle(.layer(1))
+        await advance(149)
+        #expect(model.presentation == nil)
+        await advance(1)
+        #expect(model.presentation == held)
+    }
+
+    /// A locked layer's full overlay stays hidden until the keyboard moves to another layer.
+    @Test func untilTheNextHoldALockedOverlayWaitsForAnotherLayer() async throws {
+        var settings = OverlaySettings()
+        settings.typing = .hideUntilNextHold
+        settings.locked = .full
+        let model = try model(synthetic(), settings: settings)
+        model.handle(.layer(3))
+        await advance(150)
+        model.handle(.keyDown(index: 10, layer: 3))
+        model.handle(.keyUp(index: 10))
+        await advance(5000)
+        #expect(model.presentation == nil)
+        model.handle(.layer(0))
+        model.handle(.layer(3))
+        await advance(150)
+        #expect(model.presentation == .full(layer: 3, heldBy: nil))
+    }
+
+    /// Another layer held from the hidden one shows after the delay, as usual.
+    @Test func untilTheNextHoldAnotherLayerShowsAsUsual() async throws {
+        var layout = synthetic()
+        layout.layers[0].keys[0] = Key(tap: .momentary(1))
+        layout.layers[1].keys[30] = Key(tap: .momentary(2))
+        var settings = OverlaySettings()
+        settings.typing = .hideUntilNextHold
+        let model = try model(layout, settings: settings)
+        model.handle(.keyDown(index: 0, layer: 0))
+        model.handle(.layer(1))
+        await advance(150)
+        model.handle(.keyDown(index: 13, layer: 1))
+        model.handle(.keyUp(index: 13))
+        #expect(model.presentation == nil)
+        model.handle(.keyDown(index: 30, layer: 1))
+        model.handle(.layer(2))
+        await advance(150)
+        #expect(model.presentation == .full(layer: 2, heldBy: KeyRef(layer: 1, index: 30)))
     }
 }
