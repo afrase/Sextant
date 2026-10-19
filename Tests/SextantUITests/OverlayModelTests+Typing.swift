@@ -5,7 +5,8 @@ import Testing
 
 /// Typing on the layer hides its overlay (ADRs 0064, 0065), on ``OverlayModelTests``' test clock and layouts.
 extension OverlayModelTests {
-    /// Keys pressed on a held layer hide the overlay until they're all let go and none goes down for the delay.
+    /// Keys pressed on a held layer hide the overlay until they're all let go and none goes down for the show-again
+    /// delay (500 ms by default).
     @Test func typingHidesTheHeldOverlayUntilItStopsForTheDelay() async throws {
         var settings = OverlaySettings()
         settings.typing = .hideUntilPause
@@ -26,7 +27,7 @@ extension OverlayModelTests {
         await advance(100)
         model.handle(.keyDown(index: 15, layer: 1))
         model.handle(.keyUp(index: 15))
-        await advance(149)
+        await advance(499)
         #expect(model.presentation == nil, "a key-down starts the delay again")
         await advance(1)
         #expect(model.presentation == held)
@@ -45,7 +46,7 @@ extension OverlayModelTests {
         await advance(100)
         #expect(model.presentation == nil)
         model.handle(.keyUp(index: 13))
-        await advance(149)
+        await advance(499)
         #expect(model.presentation == nil)
         await advance(1)
         #expect(model.presentation == .full(layer: 1, heldBy: KeyRef(layer: 0, index: 24)))
@@ -60,18 +61,19 @@ extension OverlayModelTests {
         #expect(model.presentation == .full(layer: 1, heldBy: KeyRef(layer: 0, index: 24)))
     }
 
-    /// With no delay it still waits ``OverlayModel/typingSettle``, so it doesn't flash back between keystrokes.
-    @Test func typingWithNoDelayWaitsTheSettleTime() async throws {
+    /// The show-again delay is its own: with no delay the overlay shows at once, and after typing waits its time.
+    @Test func typingWaitsTheShowAgainDelayNotTheDelay() async throws {
         var settings = OverlaySettings()
         settings.typing = .hideUntilPause
         settings.delay = .zero
+        settings.typingDelay = .milliseconds(300)
         let model = try model(settings: settings)
         model.handle(.keyDown(index: 24, layer: 0))
         model.handle(.layer(1))
         #expect(model.presentation != nil)
         model.handle(.keyDown(index: 13, layer: 1))
         model.handle(.keyUp(index: 13))
-        await advance(99)
+        await advance(299)
         #expect(model.presentation == nil)
         await advance(1)
         #expect(model.presentation == .full(layer: 1, heldBy: KeyRef(layer: 0, index: 24)))
@@ -88,7 +90,7 @@ extension OverlayModelTests {
         full.handle(.keyDown(index: 10, layer: 3))
         #expect(full.presentation == nil)
         full.handle(.keyUp(index: 10))
-        await advance(150)
+        await advance(500)
         #expect(full.presentation == .full(layer: 3, heldBy: nil))
 
         settings.locked = .reminder

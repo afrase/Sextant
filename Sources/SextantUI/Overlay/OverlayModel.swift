@@ -33,9 +33,13 @@ struct OverlaySettings: Equatable {
     var locked = LockedLayerOverlay.reminder
     /// Whether keys pressed over the full overlay hide it, and until when (ADRs 0064, 0065).
     var typing = OverlayTyping.keepShowing
+    /// With ``OverlayTyping/hideUntilPause``, how long after the last typed key is let go it shows again (ADR 0065).
+    var typingDelay = Duration.milliseconds(500)
 
     /// The delays the pane offers, in milliseconds.
     static let delays = 0...1000
+    /// The show-again delays the pane offers, in milliseconds: never so short that it flashes back between keystrokes.
+    static let typingDelays = 100...2000
     /// The distances from the screen's edges the pane offers, in points.
     static let margins = 0...200
     /// The opacities the pane offers, in percent.
@@ -54,6 +58,8 @@ struct OverlaySettings: Equatable {
         tints = defaults.bool(forKey: SettingsKey.tintsOverlay)
         locked = defaults.string(forKey: SettingsKey.lockedLayerOverlay).flatMap(LockedLayerOverlay.init) ?? .reminder
         typing = defaults.string(forKey: SettingsKey.overlayTyping).flatMap(OverlayTyping.init) ?? .keepShowing
+        typingDelay = .milliseconds(
+            Self.clamp(defaults.object(forKey: SettingsKey.overlayTypingDelay) as? Int ?? 500, to: Self.typingDelays))
     }
 
     private static func clamp(_ value: Int, to range: ClosedRange<Int>) -> Int {
@@ -136,7 +142,7 @@ final class OverlayModel {
     private var released: Int?
     /// When typing hides the overlay (ADRs 0064, 0065): the full overlay keys were pressed over, and those of them still
     /// held. Until the next hold it doesn't show at all; until a pause, it doesn't while any is held, and once none is it
-    /// shows after the delay (at least ``typingSettle``) unless another goes down. A change to what should show forgets
+    /// shows after the show-again delay unless another goes down. A change to what should show forgets
     /// it, so the next hold, or another layer, shows as usual.
     private var typed: (over: OverlayPresentation, keys: Set<Int>)?
     /// Each layout window that is key, with the layer its board shows.
@@ -148,9 +154,6 @@ final class OverlayModel {
     /// A lock shows only once it has lasted this long, even with no delay: a held TT's key-up comes just before its
     /// layer ends.
     static let lockSettle = Duration.milliseconds(50)
-    /// Typing hides the full overlay for at least this long after the last key is let go, even with no delay, so it
-    /// doesn't flash back between keystrokes.
-    static let typingSettle = Duration.milliseconds(100)
     /// How long the preview lasts after it starts or after the last settings change.
     static let previewTime = Duration.seconds(8)
     /// What the preview draws without the keyboard's layout.
@@ -250,8 +253,8 @@ final class OverlayModel {
     }
 
     /// Shows or hides now, or after the delay: a held layer waits for `delay`, unless the HUD already shows a held
-    /// layer; a lock waits for `delay` and at least ``lockSettle``; one that typing hid waits for `delay` and at least
-    /// ``typingSettle`` once the keys are let go. Hiding never waits.
+    /// layer; a lock waits for `delay` and at least ``lockSettle``; one that typing hid waits for `typingDelay` once the
+    /// keys are let go. Hiding never waits.
     private func update() {
         if let typed, settings.typing == .keepShowing || typed.over != wanted { self.typed = nil }
         let hidden = typed.map { !$0.keys.isEmpty || settings.typing == .hideUntilNextHold } ?? false
@@ -270,8 +273,7 @@ final class OverlayModel {
             } else {
                 max(settings.delay, Self.lockSettle)
             }
-        // Typing hid it: it doesn't flash back between keystrokes, even with no delay.
-        let wait = typed == nil ? delay : max(delay, Self.typingSettle)
+        let wait = typed == nil ? delay : settings.typingDelay
         guard wait > .zero else {
             cancelPending()
             presentation = target

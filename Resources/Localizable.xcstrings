@@ -3564,6 +3564,9 @@
     "Show Sidebar" : {
 
     },
+    "Show again after" : {
+
+    },
     "Show grid behind the keyboard" : {
 
     },
@@ -4226,7 +4229,7 @@
     "When you type on the layer" : {
 
     },
-    "While Live View is on, shows the layer you’re holding over other apps once the delay passes, for a layout in your library. A locked layer can show a small reminder until the keyboard is back on its base layer. Typing on the layer can hide it until you pause for the delay, or until you let go of the layer and hold it again. Turn on Live View from Sextant in the menu bar or a layout window’s toolbar. Preview shows the overlay with these settings for a few seconds, even with Live View off." : {
+    "While Live View is on, shows the layer you’re holding over other apps once the delay passes, for a layout in your library. A locked layer can show a small reminder until the keyboard is back on its base layer. Typing on the layer can hide it until you pause (for its own delay, often longer), or until you let go of the layer and hold it again. Turn on Live View from Sextant in the menu bar or a layout window’s toolbar. Preview shows the overlay with these settings for a few seconds, even with Live View off." : {
 
     },
     "Window" : {
