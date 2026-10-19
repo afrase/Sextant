@@ -82,6 +82,8 @@ extension SettingsKey {
     static let overlayOpacity = "overlayOpacity"
     static let tintsOverlay = "tintsOverlay"
     static let lockedLayerOverlay = "lockedLayerOverlay"
+    /// Keys pressed over the full overlay hide it until typing stops for the delay (ADR 0064); off by default.
+    static let overlayHidesWhileTyping = "overlayHidesWhileTyping"
     /// The global layer shortcuts (ADR 0048); `LayerShortcuts` saves it through the composition root.
     static let layerShortcutsOn = "layerShortcutsOn"
 }
@@ -149,6 +151,7 @@ private struct OverlaySection: View {
     @AppStorage(SettingsKey.overlayDelay) private var delay = 150
     @AppStorage(SettingsKey.tintsOverlay) private var tints = false
     @AppStorage(SettingsKey.lockedLayerOverlay) private var locked = LockedLayerOverlay.reminder
+    @AppStorage(SettingsKey.overlayHidesWhileTyping) private var hidesWhileTyping = false
 
     var body: some View {
         Section {
@@ -168,6 +171,7 @@ private struct OverlaySection: View {
                 SteppedSlider(
                     title: "Delay", value: $delay, range: OverlaySettings.delays, step: 10, tick: 250,
                     text: String(localized: "\(delay) ms"))
+                Toggle("Hide while typing on the layer", isOn: $hidesWhileTyping)
                 Toggle("Tint with the layer color", isOn: $tints)
                 Picker("When a layer is locked", selection: $locked) {
                     Text("Full overlay").tag(LockedLayerOverlay.full)
@@ -183,8 +187,9 @@ private struct OverlaySection: View {
                 """
                 While Live View is on, shows the layer you’re holding over other apps once the delay passes, for a \
                 layout in your library. A locked layer can show a small reminder until the keyboard is back on its base \
-                layer. Turn on Live View from Sextant in the menu bar or a layout window’s toolbar. Preview shows the \
-                overlay with these settings for a few seconds, even with Live View off.
+                layer. Hide while typing hides it as you press keys on the layer, and brings it back once you stop \
+                typing for the delay. Turn on Live View from Sextant in the menu bar or a layout window’s toolbar. \
+                Preview shows the overlay with these settings for a few seconds, even with Live View off.
                 """
             )
             .foregroundStyle(.secondary)
