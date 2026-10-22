@@ -6,7 +6,8 @@ import os
 /// Counts key presses for the Heatmap (spec §8.5, ADR 0053). App-wide. Off until the user turns it on, and then it
 /// counts only what a paired Live View session reports (``LiveSession/activity()``), only for a layout the library holds
 /// (``OnKeyboard``), and never during secure input. It keeps hourly counts by layer id and key index, written to a
-/// ``HeatmapStore`` every minute and at quit; nothing finer than the hour is stored, and nothing is logged.
+/// ``HeatmapStore`` every minute and at quit; nothing finer than the hour is stored, and nothing is logged. A write adds
+/// at least ``minimumWrite`` presses (ADR 0066).
 @MainActor
 @Observable
 public final class HeatmapRecorder {
@@ -28,13 +29,13 @@ public final class HeatmapRecorder {
         case secureInput
     }
 
-    /// A layout's stored hours as they were read, and the store's ``HeatmapRecorder/version`` then.
+    /// A layout's stored counts as they were read, and the store's ``HeatmapRecorder/version`` then.
     public struct Snapshot: Sendable {
-        public let hours: [HeatmapHour]
+        public let heatmap: KeyHeatmap
         public let version: Int
 
-        public init(hours: [HeatmapHour], version: Int) {
-            self.hours = hours
+        public init(heatmap: KeyHeatmap, version: Int) {
+            self.heatmap = heatmap
             self.version = version
         }
     }
@@ -60,7 +61,8 @@ public final class HeatmapRecorder {
     public private(set) var version = 0
     /// Presses counted since launch.
     public private(set) var counted = 0
-    /// Bumped by every press and layer move counted, so a window's heat follows typing between writes.
+    /// Bumped by every press and layer move counted, and when held counts move into a later hour, so a window's heat
+    /// follows typing between writes.
     public private(set) var changes = 0
     /// The hour now, moved on by the minute's write, so a window's range slides while nobody types.
     public private(set) var hour: Date
@@ -95,22 +97,29 @@ public final class HeatmapRecorder {
     @ObservationIgnored private let now: @Sendable () -> Date
     @ObservationIgnored private let calendar: Calendar
     @ObservationIgnored private let persist: @MainActor (Bool, Int) -> Void
+    /// The fewest presses one write adds to a layout's counts.
+    @ObservationIgnored let minimumWrite: Int
     private static let log = Logger(subsystem: "com.sextant.app", category: "application")
 
     /// How often counts are written.
     static let flushInterval = Duration.seconds(60)
     /// Writes kept for windows that read before them; a window rereads within moments of each.
     static let keptWrites = 32
+    /// The fewest presses a write adds, so no write's counts are a password typed outside secure input and little else:
+    /// anyone reading the files a minute apart could tell them apart from the rest (ADR 0066). Fewer wait in memory
+    /// for more, and are lost if Sextant quits first.
+    public static let defaultMinimumWrite = 100
 
     /// - Parameters:
     ///   - library: says which layouts were moved to the Trash, whose counts go with them.
     ///   - isOn, retentionDays: the saved choices (Settings › Privacy); `persist` saves a change.
     ///   - clock: paces the writes; `now` and `calendar` date the hours and the day.
+    ///   - minimumWrite: the fewest presses one write adds; tests that write a press or two pass 0.
     public init(
         live: LiveSession, onKeyboard: OnKeyboard, library: Library, store: any HeatmapStore,
         board: BoardDefinition = .voyager, clock: any Clock<Duration> = ContinuousClock(),
         now: @escaping @Sendable () -> Date = { Date() }, calendar: Calendar = .current, isOn: Bool, retentionDays: Int,
-        persist: @escaping @MainActor (Bool, Int) -> Void = { _, _ in }
+        minimumWrite: Int = defaultMinimumWrite, persist: @escaping @MainActor (Bool, Int) -> Void = { _, _ in }
     ) {
         self.live = live
         self.onKeyboard = onKeyboard
@@ -123,6 +132,7 @@ public final class HeatmapRecorder {
         self.isOn = isOn
         self.retentionDays = retentionDays
         self.persist = persist
+        self.minimumWrite = minimumWrite
         hour = HeatmapHour.start(of: now())
     }
 
@@ -178,17 +188,17 @@ public final class HeatmapRecorder {
 
     // MARK: Reading
 
-    /// A layout's stored hours from `start` (all when nil). Never overlaps a write, so ``unwritten(of:from:after:)`` with
+    /// A layout's stored counts from `start` (all when nil). Never overlaps a write, so ``unwritten(of:from:after:)`` with
     /// the snapshot's version adds exactly what it lacks.
     public func snapshot(of layoutID: UUID, from start: Date?) async -> Snapshot {
         await serially { [store] in
             do throws(HeatmapStoreError) {
-                let hours = try await store.hours(of: layoutID, from: start)
+                let heatmap = try await store.heatmap(of: layoutID, from: start)
                 self.succeed(.read)
-                return Snapshot(hours: hours, version: self.version)
+                return Snapshot(heatmap: heatmap, version: self.version)
             } catch {
                 self.fail(.read, error)
-                return Snapshot(hours: [], version: self.version)
+                return Snapshot(heatmap: KeyHeatmap(), version: self.version)
             }
         }
     }
@@ -216,13 +226,20 @@ public final class HeatmapRecorder {
 
     // MARK: Writing
 
-    /// Writes the counts not yet written. Called every minute, when recording is turned off, and at quit.
+    /// Writes the counts not yet written, holding back a layout's last ones while they are fewer than ``minimumWrite``
+    /// presses. Called every minute, when recording is turned off, and at quit.
     public func flush() async {
         let date = now()
         if HeatmapHour.start(of: date) != hour { hour = HeatmapHour.start(of: date) }
         await serially {
-            self.inFlight = self.pending
-            self.pending = [:]
+            self.inFlight = [:]
+            for (id, hours) in self.pending {
+                let (ready, held) = Self.split(hours, minimum: self.minimumWrite)
+                if !ready.isEmpty { self.inFlight[id] = ready }
+                self.pending[id] = held.map { [$0.start: $0] }
+                // Hours carried into later ones may now fall in a window's range: it adds them again.
+                if hours.count != ready.count + (held == nil ? 0 : 1) { self.changes += 1 }
+            }
             var failures = 0
             // An hour at a time, each saved whole or not at all, so a failure keeps only what wasn't saved.
             for (id, hours) in self.inFlight {
@@ -234,6 +251,24 @@ public final class HeatmapRecorder {
             self.written.removeFirst(max(self.written.count - Self.keptWrites, 0))
         }
         if prunedDay != calendar.startOfDay(for: date) { await prune() }
+    }
+
+    /// A layout's unwritten hours, oldest first, split into those to write now and those held back: an hour with fewer
+    /// than `minimum` presses is carried into the next one, and what is still short of it at the end waits, under the
+    /// last hour. So every hour a write adds to has at least `minimum` presses added.
+    static func split(_ hours: [Date: HeatmapHour], minimum: Int) -> (ready: [Date: HeatmapHour], held: HeatmapHour?) {
+        var ready: [Date: HeatmapHour] = [:]
+        var carried: HeatmapHour?
+        for var hour in hours.values.sorted(by: { $0.start < $1.start }) {
+            if let carried { hour.add(carried) }
+            if hour.total >= minimum, !hour.isEmpty {
+                ready[hour.start] = hour
+                carried = nil
+            } else {
+                carried = hour
+            }
+        }
+        return (ready, carried)
     }
 
     /// Adds an hour to the store, then moves it from ``inFlight`` to ``written``, or back to ``pending`` (with whatever
@@ -329,8 +364,9 @@ public final class HeatmapRecorder {
         Task {
             let snapshot = await snapshot(of: id, from: start)
             guard todayLayout == id, todayStart == start else { return }
-            let hours = snapshot.hours + unwritten(of: id, from: start, after: snapshot.version)
-            today = KeyHeatmap(hours).total()
+            var heatmap = snapshot.heatmap
+            for hour in unwritten(of: id, from: start, after: snapshot.version) { heatmap.add(hour) }
+            today = heatmap.total()
         }
     }
 

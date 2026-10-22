@@ -35,6 +35,64 @@ struct HeatmapFilesTests {
         #expect(try await files.hours(of: UUID(), from: nil).isEmpty, "another layout has none")
     }
 
+    /// A range's counts added up: whole days, and only the hours from the start of a day the range starts in.
+    @Test func addsUpARange() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try await files.add([hour(-13, [1: 1]), hour(0, [1: 2]), hour(11, [2: 1], entries: ["sym": 3]), hour(13, [3: 5])], to: layout)
+        let all = try await files.heatmap(of: layout, from: nil)
+        #expect(all.presses == ["main": [1: 3, 2: 1, 3: 5]] && all.layerEntries == ["sym": 3])
+        let fromNoon = try await files.heatmap(of: layout, from: noon)
+        #expect(fromNoon.presses == ["main": [1: 2, 2: 1, 3: 5]], "the day before is left out")
+        let fromOne = try await files.heatmap(of: layout, from: noon.addingTimeInterval(3600))
+        #expect(fromOne.presses == ["main": [2: 1, 3: 5]] && fromOne.layerEntries == ["sym": 3], "and the hour before the start")
+        #expect(try await files.heatmap(of: layout, from: noon.addingTimeInterval(14 * 3600)) == KeyHeatmap())
+        #expect(try await files.heatmap(of: UUID(), from: nil) == KeyHeatmap(), "another layout has none")
+    }
+
+    /// Day files are added up once and kept, until a write, a prune, a clear or an edit outside Sextant changes them.
+    @Test func aChangedDayIsReadAgain() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try await files.add([hour(0, [1: 2]), hour(24, [1: 1])], to: layout)
+        #expect(try await files.heatmap(of: layout, from: nil).total() == 3)
+        try await files.add([hour(1, [2: 4])], to: layout)
+        #expect(try await files.heatmap(of: layout, from: nil).total() == 7, "a write")
+        let url = root.appending(path: "\(layout.uuidString)/2026-10-15.json")
+        let edited = #"{"format": 1, "hours": [{"start": "2026-10-15T12:00:00Z", "presses": {"main": {"9": 40}}}]}"#
+        try Data(edited.utf8).write(to: url)
+        #expect(try await files.heatmap(of: layout, from: nil).presses == ["main": [9: 40, 1: 1]], "an edit outside Sextant")
+        try await files.prune(before: noon.addingTimeInterval(24 * 3600))
+        #expect(try await files.heatmap(of: layout, from: nil).presses == ["main": [1: 1]], "a prune")
+        try await files.clear(layout)
+        #expect(try await files.heatmap(of: layout, from: nil) == KeyHeatmap(), "a clear")
+        try await files.add([hour(0, [5: 1])], to: layout)
+        #expect(try await files.heatmap(of: layout, from: nil).presses == ["main": [5: 1]], "and a day written again")
+    }
+
+    /// Only the user can open the folder or read a file, whatever an earlier Sextant left.
+    @Test func filesAreTheUsersAlone() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o755])
+        try await files.add([hour(0, [1: 1])], to: layout)
+        func permissions(_ path: String) throws -> Int? {
+            try FileManager.default.attributesOfItem(atPath: root.appending(path: path).path)[.posixPermissions] as? Int
+        }
+        #expect(try permissions("") == 0o700)
+        #expect(try permissions(layout.uuidString) == 0o700)
+        #expect(try permissions("\(layout.uuidString)/2026-10-15.json") == 0o600)
+        try await files.clear(nil)
+        try await files.add([hour(0, [1: 1])], to: layout)
+        #expect(try permissions("") == 0o700, "a root cleared and made again")
+        #expect(try permissions("\(layout.uuidString)/2026-10-15.json") == 0o600)
+    }
+
+    /// Launch's prune closes a folder an earlier Sextant left open, before any write.
+    @Test func pruneMakesAnOldFolderTheUsers() async throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o755])
+        try await files.prune(before: noon)
+        #expect(try FileManager.default.attributesOfItem(atPath: root.path)[.posixPermissions] as? Int == 0o700)
+    }
+
     @Test func addingMergesIntoTheStoredHour() async throws {
         defer { try? FileManager.default.removeItem(at: root) }
         try await files.add([hour(0, [1: 2], entries: ["sym": 1])], to: layout)

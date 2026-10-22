@@ -11,13 +11,11 @@ import UniformTypeIdentifiers
 @MainActor
 @Observable
 public final class HeatmapModel {
-    /// What a load read: the layout, the range's first hour, and the stored hours then.
+    /// What a load read: the layout, the range's first hour, and the stored counts then.
     struct Loaded {
         var layoutID: UUID
         var start: Date?
         var snapshot: HeatmapRecorder.Snapshot
-        /// The snapshot's hours added up once, as every cap reads them.
-        var heatmap: KeyHeatmap
     }
 
     /// The app-wide recorder; nil in tests and snapshots without one.
@@ -44,8 +42,8 @@ public final class HeatmapModel {
     public func show(_ hours: [HeatmapHour], of layoutID: UUID, range: HeatmapRange, status: HeatmapRecorder.Status) {
         self.range = range
         fixedStatus = status
-        let snapshot = HeatmapRecorder.Snapshot(hours: hours, version: 0)
-        loaded = Loaded(layoutID: layoutID, start: range.start(now: Date()), snapshot: snapshot, heatmap: KeyHeatmap(hours))
+        let snapshot = HeatmapRecorder.Snapshot(heatmap: KeyHeatmap(hours), version: 0)
+        loaded = Loaded(layoutID: layoutID, start: range.start(now: Date()), snapshot: snapshot)
         combined = nil
     }
 
@@ -61,14 +59,14 @@ public final class HeatmapModel {
         LoadKey(layoutID: layoutID, range: range, start: recorder.flatMap { range.start(now: $0.hour) }, version: recorder?.version ?? 0)
     }
 
-    /// Reads the layout's stored hours for the range, which slides with the recorder's hour.
+    /// Reads the layout's stored counts for the range, which slides with the recorder's hour.
     func load(_ layoutID: UUID) async {
         guard let recorder else { return }
         let range = range
         let start = range.start(now: recorder.hour)
         let snapshot = await recorder.snapshot(of: layoutID, from: start)
         guard range == self.range else { return }
-        loaded = Loaded(layoutID: layoutID, start: start, snapshot: snapshot, heatmap: KeyHeatmap(snapshot.hours))
+        loaded = Loaded(layoutID: layoutID, start: start, snapshot: snapshot)
         combined = nil
     }
 
@@ -76,10 +74,10 @@ public final class HeatmapModel {
     /// range shows the last one's until it is read.
     func heatmap(for layoutID: UUID) -> KeyHeatmap {
         guard let loaded, loaded.layoutID == layoutID else { return KeyHeatmap() }
-        guard let recorder else { return loaded.heatmap }
+        guard let recorder else { return loaded.snapshot.heatmap }
         let key = [recorder.changes, recorder.version, loaded.snapshot.version]
         if let combined, combined.key == key { return combined.heatmap }
-        var heatmap = loaded.heatmap
+        var heatmap = loaded.snapshot.heatmap
         for hour in recorder.unwritten(of: layoutID, from: loaded.start, after: loaded.snapshot.version) { heatmap.add(hour) }
         combined = (key, heatmap)
         return heatmap

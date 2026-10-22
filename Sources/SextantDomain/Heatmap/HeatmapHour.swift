@@ -26,6 +26,9 @@ public struct HeatmapHour: Hashable, Sendable {
 
     public var isEmpty: Bool { presses.values.allSatisfy(\.isEmpty) && layerEntries.isEmpty }
 
+    /// The hour's presses on every layer.
+    public var total: Int { presses.values.reduce(0) { Self.sum($0, $1.values.reduce(0, Self.sum)) } }
+
     /// The most one count is read as: no hour of typing comes near it, so a larger one is from a damaged or edited file
     /// and is held to it when read (one below 1 is left out).
     public static let countLimit = 1 << 32
