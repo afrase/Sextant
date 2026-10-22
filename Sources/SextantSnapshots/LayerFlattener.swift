@@ -13,11 +13,12 @@ import QuartzCore
 ///   source content renders directly. Without this sidebars, inspectors and glass-hosted toolbar items are blank.
 /// - **Mask layers** with `destIn` / `destOut` compositing (scroll-edge effects): hidden; otherwise they erase content.
 /// - **Vibrancy** (`vibrantColorMatrix` filter): the filter's colour matrix is applied to the layer's bitmap
-///   (text, symbols) or background colour. Hairline vibrant separators use `NSColor.separatorColor`.
-///   Known gap: the window server applies the matrix to what lies *behind* the layer, not to the layer's own colour. A
-///   bordered button in a dark inspector is two white layers (matrices "+0.08" and "×0.31 +0.94, alpha ×0.03"); on
-///   screen they lift the backdrop (0.26 → 0.375, 0.574 → 0.661 grey, red stays red-tinted), but here they come out
-///   white. So white Duplicate/Delete-style buttons in dark inspector scenes are this gap, not a bug in the app.
+///   (text, symbols). A vibrant fill (a bordered button's bezel, a field's background) is different: the window server
+///   applies the matrix to what lies *behind* it, not to its own colour, so the window is rendered once without those
+///   fills, the colour behind each is sampled, and the fill becomes the matrix applied to it. A bordered button in a
+///   dark inspector is two such fills (matrices "+0.08" and "×0.31 +0.94, alpha ×0.03") that lift the grey behind it
+///   (0.26 → about 0.36); applying them to their own white made those buttons white. Hairline vibrant separators use
+///   `NSColor.separatorColor`.
 /// - **Selection material** (`NSVisualEffectView.material == .selection`): filled with the selected-content colour.
 @MainActor
 enum LayerFlattener {
@@ -63,6 +64,7 @@ enum LayerFlattener {
 
     static func flatten(root: CALayer, dark: Bool) {
         let all = [root] + descendants(root)
+        var fills: [(layer: CALayer, matrix: [Float])] = []
 
         // 1. Liquid Glass → flat shape.
         for backdrop in all where className(backdrop).contains("Backdrop") && filterNames(backdrop).contains("glassBackground") {
@@ -84,13 +86,100 @@ enum LayerFlattener {
             if let m = vibrantMatrix(l), (l.sublayers ?? []).isEmpty {
                 if l.contents != nil {
                     recolorContents(l, matrix: m)
-                } else if let bg = l.backgroundColor {
-                    l.backgroundColor =
-                        (l.bounds.height <= 1.01 || l.bounds.width <= 1.01) ? NSColor.separatorColor.cgColor : apply(m, to: bg)
+                } else if l.backgroundColor != nil {
+                    if l.bounds.height <= 1.01 || l.bounds.width <= 1.01 {
+                        l.backgroundColor = NSColor.separatorColor.cgColor
+                    } else {
+                        fills.append((l, m))
+                    }
                 }
                 l.filters = nil
             }
         }
+
+        // 3. Vibrant fills, from what lies behind them.
+        recolorFills(fills, in: root)
+    }
+
+    /// Gives each vibrant fill the colour its matrix makes of what lies behind it: the window is rendered once without
+    /// them and sampled under each, back to front, so a fill stacked on another (a bezel's two layers) builds on it.
+    static func recolorFills(_ fills: [(layer: CALayer, matrix: [Float])], in root: CALayer) {
+        guard !fills.isEmpty else { return }
+        fills.forEach { $0.layer.isHidden = true }
+        let behind = render(root)
+        var made: [CGRect: CGColor] = [:]
+        for (layer, matrix) in fills {
+            let rect = root.convert(layer.bounds, from: layer).integral
+            let own = NSColor(cgColor: layer.backgroundColor ?? .white)?.usingColorSpace(.sRGB)?.alphaComponent ?? 1
+            let backdrop = made[rect] ?? behind.flatMap { sample($0, under: rect, in: root) } ?? NSColor.windowBackgroundColor.cgColor
+            let color = blend(apply(matrix, to: backdrop), over: backdrop, coverage: own)
+            made[rect] = color
+            layer.backgroundColor = color
+            layer.isHidden = false
+        }
+    }
+
+    /// The root layer drawn into a bitmap, top row first.
+    static func render(_ root: CALayer) -> CGImage? {
+        let w = Int(root.bounds.width.rounded(.up)), h = Int(root.bounds.height.rounded(.up))
+        guard w > 0, h > 0,
+            let ctx = CGContext(
+                data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { return nil }
+        if root.contentsAreFlipped() || root.isGeometryFlipped { ctx.translateBy(x: 0, y: CGFloat(h)); ctx.scaleBy(x: 1, y: -1) }
+        root.render(in: ctx)
+        return ctx.makeImage()
+    }
+
+    /// The colour behind `rect` (root coordinates): the median of four points just inside its edges, where a button's
+    /// title rarely reaches.
+    static func sample(_ image: CGImage, under rect: CGRect, in root: CALayer) -> CGColor? {
+        let flipped = root.contentsAreFlipped() || root.isGeometryFlipped
+        let inset = min(2, rect.width / 4, rect.height / 4)
+        let points = [
+            CGPoint(x: rect.minX + inset, y: rect.midY), CGPoint(x: rect.maxX - inset, y: rect.midY),
+            CGPoint(x: rect.minX + inset, y: rect.minY + inset), CGPoint(x: rect.maxX - inset, y: rect.maxY - inset),
+        ]
+        let colors = points.compactMap { p in
+            pixel(image, x: Int(p.x), y: flipped ? Int(p.y) : image.height - 1 - Int(p.y))
+        }
+        guard !colors.isEmpty else { return nil }
+        let sorted = colors.sorted { luminance($0) < luminance($1) }
+        return sorted[sorted.count / 2]
+    }
+
+    static func pixel(_ image: CGImage, x: Int, y: Int) -> CGColor? {
+        guard (0..<image.width).contains(x), (0..<image.height).contains(y),
+            let cropped = image.cropping(to: CGRect(x: x, y: y, width: 1, height: 1))
+        else { return nil }
+        var px = [UInt8](repeating: 0, count: 4)
+        guard
+            let ctx = CGContext(
+                data: &px, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { return nil }
+        ctx.draw(cropped, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+        let a = CGFloat(px[3]) / 255
+        guard a > 0 else { return nil }
+        return CGColor(srgbRed: CGFloat(px[0]) / 255 / a, green: CGFloat(px[1]) / 255 / a, blue: CGFloat(px[2]) / 255 / a, alpha: 1)
+    }
+
+    static func luminance(_ c: CGColor) -> CGFloat {
+        let rgb = NSColor(cgColor: c)?.usingColorSpace(.sRGB) ?? .black
+        return 0.2126 * rgb.redComponent + 0.7152 * rgb.greenComponent + 0.0722 * rgb.blueComponent
+    }
+
+    /// `top` (with its own alpha) over an opaque `bottom`, scaled by the fill's `coverage`; opaque.
+    static func blend(_ top: CGColor, over bottom: CGColor, coverage: CGFloat) -> CGColor {
+        let t = NSColor(cgColor: top)?.usingColorSpace(.sRGB) ?? .white
+        let b = NSColor(cgColor: bottom)?.usingColorSpace(.sRGB) ?? .black
+        let a = t.alphaComponent * coverage
+        return CGColor(
+            srgbRed: t.redComponent * a + b.redComponent * (1 - a), green: t.greenComponent * a + b.greenComponent * (1 - a),
+            blue: t.blueComponent * a + b.blueComponent * (1 - a), alpha: 1)
     }
 
     static func substituteGlass(_ backdrop: CALayer, dark: Bool) {
