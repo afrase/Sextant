@@ -47,6 +47,15 @@ struct HeatmapTests {
         #expect(hour.presses == [main: [1: 5, 2: 1], symNum: [5: 1]])
         #expect(hour.layerEntries == [symNum: 1])
         #expect(!hour.isEmpty && HeatmapHour(start: noon).isEmpty)
+        #expect(hour.total == 7 && HeatmapHour(start: noon, layerEntries: [symNum: 2]).total == 0, "presses, not moves")
+    }
+
+    @Test func heatmapsAddUp() {
+        var heat = KeyHeatmap([HeatmapHour(start: noon, presses: [main: [1: 2]], layerEntries: [symNum: 1])])
+        heat.add(sample())
+        var expected = sample()
+        expected.add(HeatmapHour(start: noon, presses: [main: [1: 2]], layerEntries: [symNum: 1]))
+        #expect(heat == expected && heat.total() == 473 && heat.layerEntries == [symNum: 1, brdSys: 7])
     }
 
     // MARK: Counts

@@ -28,6 +28,14 @@ public struct KeyHeatmap: Hashable, Sendable {
         layerEntries.merge(hour.layerEntries, uniquingKeysWith: HeatmapHour.sum)
     }
 
+    /// Adds another range's counts to this one's.
+    public mutating func add(_ other: Self) {
+        for (layer, keys) in other.presses where !keys.isEmpty {
+            presses[layer, default: [:]].merge(keys, uniquingKeysWith: HeatmapHour.sum)
+        }
+        layerEntries.merge(other.layerEntries, uniquingKeysWith: HeatmapHour.sum)
+    }
+
     public func count(layer: String, index: Int) -> Int { presses[layer]?[index] ?? 0 }
 
     /// Presses on one layer, or on every layer when `layer` is nil.

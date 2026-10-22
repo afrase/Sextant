@@ -9,7 +9,9 @@ import Testing
 extension HeatmapRecorderTests {
     /// Every press of a layout as a window sees it: the snapshot it read plus what the recorder hasn't stored for it.
     func windowTotal(_ recorder: HeatmapRecorder, _ snapshot: HeatmapRecorder.Snapshot, of id: UUID) -> Int {
-        KeyHeatmap(snapshot.hours + recorder.unwritten(of: id, from: nil, after: snapshot.version)).total()
+        var heatmap = snapshot.heatmap
+        for hour in recorder.unwritten(of: id, from: nil, after: snapshot.version) { heatmap.add(hour) }
+        return heatmap.total()
     }
 
     @Test func countsStayInWindowsWhileAWriteLands() async throws {

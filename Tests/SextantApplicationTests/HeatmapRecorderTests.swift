@@ -32,11 +32,14 @@ struct HeatmapRecorderTests {
         calendar.timeZone = .gmt
     }
 
-    func recorder(on: Bool, retentionDays: Int = 30, saved: @escaping @MainActor (Bool, Int) -> Void = { _, _ in }) -> HeatmapRecorder {
+    /// A recorder that writes every press at once, unless given a `minimumWrite`.
+    func recorder(
+        on: Bool, retentionDays: Int = 30, minimumWrite: Int = 0, saved: @escaping @MainActor (Bool, Int) -> Void = { _, _ in }
+    ) -> HeatmapRecorder {
         let now = now
         let recorder = HeatmapRecorder(
             live: live, onKeyboard: onKeyboard, library: library, store: heat, clock: clock, now: { now() },
-            calendar: calendar, isOn: on, retentionDays: retentionDays, persist: saved)
+            calendar: calendar, isOn: on, retentionDays: retentionDays, minimumWrite: minimumWrite, persist: saved)
         recorder.start()
         return recorder
     }
@@ -207,6 +210,72 @@ struct HeatmapRecorderTests {
         #expect(await heat.stored(id) == [layout.layers[0].id: [13: 2]])
     }
 
+    /// A write adds at least the minimum: fewer presses wait in memory, still shown in windows, until more are counted.
+    @Test func fewerPressesThanTheMinimumWait() async throws {
+        let id = try await knownKeyboard()
+        let recorder = recorder(on: true, minimumWrite: 5)
+        #expect(await goLive())
+        type(13, 14, 15)
+        #expect(await eventually { recorder.counted == 3 })
+        await recorder.flush()
+        #expect(heat.addCount == 0)
+        #expect(KeyHeatmap(recorder.unwritten(of: id, from: nil, after: recorder.version)).total() == 3, "windows still see them")
+        type(16, 17)
+        #expect(await eventually { recorder.counted == 5 })
+        await recorder.flush()
+        #expect(heat.addCount == 1)
+        #expect(await heat.stored(id) == [layout.layers[0].id: [13: 1, 14: 1, 15: 1, 16: 1, 17: 1]])
+        type(18)
+        #expect(await eventually { recorder.counted == 6 })
+        await recorder.flush()
+        #expect(heat.addCount == 1, "the next write waits for the minimum too")
+    }
+
+    /// Presses held back are written with the next hour's, under it, rather than as a short hour of their own.
+    @Test func heldPressesCarryIntoTheNextHour() async throws {
+        let id = try await knownKeyboard()
+        let recorder = recorder(on: true, minimumWrite: 5)
+        #expect(await goLive())
+        type(13, 14, 15)
+        #expect(await eventually { recorder.counted == 3 })
+        await recorder.flush()
+        now.advance(by: 3600)
+        type(16)
+        #expect(await eventually { recorder.counted == 4 })
+        let changes = recorder.changes
+        await recorder.flush()
+        #expect(heat.addCount == 0 && recorder.changes > changes, "carried without a write: windows add them again")
+        #expect(KeyHeatmap(recorder.unwritten(of: id, from: now(), after: recorder.version)).total() == 4)
+        type(17)
+        #expect(await eventually { recorder.counted == 5 })
+        await recorder.flush()
+        #expect(await heat.hourStarts(id) == [now()])
+        #expect(await heat.stored(id) == [layout.layers[0].id: [13: 1, 14: 1, 15: 1, 16: 1, 17: 1]])
+    }
+
+    @Test func splitWritesFullHoursAndCarriesShortOnes() {
+        let main = layout.layers[0].id
+        func hour(_ offset: Int, _ presses: Int, entries: Int = 0) -> HeatmapHour {
+            HeatmapHour(
+                start: now().addingTimeInterval(Double(offset) * 3600), presses: presses > 0 ? [main: [13: presses]] : [:],
+                layerEntries: entries > 0 ? [main: entries] : [:])
+        }
+        func split(_ hours: HeatmapHour...) -> (ready: [Date: HeatmapHour], held: HeatmapHour?) {
+            HeatmapRecorder.split(Dictionary(uniqueKeysWithValues: hours.map { ($0.start, $0) }), minimum: 10)
+        }
+        // Short, short, enough together: one write, under the later hour.
+        var result = split(hour(0, 4, entries: 1), hour(1, 6))
+        #expect(result.ready == [hour(1, 0).start: hour(1, 10, entries: 1)] && result.held == nil)
+        // Enough, then short: the short one waits.
+        result = split(hour(0, 12), hour(1, 3, entries: 2))
+        #expect(result.ready == [hour(0, 0).start: hour(0, 12)] && result.held == hour(1, 3, entries: 2))
+        // Moves alone are no presses.
+        result = split(hour(0, 0, entries: 5))
+        #expect(result.ready.isEmpty && result.held == hour(0, 0, entries: 5))
+        #expect(HeatmapRecorder.split([:], minimum: 10).held == nil)
+        #expect(HeatmapRecorder.defaultMinimumWrite == 100)
+    }
+
     @Test func prunesByRetentionAtStartEachDayAndOnChange() async throws {
         let recorder = recorder(on: true, retentionDays: 30)
         #expect(await eventually { await heat.prunes.count == 1 })
@@ -232,9 +301,11 @@ struct HeatmapRecorderTests {
         #expect(await eventually { recorder.counted == 2 })
         let before = await recorder.snapshot(of: id, from: nil)
         func total(_ snapshot: HeatmapRecorder.Snapshot) -> Int {
-            KeyHeatmap(snapshot.hours + recorder.unwritten(of: id, from: nil, after: snapshot.version)).total()
+            var heatmap = snapshot.heatmap
+            for hour in recorder.unwritten(of: id, from: nil, after: snapshot.version) { heatmap.add(hour) }
+            return heatmap.total()
         }
-        #expect(total(before) == 2 && before.hours.isEmpty)
+        #expect(total(before) == 2 && before.heatmap.total() == 0)
         await recorder.flush()
         #expect(total(before) == 2, "the write is added until the window reads again")
         let after = await recorder.snapshot(of: id, from: nil)
@@ -348,8 +419,8 @@ actor FakeHeatmapStore: HeatmapStore {
 
     func hourStarts(_ id: UUID) -> [Date] { (hours[id] ?? [:]).keys.sorted() }
 
-    func hours(of layoutID: UUID, from start: Date?) throws(HeatmapStoreError) -> [HeatmapHour] {
-        (hours[layoutID] ?? [:]).values.filter { hour in start.map { hour.start >= $0 } ?? true }.sorted { $0.start < $1.start }
+    func heatmap(of layoutID: UUID, from start: Date?) throws(HeatmapStoreError) -> KeyHeatmap {
+        KeyHeatmap((hours[layoutID] ?? [:]).values.filter { hour in start.map { hour.start >= $0 } ?? true })
     }
 
     func add(_ hour: HeatmapHour, to layoutID: UUID) async throws(HeatmapStoreError) {

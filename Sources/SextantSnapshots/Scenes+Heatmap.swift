@@ -97,7 +97,7 @@ extension Scenes {
 
     /// A heatmap store on a disk that fails every read and write.
     private struct FailingHeatmapStore: HeatmapStore {
-        func hours(of layoutID: UUID, from start: Date?) throws(HeatmapStoreError) -> [HeatmapHour] { throw .io("unreadable") }
+        func heatmap(of layoutID: UUID, from start: Date?) throws(HeatmapStoreError) -> KeyHeatmap { throw .io("unreadable") }
         func add(_ hour: HeatmapHour, to layoutID: UUID) throws(HeatmapStoreError) { throw .io("disk full") }
         func prune(before date: Date) throws(HeatmapStoreError) { throw .io("disk full") }
         func clear(_ layoutID: UUID?) throws(HeatmapStoreError) { throw .io("disk full") }
