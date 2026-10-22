@@ -1,30 +1,59 @@
-# Sextant
+<p align="center">
+  <img src="docs/images/icon.png" width="128" height="128" alt="Sextant's app icon: a marine sextant">
+</p>
 
-A native macOS app for the ZSA Voyager: edit your layout on your Mac, import it from Oryx, build the firmware locally, flash it, and watch the keyboard live.
+<h1 align="center">Sextant</h1>
 
-[![CI](https://github.com/afrase/Sextant/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/afrase/Sextant/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/afrase/Sextant)](https://github.com/afrase/Sextant/releases/latest)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![macOS 26](https://img.shields.io/badge/macOS-26-black.svg)
+<p align="center">
+  <strong>A native macOS app for the ZSA Voyager.</strong><br>
+  Edit your layout on your Mac, build and flash the firmware locally, and watch the keyboard live.
+</p>
 
-![A tour of Sextant's layout window: editing a key, painting a layer's lighting, the heatmap of key presses, importing from Oryx, flashing the keyboard, and App Layers](docs/images/tour.webp)
+<p align="center">
+  <a href="https://github.com/afrase/Sextant/releases/latest"><img src="https://img.shields.io/github/v/release/afrase/Sextant?label=release" alt="Latest release"></a>
+  <a href="https://github.com/afrase/Sextant/actions/workflows/ci.yml"><img src="https://github.com/afrase/Sextant/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <img src="https://img.shields.io/badge/macOS-26-black?logo=apple" alt="macOS 26">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
+</p>
+
+<p align="center">
+  <a href="#install">Install</a> ·
+  <a href="docs/guide.md">Guide</a> ·
+  <a href="https://github.com/afrase/Sextant/releases">Releases</a> ·
+  <a href="#safety">Safety</a> ·
+  <a href="#privacy">Privacy</a>
+</p>
+
+<p align="center">
+  <img src="docs/images/tour.webp" width="100%" alt="A tour of Sextant: importing a layout from Oryx, editing a key's tap through the keycode search, switching layers, painting a layer's lights, the heatmap of key presses, building and flashing the firmware, and the board following the keyboard live">
+</p>
 
 > [!NOTE]
 > Sextant is an independent project, not affiliated with or endorsed by ZSA Technology Labs. ZSA, Voyager, Navigator, Oryx and Keymapp are trademarks of their owners, used here only to describe compatibility.
 
 ## Features
 
-- **Edit everything locally, with undo:** layers, tap/hold/double-tap actions, chords, labels, per-key colors, tapping terms, macros, combos, firmware settings and the Navigator.
-- **Import from Oryx** by pasting a layout link. Read-only: no login, nothing changes in your Oryx account.
-- **Build and flash on your Mac,** with a pinned, sandboxed QMK toolchain and a flasher that only writes where it should.
-- **See the keyboard live:** the active layer and the keys you press, an overlay of the layer you hold (placed where you like), layer switching from the menu bar or shortcuts, and App Layers that follow the app you're in.
-- **One keyboard, two Macs:** optionally store the layout in the firmware, so Sextant on your other Mac reads it back and knows what the keyboard runs.
-- **Lighting and heatmap:** paint a layer's LEDs and preview them on the keyboard; see which keys you actually use.
+### Edit
+- **Every key, with undo:** tap, hold, double tap and tap-then-hold actions, chords, labels, per-key colors and tapping terms.
+- **Search every keycode** from the key, or find any command, key or setting with ⌘K.
+- **Layers, macros, combos, firmware settings and the Navigator,** with each layer showing what it inherits.
+- **Import from Oryx** by pasting a layout link. It's read-only: no login, and nothing changes in your Oryx account.
 - **History and export:** revisions you can compare and restore; export JSON, QMK source, firmware, PNG or PDF.
 
-| Layer overlay, over any app | Menu bar |
-|---|---|
-| ![The overlay showing the Sym+Num layer while its key is held](docs/images/overlay.png) | ![The menu bar panel showing the keyboard's layer, with buttons to move it to another](docs/images/menu-bar.png) |
+### Build and flash
+- **On your Mac,** with a pinned, sandboxed QMK toolchain that's downloaded once.
+- **A careful flasher** that writes only the application region and checks every image first (see [Safety](#safety)).
+- **One keyboard, two Macs:** optionally store the layout in the firmware, so Sextant on your other Mac reads it back.
+
+### Live
+- **The board follows the keyboard:** the active layer and the keys you press.
+- **An overlay of the layer you hold,** over any app, placed where you like.
+- **Layer switching** from the menu bar or global shortcuts, and **App Layers** that follow the app you're in.
+- **Lighting and heatmap:** paint a layer's LEDs and preview them on the keyboard, and see which keys you actually use.
+
+| The layer overlay, over any app | The menu bar |
+|:---:|:---:|
+| <img src="docs/images/overlay.png" alt="The overlay showing the Sym+Num layer while its key is held"> | <img src="docs/images/menu-bar.png" width="350" alt="The menu bar panel showing the keyboard's layer, with buttons to move it to another"> |
 
 [The guide](docs/guide.md) walks through each feature.
 
@@ -34,9 +63,26 @@ A native macOS app for the ZSA Voyager: edit your layout on your Mac, import it 
 brew install --cask afrase/tap/sextant
 ```
 
-Or download the zip from [Releases](https://github.com/afrase/Sextant/releases). Releases are signed ad hoc, not notarized: the Homebrew cask clears the quarantine flag for you, and a zip you download yourself needs System Settings › Privacy & Security › Open Anyway on first launch.
+Or download the zip from [Releases](https://github.com/afrase/Sextant/releases). Sextant tells you when a newer version is out.
 
-Sextant needs macOS 26 on Apple silicon. Editing works without a keyboard. It has been tested on a Voyager with the STM32 bootloader; images for the GD32 bootloader are refused, and the Navigator trackball is untested.
+- **Requirements:** macOS 26 on Apple silicon. Editing works without a keyboard.
+- **Tested on** a Voyager with the STM32 bootloader. Images for the GD32 bootloader are refused, and the Navigator trackball is untested.
+- **Signing:** releases are signed ad hoc, not notarized. The Homebrew cask clears the quarantine flag for you; a zip you download yourself needs System Settings › Privacy & Security › Open Anyway on first launch.
+
+## Safety
+
+- **The flasher writes only the application region,** `[0x08002000, 0x08042000)`, and can't mass erase, so the bootloader is never touched.
+- **Every image is checked before the first write:** its DFU suffix must match the connected bootloader and its md5 the build. Sextant asks first before replacing a different layout.
+- **Generated firmware keeps the Navigator working,** and builds run in a sandbox with no network and no access to your files.
+- **Nothing is sent to the keyboard unless you ask:** the live view, layer moves and lighting previews start only when you turn them on.
+- **If a flash goes wrong,** the Voyager's reset button puts it back in its bootloader, and you can flash again.
+
+## Privacy
+
+- **No accounts, analytics or telemetry.**
+- **Sextant goes online only** to import from Oryx, to download the build tools on the first build, and once a day to ask GitHub whether a newer Sextant is out. Settings › General turns that check off; GitHub sees your IP address and Sextant's version.
+- **The live view sees key positions, never characters,** and pauses in password fields.
+- **The heatmap is off until you turn it on.** It keeps only hourly counts per key, saved in batches of at least 100 presses, in files only your account can read, and it stays on your Mac.
 
 ## Build from source
 
@@ -49,19 +95,7 @@ scripts/bundle            # release build at .build/Sextant.app
 open .build/Sextant.app
 ```
 
-`scripts/check` is the quality gate (formatting, lint, layer rules, a warnings-as-errors build and the tests). See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Safety
-
-- **The flasher writes only the application region,** `[0x08002000, 0x08042000)`, and can't mass erase, so the bootloader is never touched.
-- **Every image is checked before the first write:** its DFU suffix must match the connected bootloader and its md5 the build. It asks first before replacing a different layout.
-- **Generated firmware keeps the Navigator working,** and builds run in a sandbox with no network and no access to your files.
-- **Nothing is sent to the keyboard unless you ask:** the live view, layer moves and lighting previews start only when you turn them on.
-- **If a flash goes wrong,** the Voyager's reset button puts it back in its bootloader, and you can flash again.
-
-## Privacy
-
-No accounts, analytics or telemetry. Sextant goes online only to import from Oryx, to download the build tools on the first build, and once a day to ask GitHub whether a newer Sextant is out (Settings › General can turn that off; GitHub sees your IP address and Sextant's version). The live view sees key positions, never characters, and pauses in password fields. The heatmap is off until you turn it on, keeps only hourly counts per key, and stays on your Mac.
+`scripts/check` is the quality gate: formatting, lint, layer rules, a warnings-as-errors build and the tests. See [CONTRIBUTING.md](CONTRIBUTING.md). The README's stills are rendered offscreen by `scripts/readme-images`.
 
 ## Documentation
 
@@ -102,6 +136,6 @@ To report a vulnerability, follow [SECURITY.md](SECURITY.md) rather than opening
   | [Periphery](https://github.com/peripheryapp/periphery) | MIT | Unused-code report (`Tools/`) |
 
 - `docs/research/oryx-examples/` holds the author's own Oryx layout and Oryx's generated source for it, used as golden test data. The zip includes a QMK-built firmware binary, which is GPL-2.0-or-later.
-- The screenshots are rendered offscreen from the author's own layout and contain no ZSA artwork.
+- The screenshots and the tour are rendered offscreen from the author's own layout and contain no ZSA artwork.
 
 </details>
