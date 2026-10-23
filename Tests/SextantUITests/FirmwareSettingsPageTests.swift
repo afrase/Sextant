@@ -76,7 +76,7 @@ struct FirmwareSettingsPageTests {
         #expect(!FirmwareSettings.shows("tapCodeDelay", in: session.layout, query: "hold", modifiedOnly: false))
         model.openPalette(.general, query: "media key delay")
         model.paletteItems.first { $0.id == "setting-tapCodeDelay" }?.perform()
-        #expect(model.firmwareSettings.query.isEmpty && model.settingsScrollTarget == "tapping")
+        #expect(model.firmwareSettings.query.isEmpty && model.firmwareSettings.scrollTarget == "tapping")
         // A filter that already shows the row stays.
         model.firmwareSettings.query = "hold"
         model.openPalette(.general, query: "tapping term")
@@ -129,7 +129,7 @@ struct FirmwareSettingsPageTests {
         #expect(!model.paletteItems.contains { $0.keycode?.code == "UK_PND" })
         model.firmwareSettings.modifiedOnly = true
         hint.perform()
-        #expect(model.palette == nil && model.destination == .firmwareSettings && model.settingsScrollTarget == "international")
+        #expect(model.palette == nil && model.destination == .firmwareSettings && model.firmwareSettings.scrollTarget == "international")
         #expect(!model.firmwareSettings.modifiedOnly)
     }
 

@@ -62,7 +62,7 @@ struct LayoutExportTests {
     @Test func qmkSourceGoesThroughTheGenerator() async throws {
         let model = try await window()
         await model.export(.qmkSource)
-        let file = try #require(model.pendingExport?.file)
+        let file = try #require(model.exports.pending?.file)
         #expect(file.contentType == .zip && file.filename == "My MacOS Layout QMK Source")
         let files = try unzipped(file.data)
         #expect(files.keys.sorted() == ["My MacOS Layout QMK Source/keymap.c"])
@@ -77,7 +77,7 @@ struct LayoutExportTests {
         session.setTitle("Work")
         await model.showRevision(revision.id)
         await model.exportSource(of: revision)
-        let file = try #require(model.pendingExport?.file)
+        let file = try #require(model.exports.pending?.file)
         #expect(file.contentType == .zip && file.filename == "Work Revision 1 QMK Source")
         #expect(try unzipped(file.data) == ["Work Revision 1 QMK Source/keymap.c": "// My MacOS Layout as KlgM7/40xJ7M\n"])
         #expect(!model.canExportSource(of: revision), "one panel at a time")
@@ -87,31 +87,31 @@ struct LayoutExportTests {
     @Test func aGeneratorErrorShowsInsteadOfAPanel() async throws {
         let model = try await window(TitleGenerator { () throws(GeneratorError) in throw .unsupportedBoard("Planck") })
         await model.export(.qmkSource)
-        #expect(model.pendingExport?.file == nil)
-        #expect(model.pendingExport?.failure == GeneratorError.unsupportedBoard("Planck").localizedDescription)
+        #expect(model.exports.pending?.file == nil)
+        #expect(model.exports.pending?.failure == GeneratorError.unsupportedBoard("Planck").localizedDescription)
     }
 
     /// Another export's panel that opened while the source was made keeps its file.
     @Test func aPanelThatOpenedMeanwhileKeepsItsFile() async throws {
         let other = ExportFile(data: Data(), contentType: .png, filename: "Other")
         let box = ModelBox()
-        box.model = try await window(TitleGenerator { MainActor.assumeIsolated { box.model?.pendingExport = .saving(other) } })
+        box.model = try await window(TitleGenerator { MainActor.assumeIsolated { box.model?.exports.pending = .saving(other) } })
         await box.model?.export(.qmkSource)
-        #expect(box.model?.pendingExport?.file?.filename == "Other")
+        #expect(box.model?.exports.pending?.file?.filename == "Other")
     }
 
     @Test func firmwareIsTheLastBuild() async throws {
         let model = try await window()
         #expect(model.canExport(.firmware) == false)
         await model.export(.firmware)
-        #expect(model.pendingExport == nil)
+        #expect(model.exports.pending == nil)
         model.build(.build)
         for _ in 0..<200 where model.buildFlash?.artifact == nil { try await Task.sleep(for: .milliseconds(10)) }
         await model.export(.firmware)
-        let file = try #require(model.pendingExport?.file)
+        let file = try #require(model.exports.pending?.file)
         #expect(file.data == OneImage.image && file.contentType.preferredFilenameExtension == "bin" && file.filename == "My MacOS Layout")
         // After an edit the build no longer has every key: QMK Source would disagree with it.
-        model.pendingExport = nil
+        model.exports.pending = nil
         model.session?.setCode("KC_Z", layer: 0, index: 1)
         #expect(model.canExport(.firmware) == false)
         let plain = try await openUserLayout()
@@ -125,18 +125,18 @@ struct LayoutExportTests {
         session.select(layer: 1)
         session.setTitle("Work/Home: v2")
         await model.export(.image)
-        #expect(model.pendingExport?.file?.filename == "Work-Home- v2 – Sym+Num")
-        #expect(model.pendingExport?.file?.contentType == .png)
+        #expect(model.exports.pending?.file?.filename == "Work-Home- v2 – Sym+Num")
+        #expect(model.exports.pending?.file?.contentType == .png)
         // While its panel is open, another export waits: the panel would write the new file under the PNG's name.
         #expect(model.canExport(.layoutJSON) == false)
         await model.export(.layoutJSON)
-        #expect(model.pendingExport?.file?.contentType == .png)
-        model.pendingExport = nil
+        #expect(model.exports.pending?.file?.contentType == .png)
+        model.exports.pending = nil
         await model.export(.layoutJSON)
-        #expect(model.pendingExport?.file?.filename == "Work-Home- v2")
-        model.pendingExport = nil
+        #expect(model.exports.pending?.file?.filename == "Work-Home- v2")
+        model.exports.pending = nil
         await model.export(.pdf)
-        #expect(model.pendingExport?.file?.contentType == .pdf)
+        #expect(model.exports.pending?.file?.contentType == .pdf)
     }
 
     @Test(.disabled(if: skipsPixelSnapshots, "the reference is rendered on the developer's macOS"))

@@ -31,9 +31,9 @@ struct BrushSwatches: View {
     var body: some View {
         HStack(spacing: 4) {
             ForEach(Array(model.swatches.enumerated()), id: \.offset) { _, color in
-                let current = !model.isErasing && model.brushColor == color
+                let current = !model.lighting.isErasing && model.lighting.brushColor == color
                 Button {
-                    model.pickBrush(color)
+                    model.lighting.pickBrush(color)
                 } label: {
                     Circle()
                         .fill(color.color)
@@ -59,7 +59,7 @@ struct BrushColorPicker: View {
     var body: some View {
         ColorPicker(
             String(localized: "Custom Brush Color"),
-            selection: Binding(get: { model.brushColor.color }, set: { HexColor($0).map(model.pickBrush) }),
+            selection: Binding(get: { model.lighting.brushColor.color }, set: { HexColor($0).map(model.lighting.pickBrush) }),
             supportsOpacity: false
         )
         .labelsHidden()
@@ -73,8 +73,8 @@ struct EraserToggle: View {
     var model: LayoutWindowModel
 
     var body: some View {
-        @Bindable var model = model
-        Toggle(isOn: $model.isErasing) { Label("Eraser", systemImage: "eraser") }
+        @Bindable var lighting = model.lighting
+        Toggle(isOn: $lighting.isErasing) { Label("Eraser", systemImage: "eraser") }
             .toggleStyle(.button)
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)

@@ -118,7 +118,7 @@ struct PaletteHost: ViewModifier {
                 // and so does every picker during a board pick, whose click it is (ADR 0037).
                 if !hits.keepsOpen(point, picking: model.isPicking && model.palette?.target == nil && model.boardPick == nil) {
                     model.closePalette()
-                    model.paletteDismissingClick = event.eventNumber
+                    model.picker.paletteDismissingClick = event.eventNumber
                 }
                 return false
             }
@@ -196,7 +196,7 @@ struct PalettePanel: View {
         .onDisappear {
             Task {
                 let responder = NSApp.keyWindow?.firstResponder
-                if model.palette == nil && !(responder is NSText || responder is NSTableView) { model.boardFocusRequests += 1 }
+                if model.palette == nil && !(responder is NSText || responder is NSTableView) { model.picker.boardFocusRequests += 1 }
             }
         }
         // Focus stays in the field, so VoiceOver hears the highlighted result as it changes (arrows or typing).
@@ -500,7 +500,7 @@ struct BoardPickerKeys: ViewModifier {
             .onKeyPress(characters: .alphanumerics.union(.punctuationCharacters).union(.symbols), phases: .down) { press in
                 press.modifiers.isDisjoint(with: [.command, .control]) ? handle(press.characters) : .ignored
             }
-            .onChange(of: window?.boardFocusRequests) { isFocused.wrappedValue = true }
+            .onChange(of: window?.picker.boardFocusRequests) { isFocused.wrappedValue = true }
     }
 
     private func handle(_ query: String) -> KeyPress.Result {

@@ -16,8 +16,8 @@ struct WindowToolbar: CustomizableToolbarContent {
         ToolbarItem(id: "activity", placement: .principal) {
             ActivityCapsule(
                 state: model.activity, boardName: model.boardName,
-                onShowDevice: model.live == nil ? nil : { model.devicePopover = .capsule },
-                onShowLog: model.buildFlash == nil ? nil : { model.showsBuildSheet = true },
+                onShowDevice: model.live == nil ? nil : { model.device.popover = .capsule },
+                onShowLog: model.buildFlash == nil ? nil : { model.device.showsBuildSheet = true },
                 onUseRevision: { model.useKeyboardRevision() },
                 // The toolbar sizes items by their ideal width: at the narrowest, the trailing items need the room.
                 idealWidth: windowWidth >= 1280 ? 440 : 280
@@ -45,7 +45,7 @@ struct WindowToolbar: CustomizableToolbarContent {
         ToolbarItem(id: "search", placement: .primaryAction) {
             Button {
                 // This click's mouse-down, outside the palette, may just have closed it: don't open it again.
-                if NSApp.currentEvent?.eventNumber != model.paletteDismissingClick { model.togglePalette() }
+                if NSApp.currentEvent?.eventNumber != model.picker.paletteDismissingClick { model.togglePalette() }
             } label: {
                 if windowWidth >= 1280 {
                     // A view, not a Label: toolbars draw Labels as icons only.

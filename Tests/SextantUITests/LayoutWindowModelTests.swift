@@ -88,15 +88,15 @@ struct LayoutWindowModelTests {
         let session = try #require(model.session)
         session.select(layer: 2)
         model.requestDeleteLayer()
-        #expect(model.layerPendingDeletion == 2)
+        #expect(model.layers.pendingDeletion == 2)
         #expect(session.layout.layers.count == 3, "nothing is deleted before the answer")
         #expect(model.deletionMessage(for: 2) == "1 key switches to Brd+Sys: key 51 on Main. It will do nothing.")
-        model.layerPendingDeletion = nil
+        model.layers.pendingDeletion = nil
         session.setKey(Key(tap: .toggle(2), hold: .momentary(2)), layer: 0, index: 5)
         #expect(model.deletionMessage(for: 2).hasPrefix("2 keys switch to Brd+Sys: key 5 on Main, key 51 on Main."), "one entry per key")
         session.addLayer()
         model.requestDeleteLayer()
-        #expect(model.layerPendingDeletion == nil && session.layout.layers.count == 3, "a layer nothing reaches goes at once")
+        #expect(model.layers.pendingDeletion == nil && session.layout.layers.count == 3, "a layer nothing reaches goes at once")
     }
 
     @Test func laneShowsLiveWhileFollowing() async throws {

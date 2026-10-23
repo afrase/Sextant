@@ -114,10 +114,10 @@ struct BuildFlashBody: View {
     // MARK: Parts
 
     private var log: some View {
-        @Bindable var model = model
+        @Bindable var device = model.device
         return Group {
             if !build.log.isEmpty {
-                DisclosureGroup("Show Log", isExpanded: $model.showsBuildLog) {
+                DisclosureGroup("Show Log", isExpanded: $device.showsBuildLog) {
                     ScrollView {
                         Text(verbatim: build.log.joined(separator: "\n"))
                             .font(.caption.monospaced())
@@ -303,7 +303,7 @@ struct BuildFlashBody: View {
             if let key {
                 Button("Show Key") {
                     model.showIssue(key)
-                    model.showsBuildSheet = false
+                    model.device.showsBuildSheet = false
                 }
                 .controlSize(.small)
             }

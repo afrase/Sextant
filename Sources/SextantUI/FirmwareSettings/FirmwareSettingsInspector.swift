@@ -16,7 +16,7 @@ struct FirmwareSettingsInspector: View {
         ForEach(FirmwareSettings.sections(for: session.layout)) { section in
             let count = section.settings.count { changedIDs.contains($0.id) }
             Button {
-                model.settingsScrollTarget = section.id
+                model.firmwareSettings.scrollTarget = section.id
             } label: {
                 HStack {
                     Text(section.title)

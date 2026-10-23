@@ -13,6 +13,8 @@ public final class FirmwareSettingsModel {
     public var showsAnimations = false
     /// Bumped by ⌘F (Edit ▸ Find Setting…) to put focus in the search field.
     var searchFocusRequests = 0
+    /// The section to scroll to (the inspector's Sections list, the palette's settings rows); the page clears it.
+    var scrollTarget: String?
 
     var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
 

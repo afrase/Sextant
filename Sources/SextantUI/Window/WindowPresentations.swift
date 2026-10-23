@@ -20,8 +20,8 @@ private struct DeleteLayerAlert: ViewModifier {
     func body(content: Content) -> some View {
         content.alert(
             Text("Delete this layer?"),
-            isPresented: Binding(get: { model.layerPendingDeletion != nil }, set: { _ in model.layerPendingDeletion = nil }),
-            presenting: model.layerPendingDeletion
+            isPresented: Binding(get: { model.layers.pendingDeletion != nil }, set: { _ in model.layers.pendingDeletion = nil }),
+            presenting: model.layers.pendingDeletion
         ) { layer in
             Button("Delete and Clear References", role: .destructive) { model.session?.deleteLayer(layer) }
             Button("Cancel", role: .cancel) {}

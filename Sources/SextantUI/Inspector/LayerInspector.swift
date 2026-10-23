@@ -47,7 +47,7 @@ struct LayerInspector: View {
             HStack {
                 Button("Duplicate") { session.duplicateLayer(index) }
                 Menu("Copy To") { CopyLayerMenu(window: model, layer: index) }.fixedSize()
-                Button("Clear…") { model.layerPendingClear = index }
+                Button("Clear…") { model.layers.pendingClear = index }
             }
             Text("The layer color is also its LED color on the keyboard.").font(.callout).foregroundStyle(.secondary)
         }

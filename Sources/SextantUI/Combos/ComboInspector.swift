@@ -169,7 +169,7 @@ struct ComboInspector: View {
                     Text("\(term) ms, every combo")
                     Button("Firmware Settings ›") {
                         model.destination = .firmwareSettings
-                        model.settingsScrollTarget = "combo"
+                        model.firmwareSettings.scrollTarget = "combo"
                     }
                     .buttonStyle(.link)
                 }

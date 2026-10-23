@@ -51,7 +51,7 @@ extension LayoutWindowModel {
     var firmwareMatch: FirmwareMatch? {
         guard let live, let session else { return nil }
         let aliases = library.entries.first { $0.id == session.id }?.aliases ?? []
-        return live.match(session.layout, libraryID: session.id, aliases: aliases, importedLayout: importedLayout)
+        return live.match(session.layout, libraryID: session.id, aliases: aliases, importedLayout: device.importedLayout)
     }
 
     /// The keyboard's Oryx serial when no library layout came from that Oryx layout: the card offers [Import] (spec §3.6).
@@ -71,7 +71,7 @@ extension LayoutWindowModel {
     /// the app's keyboard layout pull, or a fixed value where there is none (tests, snapshots).
     public var keyboardLayoutPrompt: KeyboardLayoutPrompt? {
         get {
-            guard let keyboardLayout else { return fixedKeyboardLayoutPrompt }
+            guard let keyboardLayout else { return device.fixedKeyboardLayoutPrompt }
             guard let live, let onKeyboard else { return nil }
             switch live.connection {
             case .connected, .liveOff:
@@ -79,7 +79,7 @@ extension LayoutWindowModel {
             case .noKeyboard, .bootloader, .heldByAnotherApp: return nil
             }
         }
-        set { fixedKeyboardLayoutPrompt = newValue }
+        set { device.fixedKeyboardLayoutPrompt = newValue }
     }
 
     /// Get Layout and Try Again: reads the layout the keyboard's firmware stores, turning on Live View first. The click is
@@ -139,7 +139,7 @@ extension LayoutWindowModel {
     /// Key edits since the import, when the keyboard runs that import's Oryx build; otherwise (or when only layers or
     /// settings changed) Sextant can't count them.
     private var editsSinceImport: Int? {
-        guard let session, let imported = importedLayout, let serial = imported.oryx?.serial, serial == live?.firmwareSerial else {
+        guard let session, let imported = device.importedLayout, let serial = imported.oryx?.serial, serial == live?.firmwareSerial else {
             return nil
         }
         let count = session.layout.diff(from: imported).keyChanges.count
@@ -156,7 +156,7 @@ extension LayoutWindowModel {
         var last: LiveInputs?
         for await now in Observations({ LiveInputs(live: live, session: self.session, showsPresses: showsPresses.isOn) }) {
             pressedKeys.update(now.pressed)
-            if now.document != last?.document { importedLayout = await buildFlash?.importedLayout() }
+            if now.document != last?.document { device.importedLayout = await buildFlash?.importedLayout() }
             if now.followed != last?.followed || now.document?.id != last?.document?.id {
                 // Another layout's layer numbers mean other layers: leave the shown one alone.
                 if let layer = now.followed, runsThisLayout { session?.select(layer: layer) }

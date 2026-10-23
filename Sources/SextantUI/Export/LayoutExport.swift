@@ -109,7 +109,7 @@ enum LayoutExport {
 extension LayoutWindowModel {
     func canExport(_ kind: ExportKind) -> Bool {
         // The open panel writes whatever file is pending, so a second export would land under the first one's name.
-        guard session != nil, pendingExport?.file == nil else { return false }
+        guard session != nil, exports.pending?.file == nil else { return false }
         switch kind {
         case .qmkSource, .revisionSource: return buildFlash != nil
         case .firmware: return buildFlash?.currentArtifact != nil
@@ -126,7 +126,7 @@ extension LayoutWindowModel {
         do {
             switch kind {
             case .layoutJSON:
-                pendingExport = .saving(ExportFile(data: try LayoutExport.json(layout), contentType: .json, filename: name))
+                exports.pending = .saving(ExportFile(data: try LayoutExport.json(layout), contentType: .json, filename: name))
             case .qmkSource:
                 try await exportSource(of: nil, folder: String(localized: "\(name) QMK Source"))
             case let .revisionSource(target):
@@ -135,26 +135,26 @@ extension LayoutWindowModel {
             case .firmware:
                 guard let image = buildFlash?.currentArtifact?.image else { return }
                 // The system's .bin type is MacBinary's; only its extension matters here.
-                pendingExport = .saving(ExportFile(data: image, contentType: UTType(filenameExtension: "bin") ?? .data, filename: name))
+                exports.pending = .saving(ExportFile(data: image, contentType: UTType(filenameExtension: "bin") ?? .data, filename: name))
             case .image:
                 let layer = session?.selection.layer ?? 0
                 guard let png = BoardImage.png(layout, layer: layer, mode: legendMode) else { throw ExportError.drawing }
                 let title = layout.layers[safe: layer].map { LayoutExport.filename("\(name) – \($0.title)") } ?? name
-                pendingExport = .saving(ExportFile(data: png, contentType: .png, filename: title))
+                exports.pending = .saving(ExportFile(data: png, contentType: .png, filename: title))
             case .pdf:
                 guard let pdf = BoardImage.pdf(layout, mode: legendMode) else { throw ExportError.drawing }
-                pendingExport = .saving(ExportFile(data: pdf, contentType: .pdf, filename: name))
+                exports.pending = .saving(ExportFile(data: pdf, contentType: .pdf, filename: name))
             }
         } catch {
-            pendingExport = .failed(error.localizedDescription)
+            exports.pending = .failed(error.localizedDescription)
         }
     }
 
     /// Zips the source a build of `layout` (the working copy when nil) compiles, in a folder named `folder`.
     private func exportSource(of layout: KeyboardLayout?, folder: String) async throws {
         // Another export's panel may have opened while the source was made; it keeps its file.
-        guard let source = try await buildFlash?.source(of: layout), pendingExport?.file == nil else { return }
-        pendingExport = .saving(ExportFile(data: try LayoutExport.zip(source.files, folder: folder), contentType: .zip, filename: folder))
+        guard let source = try await buildFlash?.source(of: layout), exports.pending?.file == nil else { return }
+        exports.pending = .saving(ExportFile(data: try LayoutExport.zip(source.files, folder: folder), contentType: .zip, filename: folder))
     }
 }
 
@@ -163,23 +163,23 @@ struct ExportPresenter: ViewModifier {
     var model: LayoutWindowModel
 
     func body(content: Content) -> some View {
-        let file = model.pendingExport?.file
+        let file = model.exports.pending?.file
         content
             .fileExporter(
                 isPresented: Binding(
                     get: { file != nil },
                     // Only a panel's own state: a write failure reported meanwhile stays for the alert.
-                    set: { if !$0, model.pendingExport?.file != nil { model.pendingExport = nil } }),
+                    set: { if !$0, model.exports.pending?.file != nil { model.exports.pending = nil } }),
                 document: file, contentType: file?.contentType ?? .data, defaultFilename: file?.filename
             ) { result in
                 if case let .failure(error) = result, (error as? CocoaError)?.code != .userCancelled {
-                    model.pendingExport = .failed(error.localizedDescription)
+                    model.exports.pending = .failed(error.localizedDescription)
                 }
             }
             .alert(
                 Text("Sextant couldn’t export the layout"),
-                isPresented: Binding(get: { model.pendingExport?.failure != nil }, set: { if !$0 { model.pendingExport = nil } }),
-                presenting: model.pendingExport?.failure
+                isPresented: Binding(get: { model.exports.pending?.failure != nil }, set: { if !$0 { model.exports.pending = nil } }),
+                presenting: model.exports.pending?.failure
             ) { _ in
                 Button("OK") {}
             } message: { message in
