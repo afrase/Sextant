@@ -190,6 +190,28 @@ struct LayoutWindowModelTests {
         #expect(model.boardPick == nil && cancels == 2 && model.palette == nil, "another layout cancels what was made for this one")
     }
 
+    /// A rename, a confirmation or a sheet left up names a layer of the last layout; the next one's must not take it. The
+    /// last layout's import isn't the next one's either.
+    @Test func anotherLayoutDropsWhatNamedTheLastOnesLayers() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        model.layers.renamingID = session.layout.layers.first?.id
+        model.layers.pendingClear = 2
+        model.layers.pendingDeletion = 2
+        model.lighting.keyColoursPendingClear = 1
+        model.lighting.layerPendingColour = 1
+        model.lighting.pickBrush(HexColor(red: 0, green: 0, blue: 1))
+        model.importedLayout = session.layout
+        #expect(model.isEditingText)
+
+        let other = try await model.library.importOryxJSON(try #require(userLayoutData))
+        await model.open(other.id)
+        #expect(model.layers.renamingID == nil && model.layers.pendingClear == nil && model.layers.pendingDeletion == nil)
+        #expect(model.lighting.keyColoursPendingClear == nil && model.lighting.layerPendingColour == nil)
+        #expect(model.lighting.brushColor == HexColor(red: 0, green: 0, blue: 1), "the brush is the user's, not the layout's")
+        #expect(model.importedLayout == nil && !model.isEditingText)
+    }
+
     /// Spec §3.2: the window minimum is 640 plus the visible columns' minimums.
     @Test func honestMinimumWidths() async throws {
         let model = try await openUserLayout()

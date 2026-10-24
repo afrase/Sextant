@@ -1,9 +1,8 @@
 import Observation
-import SextantDomain
 
 /// The window's device and Build & Flash presentation state (spec §7, §8.2): the sheet and its log, the Device popover,
-/// and the stand-ins a window without a live session shows (tests, snapshots). The Build & Flash run itself is the
-/// window's `buildFlash`, made per layout.
+/// and the stand-ins a window without a live session shows (tests, snapshots). The Build & Flash run itself, and the
+/// import its serial is matched against, are the window's `buildFlash` and `importedLayout`, made per layout.
 @MainActor
 @Observable
 final class DeviceModel {
@@ -16,12 +15,13 @@ final class DeviceModel {
     var showsBuildLog = false
     /// Where the Device popover hangs while it is open (spec §8.2).
     var popover: DevicePopoverAnchor?
-    /// The layout of the latest import revision, which the keyboard's serial is matched against (ADR 0019).
-    var importedLayout: KeyboardLayout?
     /// The window's `keyboardLayoutPrompt` where nothing reads the keyboard's layout (tests, snapshots).
     var fixedKeyboardLayoutPrompt: KeyboardLayoutPrompt?
     /// Follow where there is no live session (tests, snapshots).
     var followsWithoutLive = false
-    /// The window's `activity` where there is no live session (tests, snapshots).
-    var fixedActivity = ActivityState()
+    /// The window's `activity` where there is no live session (tests, snapshots). Without a keyboard there is nothing
+    /// to follow, whoever sets it.
+    var fixedActivity = ActivityState() {
+        didSet { if !fixedActivity.isKeyboardConnected { followsWithoutLive = false } }
+    }
 }

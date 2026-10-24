@@ -15,7 +15,7 @@ model of their own that the window holds; the earlier features never got the sam
   `LayersModel` (rename in place, Clear Layer and Delete Layer confirmations), `LightingModel` (the brush, Clear Key
   Colours and the Custom… colour sheet), `LayoutsModel` (Rename Layout… and Move to Trash…), `ExportModel` (the one
   pending export, shared with the Heatmap's exports), `DeviceModel` (the Build & Flash sheet and log, the Device popover,
-  the imported layout the serial is matched against, and the stand-ins a window without a live session shows) and
+  and the stand-ins a window without a live session shows, which keep their own invariant: no keyboard, no Follow) and
   `PickerModel` (recent keycodes and commands, the board-focus and dismissing-click plumbing). `FirmwareSettingsModel`
   takes the scroll target. Views bind to them directly (`@Bindable var lighting = model.lighting`).
 - **The window keeps what is the window's:** the document (`session`, `buildFlash`, `history`), routing (`destination`,
@@ -30,4 +30,7 @@ model of their own that the window holds; the earlier features never got the sam
   renamed (`model.lighting.brushColor`, `model.device.showsBuildSheet`, `model.exports.pending`).
 - A new feature adds a `<Feature>Model` and one `let` on the window, as the pages already did, rather than fields.
 - `buildFlash` stays on the window: it is a per-layout use case the window opens and closes, like `session`, not
-  presentation state.
+  presentation state. So does `importedLayout`, the import its serial is matched against: `open(_:)` clears it with the
+  layout, and a load that finishes after another layout opened is dropped.
+- A feature model whose state names a layer of the open layout (`LayersModel`, `LightingModel`) has a `reset()` that
+  `open(_:)` calls, so a rename or a confirmation left up can't act on the next layout's layer of that number.

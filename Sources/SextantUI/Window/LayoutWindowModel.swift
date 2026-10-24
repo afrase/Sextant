@@ -68,10 +68,7 @@ public final class LayoutWindowModel {
     /// (``liveActivity``), or a fixed value where there is no live session (tests, snapshots).
     public var activity: ActivityState {
         get { live == nil ? device.fixedActivity : liveActivity }
-        set {
-            device.fixedActivity = newValue
-            if !newValue.isKeyboardConnected { device.followsWithoutLive = false }
-        }
+        set { device.fixedActivity = newValue }
     }
     /// Live presses; the live session feeds it.
     public let pressedKeys = PressedKeys()
@@ -155,13 +152,16 @@ public final class LayoutWindowModel {
     let layouts = LayoutsModel()
     /// A layout is loading (true until the first ``open(_:)`` finishes), so the empty states wait for it.
     var isOpening = true
-    /// File ▸ Export's file waiting for its save panel, or why it couldn't be made or saved.
+    /// File ▸ Export's pending file and its save panel, shared with the Heatmap's exports.
     let exports = ExportModel()
 
     // MARK: device
     /// The open layout's Build & Flash, made per layout by `makeBuildFlash`; nil where building is off. Snapshots set
     /// one over fakes.
     public var buildFlash: BuildFlashSession?
+    /// The open layout's latest import revision, which the keyboard's serial is matched against (ADR 0019); loaded by
+    /// ``followKeyboard(settings:)``.
+    var importedLayout: KeyboardLayout?
     /// The Build & Flash sheet, the Device popover, and the stand-ins a window without a live session shows.
     let device = DeviceModel()
 
@@ -222,6 +222,8 @@ public final class LayoutWindowModel {
             }
             session = next
             buildFlash = makeBuildFlash?(next)
+            // The last layout's import isn't this one's; followKeyboard loads this one's.
+            importedLayout = nil
             history = HistoryModel(session: next, onKeyboard: onKeyboard)
             loadError = nil
             // Choosing a layout is choosing a destination (spec §2.2): its board, not the last layout's settings page.
@@ -230,6 +232,9 @@ public final class LayoutWindowModel {
             cancelBoardPick()
             palette = nil
             firmwareSettings.scrollTarget = nil
+            // A rename, a confirmation or a sheet names a layer of the last layout.
+            layers.reset()
+            lighting.reset()
             if next.recoveredUnsavedChanges { AccessibilityNotification.Announcement(Self.recoveredNotice).post() }
             return target
         } catch {

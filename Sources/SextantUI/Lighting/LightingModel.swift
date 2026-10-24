@@ -14,6 +14,12 @@ final class LightingModel {
     /// The layer whose Custom… colour sheet is open.
     var layerPendingColour: Int?
 
+    /// Another layout is opening: a confirmation or the colour sheet names a layer of the last one. The brush stays.
+    func reset() {
+        keyColoursPendingClear = nil
+        layerPendingColour = nil
+    }
+
     /// What a stroke gives the keys it crosses: the colour, or (the eraser) none of their own.
     var brush: Brush { Brush(color: isErasing ? nil : brushColor) }
 

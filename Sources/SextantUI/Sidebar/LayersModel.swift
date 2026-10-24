@@ -11,4 +11,11 @@ final class LayersModel {
     var pendingClear: Int?
     /// A layer whose deletion waits for confirmation because keys still switch to it.
     var pendingDeletion: Int?
+
+    /// Another layout is opening: a rename or a confirmation names a layer of the last one.
+    func reset() {
+        renamingID = nil
+        pendingClear = nil
+        pendingDeletion = nil
+    }
 }
