@@ -46,7 +46,7 @@ private struct LayerContextMenu: View {
             .disabled(index == session.layout.layers.count - 1)
         Divider()
         Menu("Copy Layer To") { CopyLayerMenu(window: model, layer: index) }
-        Button("Clear Layer…") { model.layerPendingClear = index }
+        Button("Clear Layer…") { model.layers.pendingClear = index }
         Button("Delete Layer…") {
             session.select(layer: index)
             model.requestDeleteLayer()
@@ -66,7 +66,7 @@ private struct LayerRow: View {
     @FocusState private var isEditing: Bool
 
     var body: some View {
-        let renaming = model.renamingLayerID == layer.id
+        let renaming = model.layers.renamingID == layer.id
         let own = layer.keys.filter { !$0.isTransparent }.count
         // The selected row's fill is dark grey in dark mode; secondary text and badges vanish on it.
         let detail: HierarchicalShapeStyle = isSelected ? .primary : .secondary
@@ -81,7 +81,7 @@ private struct LayerRow: View {
                         isEditing = true
                     }
                     .onSubmit { model.finishRenaming(layer.id, to: draft) }
-                    .onExitCommand { model.renamingLayerID = nil }
+                    .onExitCommand { model.layers.renamingID = nil }
                     .onChange(of: isEditing) { if !isEditing { model.finishRenaming(layer.id, to: draft) } }
             } else {
                 Text(layer.title)

@@ -31,12 +31,12 @@ struct LayersAndLightingTests {
         let session = try #require(model.session)
         model.addLayer()
         #expect(session.layout.layers.count == 4 && session.selection.layer == 3)
-        #expect(model.renamingLayerID == session.layout.layers[3].id)
-        model.renamingLayerID = nil
+        #expect(model.layers.renamingID == session.layout.layers[3].id)
+        model.layers.renamingID = nil
         model.columnVisibility = .detailOnly
         model.addLayer()
         #expect(session.layout.layers.count == 5)
-        #expect(model.renamingLayerID == nil, "no rename in a sidebar nobody can see")
+        #expect(model.layers.renamingID == nil, "no rename in a sidebar nobody can see")
     }
 
     @Test func renamingInPlaceCommitsOnceAndKeepsANameOnBlank() async throws {
@@ -45,7 +45,7 @@ struct LayersAndLightingTests {
         let id = session.layout.layers[1].id
         model.startRenaming(layer: 1)
         model.finishRenaming(id, to: "   ")
-        #expect(session.layout.layers[1].title == "Sym+Num" && model.renamingLayerID == nil, "a blank name keeps the old one")
+        #expect(session.layout.layers[1].title == "Sym+Num" && model.layers.renamingID == nil, "a blank name keeps the old one")
         model.startRenaming(layer: 1)
         model.finishRenaming(id, to: " Nav ")
         model.finishRenaming(id, to: "Other")
@@ -88,11 +88,11 @@ struct LayersAndLightingTests {
         let model = try await openUserLayout()
         #expect(model.brush == nil)
         model.lens = .lighting
-        #expect(model.brush == Brush(color: model.brushColor))
-        model.isErasing = true
+        #expect(model.brush == Brush(color: model.lighting.brushColor))
+        model.lighting.isErasing = true
         #expect(model.brush == Brush(color: nil), "the eraser removes keys' own colors")
         let teal = try #require(HexColor(hex: "#00C7BE"))
-        model.pickBrush(teal)
+        model.lighting.pickBrush(teal)
         #expect(model.brush == Brush(color: teal), "picking a color puts the eraser down")
         #expect(model.swatches == KeyboardLayout.defaultSwatch, "the user's layout has no swatches of its own")
     }

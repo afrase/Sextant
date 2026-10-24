@@ -32,7 +32,7 @@ struct KeyboardMenu: View {
         .disabled(window?.previewsLighting != true && (window?.lightingPreviewRefusal != nil || window?.session == nil))
         Toggle("Show Overlay While Holding a Layer", isOn: $showsOverlay)
         Divider()
-        Button("Device Info…") { window?.devicePopover = .capsule }.disabled(window?.live == nil)
+        Button("Device Info…") { window?.device.popover = .capsule }.disabled(window?.live == nil)
         // shortcut: BuildFlashSession has no path to flash a stored Oryx image yet; enable when it gets one (spec §7.1).
         Button("Flash Oryx’s Build of This Revision…") {}.disabled(true)
     }

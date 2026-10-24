@@ -141,9 +141,9 @@ struct FirmwareSettingsPage: View {
                     }
                 }
                 // Initial too: the palette sets a target before the page appears.
-                .onChange(of: model.settingsScrollTarget, initial: true) {
-                    guard let target = model.settingsScrollTarget else { return }
-                    model.settingsScrollTarget = nil
+                .onChange(of: model.firmwareSettings.scrollTarget, initial: true) {
+                    guard let target = model.firmwareSettings.scrollTarget else { return }
+                    model.firmwareSettings.scrollTarget = nil
                     guard let index = sections.firstIndex(where: { $0.id == target }), index < built else {
                         // A section the filter hides or the Form hasn't built yet: show it (the task builds the rest),
                         // then scroll once the Form has it.

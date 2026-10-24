@@ -20,17 +20,12 @@ extension LayoutWindowModel {
     var showsSidebar: Bool { columnVisibility != .detailOnly }
 
     /// The board's brush, in the Lighting lens only.
-    var brush: Brush? { lens == .lighting ? Brush(color: isErasing ? nil : brushColor) : nil }
+    var brush: Brush? { lens == .lighting ? lighting.brush : nil }
 
     /// The layout's swatches, or Sextant's own set when it has none (spec §10.1).
     var swatches: [HexColor] {
         guard let swatch = session?.layout.swatch, !swatch.isEmpty else { return KeyboardLayout.defaultSwatch }
         return swatch
-    }
-
-    func pickBrush(_ color: HexColor) {
-        brushColor = color
-        isErasing = false
     }
 
     /// New Layer (⇧⌘N): appends a layer and starts renaming it in place (spec §6.1).
@@ -41,14 +36,14 @@ extension LayoutWindowModel {
     }
 
     public func startRenaming(layer index: Int) {
-        renamingLayerID = session?.layout.layers[safe: index]?.id
+        layers.renamingID = session?.layout.layers[safe: index]?.id
     }
 
     /// Ends renaming `id` in place, renaming the layer unless `title` is blank. Return and leaving the field both
     /// call it, so only the first call counts.
     func finishRenaming(_ id: String, to title: String) {
-        guard renamingLayerID == id else { return }
-        renamingLayerID = nil
+        guard layers.renamingID == id else { return }
+        layers.renamingID = nil
         if let index = session?.layout.layers.firstIndex(where: { $0.id == id }) { session?.renameLayer(index, to: title) }
     }
 
@@ -107,7 +102,7 @@ struct LayerColourMenu: View {
             }
         }
         Divider()
-        Button("Custom…") { model.layerPendingColour = layer }
+        Button("Custom…") { model.lighting.layerPendingColour = layer }
         Button("No Color") { model.session?.setLayerColor(nil, layer: layer) }.disabled(current == nil)
     }
 }
@@ -117,12 +112,13 @@ struct LayerPresentations: ViewModifier {
     var model: LayoutWindowModel
 
     func body(content: Content) -> some View {
+        let lighting = model.lighting
         content
             .environment(\.brush, model.brush)
             .alert(
-                Text("Clear \(layerName(model.layerPendingClear))?"),
-                isPresented: Binding(get: { model.layerPendingClear != nil }, set: { _ in model.layerPendingClear = nil }),
-                presenting: model.layerPendingClear
+                Text("Clear \(layerName(model.layers.pendingClear))?"),
+                isPresented: Binding(get: { model.layers.pendingClear != nil }, set: { _ in model.layers.pendingClear = nil }),
+                presenting: model.layers.pendingClear
             ) { layer in
                 Button("Clear Layer", role: .destructive) { model.session?.clearLayer(layer) }
                 Button("Cancel", role: .cancel) {}
@@ -130,17 +126,17 @@ struct LayerPresentations: ViewModifier {
                 Text("Every key on this layer becomes transparent and loses its own color. You can undo this.")
             }
             .alert(
-                Text("Clear the key colors on \(layerName(model.keyColoursPendingClear))?"),
-                isPresented: Binding(get: { model.keyColoursPendingClear != nil }, set: { _ in model.keyColoursPendingClear = nil }),
-                presenting: model.keyColoursPendingClear
+                Text("Clear the key colors on \(layerName(lighting.keyColoursPendingClear))?"),
+                isPresented: Binding(get: { lighting.keyColoursPendingClear != nil }, set: { _ in lighting.keyColoursPendingClear = nil }),
+                presenting: lighting.keyColoursPendingClear
             ) { layer in
                 Button("Clear Key Colors", role: .destructive) { model.clearKeyColours(on: layer) }
                 Button("Cancel", role: .cancel) {}
             } message: { _ in
                 Text("These keys go back to the layer color. You can undo this.")
             }
-            .sheet(isPresented: Binding(get: { model.layerPendingColour != nil }, set: { _ in model.layerPendingColour = nil })) {
-                if let layer = model.layerPendingColour { LayerColourSheet(model: model, layer: layer) }
+            .sheet(isPresented: Binding(get: { lighting.layerPendingColour != nil }, set: { _ in lighting.layerPendingColour = nil })) {
+                if let layer = lighting.layerPendingColour { LayerColourSheet(model: model, layer: layer) }
             }
     }
 
@@ -159,7 +155,7 @@ struct LayerColourSheet: View {
     init(model: LayoutWindowModel, layer: Int) {
         self.model = model
         self.layer = layer
-        _draft = State(initialValue: (model.session?.layout.layers[safe: layer]?.color ?? model.brushColor).color)
+        _draft = State(initialValue: (model.session?.layout.layers[safe: layer]?.color ?? model.lighting.brushColor).color)
     }
 
     var body: some View {

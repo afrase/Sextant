@@ -32,8 +32,8 @@ struct FileSaveItems: View {
         Button("Restore This Revision") { if let revision { Task { await window?.restore(revision) } } }
             .disabled(revision.map { window?.canRestore($0) != true } ?? true)
         Button("Duplicate Layout") { if let id { Task { await window?.library.duplicate(id) } } }.disabled(id == nil)
-        Button("Rename Layout…") { window?.layoutPendingRename = id }.disabled(id == nil)
-        Button("Move Layout to Trash…") { window?.layoutPendingTrash = id }.disabled(id.map { window?.canTrash($0) != true } ?? true)
+        Button("Rename Layout…") { window?.layouts.pendingRename = id }.disabled(id == nil)
+        Button("Move Layout to Trash…") { window?.layouts.pendingTrash = id }.disabled(id.map { window?.canTrash($0) != true } ?? true)
         Menu("Export") {
             Button("Layout JSON…") { Task { await window?.export(.layoutJSON) } }.disabled(window?.canExport(.layoutJSON) != true)
             Button("QMK Source (.zip)…") { Task { await window?.export(.qmkSource) } }.disabled(window?.canExport(.qmkSource) != true)

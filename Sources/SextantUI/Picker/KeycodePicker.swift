@@ -180,7 +180,7 @@ extension LayoutWindowModel {
     func assign(_ action: KeyAction, advance: Bool = false) {
         guard let target = assignTarget else { return }
         target.assign(action)
-        recentKeycodes = [action] + recentKeycodes.filter { $0 != action }.prefix(7)
+        picker.recentKeycodes = [action] + picker.recentKeycodes.filter { $0 != action }.prefix(7)
         // Another target has no next key: it closes, and the selection stays.
         guard advance, palette?.target == nil, let session, let index = session.selection.keyIndex else {
             palette = nil
@@ -285,7 +285,7 @@ extension LayoutWindowModel {
                 palette = nil
                 destination = .firmwareSettings
                 firmwareSettings.clearFilters()
-                settingsScrollTarget = "international"
+                firmwareSettings.scrollTarget = "international"
             }
         }
     }
@@ -316,7 +316,7 @@ extension LayoutWindowModel {
             : ["KC_ESCAPE", "KC_TAB", "KC_ENTER", "KC_SPACE", "KC_BSPC", "KC_DELETE", "KC_TRANSPARENT", "KC_NO"]
         let layers = isHold ? session.layout.layers.indices.filter { $0 != session.selection.layer }.map(KeyAction.momentary) : []
         // Recents outlive deleted layers and layout switches.
-        let recents = recentKeycodes.filter {
+        let recents = picker.recentKeycodes.filter {
             ($0.layer.map(session.layout.layers.indices.contains) ?? true) && session.layout.offersKeycode($0.code)
         }
         var seen = Set<KeyAction>()
@@ -337,12 +337,12 @@ extension LayoutWindowModel {
         if keysOnly { return keyItems(query, limit: 60) }
         let commands = paletteCommands
         guard !query.isEmpty else {
-            let recent = recentCommands.compactMap { id in commands.first { $0.id == id } }.map { item in
+            let recent = picker.recentCommands.compactMap { id in commands.first { $0.id == id } }.map { item in
                 var item = item
                 item.group = .recent
                 return item
             }
-            return slotSuggestions + recent + commands.filter { !recentCommands.contains($0.id) }
+            return slotSuggestions + recent + commands.filter { !picker.recentCommands.contains($0.id) }
         }
         var items: [PaletteItem] = []
         // A pasted configure.zsa.io link or layout/revision serial; a bare word could be a layout id, so it needs a "/".
@@ -451,7 +451,7 @@ extension LayoutWindowModel {
                 {
                     filter.clearFilters()
                 }
-                settingsScrollTarget = section
+                firmwareSettings.scrollTarget = section
             }
         }
         let attached = layout.navigator.map { "\(FirmwareSettings.title($0.kind)) · \(FirmwareSettings.title($0.side))" }
@@ -502,7 +502,7 @@ extension LayoutWindowModel {
                     [weak self] in
                     guard let self else { return }
                     palette = nil
-                    recentCommands = Array(([id] + recentCommands.filter { $0 != id }).prefix(5))
+                    picker.recentCommands = Array(([id] + picker.recentCommands.filter { $0 != id }).prefix(5))
                     run()
                 })
         }

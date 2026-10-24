@@ -13,12 +13,12 @@ struct LightingInspector: View {
             let painted = model.keysWithOwnColour(on: index).count
             Text("Brush").font(.headline)
             HStack(spacing: 8) {
-                if model.isErasing {
+                if model.lighting.isErasing {
                     Image(systemName: "eraser").accessibilityHidden(true)
                     Text("Eraser · no own color")
                 } else {
-                    LayerChip(color: model.brushColor, size: 14)
-                    Text(verbatim: model.brushColor.hex).monospaced()
+                    LayerChip(color: model.lighting.brushColor, size: 14)
+                    Text(verbatim: model.lighting.brushColor.hex).monospaced()
                 }
             }
             BrushSwatches(model: model)
@@ -34,8 +34,8 @@ struct LightingInspector: View {
                 LayerChip(color: layer.color, size: 14)
                 Text(layer.color?.hex ?? String(localized: "No color")).monospaced()
                 Spacer()
-                Button("Use Brush") { session.setLayerColor(model.brushColor, layer: index) }
-                    .disabled(model.isErasing || layer.color == model.brushColor)
+                Button("Use Brush") { session.setLayerColor(model.lighting.brushColor, layer: index) }
+                    .disabled(model.lighting.isErasing || layer.color == model.lighting.brushColor)
                 Button("None") { session.setLayerColor(nil, layer: index) }.disabled(layer.color == nil)
             }
             .controlSize(.small)
@@ -43,7 +43,7 @@ struct LightingInspector: View {
             Divider()
             Text("Painted on \(layer.title)").font(.headline)
             Text("\(painted) of \(layer.keys.count) keys have their own color").monospacedDigit()
-            Button("Clear Key Colors…") { model.keyColoursPendingClear = index }.disabled(painted == 0)
+            Button("Clear Key Colors…") { model.lighting.keyColoursPendingClear = index }.disabled(painted == 0)
             Divider()
             KeyboardLightingSection(model: model)
         }

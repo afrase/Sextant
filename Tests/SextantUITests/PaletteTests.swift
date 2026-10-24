@@ -38,7 +38,7 @@ struct PaletteTests {
         model.openPalette(query: "tapping term")
         let row = try #require(model.paletteItems.first { $0.id == "setting-tappingTerm" })
         model.run(row)
-        #expect(model.palette == nil && model.destination == .firmwareSettings && model.settingsScrollTarget == "tapping")
+        #expect(model.palette == nil && model.destination == .firmwareSettings && model.firmwareSettings.scrollTarget == "tapping")
     }
 
     /// The Navigator has a row too (ADR 0035), and Navigator settings read the Navigator's options.
@@ -58,7 +58,7 @@ struct PaletteTests {
         let row = try #require(model.paletteItems.first { $0.id == "setting-navigator" })
         #expect(row.detail == "Trackpad · Left")
         model.run(row)
-        #expect(model.palette == nil && model.destination == .firmwareSettings && model.settingsScrollTarget == "navigator")
+        #expect(model.palette == nil && model.destination == .firmwareSettings && model.firmwareSettings.scrollTarget == "navigator")
     }
 
     @Test func holdSuggestsModifiersAndOtherLayers() async throws {
@@ -81,7 +81,7 @@ struct PaletteTests {
         model.runHighlighted()
         #expect(session.selectedAction == KeyAction(code: "KC_LBRC", modifiers: [.leftCommand]))
         #expect(model.palette == nil, "⏎ closes the picker")
-        #expect(model.recentKeycodes.first == KeyAction(code: "KC_LBRC"))
+        #expect(model.picker.recentKeycodes.first == KeyAction(code: "KC_LBRC"))
 
         model.openKeycodePicker(prefilled: "esc")
         model.runHighlighted(advance: true)

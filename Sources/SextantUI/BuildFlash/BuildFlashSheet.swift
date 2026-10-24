@@ -5,12 +5,13 @@ import SwiftUI
 /// The window's device and Build & Flash wiring: the sheet, following the keyboard, VoiceOver announcements, and the
 /// capsule's "Flashed" giving way to the keyboard's status after 8 s when the sheet is hidden (spec §3.5, §7, §8.2, §11).
 struct DeviceWiring: ViewModifier {
-    @Bindable var model: LayoutWindowModel
+    var model: LayoutWindowModel
     @Environment(\.appearsActive) private var appearsActive
 
     func body(content: Content) -> some View {
+        @Bindable var device = model.device
         content
-            .sheet(isPresented: $model.showsBuildSheet, onDismiss: stopIfAsked) { BuildFlashSheet(model: model) }
+            .sheet(isPresented: $device.showsBuildSheet, onDismiss: stopIfAsked) { BuildFlashSheet(model: model) }
             .task { await model.followKeyboard() }
             .task(id: model.isFlashedOutOfSight) {
                 guard model.isFlashedOutOfSight, (try? await Task.sleep(for: .seconds(8))) != nil else { return }
@@ -30,9 +31,9 @@ struct DeviceWiring: ViewModifier {
 
     /// After Stop, Cancel or Done, once the sheet has gone; not when a new run has brought it back meanwhile.
     private func stopIfAsked() {
-        guard model.stopsBuildWhenSheetCloses else { return }
-        model.stopsBuildWhenSheetCloses = false
-        if !model.showsBuildSheet { model.buildFlash?.stop() }
+        guard model.device.stopsBuildWhenSheetCloses else { return }
+        model.device.stopsBuildWhenSheetCloses = false
+        if !model.device.showsBuildSheet { model.buildFlash?.stop() }
     }
 }
 
@@ -40,7 +41,7 @@ extension LayoutWindowModel {
     /// A flash finished and was recorded while the sheet was hidden: the capsule says "Flashed" for a while. One that
     /// wasn't recorded keeps saying so until the sheet shows why.
     var isFlashedOutOfSight: Bool {
-        if case .done(_, nil) = buildFlash?.phase { !showsBuildSheet } else { false }
+        if case .done(_, nil) = buildFlash?.phase { !device.showsBuildSheet } else { false }
     }
 }
 
@@ -127,11 +128,11 @@ public struct BuildFlashSheet: View {
     }
 
     @ViewBuilder private func buttons(_ phase: BuildFlashSession.Phase, _ build: BuildFlashSession) -> some View {
-        let hide = { model.showsBuildSheet = false }
+        let hide = { model.device.showsBuildSheet = false }
         // The run stops once the sheet has gone (DeviceWiring), so it doesn't flash back to the first step as it leaves.
         let stop = {
-            model.stopsBuildWhenSheetCloses = true
-            model.showsBuildSheet = false
+            model.device.stopsBuildWhenSheetCloses = true
+            model.device.showsBuildSheet = false
         }
         switch phase {
         case .idle:

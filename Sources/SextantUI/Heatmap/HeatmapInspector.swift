@@ -29,7 +29,7 @@ struct HeatmapInspector: View {
             Button("Export CSV…") { model.exportHeatmap(json: false) }
             Button("Export JSON…") { model.exportHeatmap(json: true) }
         }
-        .disabled(stats.total == 0 || model.pendingExport?.file != nil)
+        .disabled(stats.total == 0 || model.exports.pending?.file != nil)
         Button("Clear Heatmap Data…") { heatmap.confirmsClear = true }.disabled(heatmap.recorder == nil)
         Text("Counted on this Mac only. Nothing is uploaded.").font(.callout).foregroundStyle(.secondary)
     }

@@ -63,14 +63,14 @@ struct HeatmapLensTests {
     @Test func exportsGoToTheSavePanel() async throws {
         let model = try await model()
         model.exportHeatmap(json: false)
-        let csv = try #require(model.pendingExport?.file)
+        let csv = try #require(model.exports.pending?.file)
         #expect(csv.contentType == .commaSeparatedText && csv.filename == "My MacOS Layout Heatmap")
         #expect(String(bytes: csv.data, encoding: .utf8)?.hasPrefix("layer,layer_name,key,legend,hand,finger,presses\r\n") == true)
         model.exportHeatmap(json: true)
-        #expect(model.pendingExport?.file?.contentType == .commaSeparatedText, "one panel at a time")
-        model.pendingExport = nil
+        #expect(model.exports.pending?.file?.contentType == .commaSeparatedText, "one panel at a time")
+        model.exports.pending = nil
         model.exportHeatmap(json: true)
-        let json = try #require(model.pendingExport?.file)
+        let json = try #require(model.exports.pending?.file)
         #expect(json.contentType == .json)
         let object = try JSONSerialization.jsonObject(with: json.data) as? [String: Any]
         #expect((object?["keys"] as? [Any])?.count == 3)

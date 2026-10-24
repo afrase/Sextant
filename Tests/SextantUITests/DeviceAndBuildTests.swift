@@ -68,11 +68,11 @@ struct DeviceAndBuildTests {
         let build = try #require(model.buildFlash)
         #expect(model.canBuild && !model.canStop)
         model.build(.buildAndFlash)
-        #expect(model.showsBuildSheet, "⌘R shows the sheet")
+        #expect(model.device.showsBuildSheet, "⌘R shows the sheet")
         #expect(await eventually { build.phase == .waitingForFlashMode(stillWaiting: false) })
         #expect(model.activity.status == .waitingForFlashMode)
         #expect(model.canStop && !model.canBuild, "Stop instead of Build while waiting")
-        model.showsBuildSheet = false  // Hide
+        model.device.showsBuildSheet = false  // Hide
         #expect(build.phase == .waitingForFlashMode(stillWaiting: false), "hiding keeps it running")
         await model.trashLayout(try #require(model.session?.id))
         #expect(build.phase == .idle, "a trashed or closed layout can't flash the next keyboard put in flash mode")
@@ -172,7 +172,7 @@ struct DeviceAndBuildTests {
         let build = try #require(model.buildFlash)
         flashMode.attach(.bootloader(BootloaderDevice(id: 9, productID: 0x0791, kind: .stm32, version: 1)))
         model.flash(revision)
-        #expect(build.revision == revision && model.showsBuildSheet)
+        #expect(build.revision == revision && model.device.showsBuildSheet)
         #expect(await eventually { if case .writing = build.phase { true } else { false } })
         #expect(model.isFlashWriting && other.isFlashWriting)
         #expect(!model.canFlash(revision) && !model.canRestore(revision) && !other.canRestore(elsewhere))
@@ -191,10 +191,10 @@ struct DeviceAndBuildTests {
         let build = try #require(model.buildFlash)
         model.build(.build)
         #expect(await eventually { build.phase == .built })
-        #expect(!model.showsBuildSheet, "⌘B doesn't bring up the sheet")
+        #expect(!model.device.showsBuildSheet, "⌘B doesn't bring up the sheet")
         #expect(model.activity.status == .built(bytes: 65_786, percentOfFlash: 54))
         model.build(.showLog)
-        #expect(model.showsBuildSheet && model.showsBuildLog)
+        #expect(model.device.showsBuildSheet && model.device.showsBuildLog)
     }
 
     @Test func aKeyboardRunningAnUnknownOryxLayoutOffersImport() async throws {
@@ -261,7 +261,7 @@ struct DeviceAndBuildTests {
         let model = try await window()
         model.session?.setCode("KC_FOO", layer: 0, index: 1)
         model.build(.build)
-        #expect(model.showsBuildSheet, "⌘B would otherwise seem to do nothing")
+        #expect(model.device.showsBuildSheet, "⌘B would otherwise seem to do nothing")
         #expect(await eventually { if case .blocked = model.buildFlash?.phase { true } else { false } })
     }
 

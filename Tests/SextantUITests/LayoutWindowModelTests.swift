@@ -88,15 +88,15 @@ struct LayoutWindowModelTests {
         let session = try #require(model.session)
         session.select(layer: 2)
         model.requestDeleteLayer()
-        #expect(model.layerPendingDeletion == 2)
+        #expect(model.layers.pendingDeletion == 2)
         #expect(session.layout.layers.count == 3, "nothing is deleted before the answer")
         #expect(model.deletionMessage(for: 2) == "1 key switches to Brd+Sys: key 51 on Main. It will do nothing.")
-        model.layerPendingDeletion = nil
+        model.layers.pendingDeletion = nil
         session.setKey(Key(tap: .toggle(2), hold: .momentary(2)), layer: 0, index: 5)
         #expect(model.deletionMessage(for: 2).hasPrefix("2 keys switch to Brd+Sys: key 5 on Main, key 51 on Main."), "one entry per key")
         session.addLayer()
         model.requestDeleteLayer()
-        #expect(model.layerPendingDeletion == nil && session.layout.layers.count == 3, "a layer nothing reaches goes at once")
+        #expect(model.layers.pendingDeletion == nil && session.layout.layers.count == 3, "a layer nothing reaches goes at once")
     }
 
     @Test func laneShowsLiveWhileFollowing() async throws {
@@ -188,6 +188,28 @@ struct LayoutWindowModelTests {
         model.openKeycodePicker(AssignTarget(title: "Combo 1 › Output") { _ in })
         await model.open(other.id)
         #expect(model.boardPick == nil && cancels == 2 && model.palette == nil, "another layout cancels what was made for this one")
+    }
+
+    /// A rename, a confirmation or a sheet left up names a layer of the last layout; the next one's must not take it. The
+    /// last layout's import isn't the next one's either.
+    @Test func anotherLayoutDropsWhatNamedTheLastOnesLayers() async throws {
+        let model = try await openUserLayout()
+        let session = try #require(model.session)
+        model.layers.renamingID = session.layout.layers.first?.id
+        model.layers.pendingClear = 2
+        model.layers.pendingDeletion = 2
+        model.lighting.keyColoursPendingClear = 1
+        model.lighting.layerPendingColour = 1
+        model.lighting.pickBrush(HexColor(red: 0, green: 0, blue: 1))
+        model.importedLayout = session.layout
+        #expect(model.isEditingText)
+
+        let other = try await model.library.importOryxJSON(try #require(userLayoutData))
+        await model.open(other.id)
+        #expect(model.layers.renamingID == nil && model.layers.pendingClear == nil && model.layers.pendingDeletion == nil)
+        #expect(model.lighting.keyColoursPendingClear == nil && model.lighting.layerPendingColour == nil)
+        #expect(model.lighting.brushColor == HexColor(red: 0, green: 0, blue: 1), "the brush is the user's, not the layout's")
+        #expect(model.importedLayout == nil && !model.isEditingText)
     }
 
     /// Spec §3.2: the window minimum is 640 plus the visible columns' minimums.

@@ -15,7 +15,7 @@ public struct DeviceCard: View {
         if let live = model.live {
             VStack(alignment: .leading, spacing: 8) {
                 Button {
-                    model.devicePopover = .card
+                    model.device.popover = .card
                 } label: {
                     summary(live).contentShape(Rectangle())
                 }

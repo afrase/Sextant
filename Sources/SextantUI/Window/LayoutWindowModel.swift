@@ -58,27 +58,22 @@ public final class LayoutWindowModel {
     /// stand-in where there is no live session (tests, snapshots). Only while a layer arrives: a keyboard held by
     /// Keymapp has Follow on but nothing to follow.
     public var isFollowing: Bool {
-        get { live.map { $0.followedLayer != nil } ?? followsWithoutLive }
+        get { live.map { $0.followedLayer != nil } ?? device.followsWithoutLive }
         set {
-            guard let live else { return followsWithoutLive = newValue }
+            guard let live else { return device.followsWithoutLive = newValue }
             if newValue { live.follow() } else { live.stopFollowing() }
         }
     }
     /// Device and build status for the toolbar capsule: derived from the live session and Build & Flash
     /// (``liveActivity``), or a fixed value where there is no live session (tests, snapshots).
     public var activity: ActivityState {
-        get { live == nil ? fixedActivity : liveActivity }
-        set {
-            fixedActivity = newValue
-            if !newValue.isKeyboardConnected { followsWithoutLive = false }
-        }
+        get { live == nil ? device.fixedActivity : liveActivity }
+        set { device.fixedActivity = newValue }
     }
     /// Live presses; the live session feeds it.
     public let pressedKeys = PressedKeys()
     /// The kind the footer's kind key points at (hover or press).
     var highlightedKind: KeyKind?
-    /// A layer whose deletion waits for confirmation because keys still switch to it (spec §6.1).
-    var layerPendingDeletion: Int?
     /// App-wide keyboard presence and live state; nil in tests and snapshots without a keyboard.
     @ObservationIgnored let live: LiveSession?
     /// A fresh Import from Oryx flow per sheet; nil where importing is off (tests, snapshots).
@@ -98,26 +93,17 @@ public final class LayoutWindowModel {
     /// make the key transparent or disable it.
     var isEditingKeyLabel = false
 
-    // MARK: layers
-    /// The layer whose name the sidebar is editing in place, by id (spec §6.1).
-    var renamingLayerID: String?
-    /// A layer waiting for Clear Layer's confirmation.
-    var layerPendingClear: Int?
-    /// A layer waiting for Clear Key Colours' confirmation (spec §6.2).
-    var keyColoursPendingClear: Int?
-    /// The layer whose Custom… colour sheet is open.
-    var layerPendingColour: Int?
-    /// The Lighting lens brush (spec §6.2): its colour, and whether it erases (no own colour) instead.
-    var brushColor = KeyboardLayout.defaultSwatch.first ?? HexColor(red: 1, green: 0.58, blue: 0)
-    var isErasing = false
+    // MARK: layers and lighting
+    /// Layer management's state: the in-place rename and the layer confirmations (spec §6.1).
+    let layers = LayersModel()
+    /// The Lighting lens's state: the brush, and its confirmations and sheet (spec §6.2).
+    let lighting = LightingModel()
 
     // MARK: picker
     /// The open command palette or keycode picker (spec §5.6, §5.7); nil when closed.
     var palette: Palette?
-    /// Bumped when a closed panel hands keyboard focus back to the board.
-    var boardFocusRequests = 0
-    /// The mouse event number of the click that last closed the palette from outside it (the toolbar's Search toggles).
-    var paletteDismissingClick: Int?
+    /// What the palette and picker remember between opens, and their panel plumbing.
+    let picker = PickerModel()
     /// Record Key while it listens for the next key on the Mac's keyboard (spec §5.8); nil when off.
     var recorder: KeyRecorder?
     /// Select Key by Pressing It while it waits for a press on the keyboard, or for that press's key-up; nil when off.
@@ -137,9 +123,6 @@ public final class LayoutWindowModel {
     public let heatmap: HeatmapModel
     /// The App Layers page's state (spec §8.6).
     public let appLayers: AppLayersModel
-    /// Keycodes assigned from the picker and commands run from the palette, newest first (Suggested, Recent).
-    var recentKeycodes: [KeyAction] = []
-    var recentCommands: [String] = []
 
     // MARK: import
     /// The Import from Oryx sheet's flow while the sheet is open (spec §8.1).
@@ -163,38 +146,24 @@ public final class LayoutWindowModel {
     /// The page shown instead of the board; nil on the board, never a layer. Views that mustn't depend on the
     /// selected layer read this rather than ``destination``.
     private(set) var page: Destination?
-    /// The Firmware Settings section to scroll to (the inspector's Sections list).
-    var settingsScrollTarget: String?
     /// The Firmware Settings page's search and filter (spec §8.8).
     public let firmwareSettings = FirmwareSettingsModel()
-    /// The layout whose Rename… alert is showing.
-    var layoutPendingRename: UUID?
-    /// The layout whose Move to Trash… confirmation is showing.
-    var layoutPendingTrash: UUID?
+    /// The library rows' Rename… alert and Move to Trash… confirmation (spec §3.6).
+    let layouts = LayoutsModel()
     /// A layout is loading (true until the first ``open(_:)`` finishes), so the empty states wait for it.
     var isOpening = true
-    /// File ▸ Export's file waiting for its save panel, or why it couldn't be made or saved.
-    var pendingExport: PendingExport?
+    /// File ▸ Export's pending file and its save panel, shared with the Heatmap's exports.
+    let exports = ExportModel()
 
     // MARK: device
     /// The open layout's Build & Flash, made per layout by `makeBuildFlash`; nil where building is off. Snapshots set
     /// one over fakes.
     public var buildFlash: BuildFlashSession?
-    /// The Build & Flash sheet is up. Hide takes it down while the run goes on (spec §7.6).
-    var showsBuildSheet = false
-    /// Stop, Cancel or Done took the sheet down: the run stops once the sheet has gone, so it doesn't show the first
-    /// step as it leaves.
-    @ObservationIgnored var stopsBuildWhenSheetCloses = false
-    /// The sheet's build log is expanded (⇧⌘B).
-    var showsBuildLog = false
-    /// Where the Device popover hangs while it is open (spec §8.2).
-    var devicePopover: DevicePopoverAnchor?
-    /// The layout of the latest import revision, which the keyboard's serial is matched against (ADR 0019).
+    /// The open layout's latest import revision, which the keyboard's serial is matched against (ADR 0019); loaded by
+    /// ``followKeyboard(settings:)``.
     var importedLayout: KeyboardLayout?
-    /// ``keyboardLayoutPrompt`` where nothing reads the keyboard's layout (tests, snapshots).
-    var fixedKeyboardLayoutPrompt: KeyboardLayoutPrompt?
-    private var followsWithoutLive = false
-    private var fixedActivity = ActivityState()
+    /// The Build & Flash sheet, the Device popover, and the stand-ins a window without a live session shows.
+    let device = DeviceModel()
 
     public init(
         library: Library, live: LiveSession? = nil, makeImport: (@MainActor () -> ImportFromOryx)? = nil,
@@ -253,6 +222,8 @@ public final class LayoutWindowModel {
             }
             session = next
             buildFlash = makeBuildFlash?(next)
+            // The last layout's import isn't this one's; followKeyboard loads this one's.
+            importedLayout = nil
             history = HistoryModel(session: next, onKeyboard: onKeyboard)
             loadError = nil
             // Choosing a layout is choosing a destination (spec §2.2): its board, not the last layout's settings page.
@@ -260,7 +231,10 @@ public final class LayoutWindowModel {
             // A pick or a panel's assign target edits the layout it was made for.
             cancelBoardPick()
             palette = nil
-            settingsScrollTarget = nil
+            firmwareSettings.scrollTarget = nil
+            // A rename, a confirmation or a sheet names a layer of the last layout.
+            layers.reset()
+            lighting.reset()
             if next.recoveredUnsavedChanges { AccessibilityNotification.Announcement(Self.recoveredNotice).post() }
             return target
         } catch {
@@ -346,7 +320,7 @@ public final class LayoutWindowModel {
     /// A text field may have focus (key label, layer rename, palette, import, layout rename): ⌘⌫ and ⇧⌘⌫ reach the menu
     /// before the field, so they must not edit the selected key.
     var isEditingText: Bool {
-        isEditingKeyLabel || renamingLayerID != nil || palette != nil || importFlow != nil || layoutPendingRename != nil
+        isEditingKeyLabel || layers.renamingID != nil || palette != nil || importFlow != nil || layouts.pendingRename != nil
     }
     var canShowPreviousLayer: Bool { (session?.selection.layer ?? 0) > 0 }
     var canShowNextLayer: Bool { session.map { $0.selection.layer < $0.layout.layers.count - 1 } ?? false }
@@ -396,7 +370,7 @@ public final class LayoutWindowModel {
         if session.layout.keysActivating(layer: layer).isEmpty {
             session.deleteLayer(layer)
         } else {
-            layerPendingDeletion = layer
+            layers.pendingDeletion = layer
         }
     }
 
@@ -422,15 +396,15 @@ public final class LayoutWindowModel {
         case .build:
             buildFlash.build()
             // Live errors block it; the sheet lists them, or ⌘B would seem to do nothing (spec §7.5).
-            if session.map({ LayoutIssues.check($0.layout).contains { $0.severity == .error } }) == true { showsBuildSheet = true }
+            if session.map({ LayoutIssues.check($0.layout).contains { $0.severity == .error } }) == true { device.showsBuildSheet = true }
         case .buildAndFlash:
-            stopsBuildWhenSheetCloses = false
+            device.stopsBuildWhenSheetCloses = false
             buildFlash.buildAndFlash(connectedKeyboard: connectedKeyboard, revision: revision)
-            showsBuildSheet = true
+            device.showsBuildSheet = true
         case .stop: buildFlash.stop()
         case .showLog:
-            showsBuildLog = true
-            showsBuildSheet = true
+            device.showsBuildLog = true
+            device.showsBuildSheet = true
         }
     }
 

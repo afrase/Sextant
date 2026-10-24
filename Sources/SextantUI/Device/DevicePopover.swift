@@ -4,10 +4,10 @@ import SextantDomain
 import SwiftUI
 
 extension View {
-    /// Hangs the window's Device popover off this view while `model.devicePopover` names `anchor`.
+    /// Hangs the window's Device popover off this view while `model.device.popover` names `anchor`.
     func devicePopover(_ model: LayoutWindowModel, from anchor: DevicePopoverAnchor, arrowEdge: Edge = .bottom) -> some View {
         popover(
-            isPresented: Binding(get: { model.devicePopover == anchor }, set: { if !$0 { model.devicePopover = nil } }),
+            isPresented: Binding(get: { model.device.popover == anchor }, set: { if !$0 { model.device.popover = nil } }),
             arrowEdge: arrowEdge
         ) { DevicePopover(model: model) }
     }
@@ -95,7 +95,7 @@ public struct DevicePopover: View {
     }
 
     private func addToLibrary() {
-        model.devicePopover = nil
+        model.device.popover = nil
         openWindow.keyboardLayout(windows)
     }
 
@@ -103,7 +103,7 @@ public struct DevicePopover: View {
     private var importFromOryx: (@MainActor () -> Void)? {
         guard let serial = model.connectedOryxSerial else { return nil }
         return {
-            model.devicePopover = nil
+            model.device.popover = nil
             model.openImport(serial)
         }
     }

@@ -23,10 +23,10 @@ struct LayoutsSection: View {
                 .badgeProminence(.decreased)
                 .accessibilityAddTraits(isOpenHere ? .isSelected : [])
                 .contextMenu {
-                    Button("Rename…") { model.layoutPendingRename = entry.id }
+                    Button("Rename…") { model.layouts.pendingRename = entry.id }
                     Button("Duplicate") { Task { await model.library.duplicate(entry.id) } }
                     Divider()
-                    Button("Move to Trash…") { model.layoutPendingTrash = entry.id }.disabled(!model.canTrash(entry.id))
+                    Button("Move to Trash…") { model.layouts.pendingTrash = entry.id }.disabled(!model.canTrash(entry.id))
                 }
             }
             // The Welcome's choices once the library has a layout (spec §12.1, File ▸ New and Import).
@@ -94,16 +94,16 @@ struct RenameLayoutAlert: ViewModifier {
         content
             .alert(
                 Text("Rename Layout"),
-                isPresented: Binding(get: { model.layoutPendingRename != nil }, set: { if !$0 { model.layoutPendingRename = nil } }),
-                presenting: model.layoutPendingRename
+                isPresented: Binding(get: { model.layouts.pendingRename != nil }, set: { if !$0 { model.layouts.pendingRename = nil } }),
+                presenting: model.layouts.pendingRename
             ) { id in
                 TextField("Name", text: $title)
                 Button("Rename") { Task { await model.library.rename(id, to: title) } }
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 Button("Cancel", role: .cancel) {}
             }
-            .onChange(of: model.layoutPendingRename) {
-                if let id = model.layoutPendingRename { title = model.title(of: id) }
+            .onChange(of: model.layouts.pendingRename) {
+                if let id = model.layouts.pendingRename { title = model.title(of: id) }
             }
     }
 }
@@ -116,10 +116,10 @@ struct TrashLayoutDialog: ViewModifier {
     @Environment(\.dismissWindow) private var dismissWindow
 
     func body(content: Content) -> some View {
-        let pending = model.layoutPendingTrash
+        let pending = model.layouts.pendingTrash
         content.confirmationDialog(
             Text("Move “\(pending.map(model.title(of:)) ?? "")” to the Trash?"),
-            isPresented: Binding(get: { pending != nil }, set: { if !$0 { model.layoutPendingTrash = nil } }),
+            isPresented: Binding(get: { pending != nil }, set: { if !$0 { model.layouts.pendingTrash = nil } }),
             presenting: pending
         ) { id in
             Button("Move to Trash", role: .destructive) { Task { await trash(id) } }

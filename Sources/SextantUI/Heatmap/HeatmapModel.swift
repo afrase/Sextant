@@ -151,19 +151,19 @@ extension LayoutWindowModel {
 
     /// Export CSV… and Export JSON…: the range's counts through File ▸ Export's save panel.
     func exportHeatmap(json: Bool) {
-        guard let session, pendingExport?.file == nil else { return }
+        guard let session, exports.pending?.file == nil else { return }
         guard NSApp?.mainWindow?.attachedSheet == nil else { return NSSound.beep() }
         let heat = heatmap.heatmap(for: session.id)
         let name = String(localized: "\(LayoutExport.filename(session.layout.title)) Heatmap")
         if json {
             let start = heatmap.loaded?.start
             guard let data = try? HeatmapExport.json(heat, layout: session.layout, from: start, to: Date()) else {
-                return pendingExport = .failed(String(localized: "The heatmap couldn’t be written as JSON."))
+                return exports.pending = .failed(String(localized: "The heatmap couldn’t be written as JSON."))
             }
-            pendingExport = .saving(ExportFile(data: data, contentType: .json, filename: name))
+            exports.pending = .saving(ExportFile(data: data, contentType: .json, filename: name))
         } else {
             let csv = HeatmapExport.csv(heat, layout: session.layout)
-            pendingExport = .saving(ExportFile(data: Data(csv.utf8), contentType: .commaSeparatedText, filename: name))
+            exports.pending = .saving(ExportFile(data: Data(csv.utf8), contentType: .commaSeparatedText, filename: name))
         }
     }
 }

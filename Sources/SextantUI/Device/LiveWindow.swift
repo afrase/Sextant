@@ -71,7 +71,7 @@ extension LayoutWindowModel {
     /// the app's keyboard layout pull, or a fixed value where there is none (tests, snapshots).
     public var keyboardLayoutPrompt: KeyboardLayoutPrompt? {
         get {
-            guard let keyboardLayout else { return fixedKeyboardLayoutPrompt }
+            guard let keyboardLayout else { return device.fixedKeyboardLayoutPrompt }
             guard let live, let onKeyboard else { return nil }
             switch live.connection {
             case .connected, .liveOff:
@@ -79,7 +79,7 @@ extension LayoutWindowModel {
             case .noKeyboard, .bootloader, .heldByAnotherApp: return nil
             }
         }
-        set { fixedKeyboardLayoutPrompt = newValue }
+        set { device.fixedKeyboardLayoutPrompt = newValue }
     }
 
     /// Get Layout and Try Again: reads the layout the keyboard's firmware stores, turning on Live View first. The click is
@@ -156,7 +156,11 @@ extension LayoutWindowModel {
         var last: LiveInputs?
         for await now in Observations({ LiveInputs(live: live, session: self.session, showsPresses: showsPresses.isOn) }) {
             pressedKeys.update(now.pressed)
-            if now.document != last?.document { importedLayout = await buildFlash?.importedLayout() }
+            if now.document != last?.document, let buildFlash {
+                let imported = await buildFlash.importedLayout()
+                // Another layout may have opened during the load; its own change runs this again.
+                if buildFlash === self.buildFlash { importedLayout = imported }
+            }
             if now.followed != last?.followed || now.document?.id != last?.document?.id {
                 // Another layout's layer numbers mean other layers: leave the shown one alone.
                 if let layer = now.followed, runsThisLayout { session?.select(layer: layer) }
