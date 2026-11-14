@@ -376,13 +376,13 @@ struct NumberField: View {
     @State private var text = ""
     @FocusState private var isFocused: Bool
 
-    static func text(_ value: Double, digits: Int) -> String {
+    nonisolated static func text(_ value: Double, digits: Int) -> String {
         value.formatted(.number.precision(.fractionLength(digits)).grouping(.never))
     }
 
     /// The number in `text`, held to `range` and rounded to `digits`; nil when it isn't a number. Reads the user's
     /// decimal separator, and a plain period too.
-    static func parse(_ text: String, range: ClosedRange<Double>, digits: Int) -> Double? {
+    nonisolated static func parse(_ text: String, range: ClosedRange<Double>, digits: Int) -> Double? {
         let trimmed = text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "−", with: "-")
         guard let typed = (try? Double(trimmed, format: .number)) ?? Double(trimmed), typed.isFinite else { return nil }
         let factor = pow(10, Double(digits))
