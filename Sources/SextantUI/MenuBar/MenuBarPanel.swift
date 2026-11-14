@@ -17,7 +17,7 @@ struct MenuBarActions {
     var buildAndFlash: @MainActor () -> Void = {}
     var openSextant: @MainActor () -> Void = {}
     var openSettings: @MainActor () -> Void = {}
-    /// Details… on the update notice: the Software Update window (ADR 0063).
+    /// Details… on the update reminder: Sparkle's window with the update found (ADR 0070).
     var showUpdate: @MainActor () -> Void = {}
     var quit: @MainActor () -> Void = {}
 }
@@ -28,11 +28,12 @@ extension MenuBarActions {
     /// - Parameters:
     ///   - keyboardLayout: reads the keyboard's layout when Sextant doesn't have it (ADR 0061).
     ///   - openKeyboardLayout: opens the Layout on the Keyboard window (`openWindow(id:)`).
+    ///   - updates: brings up the update a scheduled check found (ADR 0070).
     @MainActor
     init(
         live: LiveSession, onKeyboard: OnKeyboard, windows: WindowRouter, openWindow: @escaping WindowRouter.OpenWindow,
         appLayers: AppLayerSwitcher? = nil, openSettings: @escaping @MainActor () -> Void, keyboardLayout: KeyboardLayoutPull? = nil,
-        openKeyboardLayout: @escaping @MainActor () -> Void = {}, openSoftwareUpdate: @escaping @MainActor () -> Void = {}
+        openKeyboardLayout: @escaping @MainActor () -> Void = {}, updates: SoftwareUpdates? = nil
     ) {
         self.init(
             moveToLayer: { try? onKeyboard.moveKeyboard(toLayer: $0) },
@@ -48,7 +49,7 @@ extension MenuBarActions {
             buildAndFlash: { windows.buildAndFlash(openWindow) },
             openSextant: { windows.showMainWindow(openWindow) },
             openSettings: { windows.showSettings(openSettings) },
-            showUpdate: { windows.showWindow(openSoftwareUpdate) },
+            showUpdate: { windows.showWindow { updates?.check() } },
             quit: { NSApplication.shared.terminate(nil) })
     }
 }
@@ -63,7 +64,7 @@ struct MenuBarPanel: View {
     var heatmap: HeatmapRecorder?
     var appLayers: AppLayerSwitcher?
     var keyboardLayout: KeyboardLayoutPull?
-    var updates: UpdateChecker?
+    var updates: SoftwareUpdates?
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
     /// Closes the panel (MenuBarExtraAccess's binding: SwiftUI has no call that closes a menu bar extra).
@@ -77,7 +78,7 @@ struct MenuBarPanel: View {
             live: live, onKeyboard: onKeyboard, windows: windows, openWindow: { openWindow.layout($0) }, appLayers: appLayers,
             openSettings: { openSettings() }, keyboardLayout: keyboardLayout,
             openKeyboardLayout: { openWindow(id: KeyboardLayoutWindow.sceneID) },
-            openSoftwareUpdate: { openWindow(id: SoftwareUpdateWindow.sceneID) })
+            updates: updates)
         // The rows that take the user to a window close the panel, as a menu would; tiles, switches and Get Layout, whose
         // progress shows here, leave it open.
         for keyPath in [\MenuBarActions.buildAndFlash, \.openSextant, \.openSettings, \.addKeyboardLayout, \.showUpdate] {
@@ -228,7 +229,8 @@ public struct MenuBarPanelContent: View {
         keyboard == .live ? .buttonOnly : .plain
     }
 
-    /// A newer Sextant is out (ADR 0063): Details… opens the Software Update window.
+    /// A scheduled check found a newer Sextant while Sextant wasn't in front (ADR 0070): Details… brings up Sparkle's
+    /// window with its notes and Install Update.
     private func updateRow(_ version: AppVersion) -> some View {
         HStack(alignment: .firstTextBaseline) {
             note("arrow.down.circle") { Text("Sextant \(version.description) is available.") }

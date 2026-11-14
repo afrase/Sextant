@@ -54,7 +54,7 @@ struct SextantMain: App {
                 await services.trackpad.start()
             }
         }
-        // Once a day while checking automatically is on (the default), a little after launch (ADR 0063).
+        // Sparkle's schedule: once a day while checking automatically is on (the default) (ADR 0070).
         services.updates.start()
         // `--import <oryx.json>`: add an Oryx layout file to the library at launch.
         let args = CommandLine.arguments
@@ -138,11 +138,8 @@ struct SextantMain: App {
             live: live, onKeyboard: onKeyboard, library: library, store: HeatmapFiles(root: HeatmapFiles.defaultRoot()),
             isOn: PrivacySettings.recordsHeatmap(), retentionDays: PrivacySettings.heatmapRetentionDays(),
             persist: PrivacySettings.saveHeatmap)
-        // The bundle's short version; `swift run` has none, and then never checks by itself.
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        let updates = UpdateChecker(
-            current: version.flatMap(AppVersion.init), feed: GitHubReleaseFeed(version: version), saved: UpdateSettings.saved(),
-            persist: { UpdateSettings.save($0) })
+        // Sparkle, reading the signed appcast on the repo's appcast branch; `swift run` can't update itself (ADR 0070).
+        let updates = SoftwareUpdates(updater: SparkleUpdater())
         // Off until the user turns it on in Settings › Navigator; then the pad's input mode is the only write (ADR 0068).
         let uptime = ContinuousClock.now
         let trackpad = TrackpadDriver(
@@ -161,7 +158,7 @@ struct SextantMain: App {
                 watcher: WorkspaceAppWatcher(), onKeyboard: onKeyboard, live: live, store: store,
                 ownBundleID: Bundle.main.bundleIdentifier),
             keyboardLayout: KeyboardLayoutPull(live: live, onKeyboard: onKeyboard, library: library, store: store),
-            updates: updates, trackpad: trackpad, installedWithHomebrew: UpdateSettings.installedWithHomebrew(),
+            updates: updates, trackpad: trackpad,
             makeImport: { ImportFromOryx(oryx: oryx, library: library) },
             makeBuildFlash: { session in
                 // ADR 0033: the native toolchain, every build sandboxed. Settings › Build says whether a build stores its

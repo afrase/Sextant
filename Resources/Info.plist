@@ -24,6 +24,16 @@
 			<key>UTTypeConformsTo</key><array><string>public.json</string></array>
 		</dict>
 	</array>
+	<!-- Sparkle (ADR 0070): the signed appcast the release workflow publishes on the appcast branch once a release has
+	     built, and the EdDSA public key its updates are signed with (the private key is the SPARKLE_ED_PRIVATE_KEY
+	     secret). Daily checks are on by default, so Sparkle doesn't ask; the feed must be signed, and an update is
+	     verified before it is unpacked. -->
+	<key>SUFeedURL</key><string>https://raw.githubusercontent.com/afrase/Sextant/appcast/appcast.xml</string>
+	<key>SUPublicEDKey</key><string>KPWRYTkzogU6Oql3Ysi5QJFnsrLkurppDm43iNCjdEk=</string>
+	<key>SUEnableAutomaticChecks</key><true/>
+	<key>SUScheduledCheckInterval</key><integer>86400</integer>
+	<key>SURequireSignedFeed</key><true/>
+	<key>SUVerifyUpdateBeforeExtraction</key><true/>
 	<key>NSHumanReadableCopyright</key><string>© 2026 Aaron Frase. Not affiliated with ZSA Technology Labs.</string>
 </dict>
 </plist>

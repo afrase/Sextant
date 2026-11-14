@@ -47,7 +47,7 @@ The Heatmap lens (View ▸ Lens ▸ Heatmap, ⌃⌘3) colors each key by how oft
 
 ## Updates
 
-Once a day, Sextant asks GitHub whether a newer version is out, and says so in the menu bar panel and the Sextant menu. Sextant ▸ Check for Updates… asks now. The Software Update window links the release notes and the download, or shows the `brew upgrade --cask sextant` command when Homebrew installed Sextant; nothing downloads or installs by itself. Skip This Version stops the notice until a newer one. Settings › General turns the daily check off.
+Sextant updates itself. Once a day it asks GitHub whether a newer version is out; Sextant ▸ Check for Updates… asks now. A window shows the release notes, and Install Update downloads it, checks its signature, installs it and relaunches Sextant. Unless Sextant has just launched, an update found by the daily check doesn't open a window over your work: the menu bar panel and the Sextant menu say so, and Details… brings it up. Settings › General turns the daily check off, or lets updates download by themselves and install when you quit. Homebrew leaves Sextant to update itself (`brew upgrade --greedy` still upgrades it).
 
 ## History and export
 

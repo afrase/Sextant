@@ -68,15 +68,6 @@ public struct SextantScenes: Scene {
         .defaultLaunchBehavior(.suppressed)
         .commandsRemoved()
 
-        // Check for Updates… and the menu bar's Details… (ADR 0063); not restored at launch, not in the Window menu.
-        Window("Software Update", id: SoftwareUpdateWindow.sceneID) {
-            SoftwareUpdateWindow(updates: services.updates, installedWithHomebrew: services.installedWithHomebrew)
-        }
-        .windowResizability(.contentSize)
-        .restorationBehavior(.disabled)
-        .defaultLaunchBehavior(.suppressed)
-        .commandsRemoved()
-
         // The label is an image the panel's state draws, since a menu bar extra's label shows only an Image and a Text
         // (spec §8.3, ADR 0049).
         MenuBarExtra(isInserted: $showsInMenuBar) {

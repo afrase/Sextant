@@ -13,6 +13,16 @@
     "%@ (same name)" : {
 
     },
+    "%@ A newer release downloads by itself and installs when you quit Sextant. %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ A newer release downloads by itself and installs when you quit Sextant. %2$@"
+          }
+        }
+      }
+    },
     "%@ B" : {
 
     },
@@ -48,6 +58,16 @@
         }
       }
     },
+    "%@ Sextant asks before it downloads anything. %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ Sextant asks before it downloads anything. %2$@"
+          }
+        }
+      }
+    },
     "%@ Sextant sets them up the first time you build, after you agree to the download." : {
 
     },
@@ -79,9 +99,6 @@
           }
         }
       }
-    },
-    "%@ is the newest version." : {
-
     },
     "%@ isn’t on the keyboard yet. Build & Flash to use this rule." : {
 
@@ -991,16 +1008,10 @@
     "Change…" : {
 
     },
-    "Check Again" : {
-
-    },
     "Check Now" : {
 
     },
     "Check firmware" : {
-
-    },
-    "Check for Updates" : {
 
     },
     "Check for Updates…" : {
@@ -1012,13 +1023,7 @@
     "Checking" : {
 
     },
-    "Checking for updates…" : {
-
-    },
     "Checking the build tools…" : {
-
-    },
-    "Checking…" : {
 
     },
     "Choose Output…" : {
@@ -1223,9 +1228,6 @@
     "Convert" : {
 
     },
-    "Copy" : {
-
-    },
     "Copy %lld Keys to %@" : {
       "localizations" : {
         "en" : {
@@ -1399,10 +1401,10 @@
     "Double-click speed" : {
 
     },
-    "Download" : {
+    "Download and Build" : {
 
     },
-    "Download and Build" : {
+    "Download and install updates automatically" : {
 
     },
     "Downloading build tools · %lld%%" : {
@@ -1777,12 +1779,6 @@
     "Get Layout" : {
 
     },
-    "GitHub reported a problem: %@" : {
-
-    },
-    "GitHub sent something Sextant couldn’t read. %@" : {
-
-    },
     "Glide" : {
 
     },
@@ -1886,9 +1882,6 @@
 
     },
     "Holding" : {
-
-    },
-    "Homebrew installed Sextant. To update, run:" : {
 
     },
     "Hyper" : {
@@ -2810,7 +2803,7 @@
     "On. The keyboard moves when an app with a rule comes forward." : {
 
     },
-    "Once a day, Sextant asks GitHub for its newest release and tells you when there is one. GitHub sees your IP address and Sextant’s version. Nothing is downloaded or installed by itself." : {
+    "Once a day, Sextant asks GitHub for its newest release. GitHub sees your IP address and Sextant’s version." : {
 
     },
     "One layer, authored by Sextant, ready to build on." : {
@@ -3140,9 +3133,6 @@
 
     },
     "Relaxed" : {
-
-    },
-    "Release Notes" : {
 
     },
     "Reminder" : {
@@ -3507,19 +3497,13 @@
     "Settings…" : {
 
     },
-    "Sextant %@ is available" : {
-
-    },
     "Sextant %@ is available." : {
 
     },
     "Sextant Help" : {
 
     },
-    "Sextant asks GitHub for its newest release only when you check. Nothing is downloaded or installed by itself." : {
-
-    },
-    "Sextant asks GitHub for its newest release. Nothing is downloaded or installed." : {
+    "Sextant asks GitHub for its newest release only when you check. %@" : {
 
     },
     "Sextant builds firmware on this Mac with the compiler ZSA uses, the QMK tools and ZSA’s firmware source. Each build runs sandboxed: no network, and no access to your files." : {
@@ -3576,13 +3560,7 @@
     "Sextant couldn't save or load the layout. Check that the disk has space and try again." : {
 
     },
-    "Sextant couldn’t check for updates" : {
-
-    },
     "Sextant couldn’t export the layout" : {
-
-    },
-    "Sextant couldn’t reach GitHub to check for updates. Check your connection and try again." : {
 
     },
     "Sextant couldn’t read this layout’s App Layers" : {
@@ -3616,12 +3594,6 @@
 
     },
     "Sextant is already reading the keyboard’s layout." : {
-
-    },
-    "Sextant is up to date" : {
-
-    },
-    "Sextant is up to date." : {
 
     },
     "Sextant missing from the list, or on there but not here? Reset reopens Sextant and asks again." : {
@@ -3780,9 +3752,6 @@
     "Size" : {
 
     },
-    "Skip This Version" : {
-
-    },
     "Slots" : {
 
     },
@@ -3793,9 +3762,6 @@
 
     },
     "Smaller" : {
-
-    },
-    "Software Update" : {
 
     },
     "Sooner" : {
@@ -4083,9 +4049,6 @@
     "The keyboard’s lights go dark and it disconnects while in flash mode. That’s expected. Sextant starts writing as soon as it sees the bootloader." : {
 
     },
-    "The last check didn’t get an answer." : {
-
-    },
     "The last shortcut moved nothing. %@" : {
 
     },
@@ -4117,9 +4080,6 @@
     "The layout the keyboard sent doesn’t add up." : {
 
     },
-    "The newest Sextant is %@" : {
-
-    },
     "The trackpad has no button to press: a short, still touch is a click." : {
 
     },
@@ -4135,7 +4095,7 @@
     "This Revision’s QMK Source (.zip)…" : {
 
     },
-    "This build doesn’t say its version, so Sextant can’t compare." : {
+    "This build can’t update itself. Release builds from GitHub or Homebrew can." : {
 
     },
     "This build doesn’t say its version." : {
@@ -4345,6 +4305,9 @@
     "Updates" : {
 
     },
+    "Updates are signed, and Sextant checks the signature before it installs one." : {
+
+    },
     "Use Brush" : {
 
     },
@@ -4470,9 +4433,6 @@
 
     },
     "You can’t undo this." : {
-
-    },
-    "You have %@. The release notes say what’s new." : {
 
     },
     "Your %@ is running ‘%@’, revision %lld." : {

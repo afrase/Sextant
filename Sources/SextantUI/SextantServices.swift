@@ -22,12 +22,10 @@ public struct SextantServices {
     public let appLayers: AppLayerSwitcher
     /// Reads the layout a Sextant build stores in the keyboard when the library doesn't have it, app-wide (ADR 0061).
     public let keyboardLayout: KeyboardLayoutPull
-    /// Tells the user when a newer Sextant is out, app-wide (ADR 0063).
-    public let updates: UpdateChecker
+    /// Keeps Sextant up to date from inside the app, app-wide (ADR 0070).
+    public let updates: SoftwareUpdates
     /// Drives the Navigator trackpad when the user turns it on, app-wide (ADR 0068).
     public let trackpad: TrackpadDriver
-    /// Homebrew installed Sextant, so an update is `brew upgrade` rather than a download.
-    public let installedWithHomebrew: Bool
     /// A fresh Import from Oryx flow (one per sheet).
     public let makeImport: @MainActor () -> ImportFromOryx
     /// The Build & Flash state machine for one open layout.
@@ -36,7 +34,7 @@ public struct SextantServices {
     public init(
         library: Library, live: LiveSession, trace: RawHIDTrace, onKeyboard: OnKeyboard, layerShortcuts: LayerShortcuts,
         lightingPreview: LightingPreview, overlay: OverlayHUD, heatmap: HeatmapRecorder, appLayers: AppLayerSwitcher,
-        keyboardLayout: KeyboardLayoutPull, updates: UpdateChecker, trackpad: TrackpadDriver, installedWithHomebrew: Bool,
+        keyboardLayout: KeyboardLayoutPull, updates: SoftwareUpdates, trackpad: TrackpadDriver,
         makeImport: @escaping @MainActor () -> ImportFromOryx,
         makeBuildFlash: @escaping @MainActor (EditSession) -> BuildFlashSession
     ) {
@@ -52,7 +50,6 @@ public struct SextantServices {
         self.keyboardLayout = keyboardLayout
         self.updates = updates
         self.trackpad = trackpad
-        self.installedWithHomebrew = installedWithHomebrew
         self.makeImport = makeImport
         self.makeBuildFlash = makeBuildFlash
     }

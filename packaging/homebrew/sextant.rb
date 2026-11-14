@@ -10,6 +10,9 @@ cask "sextant" do
   depends_on arch: :arm64
   depends_on macos: :tahoe
 
+  # Sextant updates itself with Sparkle (ADR 0070), so `brew upgrade` leaves it alone unless run with --greedy.
+  auto_updates true
+
   app "Sextant.app"
 
   # Releases are signed ad hoc, not notarized, so Gatekeeper would refuse the first launch. Installing from this tap

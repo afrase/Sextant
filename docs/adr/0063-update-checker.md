@@ -1,6 +1,6 @@
 # 63. An update checker that tells, and doesn't install
 
-Status: accepted, 2026-10-17.
+Status: superseded by [ADR 0070](0070-in-app-updates-with-sparkle.md), 2026-11-14. Accepted 2026-10-17.
 
 ## Context
 Sextant ships through GitHub releases and a Homebrew cask (ADR 0058), and nothing told a user a newer version was out. The

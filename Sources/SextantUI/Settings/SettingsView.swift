@@ -18,7 +18,7 @@ struct SettingsView: View {
     var heatmap: HeatmapRecorder
     /// Keyboard's overlay Preview shows on it.
     var overlayHUD: OverlayHUD
-    var updates: UpdateChecker?
+    var updates: SoftwareUpdates?
     /// Settings › Navigator; none in snapshots.
     var trackpad: TrackpadDriver?
 
@@ -71,12 +71,10 @@ public struct GeneralSettings: View {
     @AppStorage(SettingsKey.showsInMenuBar) private var showsInMenuBar = true
     @AppStorage(SettingsKey.showsMenuBarLayerColor) private var showsLayerColor = false
     @AppStorage(SettingsKey.keepsInMenuBar) private var keepsInMenuBar = true
-    /// Settings › General's Updates section (ADR 0063); none in snapshots.
-    var updates: UpdateChecker?
-    @Environment(\.openWindow) private var openWindow
-    @Environment(WindowRouter.self) private var windows: WindowRouter?
+    /// Settings › General's Updates section (ADR 0070); none in snapshots.
+    var updates: SoftwareUpdates?
 
-    public init(updates: UpdateChecker? = nil) { self.updates = updates }
+    public init(updates: SoftwareUpdates? = nil) { self.updates = updates }
 
     public var body: some View {
         Form {
@@ -97,15 +95,7 @@ public struct GeneralSettings: View {
             }
             Toggle("Show grid behind the keyboard", isOn: $showsGrid)
             Toggle("Notify when a flash finishes", isOn: $notifies)
-            if let updates {
-                UpdatesSection(updates: updates) {
-                    if let windows {
-                        windows.showWindow { openWindow(id: SoftwareUpdateWindow.sceneID) }
-                    } else {
-                        openWindow(id: SoftwareUpdateWindow.sceneID)
-                    }
-                }
-            }
+            if let updates { UpdatesSection(updates: updates) }
         }
         .formStyle(.grouped)
     }
