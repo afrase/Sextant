@@ -20,10 +20,12 @@ public enum NavigatorSettingsStore {
 
 /// Settings › Navigator (ADR 0068): the switch that lets Sextant drive the Navigator trackpad, what it still needs, and
 /// every tuning value in units people know. Values that macOS has its own setting for follow it unless overridden.
-struct NavigatorSettings: View {
+public struct NavigatorSettings: View {
     var driver: TrackpadDriver
 
-    var body: some View {
+    public init(driver: TrackpadDriver) { self.driver = driver }
+
+    public var body: some View {
         Form {
             Section {
                 Toggle(
@@ -147,7 +149,7 @@ private struct PointerSection: View {
             if let speed = pointer.trackingSpeed {
                 ValueSlider(
                     title: "Tracking speed", value: speed, range: TrackpadSettings.Pointer.trackingSpeedRange, step: 0.0625,
-                    low: "Slow", high: "Fast", text: speed.formatted(.number.precision(.fractionLength(2)))
+                    low: "Slow", high: "Fast", digits: 2
                 ) { value in driver.update { $0.pointer.trackingSpeed = value } }
             } else {
                 LabeledContent("Tracking speed") {
@@ -157,21 +159,21 @@ private struct PointerSection: View {
             }
             ValueSlider(
                 title: "Pad rotation", value: driver.settings.rotation, range: TrackpadSettings.rotationRange, step: 1,
-                low: "−180°", high: "180°", text: String(localized: "\(Int(driver.settings.rotation))°")
+                low: "−180°", high: "180°", digits: 0, unit: "°"
             ) { value in driver.update { $0.rotation = value } }
             ValueSlider(
                 title: "Fast moves", value: pointer.fastMoves, range: TrackpadSettings.Pointer.fastMovesRange, step: 0.05,
-                low: "Gentler", high: "Mac", text: (pointer.fastMoves).formatted(.percent.precision(.fractionLength(0)))
+                low: "Gentler", high: "Mac", digits: 0, unit: "%", scale: 100
             ) { value in driver.update { $0.pointer.fastMoves = value } }
             DisclosureGroup("Advanced", isExpanded: $showsAdvanced) {
                 ValueSlider(
                     title: "Fast moves start at", value: pointer.fastMoveThreshold,
                     range: TrackpadSettings.Pointer.fastMoveThresholdRange, step: 10, low: "Sooner", high: "Later",
-                    text: String(localized: "\(Int(pointer.fastMoveThreshold)) mm/s")
+                    digits: 0, unit: String(localized: "mm/s")
                 ) { value in driver.update { $0.pointer.fastMoveThreshold = value } }
                 ValueSlider(
                     title: "Pad scale", value: pointer.padScale, range: TrackpadSettings.Pointer.padScaleRange, step: 0.05,
-                    low: "Smaller", high: "Larger", text: "\(pointer.padScale.formatted(.number.precision(.fractionLength(2))))×"
+                    low: "Smaller", high: "Larger", digits: 2, unit: "×"
                 ) { value in driver.update { $0.pointer.padScale = value } }
                 Toggle(
                     "Ignore the fingertip rolling off",
@@ -201,7 +203,7 @@ private struct ScrollingSection: View {
         Section {
             ValueSlider(
                 title: "Scroll speed", value: scrolling.speed, range: TrackpadSettings.Scrolling.speedRange, step: 0.05, low: "Slow",
-                high: "Fast", text: "\(scrolling.speed.formatted(.number.precision(.fractionLength(2))))×"
+                high: "Fast", digits: 2, unit: "×"
             ) { value in driver.update { $0.scrolling.speed = value } }
             Toggle(
                 "Invert horizontal scrolling",
@@ -215,7 +217,7 @@ private struct ScrollingSection: View {
             if scrolling.hasMomentum {
                 ValueSlider(
                     title: "Glide", value: scrolling.momentumHalfLife, range: TrackpadSettings.Scrolling.momentumHalfLifeRange, step: 10,
-                    low: "Short", high: "Long", text: String(localized: "\(Int(scrolling.momentumHalfLife)) ms")
+                    low: "Short", high: "Long", digits: 0, unit: String(localized: "ms")
                 ) { value in driver.update { $0.scrolling.momentumHalfLife = value } }
             }
         } header: {
@@ -246,12 +248,12 @@ private struct TappingSection: View {
             Group {
                 ValueSlider(
                     title: "Longest tap", value: tapping.longestTap, range: TrackpadSettings.Tapping.longestTapRange, step: 10,
-                    low: "Quick", high: "Slow", text: String(localized: "\(Int(tapping.longestTap)) ms")
+                    low: "Quick", high: "Slow", digits: 0, unit: String(localized: "ms")
                 ) { value in driver.update { $0.tapping.longestTap = value } }
                 ValueSlider(
                     title: "Movement in a tap", value: tapping.tapMovement, range: TrackpadSettings.Tapping.tapMovementRange, step: 0.1,
                     low: "Strict", high: "Relaxed",
-                    text: String(localized: "\(tapping.tapMovement.formatted(.number.precision(.fractionLength(1)))) mm")
+                    digits: 1, unit: String(localized: "mm")
                 ) { value in driver.update { $0.tapping.tapMovement = value } }
                 Toggle(
                     "Match the Mac’s double-click speed",
@@ -261,7 +263,7 @@ private struct TappingSection: View {
                 if let interval = tapping.doubleClickInterval {
                     ValueSlider(
                         title: "Double-click speed", value: interval, range: TrackpadSettings.Tapping.doubleClickIntervalRange, step: 0.05,
-                        low: "Fast", high: "Slow", text: String(localized: "\(interval.formatted(.number.precision(.fractionLength(2)))) s")
+                        low: "Fast", high: "Slow", digits: 2, unit: String(localized: "s")
                     ) { value in driver.update { $0.tapping.doubleClickInterval = value } }
                 }
             }
@@ -287,11 +289,11 @@ private struct DraggingSection: View {
             Group {
                 ValueSlider(
                     title: "Touch again within", value: dragging.window, range: TrackpadSettings.Dragging.windowRange, step: 10,
-                    low: "Quick", high: "Slow", text: String(localized: "\(Int(dragging.window)) ms")
+                    low: "Quick", high: "Slow", digits: 0, unit: String(localized: "ms")
                 ) { value in driver.update { $0.dragging.window = value } }
                 ValueSlider(
                     title: "And within", value: dragging.radius, range: TrackpadSettings.Dragging.radiusRange, step: 0.5, low: "Strict",
-                    high: "Relaxed", text: String(localized: "\(dragging.radius.formatted(.number.precision(.fractionLength(1)))) mm")
+                    high: "Relaxed", digits: 1, unit: String(localized: "mm")
                 ) { value in driver.update { $0.dragging.radius = value } }
                 Toggle(
                     "Keep dragging briefly after you lift",
@@ -301,7 +303,7 @@ private struct DraggingSection: View {
                 if let regrip = dragging.regrip {
                     ValueSlider(
                         title: "For", value: regrip, range: TrackpadSettings.Dragging.regripRange, step: 0.05, low: "Short", high: "Long",
-                        text: String(localized: "\(regrip.formatted(.number.precision(.fractionLength(2)))) s")
+                        digits: 2, unit: String(localized: "s")
                     ) { value in driver.update { $0.dragging.regrip = value } }
                 }
             }
@@ -320,29 +322,99 @@ private struct DraggingSection: View {
     }
 }
 
-/// A slider over a Double with its value beside it, ends labeled.
-private struct ValueSlider: View {
+/// A slider over a Double with a field beside it to type an exact value into, ends labeled. A typed value is held to
+/// the range and rounded to the digits shown, but not to the slider's steps.
+struct ValueSlider: View {
     var title: LocalizedStringKey
     var value: Double
     var range: ClosedRange<Double>
     var step: Double
     var low: LocalizedStringKey
     var high: LocalizedStringKey
-    var text: String
+    /// Decimal places the field shows.
+    var digits: Int
+    var unit: String = ""
+    /// What the field shows is the value times this: 100 for a share shown as a percentage.
+    var scale: Double = 1
     var set: (Double) -> Void
+
+    private var spoken: String {
+        let number = NumberField.text(value * scale, digits: digits)
+        return unit.isEmpty ? number : "\(number) \(unit)"
+    }
 
     var body: some View {
         LabeledContent(title) {
-            HStack {
+            HStack(spacing: 6) {
                 Slider(
                     value: Binding(get: { value }, set: { set(($0 / step).rounded() * step) }), in: range,
                     label: { Text(title) }, minimumValueLabel: { Text(low).font(.caption) },
                     maximumValueLabel: { Text(high).font(.caption) }
                 )
                 .labelsHidden()
-                .accessibilityValue(text)
-                Text(verbatim: text).monospacedDigit().foregroundStyle(.secondary).frame(width: 64, alignment: .trailing)
+                .accessibilityValue(Text(verbatim: spoken))
+                NumberField(
+                    title: title, value: value * scale, range: (range.lowerBound * scale)...(range.upperBound * scale), digits: digits
+                ) { set($0 / scale) }
+                .accessibilityValue(Text(verbatim: spoken))
+                Text(verbatim: unit).foregroundStyle(.secondary).frame(width: 34, alignment: .leading).accessibilityHidden(true)
             }
         }
+    }
+}
+
+/// A field for typing a number. It keeps its own text while being edited and commits on Return, on losing focus and
+/// when it goes away (a popover closing), but only text the user changed; afterwards it shows what was stored, so a
+/// value out of range reads back as the limit it was held to.
+struct NumberField: View {
+    var title: LocalizedStringKey
+    var value: Double
+    var range: ClosedRange<Double>
+    var digits: Int
+    var set: (Double) -> Void
+
+    @State private var text = ""
+    @FocusState private var isFocused: Bool
+
+    static func text(_ value: Double, digits: Int) -> String {
+        value.formatted(.number.precision(.fractionLength(digits)).grouping(.never))
+    }
+
+    /// The number in `text`, held to `range` and rounded to `digits`; nil when it isn't a number. Reads the user's
+    /// decimal separator, and a plain period too.
+    static func parse(_ text: String, range: ClosedRange<Double>, digits: Int) -> Double? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "−", with: "-")
+        guard let typed = (try? Double(trimmed, format: .number)) ?? Double(trimmed), typed.isFinite else { return nil }
+        let factor = pow(10, Double(digits))
+        return min(max((typed * factor).rounded() / factor, range.lowerBound), range.upperBound)
+    }
+
+    private var shown: String { Self.text(value, digits: digits) }
+
+    var body: some View {
+        TextField(title, text: $text)
+            .labelsHidden()
+            .textFieldStyle(.roundedBorder)
+            .multilineTextAlignment(.trailing)
+            .monospacedDigit()
+            .frame(width: 58)
+            .focused($isFocused)
+            .accessibilityLabel(Text(title))
+            .onAppear { text = shown }
+            .onChange(of: value) { if !isFocused { text = shown } }
+            .onChange(of: isFocused) { if !isFocused { commit() } }
+            .onSubmit(commit)
+            .onDisappear(perform: commit)
+    }
+
+    private func commit() {
+        guard text != shown else { return }
+        guard let parsed = Self.parse(text, range: range, digits: digits) else {
+            text = shown  // not a number: back to what is stored
+            return
+        }
+        set(parsed)
+        // What was stored, which may be the limit the typed number was held to.
+        text = Self.text(parsed, digits: digits)
     }
 }

@@ -36,6 +36,10 @@ public struct BoardView: View {
     /// previewing, and the next stroke starts from nothing.
     @GestureState private var isPainting = false
     @Environment(\.layoutWindow) private var window
+    @Environment(TrackpadDriver.self) private var trackpad: TrackpadDriver?
+    @Environment(WindowRouter.self) private var windows: WindowRouter?
+    @Environment(\.openSettings) private var openSettings
+    @State private var showsNavigator = false
     @Environment(\.boardDisplay) private var display
     /// A pick takes clicks first (ADR 0037), so it stops painting and swapping until it ends.
     private var hasBoardPick: Bool { window?.boardPick != nil }
@@ -108,7 +112,17 @@ public struct BoardView: View {
         .focusable()
         .focused($isFocused)
         .focusEffectDisabled()
-        .onChange(of: isFocused) { if !isFocused { focusedByPointer = false } }
+        .onChange(of: isFocused) {
+            // A click focuses the board at mouse-down, before the tap above ends: without this the keyboard's focus
+            // outline flashed until mouse-up.
+            if isFocused {
+                if let type = NSApp.currentEvent?.type, [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(type) {
+                    focusedByPointer = true
+                }
+            } else {
+                focusedByPointer = false
+            }
+        }
         .onMoveCommand(perform: move)
         .onKeyPress(keys: [.tab, Self.backTab], phases: .down) { press in
             // ⌃⇥ / ⌃⇧⇥ leave the board, as they leave a text view.
@@ -171,13 +185,36 @@ public struct BoardView: View {
 
     // MARK: Keys
 
+    /// The Navigator disc, a button that opens its popover on the editing board (ADR 0069).
+    @ViewBuilder private func navigatorDisc(_ navigator: NavigatorConfig, at nav: BoardLayout.NavigatorFrame) -> some View {
+        // A read-only display (Changes, a revision) and a pick in progress leave the disc inert.
+        // So does the Lighting lens, whose paint gesture takes every click on the board, and a key being recorded
+        // or selected by pressing it.
+        let opens =
+            display == nil && !hasBoardPick && brush == nil && window.map { $0.recorder == nil && !$0.selectsByPress } == true
+        NavigatorDisc(diameter: nav.diameter, kind: navigator.kind, action: opens ? { showsNavigator = true } : nil)
+            .popover(isPresented: $showsNavigator, arrowEdge: .bottom) {
+                NavigatorPopover(
+                    navigator: navigator, driver: trackpad,
+                    showMacSettings: {
+                        showsNavigator = false
+                        SettingsView.select(.navigator)
+                        if let windows { windows.showSettings { openSettings() } } else { openSettings() }
+                    },
+                    showFirmwareSettings: {
+                        showsNavigator = false
+                        window?.showNavigatorFirmwareSettings()
+                    })
+            }
+            .position(nav.center)
+            // Above the canvas while it's a button, so a key's gestures never take its click.
+            .zIndex(opens ? 1 : 0)
+    }
+
     private func keys(_ board: BoardLayout, models: [KeyCapModel], cap: CGFloat) -> some View {
         let order = Self.readingOrder(session.geometry)
         return ZStack(alignment: .topLeading) {
-            if layout.navigator != nil, let nav = board.navigator {
-                NavigatorDisc(diameter: nav.diameter, kind: layout.navigator?.kind)
-                    .position(nav.center)
-            }
+            if let navigator = layout.navigator, let nav = board.navigator { navigatorDisc(navigator, at: nav) }
             BoardCanvas(layout: board) { frame in
                 if let model = models[safe: frame.index], let brush {
                     let own =

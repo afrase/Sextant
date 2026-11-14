@@ -67,6 +67,16 @@ struct FirmwareSettingsPageTests {
         #expect(count("", modifiedOnly: true) == 0)
     }
 
+    /// The Navigator popover's Firmware Settings… opens the page at its Navigator section, whatever was filtered (ADR 0069).
+    @Test func theNavigatorPopoverOpensFirmwareSettingsAtTheNavigator() async throws {
+        let model = try await openUserLayout()
+        model.firmwareSettings.query = "hold"
+        model.showNavigatorFirmwareSettings()
+        #expect(model.destination == .firmwareSettings)
+        #expect(model.firmwareSettings.query.isEmpty)
+        #expect(model.firmwareSettings.scrollTarget == FirmwareSettings.navigator)
+    }
+
     /// Choosing a setting in the palette clears a filter that keeps its section but hides its row.
     @Test func paletteJumpClearsAFilterThatHidesTheSetting() async throws {
         let model = try await openUserLayout()

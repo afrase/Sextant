@@ -436,7 +436,7 @@ Layout: `[● Voyager  KlgM7/40xJ7M] │ [icon  status text ……… detail]`, 
   - the inner thumb (keys 25 and 50) is 1u × 1.35u.
 - **Board size.** 15.0 pitch units wide by about 6.7 tall.
 - **Spacing.** The gap between caps is 0.11 × cap.
-- **Navigator.** For a layout with a Navigator, draw a recessed, non-interactive disc of 0.95 pitch at the inner edge of the half it is attached to (Firmware Settings › Navigator › Side), between rows 1 and 2. Use a trackpad or trackball glyph and the tooltip "Navigator trackpad · settings in Firmware Settings › Navigator" ("Navigator trackball · …" for a trackball).
+- **Navigator.** For a layout with a Navigator, draw a recessed disc of 0.95 pitch at the inner edge of the half it is attached to (Firmware Settings › Navigator › Side), between rows 1 and 2. Use a trackpad or trackball glyph and the tooltip "Navigator trackpad · settings in Firmware Settings › Navigator" ("Navigator trackball · …" for a trackball). On the editing board the disc is a button, "Navigator settings", that opens a popover with the trackpad driver's most-used settings (On this Mac) and the Navigator's kind and side (On the keyboard), each linking to its full page (ADR 0069); elsewhere it is drawn only, with that tooltip.
 - **Thumbs.** Thumbs and their legends rotate together, as on the hardware. Hit-testing uses a rotated `contentShape`.
 - **Optical centring.** The board is centred horizontally. Vertically, its centre sits at 46% of the board area.
 

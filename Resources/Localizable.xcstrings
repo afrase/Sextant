@@ -118,9 +118,6 @@
     "%@ locked" : {
 
     },
-    "%@ mm" : {
-
-    },
     "%@ ms" : {
 
     },
@@ -165,9 +162,6 @@
       }
     },
     "%@ presses" : {
-
-    },
-    "%@ s" : {
 
     },
     "%@ sends %@." : {
@@ -425,9 +419,6 @@
     "%lld matches" : {
 
     },
-    "%lld mm/s" : {
-
-    },
     "%lld more matches. Turn them on in Firmware Settings." : {
 
     },
@@ -539,9 +530,6 @@
       }
     },
     "%lld/10 · Shown in Sextant only; not sent to the keyboard." : {
-
-    },
-    "%lld°" : {
 
     },
     ", hold %@" : {
@@ -738,6 +726,9 @@
 
     },
     "All layers" : {
+
+    },
+    "Allow in Settings…" : {
 
     },
     "Allowed" : {
@@ -1654,6 +1645,9 @@
     "Firmware Settings ›" : {
 
     },
+    "Firmware Settings…" : {
+
+    },
     "Firmware built" : {
 
     },
@@ -2174,6 +2168,9 @@
     "Keys in this layout" : {
 
     },
+    "Kind, side and auto-mouse are part of this layout’s firmware. Changes apply after Build & Flash." : {
+
+    },
     "Knob" : {
 
     },
@@ -2567,6 +2564,9 @@
     "More" : {
 
     },
+    "More in Settings…" : {
+
+    },
     "Move Down" : {
 
     },
@@ -2628,6 +2628,9 @@
 
     },
     "Navigator knob · settings in Firmware Settings › Navigator" : {
+
+    },
+    "Navigator settings" : {
 
     },
     "Navigator trackball · settings in Firmware Settings › Navigator" : {
@@ -2799,6 +2802,9 @@
 
     },
     "On the keyboard" : {
+
+    },
+    "On this Mac" : {
 
     },
     "On. The keyboard moves when an app with a rule comes forward." : {
@@ -3621,6 +3627,9 @@
     "Sextant missing from the list, or on there but not here? Reset reopens Sextant and asks again." : {
 
     },
+    "Sextant needs your permission first" : {
+
+    },
     "Sextant put the keyboard’s layout in your library." : {
 
     },
@@ -4348,6 +4357,9 @@
     "Use Sextant for the Navigator trackpad" : {
 
     },
+    "Use Sextant for the trackpad" : {
+
+    },
     "Use the Keyboard's Layout" : {
 
     },
@@ -4640,6 +4652,12 @@
     "mixed" : {
 
     },
+    "mm" : {
+
+    },
+    "mm/s" : {
+
+    },
     "ms" : {
 
     },
@@ -4736,6 +4754,9 @@
 
     },
     "runs a different layout" : {
+
+    },
+    "s" : {
 
     },
     "tap-toggle" : {
