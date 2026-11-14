@@ -16,13 +16,15 @@ let package = Package(
     // Pinned community packages (ADR 0018). Exact versions: upgrades are deliberate commits.
     dependencies: [
         .package(url: "https://github.com/apple/swift-async-algorithms", exact: "1.1.7"),
-        .package(url: "https://github.com/swiftlang/swift-subprocess", exact: "1.0.1"),
+        .package(url: "https://github.com/swiftlang/swift-subprocess", exact: "1.0.2"),
         .package(url: "https://github.com/apple/swift-argument-parser", exact: "1.8.2"),
         .package(url: "https://github.com/pointfreeco/swift-clocks", exact: "1.1.1"),
-        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", exact: "1.19.6"),
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", exact: "1.19.7"),
         .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", exact: "0.65.1"),
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", exact: "3.1.0"),
         .package(url: "https://github.com/orchetect/MenuBarExtraAccess", exact: "1.3.1"),
+        // In-app updates: downloads, verifies (EdDSA) and installs a release, then relaunches (ADR 0070).
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.1"),
     ],
     targets: [
         // Domain: pure Swift + Foundation.
@@ -44,7 +46,10 @@ let package = Package(
             ]
         ),
         .target(name: "SextantDevice", dependencies: ["SextantApplication", "SextantDomain"]),
-        .target(name: "SextantUpdates", dependencies: ["SextantApplication", "SextantDomain"]),
+        .target(
+            name: "SextantUpdates",
+            dependencies: ["SextantApplication", "SextantDomain", .product(name: "Sparkle", package: "Sparkle")]
+        ),
         // Posts the Navigator driver's pointer events and reads the Mac's pointer settings (ADR 0068).
         .target(name: "SextantPointer", dependencies: ["SextantApplication", "SextantDomain"]),
 

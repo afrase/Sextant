@@ -1,5 +1,6 @@
 #!/bin/sh
-# Builds Sextant.app from the Swift package (ADR 0011): release build, bundle layout, String Catalog, signing.
+# Builds Sextant.app from the Swift package (ADR 0011): release build, bundle layout, String Catalog, Sparkle.framework
+# (ADR 0070), signing.
 #   SEXTANT_SIGN_IDENTITY  codesign identity ("Developer ID Application: …"); ad-hoc when unset.
 #   SEXTANT_VERSION        CFBundleShortVersionString (default: the newest vX.Y.Z tag, so a local build isn't told that
 #                          release is an update; 0.1.0 without tags).
@@ -16,17 +17,30 @@ swift build -c release --product SextantApp
 bin=$(swift build -c release --show-bin-path)
 app=.build/Sextant.app
 rm -rf "$app"
-mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$app/Contents/Frameworks"
 cp "$bin/SextantApp" "$app/Contents/MacOS/Sextant"
+install_name_tool -add_rpath @executable_path/../Frameworks "$app/Contents/MacOS/Sextant"
+# Sparkle's XPC services are for sandboxed apps; Sextant isn't sandboxed, so they go (fewer binaries to sign).
+ditto "$bin/Sparkle.framework" "$app/Contents/Frameworks/Sparkle.framework"
+rm -rf "$app/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices" "$app/Contents/Frameworks/Sparkle.framework/XPCServices"
 for bundle in "$bin"/*.bundle; do [ -e "$bundle" ] && cp -R "$bundle" "$app/Contents/Resources/"; done
 cp Resources/AppIcon.icns "$app/Contents/Resources/"
 xcrun xcstringstool compile Resources/Localizable.xcstrings --output-directory "$app/Contents/Resources"
 sed -e "s/@VERSION@/$version/" -e "s/@BUILD@/$build/" Resources/Info.plist > "$app/Contents/Info.plist"
 
-# A secure timestamp is required for notarization; ad-hoc builds skip it (no network round trip).
+# A secure timestamp is required for notarization; ad-hoc builds skip it (no network round trip). Ad-hoc builds also
+# turn off library validation, which would refuse an ad-hoc Sparkle.framework (Resources/SextantAdHoc.entitlements).
 ts=--timestamp
-[ "$identity" = "-" ] && ts=--timestamp=none
-codesign --force --deep --options runtime "$ts" \
-    --entitlements Resources/Sextant.entitlements --sign "$identity" "$app"
-codesign --verify --strict "$app"
+entitlements=Resources/Sextant.entitlements
+if [ "$identity" = "-" ]; then
+    ts=--timestamp=none
+    entitlements=Resources/SextantAdHoc.entitlements
+fi
+# Inside out, as Sparkle documents, rather than --deep: its helpers, the framework, then the app.
+sparkle="$app/Contents/Frameworks/Sparkle.framework"
+for code in "$sparkle/Versions/B/Autoupdate" "$sparkle/Versions/B/Updater.app" "$sparkle"; do
+    codesign --force --options runtime "$ts" --sign "$identity" "$code"
+done
+codesign --force --options runtime "$ts" --entitlements "$entitlements" --sign "$identity" "$app"
+codesign --verify --deep --strict "$app"
 echo "Built $app (signed with ${identity})"

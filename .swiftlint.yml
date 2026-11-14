@@ -131,8 +131,8 @@ custom_rules:
   updates_imports:
     name: "Updates imports"
     included: "Sources/SextantUpdates/.*\\.swift"
-    regex: "^import (?!(Foundation|os|SextantApplication|SextantDomain)\\b)\\w+"
-    message: "The updates adapter uses Foundation networking only."
+    regex: "^import (?!(Foundation|os|Sparkle|SextantApplication|SextantDomain)\\b)\\w+"
+    message: "The updates adapter wraps Sparkle (ADR 0070); no UI or device frameworks."
     severity: error
   build_imports:
     name: "Build imports"

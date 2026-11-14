@@ -32,12 +32,12 @@ Arrows are `dependencies:` in `Package.swift`. Nothing depends on `SextantApp`. 
 | Target | Layer | May import | Contents |
 |---|---|---|---|
 | `SextantDomain` | domain | Foundation (+ CoreGraphics value types) | Layout model, Oryx JSON codec, keycode catalog, legends, Voyager board definition and geometry, settings catalog, validation (live issues), diffing, firmware image validation, colour maths |
-| `SextantApplication` | use cases | `SextantDomain`, Foundation, Observation, os | Ports (protocols), use cases (`EditSession`, `Library`, `ImportFromOryx`, `LiveSession`, `OnKeyboard`, `LightingPreview`, `HeatmapRecorder`, `AppLayerSwitcher`, `BuildFlashSession`, `UpdateChecker`), typed errors |
+| `SextantApplication` | use cases | `SextantDomain`, Foundation, Observation, os | Ports (protocols), use cases (`EditSession`, `Library`, `ImportFromOryx`, `LiveSession`, `OnKeyboard`, `LightingPreview`, `HeatmapRecorder`, `AppLayerSwitcher`, `BuildFlashSession`, `SoftwareUpdates`), typed errors |
 | `SextantStorage` | adapter | Application, Domain, Foundation, CryptoKit | `PackageLibrary`: the `.sextant` library in Application Support; `HeatmapFiles`: the Heatmap's hourly counts beside it (ADR 0053) |
 | `SextantOryx` | adapter | Application, Domain, Foundation (URLSession), CryptoKit | `OryxClient`: read-only GraphQL `layout` query, firmware download with md5 check |
 | `SextantBuild` | adapter | Application, Domain, Foundation | `QMKGenerator` (Oryx-equivalent source + source map), `NativeToolchain` with its pinned `ToolchainInstaller` and `sandbox-exec` profile, compiler-diagnostic parser, size parser |
 | `SextantDevice` | adapter | Application, Domain, IOKit, IOUSBHost, CryptoKit, Carbon (secure input) | `IOKitDeviceWatcher`, `RawHIDLink` (Oryx protocol v5), `DFUFlasher` (DfuSe with guards), `SecureInputProbe` |
-| `SextantUpdates` | adapter | Application, Domain, Foundation (URLSession) | `GitHubReleaseFeed`: one unauthenticated GET of the latest GitHub release (ADR 0063) |
+| `SextantUpdates` | adapter | Application, Domain, Foundation, Sparkle | `SparkleUpdater`: Sparkle 2's updater and standard windows over the signed appcast on the repo's `appcast` branch (ADR 0070) |
 | `SextantPointer` | adapter | Application, Domain, CoreGraphics, IOKit | `CGEventPointerOutput`, which posts the Navigator driver's pointer events at the HID level, and `SystemPointerReader`, which reads the Mac's trackpad curves and pointer settings (ADR 0068) |
 | `SextantUI` | driving adapter | Application, Domain, SwiftUI, AppKit, PDFKit (printing) | Views, `@Observable` view models, tokens, `SurfaceStyle`, `SextantMotion`, board, commands, exports and printing |
 | `SextantSnapshots` | dev-tool executable | UI, Application, Storage, SwiftUI, AppKit | Ported PrototypeKit snapshot runner (offscreen, no TCC) and the design-QA scene list |
@@ -113,7 +113,7 @@ All ports are `Sendable` protocols with `async` methods and **typed throws**. Im
 | `Flasher` | `flash(image, md5:, to: BootloaderDevice, board:, progress:)` | `DFUFlasher` (SextantDevice), always wired (ADR 0056) | `FakeFlasher` |
 | `HeatmapStore` | `hours(of: layoutID, from:)`, `add(_ hour, to:)` (one hour, whole or not at all), `prune(before:)`, `clear(_ layoutID?)`: hourly counts by layer id and key index, per layout (ADR 0053) | `HeatmapFiles` (SextantStorage) | `FakeHeatmapStore` |
 | `FrontmostAppWatcher` | `activations() -> AsyncStream<MacApp>` (the frontmost app now, then each that comes forward), `runningApps()`, `app(at: URL)`; a `MacApp` is a bundle id and a name, nothing else (ADR 0054) | `WorkspaceAppWatcher` (SextantApp, NSWorkspace notifications, no TCC) | `FakeFrontmostAppWatcher` |
-| `ReleaseFeed` | `latest() -> AppRelease` (never a draft or pre-release) | `GitHubReleaseFeed` (SextantUpdates, ADR 0063) | `FakeReleaseFeed` |
+| `SoftwareUpdater` | `start(report:)`, `checkForUpdates()`, the two choices, `lastChecked` (main actor) | `SparkleUpdater` (SextantUpdates, ADR 0070) | `FakeUpdater` |
 | `TrackpadLink` | `hasInputAccess()`, `requestInputAccess()` (Input Monitoring), `session() -> AsyncStream<TrackpadEvent>` (attached, frame, detached; opens the digitizer interface, never seizing), `setInputMode(_:on:)` (feature report 4, the only write) (ADR 0068) | `IOHIDTrackpadLink` (SextantDevice) | `FakeTrackpadLink` |
 | `PointerOutput` | `hasAccess()`, `requestAccess()` (Accessibility), `post([PointerIntent])` | `CGEventPointerOutput` (SextantPointer) | `FakePointerOutput` |
 | `SystemPointerSettings` | `current() -> SystemPointerPreferences` (trackpad curves, tracking speed, natural scrolling, double-click interval) | `SystemPointerReader` (SextantPointer) | `FakeSystemPointer` |

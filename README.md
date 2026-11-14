@@ -63,7 +63,7 @@
 brew install --cask afrase/tap/sextant
 ```
 
-Or download the zip from [Releases](https://github.com/afrase/Sextant/releases). Sextant tells you when a newer version is out.
+Or download the zip from [Releases](https://github.com/afrase/Sextant/releases). Sextant updates itself from then on (with [Sparkle](https://sparkle-project.org)), checking each update's signature first.
 
 - **Requirements:** macOS 26 on Apple silicon. Editing works without a keyboard.
 - **Tested on** a Voyager with the STM32 bootloader. Images for the GD32 bootloader are refused, and the Navigator trackball is untested.
@@ -80,7 +80,7 @@ Or download the zip from [Releases](https://github.com/afrase/Sextant/releases).
 ## Privacy
 
 - **No accounts, analytics or telemetry.**
-- **Sextant goes online only** to import from Oryx, to download the build tools on the first build, and once a day to ask GitHub whether a newer Sextant is out. Settings › General turns that check off; GitHub sees your IP address and Sextant's version.
+- **Sextant goes online only** to import from Oryx, to download the build tools on the first build, and once a day to ask GitHub whether a newer Sextant is out (and to download it when you say so). Settings › General turns that check off; GitHub sees your IP address and Sextant's version.
 - **The live view sees key positions, never characters,** and pauses in password fields.
 - **The heatmap is off until you turn it on.** It keeps only hourly counts per key, saved in batches of at least 100 presses, in files only your account can read, and it stays on your Mac.
 

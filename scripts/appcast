@@ -1,0 +1,71 @@
+#!/bin/sh
+# Writes and signs the Sparkle appcast for one release (ADR 0070): a single item for the zip, with the release notes
+# embedded, the zip's EdDSA signature, and the feed's own signature (Info.plist sets SURequireSignedFeed). It refuses a
+# key whose public half isn't the app's SUPublicEDKey, since no copy of Sextant would accept that release.
+#   scripts/appcast <Sextant.app> <Sextant-X.Y.Z.zip> <notes.html> <appcast.xml>
+#   SPARKLE_ED_PRIVATE_KEY  the EdDSA private key (generate_keys -x); passed to sign_update on standard input only.
+#   SEXTANT_REPO            owner/name of the GitHub repo the release is on (default afrase/Sextant).
+# Sparkle's tools come from the package's Sparkle artifact, so `swift build` (or `swift package resolve`) must run first.
+set -eu
+cd "$(dirname "$0")/.."
+[ $# -eq 4 ] || { echo "usage: scripts/appcast <Sextant.app> <zip> <notes.html> <appcast.xml>" >&2; exit 2; }
+app=$1 zip=$2 notes=$3 out=$4
+: "${SPARKLE_ED_PRIVATE_KEY:?SPARKLE_ED_PRIVATE_KEY is not set}"
+repo="${SEXTANT_REPO:-afrase/Sextant}"
+sign_update=.build/artifacts/sparkle/Sparkle/bin/sign_update
+[ -x "$sign_update" ] || { echo "No $sign_update: run swift package resolve first." >&2; exit 1; }
+
+plist="$app/Contents/Info.plist"
+version=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$plist")
+build=$(/usr/libexec/PlistBuddy -c "Print CFBundleVersion" "$plist")
+minimum=$(/usr/libexec/PlistBuddy -c "Print LSMinimumSystemVersion" "$plist")
+public_key=$(/usr/libexec/PlistBuddy -c "Print SUPublicEDKey" "$plist" 2>/dev/null || true)
+[ -n "$public_key" ] || { echo "Info.plist has no SUPublicEDKey: this build couldn't update itself." >&2; exit 1; }
+# Sparkle wants a three-part system version.
+case "$minimum" in *.*.*) ;; *.*) minimum="$minimum.0" ;; *) minimum="$minimum.0.0" ;; esac
+printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$' || { echo "Odd version: $version" >&2; exit 1; }
+printf '%s' "$build" | grep -Eq '^[0-9]+$' || { echo "Odd build number: $build" >&2; exit 1; }
+[ "$(basename "$zip")" = "Sextant-$version.zip" ] || { echo "The zip should be Sextant-$version.zip" >&2; exit 1; }
+
+# 'sparkle:edSignature="…" length="…"'
+enclosure=$(printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | "$sign_update" --ed-key-file - "$zip")
+printf '%s' "$enclosure" | grep -Eq '^sparkle:edSignature="[A-Za-z0-9+/=]+" length="[0-9]+"$' \
+    || { echo "sign_update said something unexpected" >&2; exit 1; }
+signature=$(printf '%s' "$enclosure" | sed 's/^sparkle:edSignature="\([^"]*\)".*/\1/')
+swift scripts/verify-update-signature.swift "$public_key" "$signature" "$zip"
+page="https://github.com/$repo/releases/tag/v$version"
+download="https://github.com/$repo/releases/download/v$version/Sextant-$version.zip"
+date=$(LC_ALL=C date -u '+%a, %d %b %Y %H:%M:%S +0000')
+
+{
+    cat <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Sextant</title>
+    <link>https://github.com/$repo</link>
+    <item>
+      <title>Sextant $version</title>
+      <link>$page</link>
+      <pubDate>$date</pubDate>
+      <sparkle:version>$build</sparkle:version>
+      <sparkle:shortVersionString>$version</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>$minimum</sparkle:minimumSystemVersion>
+      <sparkle:fullReleaseNotesLink>$page</sparkle:fullReleaseNotesLink>
+      <description><![CDATA[
+EOF
+    # A "]]>" in the notes would end the CDATA section early: split it across two sections.
+    sed 's/]]>/]]]]><![CDATA[>/g' "$notes"
+    cat <<EOF
+      ]]></description>
+      <enclosure url="$download" type="application/octet-stream" $enclosure/>
+    </item>
+  </channel>
+</rss>
+EOF
+} > "$out"
+xmllint --noout "$out"
+# Embeds the feed's signature in the file.
+printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | "$sign_update" --ed-key-file - "$out"
+grep -q 'sparkle-signatures' "$out" || { echo "The feed wasn't signed" >&2; exit 1; }
+echo "Wrote $out for Sextant $version (build $build)" >&2

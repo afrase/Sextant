@@ -78,7 +78,7 @@ public struct MenuBarPanelState: Equatable {
     var appLayers: AppLayers?
     /// What Sextant offers while the keyboard runs a layout it doesn't have: [Get Layout] or [Add to Library…] (ADR 0061).
     var keyboardLayout: KeyboardLayoutPrompt?
-    /// A newer Sextant the update check found and the user hasn't dismissed (ADR 0063).
+    /// A newer Sextant a scheduled check found and the user hasn't seen yet (ADR 0070).
     var update: AppVersion?
 
     /// A panel from given values, for snapshots. Layers come from `layout`, or only layer 0 without one, while the
@@ -149,10 +149,10 @@ extension MenuBarPanelState {
     init(
         live: LiveSession, onKeyboard: OnKeyboard, shortcuts: LayerShortcuts?, library: Library, buildTarget: UUID?,
         appLayers switcher: AppLayerSwitcher? = nil, board: BoardDefinition = .voyager, keyboardLayout pull: KeyboardLayoutPull? = nil,
-        updates: UpdateChecker? = nil
+        updates: SoftwareUpdates? = nil
     ) {
         boardName = board.displayName
-        update = updates?.notice?.version
+        update = updates?.notice
         switch live.connection {
         case .noKeyboard: keyboard = .none
         case .bootloader: keyboard = .flashMode

@@ -1,8 +1,9 @@
 name: Release
 
 # Publishing a GitHub release (Draft a new release, pick or create a tag vX.Y.Z, Publish) builds that tag, attaches
-# Sextant-X.Y.Z.zip and its SHA-256 to the release, and updates the cask in afrase/homebrew-tap (ADR 0058). A draft
-# triggers nothing until it is published. Run it by hand to rebuild an existing release's assets.
+# Sextant-X.Y.Z.zip and its SHA-256 to the release, publishes the signed Sparkle appcast on the appcast branch (ADR 0070),
+# and updates the cask in afrase/homebrew-tap (ADR 0058). A draft triggers nothing until it is published. Run it by hand
+# to rebuild an existing release's assets.
 on:
   release:
     types: [published]
@@ -25,14 +26,18 @@ jobs:
     timeout-minutes: 60
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
-      PRERELEASE: ${{ github.event.release.prerelease || false }}
     steps:
+      # A run by hand has no release event, so whether the tag is a pre-release comes from the release itself.
       - name: Check the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
             echo "::error::Release tags look like v1.2.3 or v1.2.3-beta.1"; exit 1
           fi
+          prerelease=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq .isPrerelease)
           echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+          echo "PRERELEASE=$prerelease" >> "$GITHUB_ENV"
 
       # Full history: scripts/bundle numbers the build by its commit count.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -57,10 +62,58 @@ jobs:
           (cd dist && shasum -a 256 "Sextant-$VERSION.zip" > "Sextant-$VERSION.zip.sha256")
           cat "dist/Sextant-$VERSION.zip.sha256"
 
+      # Needs the SPARKLE_ED_PRIVATE_KEY secret: the EdDSA private key whose public half is SUPublicEDKey in Info.plist
+      # (generate_keys -x). Written before anything is published, so a release Sextant couldn't install in-app publishes
+      # nothing. A pre-release gets no appcast and is never offered (ADR 0070).
+      - name: Write the appcast
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          if [ "$PRERELEASE" = "true" ]; then echo "A pre-release; no appcast."; exit 0; fi
+          if [ -z "$SPARKLE_ED_PRIVATE_KEY" ]; then
+            echo "::error::No SPARKLE_ED_PRIVATE_KEY secret; Sextant couldn't update itself to this release."; exit 1
+          fi
+          mkdir -p notes
+          # The notes the user wrote in GitHub's release form, as GitHub renders them, embedded in the signed feed.
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > notes/notes.md
+          gh api markdown -f mode=gfm -f context="$GITHUB_REPOSITORY" -F text=@notes/notes.md > notes/notes.html
+          SEXTANT_REPO="$GITHUB_REPOSITORY" scripts/appcast .build/Sextant.app "dist/Sextant-$VERSION.zip" notes/notes.html dist/appcast.xml
+
       - name: Attach to the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+
+      # Every copy of Sextant reads appcast.xml from the appcast branch, which changes only here, after a release has
+      # built and its zip is attached. A rebuild of an older release leaves a newer feed alone.
+      - name: Publish the update feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$PRERELEASE" = "true" ]; then echo "A pre-release; the feed isn't updated."; exit 0; fi
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          build_of() { sed -n 's/.*<sparkle:version>\([0-9]*\)<\/sparkle:version>.*/\1/p' "$1" 2>/dev/null || true; }
+          new=$(build_of dist/appcast.xml)
+          # Another release's run may push first: then look again from its feed.
+          for attempt in 1 2 3; do
+            rm -rf feed
+            if git ls-remote --exit-code --heads "$remote" appcast > /dev/null; then
+              git clone --quiet --depth 1 --branch appcast "$remote" feed
+            else
+              git init --quiet -b appcast feed
+              git -C feed remote add origin "$remote"
+            fi
+            old=$(build_of feed/appcast.xml)
+            if [ -n "$old" ] && [ "$old" -gt "$new" ]; then echo "The feed already offers build $old; left alone."; exit 0; fi
+            cp dist/appcast.xml feed/appcast.xml
+            git -C feed add appcast.xml
+            git -C feed -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit --quiet --allow-empty -m "Sextant $VERSION"
+            if git -C feed push --quiet origin appcast; then exit 0; fi
+            echo "The push was refused (attempt $attempt); trying again."
+          done
+          echo "::error::Couldn't update the appcast branch."; exit 1
 
       # Needs the HOMEBREW_TAP_TOKEN secret: a fine-grained token with Contents read and write on afrase/homebrew-tap
       # only. Without it, or for a pre-release, the cask is left alone.
