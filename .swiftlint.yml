@@ -146,9 +146,15 @@ custom_rules:
     regex: "^import (?!(Foundation|IOKit|IOUSBHost|CryptoKit|Carbon|Dispatch|Synchronization|os|SextantApplication|SextantDomain)\\b)\\w+"
     message: "The device adapter speaks USB and HID; no UI frameworks."
     severity: error
+  pointer_imports:
+    name: "Pointer imports"
+    included: "Sources/SextantPointer/.*\\.swift"
+    regex: "^import (?!(Foundation|CoreGraphics|ApplicationServices|IOKit|os|SextantApplication|SextantDomain)\\b)\\w+"
+    message: "The pointer adapter posts Quartz events and reads the registry; no UI frameworks."
+    severity: error
   ui_imports:
     name: "UI imports"
     included: "Sources/SextantUI/.*\\.swift"
     regex: "^import (?!(SwiftUI|AppKit|Foundation|Observation|Accessibility|UniformTypeIdentifiers|CoreGraphics|PDFKit|os|MenuBarExtraAccess|SextantApplication|SextantDomain)\\b)\\w+"
-    message: "Views never touch adapters (SextantStorage, SextantOryx, SextantBuild, SextantDevice, SextantUpdates)."
+    message: "Views never touch adapters (SextantStorage, SextantOryx, SextantBuild, SextantDevice, SextantUpdates, SextantPointer)."
     severity: error

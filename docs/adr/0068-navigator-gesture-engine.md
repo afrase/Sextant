@@ -80,3 +80,19 @@ The tuned prototype is `design/navigator-prototype/navproto.swift`.
   - the wake path, and a reconnect from the bootloader;
   - Navigators on both halves;
   - a Magic Trackpad as the curve source.
+
+## Amendment (2026-11-14, while building)
+The prototype's curve was not Apple's: it squared the speed but not the gain (g2·x² for Apple's (g2·x)², research 06, spike 3). The overshoot the user felt came from that, and the 60% softening compensated for it.
+- **The driver evaluates Apple's curve as macOS 26 does,** after `IOHIDEventSystemPlugIns/IOHIDAccelerationAlgorithm.cpp` (same APSL-2.0 file, now citing both sources).
+- **The Navigator's tracking speed defaults to 1.0 instead of following System Settings.** Apple's real curve at 1.0 comes within about 15% of the curve the user approved at every speed. "Follow the Mac" stays a choice.
+- **Fast moves defaults to 100%,** meaning Apple's curve unchanged. The control stays, for anyone who wants to soften long throws.
+
+The user should confirm the new default on the hardware.
+
+## Amendment 2 (2026-11-14, from the first runs in the app)
+The driver worked on the user's Voyager once both permissions were in place: pointer, clicks, right-click and scrolling. Getting the permissions granted took several tries, and each failure became a rule:
+- **Settings › Navigator shows both permissions** while either is missing: what each is for, whether it's allowed, and an Allow… button that asks macOS and opens its pane. The pane checks again every second, so the System Settings switch is the last step.
+- **Accessibility is read with `AXIsProcessTrusted`** as well as `CGPreflightPostEventAccess`. The second keeps its launch-time answer until the app restarts, so alone it left the pane saying "missing" after a grant.
+- **Reset Permissions relaunches Sextant.** It runs `tccutil reset` for Sextant's own bundle id (Input Monitoring and Accessibility only), then reopens the app, and that launch asks once. macOS ignores a second request from a process it has already answered, so asking again without the relaunch lists nothing.
+- **Development builds are signed with a stable identity** (`SEXTANT_SIGN_IDENTITY`, an Apple Development certificate). macOS ties a grant to the build's signature: an ad-hoc build that is rebuilt keeps its switch on in System Settings while the grant no longer applies. Released builds are ad hoc today (ADR 0058), so each update would lose both grants until Reset Permissions; Developer ID signing would remove that, and is the user's call before this ships.
+

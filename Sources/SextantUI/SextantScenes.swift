@@ -52,7 +52,7 @@ public struct SextantScenes: Scene {
             SettingsView(
                 buildToolsStatus: buildToolsStatus, firmwareSource: firmwareSource, trace: services.trace,
                 layerShortcuts: services.layerShortcuts, layerShortcutRecorder: layerShortcutRecorder, heatmap: services.heatmap,
-                overlayHUD: services.overlay, updates: services.updates
+                overlayHUD: services.overlay, updates: services.updates, trackpad: services.trackpad
             )
             .environment(windows)
         }

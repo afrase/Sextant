@@ -45,6 +45,8 @@ let package = Package(
         ),
         .target(name: "SextantDevice", dependencies: ["SextantApplication", "SextantDomain"]),
         .target(name: "SextantUpdates", dependencies: ["SextantApplication", "SextantDomain"]),
+        // Posts the Navigator driver's pointer events and reads the Mac's pointer settings (ADR 0068).
+        .target(name: "SextantPointer", dependencies: ["SextantApplication", "SextantDomain"]),
 
         // Driving adapter (UI).
         .target(
@@ -61,7 +63,7 @@ let package = Package(
             name: "SextantApp",
             dependencies: [
                 "SextantDomain", "SextantApplication", "SextantStorage", "SextantOryx", "SextantBuild", "SextantDevice",
-                "SextantUpdates", "SextantUI",
+                "SextantUpdates", "SextantPointer", "SextantUI",
                 // The global layer shortcuts' adapter and recorder (ADR 0048).
                 .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
             ]
@@ -85,6 +87,7 @@ let package = Package(
         .testTarget(name: "SextantOryxTests", dependencies: ["SextantOryx", "SextantApplication", "SextantDomain"]),
         .testTarget(name: "SextantBuildTests", dependencies: ["SextantBuild", "SextantApplication", "SextantDomain"]),
         .testTarget(name: "SextantUpdatesTests", dependencies: ["SextantUpdates", "SextantApplication", "SextantDomain"]),
+        .testTarget(name: "SextantPointerTests", dependencies: ["SextantPointer", "SextantApplication", "SextantDomain"]),
         .testTarget(
             name: "SextantDeviceTests",
             dependencies: ["SextantDevice", "SextantApplication", "SextantDomain", .product(name: "Clocks", package: "swift-clocks")]

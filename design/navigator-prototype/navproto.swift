@@ -39,7 +39,7 @@ struct Options {
     var tracking: Double?         // System Settings tracking speed (0...3); default: the user's
     var scale = 1.0               // treat the pad as this many times its real size
     var knee = 100.0              // mm/s above which acceleration is softened
-    var top = 0.6                 // share of the curve's extra gain kept above the knee (1 = Apple's)
+    var top = 1.0                 // share of the curve's extra gain kept above the knee (1 = Apple's)
     var holdFrames = 2            // ~13 ms of latency to drop lift-off roll
     var dragWindow = 0.2          // s after a tap in which a touch-and-move drags
     var dragRadius = 4.0          // mm: a drag's second touch must land this close to the tap
@@ -65,7 +65,7 @@ struct Options {
             case "--tracking": tracking = Double(next())
             case "--scale": scale = Double(next()) ?? 1
             case "--knee": knee = Double(next()) ?? 100
-            case "--top": top = Double(next()) ?? 0.6
+            case "--top": top = Double(next()) ?? 1
             case "--hold": holdFrames = Int(next()) ?? 2
             case "--drag-window": dragWindow = Double(next()) ?? 0.2
             case "--drag-lock": dragLock = Double(next()) ?? 0
@@ -178,8 +178,8 @@ struct AppleCurve {
     var tangent = [0.0, 0]          // linear, parabolic-root (inches/s)
     var firstTangent = 0, m0 = 0.0, b0 = 0.0, y1 = 0.0, mRoot = 0.0, bRoot = 0.0
 
-    static func quartic(_ x: Double, _ g: [Double]) -> Double { g[0] * x + g[1] * x * x + g[2] * x * x * x + g[3] * x * x * x * x }
-    static func derivative(_ x: Double, _ g: [Double]) -> Double { g[0] + 2 * g[1] * x + 3 * g[2] * x * x + 4 * g[3] * x * x * x }
+    static func quartic(_ x: Double, _ g: [Double]) -> Double { g[0] * x + pow(g[1] * x, 2) + pow(g[2] * x, 3) + pow(g[3] * x, 4) }
+    static func derivative(_ x: Double, _ g: [Double]) -> Double { g[0] + 2 * x * pow(g[1], 2) + 3 * x * x * pow(g[2], 3) + 4 * pow(x, 3) * pow(g[3], 4) }
 
     /// Reads the built-in or Magic Trackpad's curve set and interpolates it at `desired` (tracking speed).
     init(desired: Double) {
@@ -232,7 +232,8 @@ struct AppleCurve {
     }
 }
 
-let trackingSpeed = opts.tracking ?? (UserDefaults.standard.persistentDomain(forName: UserDefaults.globalDomain)?["com.apple.trackpad.scaling"] as? Double) ?? 0.6875
+// ADR 0068's amendment: the Navigator's own tracking speed, 1.0, unless --tracking says otherwise.
+let trackingSpeed = opts.tracking ?? 1.0
 let appleCurve = AppleCurve(desired: trackingSpeed)
 
 // MARK: - Engine

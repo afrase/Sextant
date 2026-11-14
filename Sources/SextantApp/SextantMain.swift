@@ -7,6 +7,7 @@ import SextantBuild
 import SextantDevice
 import SextantDomain
 import SextantOryx
+import SextantPointer
 import SextantStorage
 import SextantUI
 import SextantUpdates
@@ -33,6 +34,7 @@ struct SextantMain: App {
         appDelegate.lightingPreview = services.lightingPreview
         appDelegate.presence = windows.presence
         appDelegate.heatmap = services.heatmap
+        appDelegate.trackpad = services.trackpad
         services.live.start()
         services.onKeyboard.start()
         // Reads the keyboard's stored layout only over a Live View session the user turned on (ADR 0057, ADR 0061).
@@ -42,6 +44,16 @@ struct SextantMain: App {
         services.overlay.start()
         services.heatmap.start()
         services.appLayers.start()
+        // Resumes driving the Navigator trackpad only if the user left it on; asks for no permission (ADR 0068).
+        Task {
+            // Right after Reset Permissions, this launch asks once; every other launch only checks.
+            if UserDefaults.standard.bool(forKey: Self.asksAtLaunchKey) {
+                UserDefaults.standard.removeObject(forKey: Self.asksAtLaunchKey)
+                await services.trackpad.requestPermissions()
+            } else {
+                await services.trackpad.start()
+            }
+        }
         // Once a day while checking automatically is on (the default), a little after launch (ADR 0063).
         services.updates.start()
         // `--import <oryx.json>`: add an Oryx layout file to the library at launch.
@@ -64,6 +76,37 @@ struct SextantMain: App {
             services: services, windows: windows, buildToolsStatus: { [toolchain] in await toolchain.status() },
             firmwareSource: (ToolchainPins.firmwareCommit, ToolchainPins.modulesCommit),
             layerShortcutRecorder: hotKeys.recorder(for: services.layerShortcuts))
+    }
+
+    /// Set by Reset Permissions: the next launch asks for the Navigator's permissions once.
+    static let asksAtLaunchKey = "navigatorAsksForPermissionsAtLaunch"
+
+    /// Settings › Navigator's Reset Permissions: has macOS forget Sextant's Input Monitoring and Accessibility grants
+    /// (`tccutil reset`, for this app only), then relaunches Sextant, which asks again as it opens. The relaunch is
+    /// needed: macOS ignores a second request from a process it has already answered (ADR 0068).
+    static func clearTrackpadPermissions() async {
+        guard let bundleID = Bundle.main.bundleIdentifier else { return }
+        for service in ["ListenEvent", "Accessibility"] {
+            await run("/usr/bin/tccutil", ["reset", service, bundleID], waits: true)
+        }
+        UserDefaults.standard.set(true, forKey: asksAtLaunchKey)
+        // Opens this copy again once this process has gone, then quits through the normal quit path.
+        let script = #"while kill -0 "$0" 2>/dev/null; do sleep 0.2; done; open "$1""#
+        await run("/bin/sh", ["-c", script, String(ProcessInfo.processInfo.processIdentifier), Bundle.main.bundlePath], waits: false)
+        await MainActor.run { NSApp.terminate(nil) }
+    }
+
+    private static func run(_ path: String, _ arguments: [String], waits: Bool) async {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = arguments
+        await withCheckedContinuation { done in
+            if waits { process.terminationHandler = { _ in done.resume() } }
+            do {
+                try process.run()
+                if !waits { done.resume() }
+            } catch { done.resume() }
+        }
     }
 
     /// Builds every adapter and use case. The real flasher and raw-HID link are always wired: Build & Flash and the live
@@ -100,6 +143,17 @@ struct SextantMain: App {
         let updates = UpdateChecker(
             current: version.flatMap(AppVersion.init), feed: GitHubReleaseFeed(version: version), saved: UpdateSettings.saved(),
             persist: { UpdateSettings.save($0) })
+        // Off until the user turns it on in Settings › Navigator; then the pad's input mode is the only write (ADR 0068).
+        let uptime = ContinuousClock.now
+        let trackpad = TrackpadDriver(
+            link: IOHIDTrackpadLink(board: .voyager), output: CGEventPointerOutput(), system: SystemPointerReader(),
+            clock: ContinuousClock(),
+            now: {
+                let elapsed = uptime.duration(to: .now).components
+                return Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
+            },
+            settings: NavigatorSettingsStore.saved(), save: NavigatorSettingsStore.save,
+            clearPermissions: { await Self.clearTrackpadPermissions() })
         return SextantServices(
             library: library, live: live, trace: trace, onKeyboard: onKeyboard, layerShortcuts: layerShortcuts,
             lightingPreview: LightingPreview(live: live), overlay: OverlayHUD(live: live, onKeyboard: onKeyboard), heatmap: heatmap,
@@ -107,7 +161,7 @@ struct SextantMain: App {
                 watcher: WorkspaceAppWatcher(), onKeyboard: onKeyboard, live: live, store: store,
                 ownBundleID: Bundle.main.bundleIdentifier),
             keyboardLayout: KeyboardLayoutPull(live: live, onKeyboard: onKeyboard, library: library, store: store),
-            updates: updates, installedWithHomebrew: UpdateSettings.installedWithHomebrew(),
+            updates: updates, trackpad: trackpad, installedWithHomebrew: UpdateSettings.installedWithHomebrew(),
             makeImport: { ImportFromOryx(oryx: oryx, library: library) },
             makeBuildFlash: { session in
                 // ADR 0033: the native toolchain, every build sandboxed. Settings › Build says whether a build stores its
@@ -128,6 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var lightingPreview: LightingPreview?
     var presence: AppPresence?
     var heatmap: HeatmapRecorder?
+    var trackpad: TrackpadDriver?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         DeleteMenuItem.showDeleteKey()
@@ -138,6 +193,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [lightingPreview] _ in
             MainActor.assumeIsolated { lightingPreview?.releaseAll() }
         }
+        // The Navigator trackpad lost power while the Mac slept and is in mouse mode again (ADR 0068).
+        _ = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [trackpad] _ in
+            Task { @MainActor in await trackpad?.systemDidWake() }
+        }
+    }
+
+    /// Back in front, perhaps from System Settings after granting a permission: the trackpad driver checks again.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        Task { @MainActor [trackpad] in await trackpad?.refresh() }
     }
 
     /// Opening Sextant again (Finder, Spotlight, the Dock) with no window open: the way back when the menu bar item can't
@@ -157,6 +223,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let quits = await Quitting(library: library, live: live).run(quitAnyway: Self.quitAnyway)
             // Bounded: the write has no timeout. If it runs out, the colors stay until the keyboard is unplugged.
             if quits {
+                // First: a pad left in touchpad mode moves nothing until it's replugged (ADR 0068).
+                await trackpad?.shutDown()
                 lightingPreview?.releaseAll()
                 await live?.releaseLightsAndWait()
                 // After the lights, so a slow disk never keeps them.

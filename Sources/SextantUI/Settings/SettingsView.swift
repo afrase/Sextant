@@ -19,6 +19,8 @@ struct SettingsView: View {
     /// Keyboard's overlay Preview shows on it.
     var overlayHUD: OverlayHUD
     var updates: UpdateChecker?
+    /// Settings › Navigator; none in snapshots.
+    var trackpad: TrackpadDriver?
 
     var body: some View {
         TabView {
@@ -27,6 +29,9 @@ struct SettingsView: View {
                 KeyboardSettings(layerShortcuts: layerShortcuts, recorder: layerShortcutRecorder, overlay: overlayHUD)
             }
             Tab("Build", systemImage: "hammer") { BuildSettings(status: buildToolsStatus, source: firmwareSource) }
+            if let trackpad {
+                Tab("Navigator", systemImage: "hand.point.up.left") { NavigatorSettings(driver: trackpad) }
+            }
             Tab("Privacy", systemImage: "hand.raised") { PrivacySettings(heatmap: heatmap) }
             Tab("Advanced", systemImage: "gearshape.2") { AdvancedSettings(trace: trace) }
         }
@@ -45,6 +50,8 @@ enum SettingsKey {
     static let heatmapRetentionDays = "heatmapRetentionDays"
     /// The Device popover's note about live data, shown at the first connect (spec §12.3).
     static let seenLiveDataNote = "seenLiveDataNote"
+    /// Settings › Navigator's values, as JSON (ADR 0068).
+    static let navigatorTrackpad = "navigatorTrackpad"
 }
 
 public struct GeneralSettings: View {

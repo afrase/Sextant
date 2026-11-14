@@ -118,6 +118,9 @@
     "%@ locked" : {
 
     },
+    "%@ mm" : {
+
+    },
     "%@ ms" : {
 
     },
@@ -162,6 +165,9 @@
       }
     },
     "%@ presses" : {
+
+    },
+    "%@ s" : {
 
     },
     "%@ sends %@." : {
@@ -419,6 +425,9 @@
     "%lld matches" : {
 
     },
+    "%lld mm/s" : {
+
+    },
     "%lld more matches. Turn them on in Firmware Settings." : {
 
     },
@@ -626,6 +635,9 @@
     "A combo takes at most 6 keys" : {
 
     },
+    "A drag starts only when the second touch lands where you tapped, so lifting your finger to reposition never drags. For the steadiest drags, put Left Click on a key and hold it while you move." : {
+
+    },
     "A key types a sequence of up to 24 steps" : {
 
     },
@@ -645,6 +657,9 @@
 
     },
     "A tap dance's tap must be a key" : {
+
+    },
+    "Accessibility" : {
 
     },
     "Action can't run in a tap dance" : {
@@ -717,6 +732,15 @@
 
     },
     "All layers" : {
+
+    },
+    "Allowed" : {
+
+    },
+    "Allow…" : {
+
+    },
+    "And within" : {
 
     },
     "Another Revision" : {
@@ -1375,6 +1399,9 @@
     "Double tap sends %@." : {
 
     },
+    "Double-click speed" : {
+
+    },
     "Download" : {
 
     },
@@ -1388,6 +1415,12 @@
 
     },
     "Downloads come from Arm, the Python project, Homebrew, PyPI and GitHub, each checked against a pinned checksum." : {
+
+    },
+    "Dragging" : {
+
+    },
+    "Driving the Navigator trackpad" : {
 
     },
     "Dual-function" : {
@@ -1522,6 +1555,15 @@
 
     },
     "Failed" : {
+
+    },
+    "Fast" : {
+
+    },
+    "Fast moves" : {
+
+    },
+    "Fast moves start at" : {
 
     },
     "Fast typing may set this combo off by accident." : {
@@ -1708,6 +1750,9 @@
     "Follows the pointer" : {
 
     },
+    "For" : {
+
+    },
     "Found" : {
 
     },
@@ -1726,6 +1771,9 @@
     "Generating source" : {
 
     },
+    "Gentler" : {
+
+    },
     "Get Layout" : {
 
     },
@@ -1733,6 +1781,9 @@
 
     },
     "GitHub sent something Sextant couldn’t read. %@" : {
+
+    },
+    "Glide" : {
 
     },
     "Global (%lld ms)" : {
@@ -1849,6 +1900,9 @@
     "Identity" : {
 
     },
+    "Ignore the fingertip rolling off" : {
+
+    },
     "Image (PNG)…" : {
 
     },
@@ -1909,6 +1963,9 @@
     "Inherits %@" : {
 
     },
+    "Input Monitoring" : {
+
+    },
     "Inspector" : {
 
     },
@@ -1916,6 +1973,12 @@
 
     },
     "Installing the build tools…" : {
+
+    },
+    "Invert horizontal scrolling" : {
+
+    },
+    "Invert vertical scrolling" : {
 
     },
     "Issues" : {
@@ -1930,6 +1993,9 @@
     "Keep Sextant in the menu bar when its windows are closed" : {
 
     },
+    "Keep dragging briefly after you lift" : {
+
+    },
     "Keep pauses" : {
 
     },
@@ -1937,6 +2003,9 @@
 
     },
     "Keep presses for %@?" : {
+
+    },
+    "Keep scrolling after you lift your fingers" : {
 
     },
     "Keep showing" : {
@@ -2126,10 +2195,16 @@
     "Large" : {
 
     },
+    "Larger" : {
+
+    },
     "Last checked %@" : {
 
     },
     "Last switch: %@" : {
+
+    },
+    "Later" : {
 
     },
     "Latest" : {
@@ -2320,7 +2395,13 @@
     "Lens: %@" : {
 
     },
+    "Lets Sextant move the pointer, click and scroll." : {
+
+    },
     "Lets Sextant on your other Macs read the layout from the keyboard over Live View, so they know what it runs. Any app on a Mac the keyboard is plugged into could read it too, macros included. Adds about 1–2 KB to the firmware. Applies from the next Build & Flash." : {
+
+    },
+    "Lets Sextant read your touches." : {
 
     },
     "Lighting" : {
@@ -2368,8 +2449,17 @@
     "Loading revisions…" : {
 
     },
+    "Long" : {
+
+    },
+    "Longest tap" : {
+
+    },
     "M" : {
       "comment" : "Middle finger, under its bar in the finger histogram"
+    },
+    "Mac" : {
+
     },
     "Macro" : {
 
@@ -2421,6 +2511,12 @@
 
     },
     "Makes this revision the layout again and saves that as a new revision. Nothing is lost, and you can undo it." : {
+
+    },
+    "Match the Mac’s double-click speed" : {
+
+    },
+    "Match the Mac’s tracking speed" : {
 
     },
     "Matches the connected keyboard" : {
@@ -2502,6 +2598,9 @@
 
     },
     "Move “%@” to the Trash?" : {
+
+    },
+    "Movement in a tap" : {
 
     },
     "Moves the keyboard to the layer, as a Go to (TO) key does: it also turns off layers turned on by a toggle, a one-shot or the Navigator’s mouse layer. Holding a layer key still works on top." : {
@@ -2619,6 +2718,9 @@
 
     },
     "None — shows the keycode" : {
+
+    },
+    "Not allowed" : {
 
     },
     "Not connected" : {
@@ -2781,6 +2883,9 @@
     "P" : {
       "comment" : "Pinky, under its bar in the finger histogram"
     },
+    "Pad scale" : {
+
+    },
     "Paint %lld Keys" : {
 
     },
@@ -2865,6 +2970,9 @@
     "Paused: the keyboard runs “%@”, whose own rules apply." : {
 
     },
+    "Pointer" : {
+
+    },
     "Position" : {
 
     },
@@ -2930,6 +3038,9 @@
 
     },
     "QMK Source (.zip)…" : {
+
+    },
+    "Quick" : {
 
     },
     "Quit Anyway" : {
@@ -3008,6 +3119,9 @@
 
     },
     "Regular" : {
+
+    },
+    "Relaxed" : {
 
     },
     "Release Notes" : {
@@ -3104,6 +3218,9 @@
     "Reset Firmware Settings" : {
 
     },
+    "Reset Permissions" : {
+
+    },
     "Reset all warnings" : {
 
     },
@@ -3111,6 +3228,9 @@
 
     },
     "Reset to Default" : {
+
+    },
+    "Reset to Defaults" : {
 
     },
     "Restore Revision" : {
@@ -3217,6 +3337,15 @@
 
     },
     "Saved in Sextant" : {
+
+    },
+    "Scroll speed" : {
+
+    },
+    "Scroll with two fingers. The direction follows System Settings’ natural scrolling; inverting flips one direction from that. Glide is how long scrolling takes to lose half its speed." : {
+
+    },
+    "Scrolling" : {
 
     },
     "Search" : {
@@ -3402,6 +3531,9 @@
     "Sextant can’t map that key. Try another." : {
 
     },
+    "Sextant can’t read the trackpad. Turn on Sextant in System Settings › Privacy & Security › Input Monitoring." : {
+
+    },
     "Sextant checks the layout before every build, and a revision can’t be changed. Restore it, fix these keys, then build and flash it." : {
 
     },
@@ -3453,6 +3585,9 @@
     "Sextant couldn’t save: %@" : {
 
     },
+    "Sextant couldn’t talk to the Navigator trackpad. %@" : {
+
+    },
     "Sextant counts presses per key position and layer changes, by the hour, while Live View is on and the keyboard runs a layout in your library. It never records the characters you type or the order of keys, and pauses while a password field has focus. The counts stay on this Mac." : {
 
     },
@@ -3471,6 +3606,9 @@
     "Sextant is up to date." : {
 
     },
+    "Sextant missing from the list, or on there but not here? Reset reopens Sextant and asks again." : {
+
+    },
     "Sextant put the keyboard’s layout in your library." : {
 
     },
@@ -3487,6 +3625,9 @@
 
     },
     "Sextant shows the keyboard’s layer and the keys you hold as they happen. The heatmap saves counts of presses per key and of layer changes, by the hour, and keeps them for %@." : {
+
+    },
+    "Sextant switches the trackpad to touchpad mode and turns your touches into pointer moves, clicks and scrolling. Quit ZSA’s Navigator app while it does. Turning this off, or quitting Sextant, gives the trackpad back its own mouse mode." : {
 
     },
     "Sextant won't flash this image: %@" : {
@@ -3526,6 +3667,9 @@
 
     },
     "Sextant: the layout is too large to store in the firmware, so this build doesn’t store it." : {
+
+    },
+    "Short" : {
 
     },
     "Show All Settings" : {
@@ -3621,10 +3765,19 @@
     "Slots" : {
 
     },
+    "Slow" : {
+
+    },
     "Small" : {
 
     },
+    "Smaller" : {
+
+    },
     "Software Update" : {
+
+    },
+    "Sooner" : {
 
     },
     "Source" : {
@@ -3699,6 +3852,9 @@
     "Store the layout in the firmware" : {
 
     },
+    "Strict" : {
+
+    },
     "Suggested" : {
 
     },
@@ -3741,13 +3897,25 @@
     "Tap then hold sends %@." : {
 
     },
+    "Tap to click" : {
+
+    },
     "Tap twice quickly to send another key" : {
+
+    },
+    "Tap with two fingers to right-click" : {
 
     },
     "Tap, then hold, for a modifier or a layer." : {
 
     },
+    "Tap, then touch and move to drag" : {
+
+    },
     "Tap-toggle" : {
+
+    },
+    "Tapping" : {
 
     },
     "Tapping term" : {
@@ -3765,6 +3933,9 @@
           }
         }
       }
+    },
+    "The Navigator trackpad isn’t connected." : {
+
     },
     "The QMK source couldn’t be zipped. %@" : {
 
@@ -3928,6 +4099,12 @@
     "The newest Sextant is %@" : {
 
     },
+    "The pointer follows macOS’s own trackpad acceleration. The Navigator is small, so it starts one step faster than the Mac’s default. Lower Fast moves if long moves overshoot." : {
+
+    },
+    "The trackpad has no button to press: a short, still touch is a click." : {
+
+    },
     "The trackpad or trackball module on your keyboard, if any." : {
 
     },
@@ -4039,7 +4216,13 @@
     "Top Right" : {
 
     },
+    "Touch again within" : {
+
+    },
     "Trackball" : {
+
+    },
+    "Tracking speed" : {
 
     },
     "Trackpad" : {
@@ -4153,6 +4336,9 @@
     "Use Oryx's build when the layout is unchanged since import" : {
 
     },
+    "Use Sextant for the Navigator trackpad" : {
+
+    },
     "Use the Keyboard's Layout" : {
 
     },
@@ -4184,6 +4370,9 @@
 
     },
     "Waiting for Live View to connect to the keyboard." : {
+
+    },
+    "Waiting for a Navigator trackpad" : {
 
     },
     "Waiting for flash mode" : {
