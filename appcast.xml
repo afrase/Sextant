@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><!-- sparkle-sign-warning:
+IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
+--><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+  <channel>
+    <title>Sextant</title>
+    <link>https://github.com/afrase/Sextant</link>
+    <item>
+      <title>Sextant 0.7.0</title>
+      <link>https://github.com/afrase/Sextant/releases/tag/v0.7.0</link>
+      <pubDate>Sat, 14 Nov 2026 07:25:29 +0000</pubDate>
+      <sparkle:version>315</sparkle:version>
+      <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0.0</sparkle:minimumSystemVersion>
+      <sparkle:fullReleaseNotesLink>https://github.com/afrase/Sextant/releases/tag/v0.7.0</sparkle:fullReleaseNotesLink>
+      <description><![CDATA[
+<h2 dir="auto">What's Changed</h2>
+<ul dir="auto">
+<li>In-app updates with Sparkle (ADR 0070) by <a class="user-mention notranslate" data-hovercard-type="user" data-hovercard-url="/users/afrase/hovercard" data-octo-click="hovercard-link-click" data-octo-dimensions="link_type:self" href="https://github.com/afrase">@afrase</a> in <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="6386549220" data-permission-text="Title is private" data-url="https://github.com/afrase/Sextant/issues/11" data-hovercard-type="pull_request" data-hovercard-url="/afrase/Sextant/pull/11/hovercard" href="https://github.com/afrase/Sextant/pull/11">#11</a></li>
+</ul>
+<p dir="auto"><strong>Full Changelog</strong>: <a class="commit-link" href="https://github.com/afrase/Sextant/compare/v0.6.0...v0.7.0"><tt>v0.6.0...v0.7.0</tt></a></p>      ]]></description>
+      <enclosure url="https://github.com/afrase/Sextant/releases/download/v0.7.0/Sextant-0.7.0.zip" type="application/octet-stream" sparkle:edSignature="F5AariPX2/rK6lfh1aUWXqWs9gu534v+1BPGdz4tWiYpMBUlaLM4CI8uX0V11BUD0R8ptl8rElwu+W5q5MNyBw==" length="8391504"></enclosure>
+    </item>
+  </channel>
+</rss><!-- sparkle-signatures:
+edSignature: 8lpU/OmczaM9uyHR3X44VJkf6I81x8NkVitIyJPcuZBzhsknZJvqK+QmYuzqAyusoblm6auElIpCpgmgNRRsBA==
+length: 2157
+-->
