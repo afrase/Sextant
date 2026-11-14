@@ -54,6 +54,7 @@ struct TrackpadSettingsTests {
     @Test func clampingHoldsEveryValueToItsRange() {
         var settings = TrackpadSettings()
         settings.pointer.trackingSpeed = 40
+        settings.rotation = 720
         settings.pointer.fastMoves = -1
         settings.pointer.padScale = 0
         settings.scrolling.momentumHalfLife = 0
@@ -67,6 +68,7 @@ struct TrackpadSettingsTests {
         settings.dragging.window = 0
         let clamped = settings.clamped
         #expect(clamped.pointer.trackingSpeed == 3)
+        #expect(clamped.rotation == 180)
         #expect(clamped.pointer.fastMoves == 0)
         #expect(clamped.pointer.padScale == 0.5)
         #expect(clamped.scrolling.momentumHalfLife == 50)

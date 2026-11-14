@@ -173,6 +173,12 @@ public struct GestureEngine: Sendable {
             mx /= shared
             my /= shared
             travel += hypot(mx, my)
+            // A pad mounted at an angle: turn the motion back so the user's "up" is up. Distances don't change, so taps,
+            // the drag radius and the settle are unaffected.
+            let angle = configuration.settings.rotation * .pi / 180
+            if angle != 0 {
+                (mx, my) = (mx * cos(angle) - my * sin(angle), mx * sin(angle) + my * cos(angle))
+            }
         }
         previous = now
 

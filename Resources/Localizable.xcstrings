@@ -541,6 +541,9 @@
     "%lld/10 · Shown in Sextant only; not sent to the keyboard." : {
 
     },
+    "%lld°" : {
+
+    },
     ", hold %@" : {
 
     },
@@ -612,6 +615,9 @@
 
     },
     "1 year" : {
+
+    },
+    "180°" : {
 
     },
     "24 h" : {
@@ -1900,6 +1906,9 @@
     "Identity" : {
 
     },
+    "If the pointer moves at an angle to your finger, turn Pad rotation until straight up on the pad is straight up on screen; it applies to scrolling too. The pointer follows macOS’s own trackpad acceleration. The Navigator is small, so it starts one step faster than the Mac’s default. Lower Fast moves if long moves overshoot." : {
+
+    },
     "Ignore the fingertip rolling off" : {
 
     },
@@ -2882,6 +2891,9 @@
     },
     "P" : {
       "comment" : "Pinky, under its bar in the finger histogram"
+    },
+    "Pad rotation" : {
+
     },
     "Pad scale" : {
 
@@ -4099,9 +4111,6 @@
     "The newest Sextant is %@" : {
 
     },
-    "The pointer follows macOS’s own trackpad acceleration. The Navigator is small, so it starts one step faster than the Mac’s default. Lower Fast moves if long moves overshoot." : {
-
-    },
     "The trackpad has no button to press: a short, still touch is a click." : {
 
     },
@@ -4777,6 +4786,9 @@
 
     },
     "↑↓ move · ⏎ run · esc close" : {
+
+    },
+    "−180°" : {
 
     },
     "⏎ assign · esc close" : {

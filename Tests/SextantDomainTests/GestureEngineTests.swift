@@ -205,6 +205,31 @@ struct GestureEngineTests {
         #expect(pad.moves.reduce(0) { $0 + $1.dx } < 200)
     }
 
+    @Test func rotationTurnsMovesAndScrolls() {
+        var settings = TrackpadSettings(isEnabled: true)
+        settings.rotation = 90  // the pad is turned a quarter clockwise: its "right" is the user's "down"
+        var pad = Pad(settings)
+        pad.stroke(from: (500, 1000), to: (1500, 1000), reports: 40)
+        #expect(pad.moves.reduce(0) { $0 + $1.dy } > 100)
+        #expect(pad.moves.allSatisfy { abs($0.dx) < 1e-6 })
+        var scroller = Pad(settings)
+        scroller.twoFingers(from: (400, 600), to: (1400, 600), reports: 25)
+        let changed = scroller.scrolls.filter { $0.phase == .changed }
+        #expect(changed.reduce(0) { $0 + $1.dy } > 0)
+        #expect(changed.allSatisfy { abs($0.dx) < 1e-6 })
+    }
+
+    @Test func rotationLeavesTapsAndDragsAlone() {
+        var settings = TrackpadSettings(isEnabled: true)
+        settings.rotation = -135
+        var pad = Pad(settings)
+        pad.tap(at: (1000, 1000))
+        pad.wait(0.05)
+        pad.stroke(from: (1010, 1000), to: (1600, 1000), reports: 30)
+        #expect(pad.buttons.count == 4)  // click, then drag down and up
+        #expect(pad.moves.contains { $0.dragging })
+    }
+
     // MARK: Dragging
 
     @Test func tapThenTouchWhereYouTappedDrags() {

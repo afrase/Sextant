@@ -94,9 +94,10 @@ public final class TrackpadDriver {
         Task { await serially { await $0.runner.configure(Self.configuration($0.settings, $0.systemPreferences)) } }
     }
 
-    /// Every setting back to its default; the switch stays as it is.
+    /// Every setting back to its default. The switch stays as it is, and so does the pad's rotation: that's how the
+    /// pad is mounted, not a preference.
     public func resetToDefaults() {
-        update { $0 = TrackpadSettings() }
+        update { $0 = TrackpadSettings(rotation: $0.rotation) }
     }
 
     /// Re-reads the permissions and the Mac's pointer settings: when Sextant comes forward and Settings opens. Starts

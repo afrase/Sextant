@@ -9,16 +9,23 @@ public struct TrackpadSettings: Hashable, Sendable, Codable {
     /// "Use Sextant for the Navigator trackpad". Off until the user turns it on: that is the consent to set the pad's
     /// input mode whenever it connects or the Mac wakes (ADR 0068).
     public var isEnabled: Bool
+    /// How far the pad is turned clockwise from upright, in degrees (-180...180). The Navigator mounts at whatever
+    /// angle suits the hand; pointer moves and scrolls are turned back by this much, so "up" on screen is up for the
+    /// user.
+    public var rotation: Double
+    public static let rotationRange = -180.0...180.0
     public var pointer: Pointer
     public var scrolling: Scrolling
     public var tapping: Tapping
     public var dragging: Dragging
 
     public init(
-        isEnabled: Bool = false, pointer: Pointer = .init(), scrolling: Scrolling = .init(), tapping: Tapping = .init(),
+        isEnabled: Bool = false, rotation: Double = 0, pointer: Pointer = .init(), scrolling: Scrolling = .init(),
+        tapping: Tapping = .init(),
         dragging: Dragging = .init()
     ) {
         self.isEnabled = isEnabled
+        self.rotation = rotation
         self.pointer = pointer
         self.scrolling = scrolling
         self.tapping = tapping
@@ -137,6 +144,7 @@ public struct TrackpadSettings: Hashable, Sendable, Codable {
     /// Every value held to its range, so a hand-edited or damaged file can't make the engine misbehave.
     public var clamped: Self {
         var copy = self
+        copy.rotation = rotation.clamped(to: Self.rotationRange)
         copy.pointer.trackingSpeed = pointer.trackingSpeed.map { $0.clamped(to: Pointer.trackingSpeedRange) }
         copy.pointer.fastMoves = pointer.fastMoves.clamped(to: Pointer.fastMovesRange)
         copy.pointer.fastMoveThreshold = pointer.fastMoveThreshold.clamped(to: Pointer.fastMoveThresholdRange)
@@ -156,12 +164,13 @@ public struct TrackpadSettings: Hashable, Sendable, Codable {
 // MARK: - Decoding with defaults
 
 extension TrackpadSettings {
-    private enum CodingKeys: String, CodingKey { case isEnabled, pointer, scrolling, tapping, dragging }
+    private enum CodingKeys: String, CodingKey { case isEnabled, rotation, pointer, scrolling, tapping, dragging }
 
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = TrackpadSettings()
         isEnabled = c.lenient(Bool.self, .isEnabled) ?? d.isEnabled
+        rotation = c.lenient(Double.self, .rotation) ?? d.rotation
         pointer = c.lenient(Pointer.self, .pointer) ?? d.pointer
         scrolling = c.lenient(Scrolling.self, .scrolling) ?? d.scrolling
         tapping = c.lenient(Tapping.self, .tapping) ?? d.tapping

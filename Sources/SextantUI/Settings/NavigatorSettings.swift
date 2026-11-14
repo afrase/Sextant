@@ -156,6 +156,10 @@ private struct PointerSection: View {
                 }
             }
             ValueSlider(
+                title: "Pad rotation", value: driver.settings.rotation, range: TrackpadSettings.rotationRange, step: 1,
+                low: "−180°", high: "180°", text: String(localized: "\(Int(driver.settings.rotation))°")
+            ) { value in driver.update { $0.rotation = value } }
+            ValueSlider(
                 title: "Fast moves", value: pointer.fastMoves, range: TrackpadSettings.Pointer.fastMovesRange, step: 0.05,
                 low: "Gentler", high: "Mac", text: (pointer.fastMoves).formatted(.percent.precision(.fractionLength(0)))
             ) { value in driver.update { $0.pointer.fastMoves = value } }
@@ -178,6 +182,8 @@ private struct PointerSection: View {
         } footer: {
             Text(
                 """
+                If the pointer moves at an angle to your finger, turn Pad rotation until straight up on the pad is \
+                straight up on screen; it applies to scrolling too. \
                 The pointer follows macOS’s own trackpad acceleration. The Navigator is small, so it starts one step \
                 faster than the Mac’s default. Lower Fast moves if long moves overshoot.
                 """
