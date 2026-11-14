@@ -19,16 +19,29 @@ struct SettingsView: View {
     /// Keyboard's overlay Preview shows on it.
     var overlayHUD: OverlayHUD
     var updates: UpdateChecker?
+    /// Settings › Navigator; none in snapshots.
+    var trackpad: TrackpadDriver?
+
+    /// The panes, so another window can open Settings on one (the board's Navigator popover).
+    enum Pane: String { case general, keyboard, build, navigator, privacy, advanced }
+
+    @AppStorage(SettingsKey.settingsPane) private var pane = Pane.general
+
+    /// Makes `pane` the one Settings shows, now or when it next opens.
+    static func select(_ pane: Pane) { UserDefaults.standard.set(pane.rawValue, forKey: SettingsKey.settingsPane) }
 
     var body: some View {
-        TabView {
-            Tab("General", systemImage: "gearshape") { GeneralSettings(updates: updates) }
-            Tab("Keyboard", systemImage: "keyboard") {
+        TabView(selection: $pane) {
+            Tab("General", systemImage: "gearshape", value: Pane.general) { GeneralSettings(updates: updates) }
+            Tab("Keyboard", systemImage: "keyboard", value: Pane.keyboard) {
                 KeyboardSettings(layerShortcuts: layerShortcuts, recorder: layerShortcutRecorder, overlay: overlayHUD)
             }
-            Tab("Build", systemImage: "hammer") { BuildSettings(status: buildToolsStatus, source: firmwareSource) }
-            Tab("Privacy", systemImage: "hand.raised") { PrivacySettings(heatmap: heatmap) }
-            Tab("Advanced", systemImage: "gearshape.2") { AdvancedSettings(trace: trace) }
+            Tab("Build", systemImage: "hammer", value: Pane.build) { BuildSettings(status: buildToolsStatus, source: firmwareSource) }
+            if let trackpad {
+                Tab("Navigator", systemImage: "hand.point.up.left", value: Pane.navigator) { NavigatorSettings(driver: trackpad) }
+            }
+            Tab("Privacy", systemImage: "hand.raised", value: Pane.privacy) { PrivacySettings(heatmap: heatmap) }
+            Tab("Advanced", systemImage: "gearshape.2", value: Pane.advanced) { AdvancedSettings(trace: trace) }
         }
         .frame(width: 520)
     }
@@ -45,6 +58,10 @@ enum SettingsKey {
     static let heatmapRetentionDays = "heatmapRetentionDays"
     /// The Device popover's note about live data, shown at the first connect (spec §12.3).
     static let seenLiveDataNote = "seenLiveDataNote"
+    /// Settings › Navigator's values, as JSON (ADR 0068).
+    static let navigatorTrackpad = "navigatorTrackpad"
+    /// The Settings pane last shown, or asked for by another window.
+    static let settingsPane = "settingsPane"
 }
 
 public struct GeneralSettings: View {
